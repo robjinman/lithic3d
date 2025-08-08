@@ -2,7 +2,6 @@
 #include "utils.hpp"
 #include "exception.hpp"
 #include "file_system.hpp"
-#include "gltf.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <fstream>

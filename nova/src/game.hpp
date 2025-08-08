@@ -1,6 +1,7 @@
 #pragma once
 
 #include "player.hpp"
+#include "math.hpp"
 #include <memory>
 
 enum class KeyboardKey
@@ -57,8 +58,6 @@ class Game
 using GamePtr = std::unique_ptr<Game>;
 
 class RenderSystem;
-class CollisionSystem;
 class Logger;
 
-GamePtr createGame(PlayerPtr player, RenderSystem& renderSystem, CollisionSystem& collisionSystem,
-  Logger& logger);
+GamePtr createGame(PlayerPtr player, RenderSystem& renderSystem, Logger& logger);
