@@ -1,0 +1,48 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+layout.buildDirectory.set(file("$rootDir/../../build/android/gradle_output"))
+
+android {
+    namespace 'io.deadbeef.nova'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "io.deadbeef.nova"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            externalNativeBuild {
+                cmake {
+                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
+                    targets "nova"
+                }
+            }
+        }
+        release {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
+                    targets "nova"
+                }
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory "$rootDir/../../build/android/cxx"
+            path file('../../../CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+
+    assetPacks = [":data"]
+}

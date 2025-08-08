@@ -1,0 +1,377 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "linux-default",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/linux/debug",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/default/vcpkg",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/linux/vcpkg_installed",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-debug",
+      "inherits": "linux-default",
+      "binaryDir": "${sourceDir}/build/linux/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-release",
+      "inherits": "linux-default",
+      "binaryDir": "${sourceDir}/build/linux/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-cpuprof",
+      "inherits": "linux-default",
+      "binaryDir": "${sourceDir}/build/linux/cpuprof",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CPU_PROFILE": "TRUE"
+      }
+    },
+    {
+      "name": "android-default",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/android/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ANDROID_BUILD": "TRUE"
+      }
+    },
+    {
+      "name": "android-debug",
+      "inherits": "android-default",
+      "binaryDir": "${sourceDir}/build/android/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "android-release",
+      "inherits": "android-default",
+      "binaryDir": "${sourceDir}/build/android/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "osx-default",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/osx/debug",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/default/vcpkg",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/osx/vcpkg_installed",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/osx/release/package",
+        "CMAKE_MACOSX_RPATH": true,
+        "CMAKE_INSTALL_RPATH": "/usr/local/lib"
+      }
+    },
+    {
+      "name": "osx-debug",
+      "inherits": "osx-default",
+      "binaryDir": "${sourceDir}/build/osx/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "osx-release",
+      "inherits": "osx-default",
+      "binaryDir": "${sourceDir}/build/osx/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ios-default",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/ios/debug",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/ios/vcpkg",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/ios/vcpkg_installed",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/ios/release/package"
+      }
+    },
+    {
+      "name": "ios-debug",
+      "inherits": "ios-default",
+      "binaryDir": "${sourceDir}/build/ios/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ios-release",
+      "inherits": "ios-default",
+      "binaryDir": "${sourceDir}/build/ios/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "windows-default",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/windows/debug",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/platform/default/vcpkg",
+        "X_VCPKG_APPLOCAL_DEPS_INSTALL": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/windows/vcpkg_installed",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "windows-debug",
+      "inherits": "windows-default",
+      "binaryDir": "${sourceDir}/build/windows/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "windows-release",
+      "inherits": "windows-default",
+      "binaryDir": "${sourceDir}/build/windows/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release"
+    },
+    {
+      "name": "linux-cpuprof",
+      "configurePreset": "linux-cpuprof"
+    },
+    {
+      "name": "android-debug",
+      "configurePreset": "android-debug"
+    },
+    {
+      "name": "android-release",
+      "configurePreset": "android-release"
+    },
+    {
+      "name": "osx-debug",
+      "configurePreset": "osx-debug"
+    },
+    {
+      "name": "osx-release",
+      "configurePreset": "osx-release"
+    },
+    {
+      "name": "ios-debug",
+      "configurePreset": "ios-debug"
+    },
+    {
+      "name": "ios-release",
+      "configurePreset": "ios-release"
+    },
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "configuration": "Release"
+    }
+  ],
+  "packagePresets": [
+    {
+      "name": "linux-zip",
+      "configurePreset": "linux-release",
+      "generators": ["ZIP"]
+    },
+    {
+      "name": "windows-zip",
+      "configurePreset": "windows-release",
+      "generators": ["ZIP"]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "description": "Linux debug build",
+      "name": "linux-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "linux-debug"
+        },
+        {
+          "type": "build",
+          "name": "linux-debug"
+        }
+      ]
+    },
+    {
+      "description": "Linux release build",
+      "name": "linux-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "linux-release"
+        },
+        {
+          "type": "build",
+          "name": "linux-release"
+        },
+        {
+          "type": "package",
+          "name": "linux-zip"
+        }
+      ]
+    },
+    {
+      "description": "Linux cpu profiling build",
+      "name": "linux-cpuprof",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "linux-cpuprof"
+        },
+        {
+          "type": "build",
+          "name": "linux-cpuprof"
+        }
+      ]
+    },
+    {
+      "description": "Android debug build",
+      "name": "android-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-debug"
+        },
+        {
+          "type": "build",
+          "name": "android-debug"
+        }
+      ]
+    },
+    {
+      "description": "Android release build",
+      "name": "android-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "android-release"
+        },
+        {
+          "type": "build",
+          "name": "android-release"
+        }
+      ]
+    },
+    {
+      "description": "OS X debug build",
+      "name": "osx-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "osx-debug"
+        },
+        {
+          "type": "build",
+          "name": "osx-debug"
+        }
+      ]
+    },
+    {
+      "description": "OS X release build",
+      "name": "osx-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "osx-release"
+        },
+        {
+          "type": "build",
+          "name": "osx-release"
+        }
+      ]
+    },
+    {
+      "description": "iOS debug build",
+      "name": "ios-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ios-debug"
+        },
+        {
+          "type": "build",
+          "name": "ios-debug"
+        }
+      ]
+    },
+    {
+      "description": "iOS release build",
+      "name": "ios-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ios-release"
+        },
+        {
+          "type": "build",
+          "name": "ios-release"
+        }
+      ]
+    },
+    {
+      "description": "Windows debug build",
+      "name": "windows-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "windows-debug"
+        },
+        {
+          "type": "build",
+          "name": "windows-debug"
+        }
+      ]
+    },
+    {
+      "description": "Windows release build",
+      "name": "windows-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "windows-release"
+        },
+        {
+          "type": "build",
+          "name": "windows-release"
+        },
+        {
+          "type": "package",
+          "name": "windows-zip"
+        }
+      ]
+    }
+  ]
+}

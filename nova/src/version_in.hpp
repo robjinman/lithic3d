@@ -1,0 +1,5 @@
+#define Nova_VERSION_MAJOR @VERSION_MAJOR@
+#define Nova_VERSION_MINOR @VERSION_MINOR@
+
+#define STRINGIFY(x) #x
+#define TO_STRING(x) STRINGIFY(x)
