@@ -1,6 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#include "common.glsl"
+
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
 layout(location = 0) in vec2 inTexCoord;
 #endif

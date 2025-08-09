@@ -187,6 +187,24 @@ VkPipelineDepthStencilStateCreateInfo defaultDepthStencilState()
   };
 }
 
+VkPipelineDepthStencilStateCreateInfo disabledDepthStencilState()
+{
+  return VkPipelineDepthStencilStateCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .depthTestEnable = VK_FALSE,
+    .depthWriteEnable = VK_FALSE,
+    .depthCompareOp = VK_COMPARE_OP_LESS,
+    .depthBoundsTestEnable = VK_FALSE,
+    .stencilTestEnable = VK_FALSE,
+    .front = {},
+    .back = {},
+    .minDepthBounds = 0.f,
+    .maxDepthBounds = 1.f
+  };
+}
+
 class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
 {
   public:
@@ -414,7 +432,9 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
-  m_depthStencilStateInfo = defaultDepthStencilState();
+  m_depthStencilStateInfo = m_renderPass == RenderPass::Overlay ?
+    disabledDepthStencilState() :
+    defaultDepthStencilState();
 
   m_descriptorSetLayouts = {
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),
@@ -465,6 +485,17 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
         .colorAttachmentCount = 0,
         .pColorAttachmentFormats = nullptr,
         .depthAttachmentFormat = depthFormat,
+        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
+      };
+      break;
+    case RenderPass::Overlay:
+      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .pNext = nullptr,
+        .viewMask = 0,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &m_swapchainImageFormat,
+        .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
         .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
       };
       break;
@@ -592,25 +623,32 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     defines.push_back("ATTR_MODEL_MATRIX");
   }
+
   if (meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
     defines.push_back("FEATURE_VERTEX_SKINNING");
   }
+
   if (renderPass == RenderPass::Shadow) {
     defines.push_back("RENDER_PASS_SHADOW");
     defines.push_back("FRAG_MAIN_DEPTH");
   }
   else {
-    defines.push_back("FEATURE_LIGHTING");
     defines.push_back("FEATURE_MATERIALS");
 
-    if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
-      defines.push_back("VERT_MAIN_PASSTHROUGH");
-      defines.push_back("FRAG_MAIN_SKYBOX");
+    if (renderPass == RenderPass::Main) {
+      defines.push_back("FEATURE_LIGHTING");
+
+      if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+        defines.push_back("VERT_MAIN_PASSTHROUGH");
+        defines.push_back("FRAG_MAIN_SKYBOX");
+      }
     }
+
     if (materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
       assert(meshFeatures.flags.test(MeshFeatures::HasTangents));
       defines.push_back("FEATURE_NORMAL_MAPPING");
     }
+
     if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
       defines.push_back("FEATURE_TEXTURE_MAPPING");
     }

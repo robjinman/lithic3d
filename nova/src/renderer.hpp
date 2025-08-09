@@ -18,7 +18,8 @@ enum class RenderPass
 {
   Shadow,
   Main,
-  Ssr
+  Ssr,
+  Overlay
 };
 
 class Renderer

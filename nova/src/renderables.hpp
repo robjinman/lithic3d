@@ -89,7 +89,8 @@ enum Enum : uint64_t
   IsSkybox,
   IsAnimated,
   HasTangents,
-  CastsShadow
+  CastsShadow,
+  Is2d
 };
 using Flags = std::bitset<32>;
 }

@@ -8,8 +8,11 @@ void main()
   vec3 normal = normalize(inNormal);
 #endif
 
-  // TODO: if FEATURE_LIGHTING
+#ifdef FEATURE_LIGHTING
   vec3 light = computeLight(inWorldPos, normal);
+#else
+  vec3 light = vec3(1, 1, 1);
+#endif
 
 #ifdef FEATURE_TEXTURE_MAPPING
   vec4 texel = computeTexel(inTexCoord);

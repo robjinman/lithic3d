@@ -1,5 +1,3 @@
-#include "common.glsl"
-
 #define MAX_LIGHTS 8
 
 struct Light

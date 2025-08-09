@@ -16,6 +16,8 @@ class Component
     virtual ~Component() = 0;
 
   protected:
+    // TODO: Remove this?
+    // In each system, the entity's ID is the component's position in the sparse array
     EntityId m_id;
 };
 

@@ -1,6 +1,6 @@
 #include "system.hpp"
 
-EntityId System::m_nextId = 0;
+EntityId System::m_nextId = 1;
 std::set<EntityId> System::m_reservedIds;
 
 EntityId System::nextId()

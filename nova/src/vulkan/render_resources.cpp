@@ -682,6 +682,7 @@ VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass rende
     case RenderPass::Main: return m_mainPassDescriptorSets[currentFrame];
     case RenderPass::Shadow: return m_mainPassDescriptorSets[currentFrame];
     case RenderPass::Ssr: return m_mainPassDescriptorSets[currentFrame];
+    case RenderPass::Overlay: return m_mainPassDescriptorSets[currentFrame];
   }
   EXCEPTION("Unknown render pass");
 }

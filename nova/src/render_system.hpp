@@ -1,11 +1,16 @@
 #pragma once
 
 #include "system.hpp"
+#include "renderables.hpp"
 
-class CRender : public Component
+struct CRender : public Component
 {
   CRender(EntityId entityId)
     : Component(entityId) {}
+
+  RenderItemId texture;
+  Vec2f offset;
+  Vec2f size;
 };
 
 using CRenderPtr = std::unique_ptr<CRender>;
@@ -31,7 +36,8 @@ using RenderSystemPtr = std::unique_ptr<RenderSystem>;
 
 class SpatialSystem;
 namespace render { class Renderer; }
+class FileSystem;
 class Logger;
 
 RenderSystemPtr createRenderSystem(const SpatialSystem& spatialSystem, render::Renderer& renderer,
-  Logger& logger);
+  const FileSystem& fileSystem, Logger& logger);

@@ -6,48 +6,103 @@
 #include "exception.hpp"
 #include "utils.hpp"
 #include "time.hpp"
-#include <map>
+#include "file_system.hpp"
 #include <cassert>
 #include <functional>
 
 using render::Renderer;
+using render::Mesh;
 using render::MeshPtr;
+using render::Material;
 using render::MaterialPtr;
 using render::MeshFeatureSet;
 using render::MaterialFeatureSet;
 using render::MeshHandle;
+namespace MaterialFeatures = render::MaterialFeatures;
 namespace MeshFeatures = render::MeshFeatures;
 using render::MaterialHandle;
 using render::TexturePtr;
 using render::RenderPass;
+using render::Buffer;
+using render::BufferUsage;
+using render::toBytes;
 
 namespace
 {
 
-struct AnimationChannelState
+MeshPtr quad(const Vec2f& size, const Vec2f& uvOffset, const Vec2f& uvSize)
 {
-  bool stopped = false;
-  size_t frame;
-};
+  float_t w = size[0] / 2.f;
+  float_t h = size[1] / 2.f;
 
-struct AnimationState
+  float_t u0 = uvOffset[0];
+  float_t v0 = uvOffset[1];
+  float_t u1 = u0 + uvSize[0];
+  float_t v1 = v0 + uvSize[1];
+
+  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  });
+  mesh->featureSet.flags.set(MeshFeatures::Is2d);
+  mesh->attributeBuffers = {
+    Buffer{
+      .usage = BufferUsage::AttrPosition,
+      .data = toBytes(std::vector<Vec3f>{
+        { -w, -h, 0 },
+        { w, -h, 0 },
+        { w, h, 0 },
+        { -w, h, 0 }
+      })
+    },
+    Buffer{
+      .usage = BufferUsage::AttrNormal,
+      .data = toBytes(std::vector<Vec3f>{
+        { 0, 0, 1 },
+        { 0, 0, 1 },
+        { 0, 0, 1 },
+        { 0, 0, 1 }
+      })
+    },
+    Buffer{
+      .usage = BufferUsage::AttrTexCoord,
+      .data = toBytes(std::vector<Vec2f>{
+        { u0, v0 },
+        { u1, v0 },
+        { u1, v1 },
+        { u0, v1 }
+      })
+    }
+  };
+  mesh->indexBuffer = Buffer{
+    .usage = BufferUsage::Index,
+    .data = toBytes(std::vector<uint16_t>{
+      0, 1, 2, 0, 2, 3
+    })
+  };
+
+  return mesh;
+}
+
+struct CRenderData
 {
-  RenderItemId animationSet = NULL_ID;
-  std::string animationName;
-  Timer timer;
-  std::vector<AnimationChannelState> channels;
-  size_t channelsComplete = 0;
+  // TODO: If component is frequently accessed, consider copying data into this struct
+  CRenderPtr component;
 
-  bool finished()
-  {
-    return channelsComplete == channels.size();
-  }
+  // TODO: Allow entities to share meshes/materials?
+  MeshHandle mesh;
+  MaterialHandle material;
 };
 
 class RenderSystemImpl : public RenderSystem
 {
   public:
-    RenderSystemImpl(const SpatialSystem&, Renderer& renderer, Logger& logger);
+    RenderSystemImpl(const SpatialSystem&, Renderer& renderer, const FileSystem& fileSystem,
+      Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -67,15 +122,44 @@ class RenderSystemImpl : public RenderSystem
     Camera m_camera;
     const SpatialSystem& m_spatialSystem;
     Renderer& m_renderer;
-    std::map<EntityId, CRenderPtr> m_components;
+    const FileSystem& m_fileSystem;
+    std::vector<CRenderData> m_data;
+    std::vector<uint32_t> m_lookup;   // EntityId -> m_data index
+    MaterialHandle m_textureAtlas;
+
+    MeshHandle createMesh(const CRender& c) const;
 };
 
 RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer& renderer,
-  Logger& logger)
+  const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_spatialSystem(spatialSystem)
   , m_renderer(renderer)
+  , m_fileSystem(fileSystem)
 {
+  MeshFeatureSet meshFeatures{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+  meshFeatures.flags.set(MeshFeatures::Is2d);
+
+  MaterialFeatureSet materialFeatures{};
+  materialFeatures.flags.set(MaterialFeatures::HasTexture);
+
+  m_renderer.compileShader(meshFeatures, materialFeatures);
+
+  auto texture = render::loadTexture(m_fileSystem.readFile("resources/textures/atlas.png"));
+
+  auto material = std::make_unique<Material>(materialFeatures);
+  material->texture.id = m_renderer.addTexture(std::move(texture));
+
+  m_textureAtlas = m_renderer.addMaterial(std::move(material));
+
+  m_camera.setPosition(Vec3f{ 0.f, 0.f, 5.f });
 }
 
 void RenderSystemImpl::start()
@@ -88,33 +172,61 @@ double RenderSystemImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
+MeshHandle RenderSystemImpl::createMesh(const CRender& c) const
+{
+  return m_renderer.addMesh(quad(c.size, c.offset, c.size));
+}
+
 void RenderSystemImpl::addComponent(ComponentPtr component)
 {
   auto renderComp = CRenderPtr(dynamic_cast<CRender*>(component.release()));
-  m_components[renderComp->id()] = std::move(renderComp);
+  auto id = renderComp->id();
+
+  auto mesh = createMesh(*renderComp);
+
+  m_data.push_back(CRenderData{
+    .component = std::move(renderComp),
+    .mesh = mesh,
+    .material = m_textureAtlas
+  });
+
+  if (id + 1 > m_lookup.size()) {
+    m_lookup.resize(id + 1, 0);
+  }
+  m_lookup[id] = m_data.size() - 1;
 }
 
 void RenderSystemImpl::removeComponent(EntityId entityId)
 {
-  auto i = m_components.find(entityId);
-  if (i != m_components.end()) {
-    m_components.erase(i);
+  if (m_data.empty()) {
+    return;
   }
+
+  auto idx = m_lookup[entityId];
+  auto last = m_data.size() - 1;
+
+  auto lastId = m_data[last].component->id();
+
+  std::swap(m_data[idx], m_data[last]);
+  m_data.pop_back();
+
+  m_lookup[entityId] = 0;
+  m_lookup[lastId] = idx;
 }
 
 bool RenderSystemImpl::hasComponent(EntityId entityId) const
 {
-  return m_components.count(entityId) > 0;
+  return m_lookup.size() + 1 > entityId && m_lookup[entityId] != 0;
 }
 
 CRender& RenderSystemImpl::getComponent(EntityId entityId)
 {
-  return *m_components.at(entityId);
+  return *m_data[m_lookup[entityId]].component;
 }
 
 const CRender& RenderSystemImpl::getComponent(EntityId entityId) const
 {
-  return *m_components.at(entityId);
+  return *m_data[m_lookup[entityId]].component;
 }
 
 Camera& RenderSystemImpl::camera()
@@ -131,15 +243,30 @@ void RenderSystemImpl::update()
 {
   try {
     m_renderer.beginFrame();
-    m_renderer.beginPass(render::RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
 
-    // TODO
+    // Empty shadow pass
+    m_renderer.beginPass(render::RenderPass::Shadow, m_camera.getPosition(), m_camera.getMatrix());
+    m_renderer.endPass();
+
+    // Empty main pass
+    //m_renderer.beginPass(render::RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
+    //m_renderer.endPass();
+
+    m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
+
+    m_renderer.drawLight(Vec3f{ 1.f, 1.f, 1.f }, 1.f, 0.f, 1000.f, identityMatrix<float_t, 4>());
+
+    for (auto& item : m_data) {
+      auto& transform = m_spatialSystem.getComponent(item.component->id()).transform;
+      m_renderer.drawModel(item.mesh, item.material, transform);
+    }
 
     m_renderer.endPass();
+
     m_renderer.endFrame();
     m_renderer.checkError();
   }
-  catch(const std::exception& e) {
+  catch (const std::exception& e) {
     EXCEPTION(STR("Error rendering scene; " << e.what()));
   }
 }
@@ -147,7 +274,7 @@ void RenderSystemImpl::update()
 } // namespace
 
 RenderSystemPtr createRenderSystem(const SpatialSystem& spatialSystem, Renderer& renderer,
-  Logger& logger)
+  const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<RenderSystemImpl>(spatialSystem, renderer, logger);
+  return std::make_unique<RenderSystemImpl>(spatialSystem, renderer, fileSystem, logger);
 }

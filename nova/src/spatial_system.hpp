@@ -1,11 +1,14 @@
 #pragma once
 
 #include "system.hpp"
+#include "math.hpp"
 
-class CSpatial : public Component
+struct CSpatial : public Component
 {
   CSpatial(EntityId entityId)
     : Component(entityId) {}
+
+  Mat4x4f transform = identityMatrix<float_t, 4>();
 };
 
 class SpatialSystem : public System

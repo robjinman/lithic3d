@@ -147,7 +147,7 @@ Application::Application()
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
   m_spatialSystem = createSpatialSystem(*m_logger);
-  m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_logger);
+  m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_fileSystem, *m_logger);
 
   auto player = createScene(*m_spatialSystem, *m_renderSystem, *m_fileSystem, *m_logger);
 

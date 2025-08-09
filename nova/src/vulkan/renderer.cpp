@@ -141,10 +141,11 @@ class RendererImpl : public Renderer
     void createCommandBuffers();
     void doShadowRenderPass(VkCommandBuffer commandBuffer);
     void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    void updateLightingUbo();
+    void updateLightingUbo(RenderPass renderPass);
     void updateLightTransformsUbo();
-    void updateCameraTransformsUbo();
+    void updateCameraTransformsUbo(RenderPass renderPass);
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
@@ -300,14 +301,16 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
   return m_thread.run<void>([&, this]() {
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
+    bool is2d = meshFeatures.flags.test(MeshFeatures::Is2d);
+
     PipelineKey key{
-      .renderPass = RenderPass::Main,
+      .renderPass = is2d ? RenderPass::Overlay : RenderPass::Main,
       .meshFeatures = meshFeatures,
       .materialFeatures = materialFeatures
     };
   
     if (!m_pipelines.contains(key)) {
-      auto pipeline = createPipeline(RenderPass::Main, meshFeatures, materialFeatures, m_fileSystem,
+      auto pipeline = createPipeline(key.renderPass, meshFeatures, materialFeatures, m_fileSystem,
         *m_resources, m_logger, m_device, m_swapchainExtent, m_swapchainImageFormat, depthFormat);
 
       m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
@@ -536,8 +539,15 @@ void RendererImpl::renderLoop()
       if (frameState.renderPasses.contains(RenderPass::Shadow)) {
         doShadowRenderPass(commandBuffer);
       }
-      doMainRenderPass(commandBuffer, m_imageIndex);
-      doSsrRenderPass(commandBuffer, m_imageIndex);
+      if (frameState.renderPasses.contains(RenderPass::Main)) {
+        doMainRenderPass(commandBuffer, m_imageIndex);
+      }
+      if (frameState.renderPasses.contains(RenderPass::Ssr)) {
+        doSsrRenderPass(commandBuffer, m_imageIndex);
+      }
+      if (frameState.renderPasses.contains(RenderPass::Overlay)) {
+        doOverlayRenderPass(commandBuffer, m_imageIndex);
+      }
 
       VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 
@@ -560,15 +570,16 @@ void RendererImpl::renderLoop()
   cleanUp();
 }
 
-void RendererImpl::updateCameraTransformsUbo()
+void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
 {
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
+  auto& renderPassState = frameState.renderPasses.at(renderPass);
 
   CameraTransformsUbo cameraTransformsUbo{
     .viewMatrix = renderPassState.viewMatrix,
     .projMatrix = m_projectionMatrix
   };
+
   m_resources->updateCameraTransformsUbo(cameraTransformsUbo, m_currentFrame);
 }
 
@@ -585,10 +596,10 @@ void RendererImpl::updateLightTransformsUbo()
   m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
 }
 
-void RendererImpl::updateLightingUbo()
+void RendererImpl::updateLightingUbo(RenderPass renderPass)
 {
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
+  auto& renderPassState = frameState.renderPasses.at(renderPass);
 
   LightingUbo lightingUbo{
     .viewPos = renderPassState.viewPos,
@@ -871,7 +882,7 @@ void RendererImpl::recreateSwapChain()
   createDepthResources();
 
   for (auto& i : m_pipelines) {
-    if (i.first.renderPass == RenderPass::Main) {
+    if (i.first.renderPass == RenderPass::Main || i.first.renderPass == RenderPass::Overlay) {
       i.second->onViewportResize(m_swapchainExtent);
     }
   }
@@ -1128,7 +1139,7 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
     EXCEPTION("No shader has been compiled for this combination of mesh/material features");
   }
   return *i->second;
-};
+}
 
 void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
   VkCommandBuffer commandBuffer)
@@ -1248,8 +1259,8 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-  updateCameraTransformsUbo();
-  updateLightingUbo();
+  updateCameraTransformsUbo(RenderPass::Main);
+  updateLightingUbo(RenderPass::Main);
 
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1326,6 +1337,94 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(RenderPass::Main, renderGraph, commandBuffer);
+
+  vkCmdEndRenderingFn(commandBuffer);
+
+  VkImageMemoryBarrier barrier2{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    .dstAccessMask = 0,
+    .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = m_swapchainImages[imageIndex],
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
+}
+
+void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+  updateCameraTransformsUbo(RenderPass::Overlay);
+  updateLightingUbo(RenderPass::Overlay);
+
+  VkImageMemoryBarrier barrier1{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .pNext = nullptr,
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = m_swapchainImages[imageIndex],
+    .subresourceRange = VkImageSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier1);
+
+  VkRenderingAttachmentInfo colourAttachment{
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .pNext = nullptr,
+    .imageView = m_swapchainImageViews[imageIndex],
+    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .resolveMode = VK_RESOLVE_MODE_NONE,
+    .resolveImageView = nullptr,
+    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .clearValue = VkClearValue{
+      .color = VkClearColorValue{ .float32 = { 0.f, 0.f, 1.f, 1.f } }
+    }
+  };
+
+  VkRenderingInfo renderingInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .renderArea = VkRect2D{VkOffset2D{}, m_swapchainExtent},
+    .layerCount = 1,
+    .viewMask = 0,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &colourAttachment,
+    .pDepthAttachment = nullptr,
+    .pStencilAttachment = nullptr
+  };
+
+  vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
+
+  auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Overlay);
+  const auto& renderGraph = renderPassState.graph;
+
+  recordCommandBuffer(RenderPass::Overlay, renderGraph, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 

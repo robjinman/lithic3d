@@ -17,7 +17,7 @@ void Camera::translate(const Vec3f& delta)
 
 Mat4x4f Camera::getMatrix() const
 {
-  return lookAt(m_position, m_position + Vec3f{0, 0, 1});
+  return lookAt(m_position, m_position + Vec3f{0, 0, -1});
 }
 
 const Vec3f& Camera::getPosition() const
