@@ -1369,7 +1369,7 @@ void RenderResourcesImpl::createTextureSampler()
     .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .mipLodBias = 0.f,
-    .anisotropyEnable = VK_TRUE,
+    .anisotropyEnable = VK_FALSE, // VK_TRUE,
     .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
     .compareEnable = VK_FALSE,
     .compareOp = VK_COMPARE_OP_ALWAYS,

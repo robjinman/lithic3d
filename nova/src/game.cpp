@@ -1,6 +1,8 @@
 #include "game.hpp"
 #include "player.hpp"
+#include "spatial_system.hpp"
 #include "render_system.hpp"
+#include "file_system.hpp"
 #include "time.hpp"
 #include "camera.hpp"
 #include "logger.hpp"
@@ -12,6 +14,9 @@
 
 namespace
 {
+
+const float_t ATLAS_WIDTH_PX = 1024.f;
+const float_t ATLAS_HEIGHT_PX = 512.f;
 
 KeyboardKey buttonToKey(GamepadButton button)
 {
@@ -28,7 +33,8 @@ KeyboardKey buttonToKey(GamepadButton button)
 class GameImpl : public Game
 {
   public:
-    GameImpl(PlayerPtr player, RenderSystem& renderSystem, Logger& logger);
+    GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem, const FileSystem& fileSystem,
+      Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -41,6 +47,8 @@ class GameImpl : public Game
 
   private:
     Logger& m_logger;
+    const FileSystem& m_fileSystem;
+    SpatialSystem& m_spatialSystem;
     RenderSystem& m_renderSystem;
     PlayerPtr m_player;
     std::set<KeyboardKey> m_keysPressed;
@@ -53,13 +61,24 @@ class GameImpl : public Game
     void measureFrameRate();
     void processKeyboardInput();
     void processMouseInput();
+
+    void constructPlayer();
+    void constructSky();
+    void constructTrees();
+    void constructFakeSoil();
 };
 
-GameImpl::GameImpl(PlayerPtr player, RenderSystem& renderSystem, Logger& logger)
+GameImpl::GameImpl(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
+  const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
+  , m_fileSystem(fileSystem)
+  , m_spatialSystem(spatialSystem)
   , m_renderSystem(renderSystem)
-  , m_player(std::move(player))
 {
+  constructPlayer();
+  constructSky();
+  constructTrees();
+  constructFakeSoil();
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -131,9 +150,125 @@ void GameImpl::update()
   processMouseInput();
 }
 
+void GameImpl::constructSky()
+{
+  auto id = System::nextId();
+
+  auto spatial = std::make_unique<CSpatial>(id);
+  spatial->transform = translationMatrix4x4(Vec3f{ 0.f, 0.75f, -10.f });
+  m_spatialSystem.addComponent(std::move(spatial));
+
+  float_t offsetXpx = 0.f;
+  float_t offsetYpx = 416.f;
+  float_t wPx = 128.f;
+  float_t hPx = 32.f;
+  float_t w = wPx / ATLAS_WIDTH_PX;
+  float_t h = hPx / ATLAS_HEIGHT_PX;
+
+  auto render = std::make_unique<CRender>(id);
+  render->zIndex = 0;
+  render->textureRect = Rectf{
+    .x = offsetXpx / ATLAS_WIDTH_PX,
+    .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
+    .w = w,
+    .h = h
+  };
+  render->size = Vec2f{ 1.3125f, 0.25f };
+
+  m_renderSystem.addComponent(std::move(render));
+}
+
+void GameImpl::constructTrees()
+{
+  auto id = System::nextId();
+
+  auto spatial = std::make_unique<CSpatial>(id);
+  spatial->transform = translationMatrix4x4(Vec3f{ 0.f, 0.68375, -8.f });
+  m_spatialSystem.addComponent(std::move(spatial));
+
+  float_t offsetXpx = 0.f;
+  float_t offsetYpx = 352.f;
+  float_t wPx = 256.f;
+  float_t hPx = 40.f;
+  float_t w = wPx / ATLAS_WIDTH_PX;
+  float_t h = hPx / ATLAS_HEIGHT_PX;
+
+  auto render = std::make_unique<CRender>(id);
+  render->zIndex = 2;
+  render->textureRect = Rectf{
+    .x = offsetXpx / ATLAS_WIDTH_PX,
+    .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
+    .w = w,
+    .h = h
+  };
+  render->size = Vec2f{ 1.3125f, 0.1875f };
+
+  m_renderSystem.addComponent(std::move(render));
+}
+
+void GameImpl::constructFakeSoil()
+{
+  for (float_t x = 0.f; x <= 1.25; x += 0.0625) {
+    auto id = System::nextId();
+
+    auto spatial = std::make_unique<CSpatial>(id);
+    spatial->transform = translationMatrix4x4(Vec3f{ x, 0.6875f, -9.f });
+    m_spatialSystem.addComponent(std::move(spatial));
+
+    float_t offsetXpx = 384.f;
+    float_t offsetYpx = 0.f;
+    float_t wPx = 16.f;
+    float_t hPx = 16.f;
+    float_t w = wPx / ATLAS_WIDTH_PX;
+    float_t h = hPx / ATLAS_HEIGHT_PX;
+
+    auto render = std::make_unique<CRender>(id);
+    render->zIndex = 1;
+    render->textureRect = Rectf{
+      .x = offsetXpx / ATLAS_WIDTH_PX,
+      .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
+      .w = w,
+      .h = h
+    };
+    render->size = Vec2f{ 0.0625, 0.0625f };
+
+    m_renderSystem.addComponent(std::move(render));
+  }
+}
+
+void GameImpl::constructPlayer()
+{
+  auto id = System::nextId();
+
+  auto spatial = std::make_unique<CSpatial>(id);
+  spatial->transform = translationMatrix4x4(Vec3f{ 0.5f, 0.2f, 0.f });
+  m_spatialSystem.addComponent(std::move(spatial));
+
+  float_t offsetXpx = 384.f;
+  float_t offsetYpx = 256.f;
+  float_t wPx = 32.f;
+  float_t hPx = 48.f;
+  float_t w = wPx / ATLAS_WIDTH_PX;
+  float_t h = hPx / ATLAS_HEIGHT_PX;
+
+  auto render = std::make_unique<CRender>(id);
+  render->textureRect = Rectf{
+    .x = offsetXpx / ATLAS_WIDTH_PX,
+    .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
+    .w = w,
+    .h = h
+  };
+  render->size = Vec2f{ 0.0625f, 0.0625f };
+
+  m_renderSystem.addComponent(std::move(render));
+
+  m_player = std::make_unique<Player>();
+}
+
 } // namespace
 
-GamePtr createGame(PlayerPtr player, RenderSystem& renderSystem, Logger& logger)
+GamePtr createGame(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
+  const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<GameImpl>(std::move(player), renderSystem, logger);
+  return std::make_unique<GameImpl>(spatialSystem, renderSystem, fileSystem, logger);
 }

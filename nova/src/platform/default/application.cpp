@@ -1,4 +1,3 @@
-#include "scene.hpp"
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
@@ -149,10 +148,8 @@ Application::Application()
   m_spatialSystem = createSpatialSystem(*m_logger);
   m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_fileSystem, *m_logger);
 
-  auto player = createScene(*m_spatialSystem, *m_renderSystem, *m_fileSystem, *m_logger);
-
+  m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_fileSystem, *m_logger);
   m_renderSystem->start();
-  m_game = createGame(std::move(player), *m_renderSystem, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }

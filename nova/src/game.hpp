@@ -1,6 +1,5 @@
 #pragma once
 
-#include "player.hpp"
 #include "math.hpp"
 #include <memory>
 
@@ -58,6 +57,9 @@ class Game
 using GamePtr = std::unique_ptr<Game>;
 
 class RenderSystem;
+class SpatialSystem;
+class FileSystem;
 class Logger;
 
-GamePtr createGame(PlayerPtr player, RenderSystem& renderSystem, Logger& logger);
+GamePtr createGame(SpatialSystem& spatialSystem, RenderSystem& renderSystem,
+  const FileSystem& fileSystem, Logger& logger);
