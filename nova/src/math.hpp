@@ -633,6 +633,18 @@ struct Transform
   void mix(const Transform& T);
 };
 
+template<typename T>
+struct Rect
+{
+  T x;
+  T y;
+  T w;
+  T h;
+};
+
+using Rectf = Rect<float_t>;
+using Recti = Rect<int>;
+
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
 Mat4x4f perspective(float_t fovX, float_t fovY, float_t near, float_t far);
 Mat4x4f orthographic(float_t fovX, float_t fovY, float_t n, float_t f);

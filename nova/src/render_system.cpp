@@ -30,15 +30,21 @@ using render::toBytes;
 namespace
 {
 
-MeshPtr quad(const Vec2f& size, const Vec2f& uvOffset, const Vec2f& uvSize)
+Mat4x4f screenToWorld(const Mat4x4f& transform, float_t aspect)
 {
-  float_t w = size[0] / 2.f;
-  float_t h = size[1] / 2.f;
+  static Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 0.f });
+  return M * transform;
+}
 
-  float_t u0 = uvOffset[0];
-  float_t v0 = uvOffset[1];
-  float_t u1 = u0 + uvSize[0];
-  float_t v1 = v0 + uvSize[1];
+MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
+{
+  float_t w = size[0];
+  float_t h = size[1];
+
+  float_t u0 = uvRect.x;
+  float_t v0 = uvRect.y;
+  float_t u1 = u0 + uvRect.w;
+  float_t v1 = v0 + uvRect.h;
 
   MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
     .vertexLayout = {
@@ -53,10 +59,10 @@ MeshPtr quad(const Vec2f& size, const Vec2f& uvOffset, const Vec2f& uvSize)
     Buffer{
       .usage = BufferUsage::AttrPosition,
       .data = toBytes(std::vector<Vec3f>{
-        { -w, -h, 0 },
-        { w, -h, 0 },
+        { 0, 0, 0 },
+        { w, 0, 0 },
         { w, h, 0 },
-        { -w, h, 0 }
+        { 0, h, 0 }
       })
     },
     Buffer{
@@ -71,10 +77,10 @@ MeshPtr quad(const Vec2f& size, const Vec2f& uvOffset, const Vec2f& uvSize)
     Buffer{
       .usage = BufferUsage::AttrTexCoord,
       .data = toBytes(std::vector<Vec2f>{
-        { u0, v0 },
-        { u1, v0 },
+        { u0, v1 },
         { u1, v1 },
-        { u0, v1 }
+        { u1, v0 },
+        { u0, v0 }
       })
     }
   };
@@ -159,7 +165,7 @@ RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer&
 
   m_textureAtlas = m_renderer.addMaterial(std::move(material));
 
-  m_camera.setPosition(Vec3f{ 0.f, 0.f, 5.f });
+  m_camera.setPosition(Vec3f{ 0.f, 0.f, 1.f });
 }
 
 void RenderSystemImpl::start()
@@ -174,7 +180,7 @@ double RenderSystemImpl::frameRate() const
 
 MeshHandle RenderSystemImpl::createMesh(const CRender& c) const
 {
-  return m_renderer.addMesh(quad(c.size, c.offset, c.size));
+  return m_renderer.addMesh(quad(c.size, c.textureRect));
 }
 
 void RenderSystemImpl::addComponent(ComponentPtr component)
@@ -243,26 +249,15 @@ void RenderSystemImpl::update()
 {
   try {
     m_renderer.beginFrame();
-
-    // Empty shadow pass
-    m_renderer.beginPass(render::RenderPass::Shadow, m_camera.getPosition(), m_camera.getMatrix());
-    m_renderer.endPass();
-
-    // Empty main pass
-    //m_renderer.beginPass(render::RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
-    //m_renderer.endPass();
-
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
-
-    m_renderer.drawLight(Vec3f{ 1.f, 1.f, 1.f }, 1.f, 0.f, 1000.f, identityMatrix<float_t, 4>());
 
     for (auto& item : m_data) {
       auto& transform = m_spatialSystem.getComponent(item.component->id()).transform;
-      m_renderer.drawModel(item.mesh, item.material, transform);
+      auto screenSpaceTransform = screenToWorld(transform, m_renderer.getViewParams().aspectRatio);
+      m_renderer.drawModel(item.mesh, item.material, screenSpaceTransform);
     }
 
     m_renderer.endPass();
-
     m_renderer.endFrame();
     m_renderer.checkError();
   }

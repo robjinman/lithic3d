@@ -9,7 +9,7 @@ struct CRender : public Component
     : Component(entityId) {}
 
   RenderItemId texture;
-  Vec2f offset;
+  Rectf textureRect;
   Vec2f size;
 };
 

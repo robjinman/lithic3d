@@ -133,7 +133,8 @@ class RendererImpl : public Renderer
     void createSwapChain();
     void createSwapChain(VkExtent2D extent);
     void recreateSwapChain();
-    void setProjectionMatrix(float_t rotation);
+    void setOrthographicMatrix();
+    void setPerspectiveMatrix(float_t rotation);
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
@@ -183,7 +184,8 @@ class RendererImpl : public Renderer
 
     size_t m_currentFrame = 0;
     std::atomic<bool> m_framebufferResized = false;
-    Mat4x4f m_projectionMatrix;
+    Mat4x4f m_perspectiveMatrix;
+    Mat4x4f m_orthographicMatrix;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -577,7 +579,7 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
 
   CameraTransformsUbo cameraTransformsUbo{
     .viewMatrix = renderPassState.viewMatrix,
-    .projMatrix = m_projectionMatrix
+    .projMatrix = renderPass == RenderPass::Overlay ? m_orthographicMatrix : m_perspectiveMatrix
   };
 
   m_resources->updateCameraTransformsUbo(cameraTransformsUbo, m_currentFrame);
@@ -833,14 +835,41 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   m_swapchainImageFormat = surfaceFormat.format;
   m_swapchainExtent = extent;
 
+  setOrthographicMatrix();
+
   float_t rotation = 0;
   if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
     rotation = degreesToRadians(90.f);
   }
-  setProjectionMatrix(rotation);
+  setPerspectiveMatrix(rotation);
 }
 
-void RendererImpl::setProjectionMatrix(float_t rotation)
+void RendererImpl::setOrthographicMatrix()
+{
+  float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
+
+  // TODO: Move to math.cpp
+
+  Mat4x4f m;
+  const float_t t = 0.5f;
+  const float_t b = -0.5f;
+  const float_t r = 0.5f * aspect;
+  const float_t l = -0.5f * aspect;
+  const float_t f = 10.f;
+  const float_t n = 0.f;
+
+  m.set(0, 0, 2.f / (r - l));
+  m.set(0, 3, (r + l) / (l - r));
+  m.set(1, 1, 2.f / (b - t));
+  m.set(1, 3, (b + t) / (b - t));
+  m.set(2, 2, 1.f / (f - n));
+  m.set(2, 3, -n / (f - n));
+  m.set(3, 3, 1.f);
+
+  m_orthographicMatrix = m;
+}
+
+void RendererImpl::setPerspectiveMatrix(float_t rotation)
 {
   float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
 
@@ -848,7 +877,7 @@ void RendererImpl::setProjectionMatrix(float_t rotation)
   m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
 
   Mat4x4f rot = rotationMatrix4x4<float_t>(Vec3f{ 0.f, 0.f, rotation });
-  m_projectionMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
+  m_perspectiveMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
     m_viewParams.nearPlane, m_viewParams.farPlane);
 }
 
@@ -1366,7 +1395,6 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
   updateCameraTransformsUbo(RenderPass::Overlay);
-  updateLightingUbo(RenderPass::Overlay);
 
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
