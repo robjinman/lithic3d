@@ -102,6 +102,7 @@ struct CRenderData
   // TODO: Allow entities to share meshes/materials?
   MeshHandle mesh;
   MaterialHandle material;
+  uint32_t zIndex = 0;
 };
 
 class RenderSystemImpl : public RenderSystem
@@ -187,13 +188,15 @@ void RenderSystemImpl::addComponent(ComponentPtr component)
 {
   auto renderComp = CRenderPtr(dynamic_cast<CRender*>(component.release()));
   auto id = renderComp->id();
+  auto zIndex = renderComp->zIndex;
 
   auto mesh = createMesh(*renderComp);
 
   m_data.push_back(CRenderData{
     .component = std::move(renderComp),
     .mesh = mesh,
-    .material = m_textureAtlas
+    .material = m_textureAtlas,
+    .zIndex = zIndex
   });
 
   if (id + 1 > m_lookup.size()) {
@@ -254,6 +257,7 @@ void RenderSystemImpl::update()
     for (auto& item : m_data) {
       auto& transform = m_spatialSystem.getComponent(item.component->id()).transform;
       auto screenSpaceTransform = screenToWorld(transform, m_renderer.getViewParams().aspectRatio);
+      m_renderer.setOrderKey(item.zIndex);
       m_renderer.drawModel(item.mesh, item.material, screenSpaceTransform);
     }
 

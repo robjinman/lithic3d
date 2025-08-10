@@ -53,6 +53,7 @@ void SceneBuilder::constructSky()
   float_t h = hPx / ATLAS_HEIGHT_PX;
 
   auto render = std::make_unique<CRender>(id);
+  render->zIndex = 0;
   render->textureRect = Rectf{
     .x = offsetXpx / ATLAS_WIDTH_PX,
     .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
@@ -80,6 +81,7 @@ void SceneBuilder::constructTrees()
   float_t h = hPx / ATLAS_HEIGHT_PX;
 
   auto render = std::make_unique<CRender>(id);
+  render->zIndex = 2;
   render->textureRect = Rectf{
     .x = offsetXpx / ATLAS_WIDTH_PX,
     .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
@@ -108,6 +110,7 @@ void SceneBuilder::constructFakeSoil()
     float_t h = hPx / ATLAS_HEIGHT_PX;
 
     auto render = std::make_unique<CRender>(id);
+    render->zIndex = 1;
     render->textureRect = Rectf{
       .x = offsetXpx / ATLAS_WIDTH_PX,
       .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,

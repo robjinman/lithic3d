@@ -97,6 +97,7 @@ class RendererImpl : public Renderer
     //
     void beginFrame() override;
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
+    void setOrderKey(uint32_t order) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
@@ -153,7 +154,8 @@ class RendererImpl : public Renderer
     void cleanUp();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
       VkCommandBuffer commandBuffer);
-    RenderGraph::Key generateRenderGraphKey(MeshHandle mesh, MaterialHandle material) const;
+    RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
+      MaterialHandle material) const;
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
     void drawModelInternal(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const std::optional<std::vector<Mat4x4f>>& jointTransforms);
@@ -220,6 +222,7 @@ class RendererImpl : public Renderer
       std::map<RenderPass, RenderPassState> renderPasses;
       LightingState lighting;
       std::optional<RenderPass> currentRenderPass;
+      uint32_t currentOrderKey = 0;
     };
 
     TripleBuffer<FrameState> m_frameStates;
@@ -351,7 +354,7 @@ const ViewParams& RendererImpl::getViewParams() const
   return m_viewParams;
 }
 
-RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
+RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
   MaterialHandle material) const
 {
   PipelineKey pipelineKey{
@@ -363,6 +366,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
 
   if (mesh.features.flags.test(MeshFeatures::IsInstanced)) {
     return RenderGraph::Key{
+      static_cast<RenderGraphKey>(orderKey),
       static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh.id),
@@ -371,6 +375,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
   }
   else if (mesh.features.flags.test(MeshFeatures::IsSkybox)) {
     return RenderGraph::Key{
+      static_cast<RenderGraphKey>(orderKey),
       static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash)
     };
@@ -379,6 +384,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(MeshHandle mesh,
     static RenderGraphKey nextId = 0;
 
     return RenderGraph::Key{
+      static_cast<RenderGraphKey>(orderKey),
       static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh.id),
@@ -396,7 +402,7 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
   RenderGraph& renderGraph = state.graph;
 
-  auto key = generateRenderGraphKey(mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
   InstancedModelNode* node = nullptr;
   auto i = state.lookup.find(key);
   if (i != state.lookup.end()) {
@@ -441,7 +447,7 @@ void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->jointTransforms = jointTransforms;
 
-  auto key = generateRenderGraphKey(mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -474,7 +480,7 @@ void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
   node->mesh = mesh;
   node->material = material;
 
-  auto key = generateRenderGraphKey(mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -488,6 +494,11 @@ void RendererImpl::beginFrame()
   state.lighting = LightingState{};
   state.currentRenderPass = std::nullopt;
   state.renderPasses.clear();
+}
+
+void RendererImpl::setOrderKey(uint32_t order)
+{
+  m_frameStates.getWritable().currentOrderKey = order;
 }
 
 void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix)

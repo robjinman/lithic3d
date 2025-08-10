@@ -11,6 +11,7 @@ struct CRender : public Component
   RenderItemId texture;
   Rectf textureRect;
   Vec2f size;
+  uint32_t zIndex = 0;
 };
 
 using CRenderPtr = std::unique_ptr<CRender>;
