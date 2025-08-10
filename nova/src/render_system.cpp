@@ -158,7 +158,7 @@ RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer&
 
   m_renderer.compileShader(meshFeatures, materialFeatures);
 
-  auto texture = render::loadTexture(m_fileSystem.readFile("resources/textures/atlas.png"));
+  auto texture = render::loadTexture(m_fileSystem.readFile("textures/atlas.png"));
 
   auto material = std::make_unique<Material>(materialFeatures);
   material->texture.id = m_renderer.addTexture(std::move(texture));

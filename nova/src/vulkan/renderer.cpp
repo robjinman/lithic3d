@@ -855,7 +855,7 @@ void RendererImpl::setOrthographicMatrix()
   const float_t b = -0.5f;
   const float_t r = 0.5f * aspect;
   const float_t l = -0.5f * aspect;
-  const float_t f = 10.f;
+  const float_t f = 100.f;
   const float_t n = 0.f;
 
   m.set(0, 0, 2.f / (r - l));

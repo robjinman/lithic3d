@@ -12,8 +12,8 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 
-const int WINDOWED_RESOLUTION_W = 800;
-const int WINDOWED_RESOLUTION_H = 600;
+const int WINDOWED_RESOLUTION_W = 630;
+const int WINDOWED_RESOLUTION_H = 480;
 const int FULLSCREEN_RESOLUTION_W = 1920;
 const int FULLSCREEN_RESOLUTION_H = 1080;
 
