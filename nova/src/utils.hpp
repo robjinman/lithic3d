@@ -44,3 +44,7 @@ std::ostream& operator<<(std::ostream& stream, const std::array<T, N>& v)
 std::vector<char> readBinaryFile(const std::string& filename);
 
 std::string versionString();
+
+using hashedString_t = size_t;
+
+hashedString_t hashString(const std::string& s);

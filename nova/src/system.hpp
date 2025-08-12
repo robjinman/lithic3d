@@ -13,7 +13,9 @@ class Component
 
     EntityId id() const;
 
-    virtual ~Component() = 0;
+    virtual void update() = 0;
+
+    virtual ~Component() {}
 
   protected:
     // TODO: Remove this?

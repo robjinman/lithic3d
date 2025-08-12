@@ -11,6 +11,7 @@ struct CRender : public Component
   RenderItemId texture;
   Rectf textureRect;
   Vec2f size;
+  Vec2f pos;
   uint32_t zIndex = 0;
 };
 

@@ -33,7 +33,7 @@ struct RenderNode
 
 using RenderGraphKey = long;
 using RenderNodePtr = std::unique_ptr<RenderNode>;
-using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>;
+using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>; // TODO: Store by value?
 
 struct PipelineKey
 {

@@ -1,6 +1,5 @@
 #include "render_system.hpp"
 #include "renderer.hpp"
-#include "spatial_system.hpp"
 #include "logger.hpp"
 #include "camera.hpp"
 #include "exception.hpp"
@@ -96,20 +95,17 @@ MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
 
 struct CRenderData
 {
-  // TODO: If component is frequently accessed, consider copying data into this struct
-  CRenderPtr component;
+  CRender component;
 
   // TODO: Allow entities to share meshes/materials?
   MeshHandle mesh;
   MaterialHandle material;
-  uint32_t zIndex = 0;
 };
 
 class RenderSystemImpl : public RenderSystem
 {
   public:
-    RenderSystemImpl(const SpatialSystem&, Renderer& renderer, const FileSystem& fileSystem,
-      Logger& logger);
+    RenderSystemImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -127,7 +123,6 @@ class RenderSystemImpl : public RenderSystem
   private:
     Logger& m_logger;
     Camera m_camera;
-    const SpatialSystem& m_spatialSystem;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
     std::vector<CRenderData> m_data;
@@ -137,10 +132,8 @@ class RenderSystemImpl : public RenderSystem
     MeshHandle createMesh(const CRender& c) const;
 };
 
-RenderSystemImpl::RenderSystemImpl(const SpatialSystem& spatialSystem, Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger)
+RenderSystemImpl::RenderSystemImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
-  , m_spatialSystem(spatialSystem)
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
@@ -193,10 +186,9 @@ void RenderSystemImpl::addComponent(ComponentPtr component)
   auto mesh = createMesh(*renderComp);
 
   m_data.push_back(CRenderData{
-    .component = std::move(renderComp),
+    .component = *renderComp,
     .mesh = mesh,
-    .material = m_textureAtlas,
-    .zIndex = zIndex
+    .material = m_textureAtlas
   });
 
   if (id + 1 > m_lookup.size()) {
@@ -214,7 +206,7 @@ void RenderSystemImpl::removeComponent(EntityId entityId)
   auto idx = m_lookup[entityId];
   auto last = m_data.size() - 1;
 
-  auto lastId = m_data[last].component->id();
+  auto lastId = m_data[last].component.id();
 
   std::swap(m_data[idx], m_data[last]);
   m_data.pop_back();
@@ -230,12 +222,12 @@ bool RenderSystemImpl::hasComponent(EntityId entityId) const
 
 CRender& RenderSystemImpl::getComponent(EntityId entityId)
 {
-  return *m_data[m_lookup[entityId]].component;
+  return m_data[m_lookup[entityId]].component;
 }
 
 const CRender& RenderSystemImpl::getComponent(EntityId entityId) const
 {
-  return *m_data[m_lookup[entityId]].component;
+  return m_data[m_lookup[entityId]].component;
 }
 
 Camera& RenderSystemImpl::camera()
@@ -255,9 +247,9 @@ void RenderSystemImpl::update()
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     for (auto& item : m_data) {
-      auto& transform = m_spatialSystem.getComponent(item.component->id()).transform;
-      auto screenSpaceTransform = screenToWorld(transform, m_renderer.getViewParams().aspectRatio);
-      m_renderer.setOrderKey(item.zIndex);
+      auto t = translationMatrix4x4(Vec3f{item.component.pos[0], item.component.pos[1]});
+      auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
+      m_renderer.setOrderKey(item.component.zIndex);
       m_renderer.drawModel(item.mesh, item.material, screenSpaceTransform);
     }
 
@@ -272,8 +264,7 @@ void RenderSystemImpl::update()
 
 } // namespace
 
-RenderSystemPtr createRenderSystem(const SpatialSystem& spatialSystem, Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger)
+RenderSystemPtr createRenderSystem(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<RenderSystemImpl>(spatialSystem, renderer, fileSystem, logger);
+  return std::make_unique<RenderSystemImpl>(renderer, fileSystem, logger);
 }
