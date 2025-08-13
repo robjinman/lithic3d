@@ -1,7 +1,7 @@
 #pragma once
 
 #include "math.hpp"
-#include "system.hpp"
+#include "entity.hpp"
 
 class WorldGrid
 {
