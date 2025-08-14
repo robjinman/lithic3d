@@ -250,7 +250,7 @@ void SysRenderImpl::update()
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     for (auto& item : m_data) {
-      auto t = translationMatrix4x4(Vec3f{item.pos[0], item.pos[1], 0.f});
+      auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
       auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
       m_renderer.setOrderKey(item.zIndex);
       m_renderer.drawModel(item.mesh, m_textureAtlas, screenSpaceTransform);

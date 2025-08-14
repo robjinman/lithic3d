@@ -8,4 +8,4 @@ class SysRender;
 class EventSystem;
 
 CBehaviourPtr createCollectableBehaviour(const SysGrid& sysGrid, SysRender& sysRender,
-  EventSystem& eventSystem, EntityId entityId, EntityId playerId, int value);
+  EventSystem& eventSystem, EntityId entityId, EntityId playerId, uint32_t value);
