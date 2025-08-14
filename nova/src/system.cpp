@@ -17,17 +17,3 @@ EntityId System::idFromString(const std::string& name)
   m_reservedIds.insert(id);
   return id;
 }
-
-Component::Component(EntityId entityId)
-  : m_id(entityId)
-{
-}
-
-EntityId Component::id() const
-{
-  return m_id;
-}
-
-Component::~Component()
-{
-}

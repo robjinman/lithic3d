@@ -3,35 +3,33 @@
 #include <memory>
 #include <set>
 #include <string>
+#include "event_system.hpp"
 
 using EntityId = size_t;
 
-class Component
+class GameEvent : public Event
 {
   public:
-    Component(EntityId entityId);
+    GameEvent(HashedString name)
+      : Event(hashString("game"))
+      , name(name) {}
 
-    EntityId id() const;
+    GameEvent(HashedString name, const std::set<EntityId>& targets)
+      : Event(hashString("game"))
+      , name(name)
+      , targets(targets) {}
 
-    virtual ~Component() {}
-
-  protected:
-    // TODO: Remove this?
-    // In each system, the entity's ID is the component's position in the sparse array
-    EntityId m_id;
+    HashedString name;
+    std::set<EntityId> targets;
 };
-
-using ComponentPtr = std::unique_ptr<Component>;
 
 class System
 {
   public:
-    virtual void addComponent(ComponentPtr component) = 0;
-    virtual void removeComponent(EntityId entityId) = 0;
-    virtual bool hasComponent(EntityId entityId) const = 0;
-    virtual Component& getComponent(EntityId entityId) = 0;
-    virtual const Component& getComponent(EntityId entityId) const = 0;
+    virtual void removeEntity(EntityId entityId) = 0;
+    virtual bool hasEntity(EntityId entityId) const = 0;
     virtual void update() = 0;
+    virtual void processEvent(const GameEvent& event) = 0;
 
     virtual ~System() {}
 

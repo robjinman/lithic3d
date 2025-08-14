@@ -1,56 +1,61 @@
 #include "behaviours.hpp"
-#include "world_grid.hpp"
-#include "entity_manager.hpp"
-#include "render_system.hpp"
+#include "event_system.hpp"
+#include "sys_grid.hpp"
+#include "sys_render.hpp"
+#include "game_events.hpp"
 
-class CollectableBehaviour : public Behaviour
+namespace
+{
+
+class CollectableBehaviour : public CBehaviour
 {
   public:
-    CollectableBehaviour(EntityId entityId, EntityId playerId, const WorldGrid& worldGrid,
-      EntityManager& entityManager, int value)
-      : m_worldGrid(worldGrid)
-      , m_entityManager(entityManager)
+    CollectableBehaviour(const SysGrid& sysGrid, SysRender& sysRender, EventSystem& eventSystem,
+      EntityId entityId, EntityId playerId, int value)
+      : m_sysGrid(sysGrid)
+      , m_sysRender(sysRender)
+      , m_eventSystem(eventSystem)
       , m_entityId(entityId)
       , m_playerId(playerId)
       , m_value(value)
     {}
 
-    void handleEvent(const Event& event) override;
+    void processEvent(const GameEvent& event) override;
+    void update() override {}
 
   private:
-    const WorldGrid& m_worldGrid;
-    EntityManager& m_entityManager;
+    const SysGrid& m_sysGrid;
+    SysRender& m_sysRender;
+    EventSystem& m_eventSystem;
     EntityId m_entityId;
     EntityId m_playerId;
     int m_value = 0;
 };
 
-void CollectableBehaviour::handleEvent(const Event& event)
+void CollectableBehaviour::processEvent(const GameEvent& event)
 {
-  static hashedString_t strPlayerMoved = hashString("player_moved");
-  static hashedString_t strAnimFinished = hashString("animation_finished");
-  static hashedString_t strRender = hashString("render");
-  static hashedString_t strCollect = hashString("collect");
+  static HashedString strPlayerMoved = hashString("player_moved");
+  static HashedString strAnimFinished = hashString("animation_finished");
+  static HashedString strCollect = hashString("collect");
 
-  if (event.name() == strPlayerMoved) {
+  if (event.name == strPlayerMoved) {
     auto& e = dynamic_cast<const EPlayerMoved&>(event);
 
-    if (m_worldGrid.hasEntityAt(e.toPos[0], e.toPos[1], m_entityId)) {
-      auto& entity = m_entityManager.getEntity(m_entityId);
-      auto& cRender = dynamic_cast<CRender&>(entity.getComponent(strRender));
-
-      cRender.playAnimation(strCollect);
-      m_entityManager.notify(m_playerId, EItemCollected{m_entityId, m_value});
+    if (m_sysGrid.hasEntityAt(e.toPos[0], e.toPos[1], m_entityId)) {
+      m_sysRender.playAnimation(m_entityId, strCollect);
+      m_eventSystem.fireEvent(EItemCollected{m_entityId, m_value});
     }
   }
-  else if (event.name() == strAnimFinished) {
-    m_entityManager.deleteEntity(m_entityId);
+  else if (event.name == strAnimFinished) {
+    m_eventSystem.fireEvent(ERequestDeletion{m_entityId});
   }
 }
 
-BehaviourPtr createCollectableBehaviour(EntityId entityId, EntityId playerId,
-  const WorldGrid& worldGrid, EntityManager& entityManager, int value)
+}
+
+CBehaviourPtr createCollectableBehaviour(const SysGrid& sysGrid, SysRender& sysRender,
+  EventSystem& eventSystem, EntityId entityId, EntityId playerId, int value)
 {
-  return std::make_unique<CollectableBehaviour>(entityId, playerId, worldGrid, entityManager,
+  return std::make_unique<CollectableBehaviour>(sysGrid, sysRender, eventSystem, entityId, playerId,
     value);
 }

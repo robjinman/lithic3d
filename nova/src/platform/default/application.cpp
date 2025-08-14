@@ -1,8 +1,9 @@
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
-#include "render_system.hpp"
-#include "spatial_system.hpp"
+#include "sys_behaviour.hpp"
+#include "sys_grid.hpp"
+#include "sys_render.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #include "units.hpp"
@@ -74,9 +75,11 @@ class Application
     FileSystemPtr m_fileSystem;
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
+    EventSystemPtr m_eventSystem;
     render::RendererPtr m_renderer;
-    SpatialSystemPtr m_spatialSystem;
-    RenderSystemPtr m_renderSystem;
+    SysBehaviourPtr m_sysBehaviour;
+    SysGridPtr m_sysGrid;
+    SysRenderPtr m_sysRender;
     GamePtr m_game;
 
     bool m_fullscreen = false;
@@ -144,12 +147,15 @@ Application::Application()
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  m_eventSystem = createEventSystem();
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
-  m_spatialSystem = createSpatialSystem(*m_logger);
-  m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, *m_fileSystem, *m_logger);
+  m_sysBehaviour = createSysBehaviour();
+  m_sysGrid = createSysGrid();
+  m_sysRender = createSysRender(*m_renderer, *m_fileSystem, *m_logger);
 
-  m_game = createGame(*m_spatialSystem, *m_renderSystem, *m_fileSystem, *m_logger);
-  m_renderSystem->start();
+  m_game = createGame(*m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_eventSystem, *m_fileSystem,
+    *m_logger);
+  m_sysRender->start();
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 }
@@ -162,8 +168,9 @@ void Application::run()
     glfwPollEvents();
 
     m_game->update();
-    m_spatialSystem->update();
-    m_renderSystem->update();
+    m_sysBehaviour->update();
+    m_sysGrid->update();
+    m_sysRender->update();
     if (m_controlMode == ControlMode::Gamepad) {
       processGamepadInput();
     }

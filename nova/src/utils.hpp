@@ -45,6 +45,6 @@ std::vector<char> readBinaryFile(const std::string& filename);
 
 std::string versionString();
 
-using hashedString_t = size_t;
+using HashedString = size_t;
 
-hashedString_t hashString(const std::string& s);
+HashedString hashString(const std::string& s);

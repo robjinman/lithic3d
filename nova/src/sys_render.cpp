@@ -1,4 +1,4 @@
-#include "render_system.hpp"
+#include "sys_render.hpp"
 #include "renderer.hpp"
 #include "logger.hpp"
 #include "camera.hpp"
@@ -13,14 +13,12 @@ using render::Renderer;
 using render::Mesh;
 using render::MeshPtr;
 using render::Material;
-using render::MaterialPtr;
 using render::MeshFeatureSet;
 using render::MaterialFeatureSet;
 using render::MeshHandle;
 namespace MaterialFeatures = render::MaterialFeatures;
 namespace MeshFeatures = render::MeshFeatures;
 using render::MaterialHandle;
-using render::TexturePtr;
 using render::RenderPass;
 using render::Buffer;
 using render::BufferUsage;
@@ -95,17 +93,15 @@ MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
 
 struct CRenderData
 {
-  CRender component;
-
-  // TODO: Allow entities to share meshes/materials?
-  MeshHandle mesh;
-  MaterialHandle material;
+  Vec2f pos;
+  uint32_t zIndex;
+  MeshHandle mesh; // TODO: Share meshes or use instancing?
 };
 
-class RenderSystemImpl : public RenderSystem
+class SysRenderImpl : public SysRender
 {
   public:
-    RenderSystemImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
+    SysRenderImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -113,12 +109,14 @@ class RenderSystemImpl : public RenderSystem
     Camera& camera() override;
     const Camera& camera() const override;
 
-    void addComponent(ComponentPtr component) override;
-    void removeComponent(EntityId entityId) override;
-    bool hasComponent(EntityId entityId) const override;
-    CRender& getComponent(EntityId entityId) override;
-    const CRender& getComponent(EntityId entityId) const override;
+    void addEntity(EntityId entityId, const CRender& component) override;
+    void moveEntity(EntityId entityId, const Vec2f& pos) override;
+    void playAnimation(EntityId entityId, HashedString name) override;
+
+    void removeEntity(EntityId entityId) override;
+    bool hasEntity(EntityId entityId) const override;
     void update() override;
+    void processEvent(const GameEvent& event) override {}
 
   private:
     Logger& m_logger;
@@ -126,13 +124,14 @@ class RenderSystemImpl : public RenderSystem
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
     std::vector<CRenderData> m_data;
+    std::vector<EntityId> m_ids;      // m_data index -> EntityId
     std::vector<uint32_t> m_lookup;   // EntityId -> m_data index
     MaterialHandle m_textureAtlas;
 
     MeshHandle createMesh(const CRender& c) const;
 };
 
-RenderSystemImpl::RenderSystemImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
+SysRenderImpl::SysRenderImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
@@ -162,42 +161,42 @@ RenderSystemImpl::RenderSystemImpl(Renderer& renderer, const FileSystem& fileSys
   m_camera.setPosition(Vec3f{ 0.f, 0.f, 1.f });
 }
 
-void RenderSystemImpl::start()
+void SysRenderImpl::start()
 {
   m_renderer.start();
 }
 
-double RenderSystemImpl::frameRate() const
+double SysRenderImpl::frameRate() const
 {
   return m_renderer.frameRate();
 }
 
-MeshHandle RenderSystemImpl::createMesh(const CRender& c) const
+MeshHandle SysRenderImpl::createMesh(const CRender& c) const
 {
   return m_renderer.addMesh(quad(c.size, c.textureRect));
 }
 
-void RenderSystemImpl::addComponent(ComponentPtr component)
+void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 {
-  auto renderComp = CRenderPtr(dynamic_cast<CRender*>(component.release()));
-  auto id = renderComp->id();
-  auto zIndex = renderComp->zIndex;
-
-  auto mesh = createMesh(*renderComp);
+  auto mesh = createMesh(data);
 
   m_data.push_back(CRenderData{
-    .component = *renderComp,
-    .mesh = mesh,
-    .material = m_textureAtlas
+    .pos = data.pos,
+    .zIndex = data.zIndex,
+    .mesh = mesh
   });
 
-  if (id + 1 > m_lookup.size()) {
-    m_lookup.resize(id + 1, 0);
+  m_ids.push_back(entityId);
+
+  assert(m_data.size() == m_ids.size());
+
+  if (entityId + 1 > m_lookup.size()) {
+    m_lookup.resize(entityId + 1, 0);
   }
-  m_lookup[id] = m_data.size() - 1;
+  m_lookup[entityId] = m_data.size() - 1;
 }
 
-void RenderSystemImpl::removeComponent(EntityId entityId)
+void SysRenderImpl::removeEntity(EntityId entityId)
 {
   if (m_data.empty()) {
     return;
@@ -206,51 +205,55 @@ void RenderSystemImpl::removeComponent(EntityId entityId)
   auto idx = m_lookup[entityId];
   auto last = m_data.size() - 1;
 
-  auto lastId = m_data[last].component.id();
+  auto lastId = m_ids[last];
 
   std::swap(m_data[idx], m_data[last]);
+  std::swap(m_ids[idx], m_ids[idx]);
   m_data.pop_back();
+  m_ids.pop_back();
+
+  assert(m_data.size() == m_ids.size());
 
   m_lookup[entityId] = 0;
   m_lookup[lastId] = idx;
 }
 
-bool RenderSystemImpl::hasComponent(EntityId entityId) const
+bool SysRenderImpl::hasEntity(EntityId entityId) const
 {
   return m_lookup.size() + 1 > entityId && m_lookup[entityId] != 0;
 }
 
-CRender& RenderSystemImpl::getComponent(EntityId entityId)
+void SysRenderImpl::moveEntity(EntityId entityId, const Vec2f& pos)
 {
-  return m_data[m_lookup[entityId]].component;
+  // TODO
 }
 
-const CRender& RenderSystemImpl::getComponent(EntityId entityId) const
+void SysRenderImpl::playAnimation(EntityId entityId, HashedString name)
 {
-  return m_data[m_lookup[entityId]].component;
+  // TODO
 }
 
-Camera& RenderSystemImpl::camera()
-{
-  return m_camera;
-}
-
-const Camera& RenderSystemImpl::camera() const
+Camera& SysRenderImpl::camera()
 {
   return m_camera;
 }
 
-void RenderSystemImpl::update()
+const Camera& SysRenderImpl::camera() const
+{
+  return m_camera;
+}
+
+void SysRenderImpl::update()
 {
   try {
     m_renderer.beginFrame();
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     for (auto& item : m_data) {
-      auto t = translationMatrix4x4(Vec3f{item.component.pos[0], item.component.pos[1]});
+      auto t = translationMatrix4x4(Vec3f{item.pos[0], item.pos[1], 0.f});
       auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
-      m_renderer.setOrderKey(item.component.zIndex);
-      m_renderer.drawModel(item.mesh, item.material, screenSpaceTransform);
+      m_renderer.setOrderKey(item.zIndex);
+      m_renderer.drawModel(item.mesh, m_textureAtlas, screenSpaceTransform);
     }
 
     m_renderer.endPass();
@@ -264,7 +267,7 @@ void RenderSystemImpl::update()
 
 } // namespace
 
-RenderSystemPtr createRenderSystem(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
+SysRenderPtr createSysRender(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<RenderSystemImpl>(renderer, fileSystem, logger);
+  return std::make_unique<SysRenderImpl>(renderer, fileSystem, logger);
 }
