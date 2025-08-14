@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.hpp"
+#include <memory>
 
 using EntityId = size_t;
 

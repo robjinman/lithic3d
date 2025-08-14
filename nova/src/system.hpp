@@ -13,8 +13,6 @@ class Component
 
     EntityId id() const;
 
-    virtual void update() = 0;
-
     virtual ~Component() {}
 
   protected:

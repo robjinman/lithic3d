@@ -1,7 +1,7 @@
 #include "behaviours.hpp"
 #include "world_grid.hpp"
 #include "entity_manager.hpp"
-#include "c_render.hpp"
+#include "render_system.hpp"
 
 class CollectableBehaviour : public Behaviour
 {
