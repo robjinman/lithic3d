@@ -162,7 +162,7 @@ Application::Application()
 
 void Application::run()
 {
-  FrameRateLimiter frameRateLimiter{TARGET_FRAME_RATE};
+  FrameRateLimiter frameRateLimiter{TICKS_PER_SECOND};
 
   while(!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();

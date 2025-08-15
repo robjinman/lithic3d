@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 #include "event_system.hpp"
+#include "units.hpp"
 
 using EntityId = size_t;
 
@@ -30,7 +31,7 @@ class System
   public:
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;
-    virtual void update(const InputState& inputState) = 0;
+    virtual void update(Tick tick, const InputState& inputState) = 0;
     virtual void processEvent(const GameEvent& event) = 0;
 
     virtual ~System() {}

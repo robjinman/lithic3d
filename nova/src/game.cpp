@@ -10,7 +10,6 @@
 #include "logger.hpp"
 #include "utils.hpp"
 #include "units.hpp"
-#include "constants.hpp"
 #include "player.hpp"
 #include "input_state.hpp"
 #include <set>
@@ -45,10 +44,10 @@ class GameImpl : public Game
     InputState m_inputState;
     Vec2f m_leftStickDelta;
     Timer m_timer;
-    size_t m_frame = 0;
-    double m_measuredFrameRate = 0;
+    size_t m_currentTick = 0;
+    double m_measuredTickRate = 0;
 
-    void measureFrameRate();
+    void measureTickRate();
     void processKeyboardInput();
     void processMouseInput();
 
@@ -95,7 +94,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
 {
   switch (key) {
     case KeyboardKey::F: {
-      m_logger.info(STR("Simulation frame rate: " << m_measuredFrameRate));
+      m_logger.info(STR("Simulation tick rate: " << m_measuredTickRate));
       break;
     }
     case KeyboardKey::Left: m_inputState.left = true; break;
@@ -149,43 +148,36 @@ void GameImpl::processMouseInput()
 
 }
 
-void GameImpl::measureFrameRate()
+void GameImpl::measureTickRate()
 {
-  ++m_frame;
-  if (m_frame % TARGET_FRAME_RATE == 0) {
-    m_measuredFrameRate = TARGET_FRAME_RATE / m_timer.elapsed();
+  ++m_currentTick;
+  if (m_currentTick % TICKS_PER_SECOND == 0) {
+    m_measuredTickRate = TICKS_PER_SECOND / m_timer.elapsed();
     m_timer.reset();
   }
 }
 
 void GameImpl::update()
 {
-  measureFrameRate();
+  measureTickRate();
   processKeyboardInput();
   processMouseInput();
 
-  m_sysBehaviour.update(m_inputState);
-  m_sysGrid.update(m_inputState);
-  m_sysRender.update(m_inputState);
+  m_sysBehaviour.update(m_currentTick, m_inputState);
+  m_sysGrid.update(m_currentTick, m_inputState);
+  m_sysRender.update(m_currentTick, m_inputState);
 }
 
 void GameImpl::constructSky()
 {
   auto id = System::nextId();
 
-  float_t offsetXpx = 0.f;
-  float_t offsetYpx = 416.f;
-  float_t wPx = 128.f;
-  float_t hPx = 32.f;
-  float_t w = wPx / ATLAS_WIDTH_PX;
-  float_t h = hPx / ATLAS_HEIGHT_PX;
-
   CRender render{
     .textureRect = Rectf{
-      .x = offsetXpx / ATLAS_WIDTH_PX,
-      .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
-      .w = w,
-      .h = h
+      .x = pxToUvX(0.f),
+      .y = pxToUvY(416.f, 32.f),
+      .w = pxToUvW(128.f),
+      .h = pxToUvH(32.f)
     },
     .size = Vec2f{ 1.3125f, 0.25f },
     .pos = Vec2f{ 0.f, 0.75f },
@@ -199,19 +191,12 @@ void GameImpl::constructTrees()
 {
   auto id = System::nextId();
 
-  float_t offsetXpx = 0.f;
-  float_t offsetYpx = 352.f;
-  float_t wPx = 256.f;
-  float_t hPx = 40.f;
-  float_t w = wPx / ATLAS_WIDTH_PX;
-  float_t h = hPx / ATLAS_HEIGHT_PX;
-
   CRender render{
     .textureRect = Rectf{
-      .x = offsetXpx / ATLAS_WIDTH_PX,
-      .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
-      .w = w,
-      .h = h
+      .x = pxToUvX(0.f),
+      .y = pxToUvY(352.f, 40.f),
+      .w = pxToUvW(256.f),
+      .h = pxToUvH(40.f)
     },
     .size = Vec2f{ 1.3125f, 0.1875f },
     .pos = Vec2f{ 0.f, 0.68375 },
@@ -226,19 +211,12 @@ void GameImpl::constructFakeSoil()
   for (float_t x = 0.f; x <= 1.25; x += 0.0625) {
     auto id = System::nextId();
 
-    float_t offsetXpx = 384.f;
-    float_t offsetYpx = 0.f;
-    float_t wPx = 16.f;
-    float_t hPx = 16.f;
-    float_t w = wPx / ATLAS_WIDTH_PX;
-    float_t h = hPx / ATLAS_HEIGHT_PX;
-
     CRender render{
       .textureRect = Rectf{
-        .x = offsetXpx / ATLAS_WIDTH_PX,
-        .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
-        .w = w,
-        .h = h
+        .x = pxToUvX(384.f),
+        .y = pxToUvY(0.f, 16.f),
+        .w = pxToUvW(16.f),
+        .h = pxToUvH(16.f)
       },
       .size = Vec2f{ 0.0625, 0.0625f },
       .pos = Vec2f{ x, 0.6875f },

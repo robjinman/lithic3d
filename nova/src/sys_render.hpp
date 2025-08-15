@@ -4,19 +4,12 @@
 #include "utils.hpp"
 #include "math.hpp"
 
-struct Animation
-{
-  HashedString name;
-  std::vector<Recti> frames;
-};
-
 struct CRender
 {
   Rectf textureRect;
   Vec2f size;
   Vec2f pos;
   uint32_t zIndex = 0;
-  std::vector<Animation> animations;
 };
 
 class Camera;
@@ -31,9 +24,10 @@ class SysRender : public System
     virtual const Camera& camera() const = 0;
 
     virtual void addEntity(EntityId entityId, const CRender& data) = 0;
-    virtual void moveEntity(EntityId entityId, const Vec2f& pos) = 0;
-    virtual void playAnimation(EntityId entityId, HashedString name) = 0;
-    virtual bool isAnimationPlaying(EntityId entityId) const = 0;
+    virtual const Vec2f& getPosition(EntityId entityId) const = 0;
+    virtual void setPosition(EntityId entityId, const Vec2f& pos) = 0;
+    virtual void move(EntityId entityId, const Vec2f& delta) = 0;
+    virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
 
     virtual ~SysRender() {}
 };

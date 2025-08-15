@@ -20,7 +20,7 @@ class SysGridImpl : public SysGrid
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(const InputState& inputState) override {}
+    void update(Tick tick, const InputState& inputState) override {}
     void processEvent(const GameEvent& event) override {}
 
     void addEntity(EntityId entityId, int x, int y) override;
@@ -71,7 +71,7 @@ bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)
   removeEntity(entityId);
   addEntity(entityId, dest[0], dest[1]);
 
-  m_eventSystem.fireEvent(EEntityStepOn{entityId, coords, dest, m_cells[dest[1]][dest[1]]});
+  m_eventSystem.fireEvent(EEntityStepOn{entityId, coords, dest, m_cells[dest[1]][dest[0]]});
 
   return true;
 }

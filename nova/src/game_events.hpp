@@ -5,7 +5,7 @@
 #include "system.hpp"
 #include "utils.hpp"
 
-const HashedString g_strPlayerStepOn = hashString("player_step_on");
+const HashedString g_strEntityStepOn = hashString("entity_step_on");
 const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strRequestDeletion = hashString("request_deletion");
 const HashedString g_strAnimationFinished = hashString("animation_finished");
@@ -14,14 +14,14 @@ class EEntityStepOn : public GameEvent
 {
   public:
     EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos)
-      : GameEvent(g_strPlayerStepOn)
+      : GameEvent(g_strEntityStepOn)
       , entityId(entityId)
       , fromPos(fromPos)
       , toPos(toPos) {}
 
     EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos,
       const std::set<EntityId>& targets)
-      : GameEvent(g_strPlayerStepOn, targets)
+      : GameEvent(g_strEntityStepOn, targets)
       , entityId(entityId)
       , fromPos(fromPos)
       , toPos(toPos) {}

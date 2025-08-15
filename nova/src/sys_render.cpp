@@ -8,6 +8,7 @@
 #include "file_system.hpp"
 #include <cassert>
 #include <functional>
+#include <map>
 
 using render::Renderer;
 using render::Mesh;
@@ -110,13 +111,14 @@ class SysRenderImpl : public SysRender
     const Camera& camera() const override;
 
     void addEntity(EntityId entityId, const CRender& component) override;
-    void moveEntity(EntityId entityId, const Vec2f& pos) override;
-    void playAnimation(EntityId entityId, HashedString name) override;
-    bool isAnimationPlaying(EntityId entityId) const override;
+    const Vec2f& getPosition(EntityId entityId) const override;
+    void setPosition(EntityId entityId, const Vec2f& pos) override;
+    void move(EntityId entityId, const Vec2f& delta) override;
+    void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(const InputState& inputState) override;
+    void update(Tick tick, const InputState& inputState) override;
     void processEvent(const GameEvent& event) override {}
 
   private:
@@ -125,8 +127,8 @@ class SysRenderImpl : public SysRender
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
     std::vector<CRenderData> m_data;
-    std::vector<EntityId> m_ids;      // m_data index -> EntityId
-    std::vector<uint32_t> m_lookup;   // EntityId -> m_data index
+    std::vector<EntityId> m_ids;              // m_data index -> EntityId
+    std::map<EntityId, uint32_t> m_lookup;    // EntityId -> m_data index
     MaterialHandle m_textureAtlas;
 
     MeshHandle createMesh(const CRender& c) const;
@@ -191,9 +193,6 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 
   assert(m_data.size() == m_ids.size());
 
-  if (entityId + 1 > m_lookup.size()) {
-    m_lookup.resize(entityId + 1, 0);
-  }
   m_lookup[entityId] = m_data.size() - 1;
 }
 
@@ -203,7 +202,12 @@ void SysRenderImpl::removeEntity(EntityId entityId)
     return;
   }
 
-  auto idx = m_lookup[entityId];
+  auto i = m_lookup.find(entityId);
+  if (i == m_lookup.end()) {
+    return;
+  }
+
+  auto idx = i->second;
   auto last = m_data.size() - 1;
 
   auto lastId = m_ids[last];
@@ -215,30 +219,33 @@ void SysRenderImpl::removeEntity(EntityId entityId)
 
   assert(m_data.size() == m_ids.size());
 
-  m_lookup[entityId] = 0;
+  m_lookup.erase(entityId);
   m_lookup[lastId] = idx;
 }
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
 {
-  return m_lookup.size() + 1 > entityId && m_lookup[entityId] != 0;
+  return m_lookup.contains(entityId);
 }
 
-void SysRenderImpl::moveEntity(EntityId entityId, const Vec2f& pos)
+const Vec2f& SysRenderImpl::getPosition(EntityId entityId) const
 {
-  // TODO
+  return m_data[m_lookup.at(entityId)].pos;
 }
 
-void SysRenderImpl::playAnimation(EntityId entityId, HashedString name)
+void SysRenderImpl::setPosition(EntityId entityId, const Vec2f& pos)
 {
-  // TODO
-  m_logger.info(STR("Play animation " << name));
+  m_data[m_lookup.at(entityId)].pos = pos;
 }
 
-bool SysRenderImpl::isAnimationPlaying(EntityId entityId) const
+void SysRenderImpl::move(EntityId entityId, const Vec2f& pos)
+{
+  m_data[m_lookup.at(entityId)].pos += pos;
+}
+
+void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
 {
   // TODO
-  return false;
 }
 
 Camera& SysRenderImpl::camera()
@@ -251,7 +258,7 @@ const Camera& SysRenderImpl::camera() const
   return m_camera;
 }
 
-void SysRenderImpl::update(const InputState&)
+void SysRenderImpl::update(Tick tick, const InputState&)
 {
   try {
     m_renderer.beginFrame();

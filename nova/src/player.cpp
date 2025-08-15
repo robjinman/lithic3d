@@ -4,77 +4,87 @@
 #include "sys_render.hpp"
 #include "event_system.hpp"
 #include "game_events.hpp"
-#include "constants.hpp"
 #include "input_state.hpp"
+#include "b_animation.hpp"
 
 namespace
 {
 
-class PlayerBehaviour : public CBehaviour
+class BUserControl : public CBehaviour
 {
   public:
-    PlayerBehaviour(EntityId entityId, EventSystem& eventSystem, SysGrid& sysGrid,
-      SysRender& sysRender);
+    BUserControl(EntityId entityId, EventSystem& eventSystem, SysGrid& sysGrid,
+      SysBehaviour& sysBehaviour);
 
+    HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
     void processEvent(const GameEvent& event) override;
-    void update(const InputState& inputState) override;
+    void update(Tick tick, const InputState& inputState) override;
 
   private:
     EntityId m_entityId;
     EventSystem& m_eventSystem;
     SysGrid& m_sysGrid;
-    SysRender& m_sysRender;
+    SysBehaviour& m_sysBehaviour;
 };
 
-PlayerBehaviour::PlayerBehaviour(EntityId entityId, EventSystem& eventSystem, SysGrid& sysGrid,
-  SysRender& sysRender)
+BUserControl::BUserControl(EntityId entityId, EventSystem& eventSystem, SysGrid& sysGrid,
+  SysBehaviour& sysBehaviour)
   : m_entityId(entityId)
   , m_eventSystem(eventSystem)
   , m_sysGrid(sysGrid)
-  , m_sysRender(sysRender)
+  , m_sysBehaviour(sysBehaviour)
 {
 }
 
-const std::set<HashedString>& PlayerBehaviour::subscriptions() const
+HashedString BUserControl::name() const
+{
+  static HashedString strUserControl = hashString("user_control");
+  return strUserControl;
+}
+
+const std::set<HashedString>& BUserControl::subscriptions() const
 {
   static std::set<HashedString> subs{};
   return subs;
 }
 
-void PlayerBehaviour::processEvent(const GameEvent&)
+void BUserControl::processEvent(const GameEvent&)
 {
 }
 
-void PlayerBehaviour::update(const InputState& inputState)
+void BUserControl::update(Tick, const InputState& inputState)
 {
-  static auto strRunLeft = hashString("run_left");
-  static auto strRunRight = hashString("run_right");
-  static auto strRunUp = hashString("run_up");
-  static auto strRunDown = hashString("run_down");
+  static auto strAnimation = hashString("animation");
+  static auto strMoveLeft = hashString("move_left");
+  static auto strMoveRight = hashString("move_right");
+  static auto strMoveUp = hashString("move_up");
+  static auto strMoveDown = hashString("move_down");
 
-  if (m_sysRender.isAnimationPlaying(m_entityId)) {
+  auto& anim = dynamic_cast<BAnimation&>(m_sysBehaviour.getBehaviour(m_entityId, strAnimation));
+
+  if (anim.hasAnimationPlaying()) {
     return;
   }
 
   if (inputState.left) {
     if (m_sysGrid.tryMove(m_entityId, -1, 0)) {
-      m_sysRender.playAnimation(m_entityId, strRunLeft);
+      anim.playAnimation(strMoveLeft);
     }
   }
   else if (inputState.right) {
     if (m_sysGrid.tryMove(m_entityId, 1, 0)) {
-      m_sysRender.playAnimation(m_entityId, strRunRight);
+      anim.playAnimation(strMoveRight);
     }
   }
   else if (inputState.up) {
     if (m_sysGrid.tryMove(m_entityId, 0, 1)) {
-      m_sysRender.playAnimation(m_entityId, strRunUp);
+      anim.playAnimation(strMoveUp);
     }
   }
   else if (inputState.down) {
     if (m_sysGrid.tryMove(m_entityId, 0, -1)) {
-      m_sysRender.playAnimation(m_entityId, strRunDown);
+      anim.playAnimation(strMoveDown);
     }
   }
 }
@@ -88,19 +98,12 @@ EntityId constructPlayer(EventSystem& eventSystem, SysGrid& sysGrid, SysRender& 
 
   sysGrid.addEntity(id, 0, 0);
 
-  float_t offsetXpx = 384.f;
-  float_t offsetYpx = 256.f;
-  float_t wPx = 32.f;
-  float_t hPx = 48.f;
-  float_t w = wPx / ATLAS_WIDTH_PX;
-  float_t h = hPx / ATLAS_HEIGHT_PX;
-
   CRender render{
     .textureRect = Rectf{
-      .x = offsetXpx / ATLAS_WIDTH_PX,
-      .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
-      .w = w,
-      .h = h
+      .x = pxToUvX(384.f),
+      .y = pxToUvY(256.f, 48.f),
+      .w = pxToUvW(32.f),
+      .h = pxToUvH(48.f)
     },
     .size = Vec2f{ 0.0625f, 0.0625f },
     .pos = Vec2f{ 0.f, 0.f },
@@ -109,8 +112,100 @@ EntityId constructPlayer(EventSystem& eventSystem, SysGrid& sysGrid, SysRender& 
 
   sysRender.addEntity(id, render);
 
-  auto behaviour = std::make_unique<PlayerBehaviour>(id, eventSystem, sysGrid, sysRender);
-  sysBehaviour.addBehaviour(id, std::move(behaviour));
+  auto userCtrlBehaviour = std::make_unique<BUserControl>(id, eventSystem, sysGrid, sysBehaviour);
+
+  Animation moveLeft{
+    .name = hashString("move_left"),
+    .duration = 10,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ -0.015625f, 0 }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ -0.015625f, 0 }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvX(48.f)
+        },
+        .delta = Vec2f{ -0.015625f, 0 }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvX(48.f)
+        },
+        .delta = Vec2f{ -0.015625f, 0 }
+      }
+    }
+  };
+
+  Animation moveRight{
+    .name = hashString("move_right"),
+    .duration = 10,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0 }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0 }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0 }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0 }
+      }
+    }
+  };
+
+  auto animBehaviour = createBAnimation(id, sysRender);
+  animBehaviour->addAnimation(std::move(moveLeft));
+  animBehaviour->addAnimation(std::move(moveRight));
+
+  sysBehaviour.addBehaviour(id, std::move(userCtrlBehaviour));
+  sysBehaviour.addBehaviour(id, std::move(animBehaviour));
 
   return id;
 }
