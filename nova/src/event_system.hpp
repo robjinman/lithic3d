@@ -2,17 +2,23 @@
 
 #include "utils.hpp"
 #include <functional>
+#include <memory>
 
-struct Event
+class Event
 {
   public:
-    Event(HashedString type)
-      : m_type(type) {}
+    Event(HashedString name)
+      : m_name(name) {}
 
-    virtual HashedString type() const;
+    virtual HashedString name() const
+    {
+      return m_name;
+    }
+
+    virtual ~Event() {};
 
   private:
-    HashedString m_type;
+    HashedString m_name;
 };
 
 using EventHandlerFn = std::function<void(const Event&)>;
@@ -20,15 +26,8 @@ using EventHandlerFn = std::function<void(const Event&)>;
 class EventSystem
 {
   public:
-    class Handle
-    {
-
-    };
-
-    virtual Handle listen(HashedString category, EventHandlerFn handler) = 0;
-    virtual Handle listen(HashedString category, HashedString type, EventHandlerFn handler) = 0;
+    virtual void listen(HashedString name, EventHandlerFn handler) = 0;
     virtual void fireEvent(const Event& event) = 0;
-    virtual void forget(const Handle& handle) = 0;
 };
 
 using EventSystemPtr = std::unique_ptr<EventSystem>;

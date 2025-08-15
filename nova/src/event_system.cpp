@@ -1,4 +1,5 @@
 #include "event_system.hpp"
+#include <map>
 
 namespace
 {
@@ -6,33 +7,26 @@ namespace
 class EventSystemImpl : public EventSystem
 {
   public:
-    Handle listen(HashedString category, EventHandlerFn handler) override;
-    Handle listen(HashedString category, HashedString type, EventHandlerFn handler) override;
+    void listen(HashedString name, EventHandlerFn handler) override;
     void fireEvent(const Event& event) override;
-    void forget(const Handle& handle) override;
+
+  private:
+    std::map<HashedString, std::vector<EventHandlerFn>> m_handlers;
 };
 
-EventSystem::Handle EventSystemImpl::listen(HashedString category, EventHandlerFn handler)
+void EventSystemImpl::listen(HashedString name, EventHandlerFn handler)
 {
-  // TODO
-  return Handle{};
-}
-
-EventSystem::Handle EventSystemImpl::listen(HashedString category, HashedString type,
-  EventHandlerFn handler)
-{
-  // TODO
-  return Handle{};
+  m_handlers[name].push_back(handler);
 }
 
 void EventSystemImpl::fireEvent(const Event& event)
 {
-
-}
-
-void EventSystemImpl::forget(const Handle& handle)
-{
-
+  auto i = m_handlers.find(event.name());
+  if (i != m_handlers.end()) {
+    for (auto& fn : i->second) {
+      fn(event);
+    }
+  }
 }
 
 }

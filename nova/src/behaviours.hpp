@@ -3,9 +3,8 @@
 #include "sys_behaviour.hpp"
 #include "math.hpp"
 
-class SysGrid;
 class SysRender;
 class EventSystem;
 
-CBehaviourPtr createCollectableBehaviour(const SysGrid& sysGrid, SysRender& sysRender,
-  EventSystem& eventSystem, EntityId entityId, EntityId playerId, uint32_t value);
+CBehaviourPtr createCollectableBehaviour(SysRender& sysRender, EventSystem& eventSystem,
+  EntityId entityId, EntityId playerId, uint32_t value);

@@ -3,33 +3,22 @@
 #include "sys_grid.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_ui.hpp"
+#include "game_events.hpp"
 #include "file_system.hpp"
 #include "time.hpp"
 #include "camera.hpp"
 #include "logger.hpp"
 #include "utils.hpp"
 #include "units.hpp"
+#include "constants.hpp"
+#include "player.hpp"
+#include "input_state.hpp"
 #include <set>
 #undef max
 #undef min
 
 namespace
 {
-
-const float_t ATLAS_WIDTH_PX = 1024.f;
-const float_t ATLAS_HEIGHT_PX = 512.f;
-
-KeyboardKey buttonToKey(GamepadButton button)
-{
-  switch (button) {
-    case GamepadButton::A: return KeyboardKey::E;
-    case GamepadButton::Y: return KeyboardKey::F;
-    case GamepadButton::X: return KeyboardKey::K;
-    case GamepadButton::B: return KeyboardKey::R;
-    // ...
-    default: return KeyboardKey::Unknown;
-  }
-}
 
 class GameImpl : public Game
 {
@@ -53,8 +42,7 @@ class GameImpl : public Game
     SysRender& m_sysRender;
     SysGrid& m_sysGrid;
     SysBehaviour& m_sysBehaviour;
-    std::set<KeyboardKey> m_keysPressed;
-    Vec2f m_mouseDelta;
+    InputState m_inputState;
     Vec2f m_leftStickDelta;
     Timer m_timer;
     size_t m_frame = 0;
@@ -64,10 +52,10 @@ class GameImpl : public Game
     void processKeyboardInput();
     void processMouseInput();
 
-    void constructPlayer();
     void constructSky();
     void constructTrees();
     void constructFakeSoil();
+    void constructSoil();
 };
 
 GameImpl::GameImpl(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
@@ -96,43 +84,49 @@ GameImpl::GameImpl(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysR
     // TODO
   });
 
-  constructPlayer();
+  constructPlayer(m_eventSystem, m_sysGrid, m_sysRender, m_sysBehaviour);
   constructSky();
   constructTrees();
   constructFakeSoil();
+  constructSoil();
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
 {
-  m_keysPressed.insert(key);
-
   switch (key) {
-    case KeyboardKey::F:{
+    case KeyboardKey::F: {
       m_logger.info(STR("Simulation frame rate: " << m_measuredFrameRate));
       break;
     }
+    case KeyboardKey::Left: m_inputState.left = true; break;
+    case KeyboardKey::Right: m_inputState.right = true; break;
+    case KeyboardKey::Up: m_inputState.up = true; break;
+    case KeyboardKey::Down: m_inputState.down = true; break;
     default: break;
   }
 }
 
 void GameImpl::onKeyUp(KeyboardKey key)
 {
-  m_keysPressed.erase(key);
+  switch (key) {
+    case KeyboardKey::Left: m_inputState.left = false; break;
+    case KeyboardKey::Right: m_inputState.right = false; break;
+    case KeyboardKey::Up: m_inputState.up = false; break;
+    case KeyboardKey::Down: m_inputState.down = false; break;
+    default: break;
+  }
 }
 
 void GameImpl::onButtonDown(GamepadButton button)
 {
-  onKeyDown(buttonToKey(button));
 }
 
 void GameImpl::onButtonUp(GamepadButton button)
 {
-  onKeyUp(buttonToKey(button));
 }
 
 void GameImpl::onMouseMove(const Vec2f& delta)
 {
-  m_mouseDelta = delta;
 }
 
 void GameImpl::onLeftStickMove(const Vec2f& delta)
@@ -169,6 +163,10 @@ void GameImpl::update()
   measureFrameRate();
   processKeyboardInput();
   processMouseInput();
+
+  m_sysBehaviour.update(m_inputState);
+  m_sysGrid.update(m_inputState);
+  m_sysRender.update(m_inputState);
 }
 
 void GameImpl::constructSky()
@@ -251,30 +249,9 @@ void GameImpl::constructFakeSoil()
   }
 }
 
-void GameImpl::constructPlayer()
+void GameImpl::constructSoil()
 {
-  auto id = System::nextId();
-
-  float_t offsetXpx = 384.f;
-  float_t offsetYpx = 256.f;
-  float_t wPx = 32.f;
-  float_t hPx = 48.f;
-  float_t w = wPx / ATLAS_WIDTH_PX;
-  float_t h = hPx / ATLAS_HEIGHT_PX;
-
-  CRender render{
-    .textureRect = Rectf{
-      .x = offsetXpx / ATLAS_WIDTH_PX,
-      .y = (ATLAS_HEIGHT_PX - offsetYpx - hPx) / ATLAS_HEIGHT_PX,
-      .w = w,
-      .h = h
-    },
-    .size = Vec2f{ 0.0625f, 0.0625f },
-    .pos = Vec2f{ 0.5f, 0.2f },
-    .zIndex = 2
-  };
-
-  m_sysRender.addEntity(id, render);
+  // TODO
 }
 
 } // namespace

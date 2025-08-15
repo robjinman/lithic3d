@@ -33,6 +33,7 @@ class SysRender : public System
     virtual void addEntity(EntityId entityId, const CRender& data) = 0;
     virtual void moveEntity(EntityId entityId, const Vec2f& pos) = 0;
     virtual void playAnimation(EntityId entityId, HashedString name) = 0;
+    virtual bool isAnimationPlaying(EntityId entityId) const = 0;
 
     virtual ~SysRender() {}
 };

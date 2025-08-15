@@ -150,7 +150,7 @@ Application::Application()
   m_eventSystem = createEventSystem();
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
   m_sysBehaviour = createSysBehaviour();
-  m_sysGrid = createSysGrid();
+  m_sysGrid = createSysGrid(*m_eventSystem);
   m_sysRender = createSysRender(*m_renderer, *m_fileSystem, *m_logger);
 
   m_game = createGame(*m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_eventSystem, *m_fileSystem,
@@ -168,9 +168,7 @@ void Application::run()
     glfwPollEvents();
 
     m_game->update();
-    m_sysBehaviour->update();
-    m_sysGrid->update();
-    m_sysRender->update();
+
     if (m_controlMode == ControlMode::Gamepad) {
       processGamepadInput();
     }

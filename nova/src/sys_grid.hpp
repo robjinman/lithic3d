@@ -5,11 +5,12 @@
 class SysGrid : public System
 {
   public:
-    virtual void addEntity(EntityId entityId, uint32_t x, uint32_t y) = 0;
-    virtual const std::set<EntityId>& getEntities(uint32_t x, uint32_t y) const = 0;
-    virtual bool hasEntityAt(EntityId entityId, uint32_t x, uint32_t y) const = 0;
+    virtual void addEntity(EntityId entityId, int x, int y) = 0;
+    virtual const std::set<EntityId>& getEntities(int x, int y) const = 0;
+    virtual bool hasEntityAt(EntityId entityId, int x, int y) const = 0;
+    virtual bool tryMove(EntityId entityId, int dx, int dy) = 0;
 };
 
 using SysGridPtr = std::unique_ptr<SysGrid>;
 
-SysGridPtr createSysGrid();
+SysGridPtr createSysGrid(EventSystem& eventSystem);

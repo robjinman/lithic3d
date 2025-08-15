@@ -8,7 +8,7 @@ class SysUiImpl : public SysUi
   public:
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update() override;
+    void update(const InputState& inputState) override;
     void processEvent(const GameEvent& event) override;
 };
 
@@ -23,7 +23,7 @@ bool SysUiImpl::hasEntity(EntityId entityId) const
   return false;
 }
 
-void SysUiImpl::update()
+void SysUiImpl::update(const InputState& inputState)
 {
 
 }

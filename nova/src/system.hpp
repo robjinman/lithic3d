@@ -23,12 +23,14 @@ class GameEvent : public Event
     std::set<EntityId> targets;
 };
 
+class InputState;
+
 class System
 {
   public:
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;
-    virtual void update() = 0;
+    virtual void update(const InputState& inputState) = 0;
     virtual void processEvent(const GameEvent& event) = 0;
 
     virtual ~System() {}

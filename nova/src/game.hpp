@@ -21,6 +21,10 @@ enum class KeyboardKey
   F10 = 299,
   F11 = 300,
   F12 = 301,
+  Right = 262,
+  Left = 263,
+  Down = 264,
+  Up = 265,
   // ...
   Unknown
 };

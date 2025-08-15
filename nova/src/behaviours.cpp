@@ -10,22 +10,14 @@ namespace
 class CollectableBehaviour : public CBehaviour
 {
   public:
-    CollectableBehaviour(const SysGrid& sysGrid, SysRender& sysRender, EventSystem& eventSystem,
-      EntityId entityId, EntityId playerId, int value)
-      : m_sysGrid(sysGrid)
-      , m_sysRender(sysRender)
-      , m_eventSystem(eventSystem)
-      , m_entityId(entityId)
-      , m_playerId(playerId)
-      , m_value(value)
-    {}
+    CollectableBehaviour(SysRender& sysRender, EventSystem& eventSystem, EntityId entityId,
+      EntityId playerId, int value);
 
     const std::set<HashedString>& subscriptions() const override;
     void processEvent(const GameEvent& event) override;
-    void update() override {}
+    void update(const InputState&) override {}
 
   private:
-    const SysGrid& m_sysGrid;
     SysRender& m_sysRender;
     EventSystem& m_eventSystem;
     EntityId m_entityId;
@@ -33,10 +25,19 @@ class CollectableBehaviour : public CBehaviour
     uint32_t m_value = 0;
 };
 
+CollectableBehaviour::CollectableBehaviour(SysRender& sysRender, EventSystem& eventSystem,
+  EntityId entityId, EntityId playerId, int value)
+  : m_sysRender(sysRender)
+  , m_eventSystem(eventSystem)
+  , m_entityId(entityId)
+  , m_playerId(playerId)
+  , m_value(value)
+{}
+
 const std::set<HashedString>& CollectableBehaviour::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strPlayerMoved,
+    g_strPlayerStepOn,
     g_strAnimationFinished
   };
   return subs;
@@ -46,12 +47,12 @@ void CollectableBehaviour::processEvent(const GameEvent& event)
 {
   static HashedString strCollect = hashString("collect");
 
-  if (event.name == g_strPlayerMoved) {
-    auto& e = dynamic_cast<const EPlayerMoved&>(event);
+  if (event.name == g_strPlayerStepOn) {
+    auto& e = dynamic_cast<const EEntityStepOn&>(event);
 
-    if (m_sysGrid.hasEntityAt(e.toPos[0], e.toPos[1], m_entityId)) {
+    if (e.entityId == m_playerId) {
       m_sysRender.playAnimation(m_entityId, strCollect);
-      m_eventSystem.fireEvent(EItemCollected{m_entityId, m_value});
+      m_eventSystem.fireEvent(EItemCollect{m_entityId, m_value});
     }
   }
   else if (event.name == g_strAnimationFinished) {
@@ -65,9 +66,8 @@ void CollectableBehaviour::processEvent(const GameEvent& event)
 
 }
 
-CBehaviourPtr createCollectableBehaviour(const SysGrid& sysGrid, SysRender& sysRender,
-  EventSystem& eventSystem, EntityId entityId, EntityId playerId, uint32_t value)
+CBehaviourPtr createCollectableBehaviour(SysRender& sysRender, EventSystem& eventSystem,
+  EntityId entityId, EntityId playerId, uint32_t value)
 {
-  return std::make_unique<CollectableBehaviour>(sysGrid, sysRender, eventSystem, entityId, playerId,
-    value);
+  return std::make_unique<CollectableBehaviour>(sysRender, eventSystem, entityId, playerId, value);
 }

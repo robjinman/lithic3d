@@ -5,38 +5,42 @@
 #include "system.hpp"
 #include "utils.hpp"
 
-const HashedString g_strPlayerMoved = hashString("player_moved");
-const HashedString g_strItemCollected = hashString("item_collected");
+const HashedString g_strPlayerStepOn = hashString("player_step_on");
+const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strRequestDeletion = hashString("request_deletion");
 const HashedString g_strAnimationFinished = hashString("animation_finished");
 
-class EPlayerMoved : public GameEvent
+class EEntityStepOn : public GameEvent
 {
   public:
-    EPlayerMoved(const Vec2i& fromPos, const Vec2i& toPos)
-      : GameEvent(g_strPlayerMoved)
+    EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos)
+      : GameEvent(g_strPlayerStepOn)
+      , entityId(entityId)
       , fromPos(fromPos)
       , toPos(toPos) {}
 
-    EPlayerMoved(const Vec2i& fromPos, const Vec2i& toPos, const std::set<EntityId>& targets)
-      : GameEvent(g_strPlayerMoved, targets)
+    EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos,
+      const std::set<EntityId>& targets)
+      : GameEvent(g_strPlayerStepOn, targets)
+      , entityId(entityId)
       , fromPos(fromPos)
       , toPos(toPos) {}
 
+    EntityId entityId;
     Vec2i fromPos;
     Vec2i toPos;
 };
 
-class EItemCollected : public GameEvent
+class EItemCollect : public GameEvent
 {
   public:
-    EItemCollected(EntityId entityId, uint32_t value)
-      : GameEvent(g_strItemCollected)
+    EItemCollect(EntityId entityId, uint32_t value)
+      : GameEvent(g_strItemCollect)
       , entityId(entityId)
       , value(value) {}
 
-    EItemCollected(EntityId entityId, uint32_t value, const std::set<EntityId>& targets)
-      : GameEvent(g_strItemCollected, targets)
+    EItemCollect(EntityId entityId, uint32_t value, const std::set<EntityId>& targets)
+      : GameEvent(g_strItemCollect, targets)
       , entityId(entityId)
       , value(value) {}
 

@@ -112,10 +112,11 @@ class SysRenderImpl : public SysRender
     void addEntity(EntityId entityId, const CRender& component) override;
     void moveEntity(EntityId entityId, const Vec2f& pos) override;
     void playAnimation(EntityId entityId, HashedString name) override;
+    bool isAnimationPlaying(EntityId entityId) const override;
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update() override;
+    void update(const InputState& inputState) override;
     void processEvent(const GameEvent& event) override {}
 
   private:
@@ -231,6 +232,13 @@ void SysRenderImpl::moveEntity(EntityId entityId, const Vec2f& pos)
 void SysRenderImpl::playAnimation(EntityId entityId, HashedString name)
 {
   // TODO
+  m_logger.info(STR("Play animation " << name));
+}
+
+bool SysRenderImpl::isAnimationPlaying(EntityId entityId) const
+{
+  // TODO
+  return false;
 }
 
 Camera& SysRenderImpl::camera()
@@ -243,7 +251,7 @@ const Camera& SysRenderImpl::camera() const
   return m_camera;
 }
 
-void SysRenderImpl::update()
+void SysRenderImpl::update(const InputState&)
 {
   try {
     m_renderer.beginFrame();
