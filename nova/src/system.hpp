@@ -2,11 +2,9 @@
 
 #include <memory>
 #include <set>
-#include <string>
 #include "event_system.hpp"
 #include "units.hpp"
-
-using EntityId = size_t;
+#include "ecs.hpp"
 
 class GameEvent : public Event
 {
@@ -26,6 +24,7 @@ class GameEvent : public Event
 
 class InputState;
 
+// Most systems will store all of their component data in the World object, but don't have to.
 class System
 {
   public:
@@ -35,13 +34,6 @@ class System
     virtual void processEvent(const GameEvent& event) = 0;
 
     virtual ~System() {}
-
-    static EntityId idFromString(const std::string& name);
-    static EntityId nextId();
-
-  private:
-    static EntityId m_nextId;
-    static std::set<EntityId> m_reservedIds;
 };
 
 using SystemPtr = std::unique_ptr<System>;

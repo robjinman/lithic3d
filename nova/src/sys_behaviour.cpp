@@ -11,7 +11,7 @@ class SysBehaviourImpl : public SysBehaviour
   public:
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick tick, const InputState& inputState) override;
+    void update(Tick, const InputState&) override {}
     void processEvent(const GameEvent& event) override;
 
     void addBehaviour(EntityId entityId, CBehaviourPtr behaviour) override;
@@ -56,15 +56,6 @@ void SysBehaviourImpl::removeEntity(EntityId entityId)
 bool SysBehaviourImpl::hasEntity(EntityId entityId) const
 {
   return m_behaviours.contains(entityId);
-}
-
-void SysBehaviourImpl::update(Tick tick, const InputState& inputState)
-{
-  for (auto& forEntity : m_behaviours) {
-    for (auto& entry : forEntity.second) {
-      entry.second->update(tick, inputState);
-    }
-  }
 }
 
 void SysBehaviourImpl::processEvent(const GameEvent& event)

@@ -102,7 +102,7 @@ struct CRenderData
 class SysRenderImpl : public SysRender
 {
   public:
-    SysRenderImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
+    SysRenderImpl(World& world, Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -123,19 +123,22 @@ class SysRenderImpl : public SysRender
 
   private:
     Logger& m_logger;
+    World& m_world;
     Camera m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
-    std::vector<CRenderData> m_data;
-    std::vector<EntityId> m_ids;              // m_data index -> EntityId
-    std::map<EntityId, uint32_t> m_lookup;    // EntityId -> m_data index
+    //std::vector<CRenderData> m_data;
+    //std::vector<EntityId> m_ids;              // m_data index -> EntityId
+    //std::map<EntityId, uint32_t> m_lookup;    // EntityId -> m_data index
     MaterialHandle m_textureAtlas;
 
     MeshHandle createMesh(const CRender& c) const;
 };
 
-SysRenderImpl::SysRenderImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
+SysRenderImpl::SysRenderImpl(World& world, Renderer& renderer, const FileSystem& fileSystem,
+  Logger& logger)
   : m_logger(logger)
+  , m_world(world)
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
@@ -183,6 +186,14 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 {
   auto mesh = createMesh(data);
 
+  m_world.add(
+  CRenderData{
+    .pos = data.pos,
+    .zIndex = data.zIndex,
+    .mesh = mesh
+  }
+
+  /*
   m_data.push_back(CRenderData{
     .pos = data.pos,
     .zIndex = data.zIndex,
@@ -193,7 +204,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 
   assert(m_data.size() == m_ids.size());
 
-  m_lookup[entityId] = m_data.size() - 1;
+  m_lookup[entityId] = m_data.size() - 1;*/
 }
 
 void SysRenderImpl::removeEntity(EntityId entityId)
@@ -282,7 +293,8 @@ void SysRenderImpl::update(Tick tick, const InputState&)
 
 } // namespace
 
-SysRenderPtr createSysRender(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
+SysRenderPtr createSysRender(World& world, Renderer& renderer, const FileSystem& fileSystem,
+  Logger& logger)
 {
   return std::make_unique<SysRenderImpl>(renderer, fileSystem, logger);
 }
