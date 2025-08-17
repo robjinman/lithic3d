@@ -11,40 +11,6 @@ class EcsTest : public testing::Test
     virtual void TearDown() override {}
 };
 
-struct ComponentA
-{
-  static constexpr ComponentType TypeId = 1 << 1;
-
-  float a;
-  float b;
-};
-
-struct ComponentB
-{
-  static constexpr ComponentType TypeId = 1 << 2;
-
-  int a;
-  int b;
-  double c;
-};
-
-struct ComponentC
-{
-  static constexpr ComponentType TypeId = 1 << 3;
-
-  short a;
-  double b;
-  long c;
-  long d;
-};
-
-struct ComponentD
-{
-  static constexpr ComponentType TypeId = 1 << 4;
-
-  char a;
-};
-
 struct CExample
 {
   int a;
@@ -119,7 +85,41 @@ TEST_F(EcsTest, store_and_retrieve_single_component)
   EXPECT_EQ(1 + 'c', components[0].a);
   EXPECT_EQ(2, components[0].b);
 }
-/*
+
+struct ComponentA
+{
+  static constexpr ComponentType TypeId = 1 << 1;
+
+  float a;
+  float b;
+};
+
+struct ComponentB
+{
+  static constexpr ComponentType TypeId = 1 << 2;
+
+  int a;
+  int b;
+  double c;
+};
+
+struct ComponentC
+{
+  static constexpr ComponentType TypeId = 1 << 3;
+
+  short a;
+  double b;
+  long c;
+  long d;
+};
+
+struct ComponentD
+{
+  static constexpr ComponentType TypeId = 1 << 4;
+
+  char a;
+};
+
 TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
 {
   World world;
@@ -135,18 +135,16 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
     .c = 3.0
   };
 
-  auto entityId = world.allocate({
-    { ComponentA::TypeId, sizeof(ComponentA) },
-    { ComponentB::TypeId, sizeof(ComponentB) }
-  });
+  auto entityId = world.allocate<ComponentA, ComponentB>();
   world.getComponent<ComponentA>(entityId) = componentA;
+  world.getComponent<ComponentB>(entityId) = componentB;
 
   auto arrayGroups = world.getComponents<ComponentA, ComponentB>();
 
   ASSERT_EQ(1, arrayGroups.size());
 
-  auto aComponents = arrayGroups[0]->get<ComponentA>();
-  auto bComponents = arrayGroups[0]->get<ComponentB>();
+  auto aComponents = arrayGroups[0]->getComponents<ComponentA>();
+  auto bComponents = arrayGroups[0]->getComponents<ComponentB>();
 
   auto& entityIds = arrayGroups[0]->entityIds();
   ASSERT_EQ(1, entityIds.size());
@@ -174,17 +172,20 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
     .b = 4.f,
   };
 
-  auto entity1 = world.add(entity1ComponentA);
-  auto entity2 = world.add(entity2ComponentA);
+  auto entity1 = world.allocate<ComponentA>();
+  auto entity2 = world.allocate<ComponentA>();
 
-  auto arrayGroups = world.get<ComponentA>();
+  world.getComponent<ComponentA>(entity1) = entity1ComponentA;
+  world.getComponent<ComponentA>(entity2) = entity2ComponentA;
+
+  auto arrayGroups = world.getComponents<ComponentA>();
 
   auto& entityIds = arrayGroups[0]->entityIds();
   ASSERT_EQ(2, entityIds.size());
   EXPECT_EQ(entity1, entityIds[0]);
   EXPECT_EQ(entity2, entityIds[1]);
 
-  auto aComponents = arrayGroups[0]->get<ComponentA>();
+  auto aComponents = arrayGroups[0]->getComponents<ComponentA>();
 
   EXPECT_EQ(1.f, aComponents[0].a);
   EXPECT_EQ(2.f, aComponents[0].b);
@@ -213,10 +214,14 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     .c = 7.0
   };
 
-  auto entity1 = world.add(entity1ComponentA);
-  auto entity2 = world.add(entity2ComponentA, entity2ComponentB);
+  auto entity1 = world.allocate<ComponentA>();
+  auto entity2 = world.allocate<ComponentA, ComponentB>();
 
-  auto arrayGroups = world.get<ComponentA>();
+  world.getComponent<ComponentA>(entity1) = entity1ComponentA;
+  world.getComponent<ComponentA>(entity2) = entity2ComponentA;
+  world.getComponent<ComponentB>(entity2) = entity2ComponentB;
+
+  auto arrayGroups = world.getComponents<ComponentA>();
   ASSERT_EQ(2, arrayGroups.size());
 
   {
@@ -226,7 +231,7 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     ASSERT_EQ(1, entityIds.size());
     EXPECT_EQ(entity1, entityIds[0]);
 
-    auto aComponents = arrayGroups[group]->get<ComponentA>();
+    auto aComponents = arrayGroups[group]->getComponents<ComponentA>();
 
     EXPECT_EQ(1.f, aComponents[0].a);
     EXPECT_EQ(2.f, aComponents[0].b);
@@ -239,8 +244,8 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     ASSERT_EQ(1, entityIds.size());
     EXPECT_EQ(entity2, entityIds[0]);
 
-    auto aComponents = arrayGroups[group]->get<ComponentA>();
-    auto bComponents = arrayGroups[group]->get<ComponentB>();
+    auto aComponents = arrayGroups[group]->getComponents<ComponentA>();
+    auto bComponents = arrayGroups[group]->getComponents<ComponentB>();
 
     EXPECT_EQ(3.f, aComponents[0].a);
     EXPECT_EQ(4.f, aComponents[0].b);
@@ -271,14 +276,16 @@ TEST_F(EcsTest, get_entity_by_id)
     .c = 7.0
   };
 
-  auto entity1 = world.add(entity1ComponentA);
-  auto entity2 = world.add(entity2ComponentA, entity2ComponentB);
+  auto entity1 = world.allocate<ComponentA>();
+  auto entity2 = world.allocate<ComponentA, ComponentB>();
 
-  auto arrayGroups = world.get<ComponentA>();
-  ASSERT_EQ(2, arrayGroups.size());
+  world.getComponent<ComponentA>(entity1) = entity1ComponentA;
+  world.getComponent<ComponentA>(entity2) = entity2ComponentA;
+  world.getComponent<ComponentB>(entity2) = entity2ComponentB;
 
-  size_t entity2Idx = arrayGroups[1]->entityPosition(entity2);
-  EXPECT_EQ(0, entity2Idx);
+  auto& c = world.getComponent<ComponentA>(entity2);
+  EXPECT_EQ(3.f, c.a);
+  EXPECT_EQ(4.f, c.b);
 }
 
 TEST_F(EcsTest, remove_only_entity)
@@ -296,18 +303,17 @@ TEST_F(EcsTest, remove_only_entity)
     .c = 3.0
   };
 
-  auto entityId = world.add(componentA, componentB);
+  auto entityId = world.allocate<ComponentA, ComponentB>();
 
-  auto arrayGroups = world.get<ComponentA, ComponentB>();
+  world.getComponent<ComponentA>(entityId) = componentA;
+  world.getComponent<ComponentB>(entityId) = componentB;
+
+  auto arrayGroups = world.getComponents<ComponentA, ComponentB>();
+
   ASSERT_EQ(1, arrayGroups.size());
-
-  auto aComponents = arrayGroups[0]->get<ComponentA>();
-  auto bComponents = arrayGroups[0]->get<ComponentB>();
-
   EXPECT_EQ(1, arrayGroups[0]->numEntities());
 
   world.remove(entityId);
 
   EXPECT_EQ(0, arrayGroups[0]->numEntities());
 }
-*/

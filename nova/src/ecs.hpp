@@ -1,9 +1,8 @@
 #include <vector>
-#include <memory>
 #include <map>
 #include <cstring>
-#include <set>
 #include <cassert>
+#include <stdexcept>
 
 using EntityId = size_t;
 using ComponentType = size_t;
