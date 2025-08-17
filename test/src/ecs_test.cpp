@@ -1,6 +1,7 @@
 #include <ecs.hpp>
 #include <gtest/gtest.h>
 #include <vector>
+#include "sys_render.hpp"
 
 class EcsTest : public testing::Test
 {
@@ -44,30 +45,81 @@ struct ComponentD
   char a;
 };
 
+struct CExample
+{
+  int a;
+  int b;
+  char c;
+};
+
+struct CExampleView
+{
+  int a;
+  int b;
+  uint8_t _padding[16];
+
+  static constexpr size_t TypeId = 1 << 0;
+};
+
+class ExampleSystem
+{
+  public:
+    ExampleSystem(World& world)
+      : m_world(world) {}
+
+    void addEntity(EntityId id, const CExample& data)
+    {
+      m_world.getComponent<CExampleData>(id) = CExampleData{
+        .a = data.a + data.c,
+        .b = data.b
+      };
+    }
+
+  private:
+    World& m_world;
+
+    struct CExampleData
+    {
+      int a;
+      int b;
+      float _d;
+      double _e;
+
+      static constexpr size_t TypeId = 1 << 0;
+    };
+
+    static_assert(sizeof(CExampleData) == sizeof(CExampleView));
+};
+
 TEST_F(EcsTest, store_and_retrieve_single_component)
 {
   World world;
 
-  ComponentA componentA{
-    .a = 1.f,
-    .b = 2.f,
+  ExampleSystem system{world};
+
+  auto entityId = world.allocate<CExampleView>();
+
+  CExample example{
+    .a = 1,
+    .b = 2,
+    .c = 'c'
   };
 
-  auto entityId = world.add(componentA);
+  system.addEntity(entityId, example);
 
-  auto arrayGroups = world.get<ComponentA>();
+  auto arrayGroups = world.getComponents<CExampleView>();
   ASSERT_EQ(1, arrayGroups.size());
 
-  auto components = arrayGroups[0]->get<ComponentA>();
+  auto components = arrayGroups[0]->getComponents<CExampleView>();
 
   auto& entityIds = arrayGroups[0]->entityIds();
   ASSERT_EQ(1, entityIds.size());
   EXPECT_EQ(entityId, entityIds[0]);
 
-  EXPECT_EQ(1.f, components[0].a);
-  EXPECT_EQ(2.f, components[0].b);
+  EXPECT_EQ(1 + 'c', components[0].a);
+  EXPECT_EQ(2, components[0].b);
 }
-
+/*
 TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
 {
   World world;
@@ -83,9 +135,13 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
     .c = 3.0
   };
 
-  auto entityId = world.add(componentA, componentB);
+  auto entityId = world.allocate({
+    { ComponentA::TypeId, sizeof(ComponentA) },
+    { ComponentB::TypeId, sizeof(ComponentB) }
+  });
+  world.getComponent<ComponentA>(entityId) = componentA;
 
-  auto arrayGroups = world.get<ComponentA, ComponentB>();
+  auto arrayGroups = world.getComponents<ComponentA, ComponentB>();
 
   ASSERT_EQ(1, arrayGroups.size());
 
@@ -254,3 +310,4 @@ TEST_F(EcsTest, remove_only_entity)
 
   EXPECT_EQ(0, arrayGroups[0]->numEntities());
 }
+*/

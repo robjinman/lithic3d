@@ -8,6 +8,7 @@ class CBehaviour
     virtual HashedString name() const = 0;
     virtual const std::set<HashedString>& subscriptions() const = 0;
     virtual void processEvent(const GameEvent& event) = 0;
+    virtual void update(Tick tick, const InputState& inputState) = 0;
 
     virtual ~CBehaviour() {}
 };

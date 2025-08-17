@@ -18,15 +18,15 @@ class ComponentArrayGroup
 {
   public:
     template<typename... Ts>
-    void add(EntityId entityId, const Ts&... components)
+    void allocate(EntityId entityId)
     {
-      (add(components), ...);
+      (allocate<Ts>(), ...);
       m_entityIds.push_back(entityId);
       m_indices.insert({ entityId, m_entityIds.size() - 1 });
     }
 
     template<typename T>
-    void add(const T& component)
+    void allocate()
     {
       static_assert(std::is_trivially_copyable_v<T>);
       static_assert(T::TypeId && (T::TypeId & (T::TypeId - 1)) == 0, "TypeId must be power of 2");
@@ -42,15 +42,13 @@ class ComponentArrayGroup
       }
 
       auto& array = i->second;
-      size_t end = array.data.size();
       array.data.resize(array.data.size() + componentSize);
-      memcpy(&array.data.data()[end], &component, componentSize);
 
       assert(m_entityIds.size() == m_indices.size());
     }
 
     template<typename T>
-    T* get()
+    T* getComponents()
     {
       auto i = m_componentData.find(T::TypeId);
       if (i == m_componentData.end()) {
@@ -59,6 +57,12 @@ class ComponentArrayGroup
 
       auto& array = i->second;
       return reinterpret_cast<T*>(array.data.data());
+    }
+
+    template<typename T>
+    T& getComponent(EntityId entityId)
+    {
+      return getComponents<T>()[entityPosition(entityId)];
     }
 
     void remove(EntityId entityId)
@@ -138,18 +142,20 @@ class World
 {
   public:
     template<typename... Ts>
-    EntityId add(const Ts&... components)
+    EntityId allocate()
     {
       EntityId entityId = m_nextId++;
 
       Archetype archetype = (Ts::TypeId | ...);
-      m_groups[archetype].add(entityId, components...);
+
+      m_groups[archetype].allocate<Ts...>(entityId);
+      m_archetypes[entityId] = archetype;
 
       return entityId;
     }
 
     template<typename... Ts>
-    std::vector<ComponentArrayGroup*> get()
+    std::vector<ComponentArrayGroup*> getComponents()
     {
       std::vector<ComponentArrayGroup*> groups;
 
@@ -164,24 +170,32 @@ class World
       return groups;
     }
 
+    template<typename T>
+    T& getComponent(EntityId entityId)
+    {
+      auto i = m_archetypes.find(entityId);
+      if (i == m_archetypes.end()) {
+        throw std::runtime_error("No such entity");
+      }
+      return m_groups.at(i->second).getComponent<T>(entityId);
+    }
+
     bool hasEntity(EntityId entityId) const
     {
-      for (auto& entry : m_groups) {
-        if (entry.second.hasEntity(entityId)) {
-          return true;
-        }
-      }
-      return false;
+      return m_archetypes.contains(entityId);
     }
 
     void remove(EntityId entityId)
     {
-      for (auto& entry : m_groups) {
-        entry.second.remove(entityId);
+      auto i = m_archetypes.find(entityId);
+      if (i != m_archetypes.end()) {
+        m_groups.at(i->second).remove(entityId);
+        m_archetypes.erase(i);
       }
     }
 
   private:
     EntityId m_nextId = 0;
     std::map<Archetype, ComponentArrayGroup> m_groups;
+    std::map<EntityId, Archetype> m_archetypes;
 };
