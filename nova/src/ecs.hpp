@@ -74,17 +74,17 @@ class ComponentArrayGroup
       assert(m_entityIds.size() == m_indices.size());
 
       size_t entityIndex = i->second;
-      size_t lastIndex = m_indices[m_indices.size() - 1];
+      size_t lastEntityIndex = m_entityIds.size() - 1;
+      EntityId lastEntityId = m_entityIds[lastEntityIndex];
 
-      for (auto entry : m_componentData) {
-        auto& components = entry.second;
+      for (auto& [type, components] : m_componentData) {
         size_t size = components.componentSize;
 
-        if (entityIndex != lastIndex) {
+        if (entityId != lastEntityId) {
           size_t entityStart = entityIndex * size;
           size_t lastStart = components.data.size() - size;
 
-          assert(lastStart == lastIndex * size);
+          assert(lastStart == lastEntityIndex * size);
 
           memcpy(components.data.data() + entityStart, components.data.data() + lastStart, size);
         }
@@ -92,12 +92,10 @@ class ComponentArrayGroup
         components.data.resize(components.data.size() - size);
       }
 
-      size_t lastEntityId = m_entityIds.at(lastIndex);
-
       m_indices.erase(entityId);
-      if (entityIndex != lastIndex) {
+      if (entityId != lastEntityId) {
         m_indices[lastEntityId] = entityIndex;
-        std::swap(m_entityIds[entityIndex], m_entityIds[lastIndex]);
+        m_entityIds[entityIndex] = lastEntityId;
       }
       m_entityIds.pop_back();
 
