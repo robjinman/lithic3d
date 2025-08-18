@@ -3,15 +3,55 @@
 #include <cstring>
 #include <cassert>
 #include <stdexcept>
+#include <memory>
 
 using EntityId = size_t;
 using ComponentType = size_t;
 
-struct ComponentArray
+struct IComponentArray
 {
-  size_t componentSize;
-  std::vector<char> data;
+  virtual size_t componentSize() const = 0;
+  virtual void remove(size_t index) = 0;
+  virtual char* data() = 0;
+  virtual void allocate() = 0;
+
+  virtual ~IComponentArray() = default;
 };
+
+template<typename T>
+class ComponentArray : public IComponentArray
+{
+  static_assert(std::is_default_constructible_v<T>);
+  static_assert(std::is_trivially_copyable_v<T>);
+  static_assert(T::TypeId && (T::TypeId & (T::TypeId - 1)) == 0, "TypeId must be power of 2");
+
+  public:
+    size_t componentSize() const override
+    {
+      return sizeof(T);
+    }
+
+    void remove(size_t index) override
+    {
+      std::swap(m_data[index], m_data[m_data.size() - 1]);
+      m_data.pop_back();
+    }
+
+    char* data() override
+    {
+      return reinterpret_cast<char*>(m_data.data());
+    }
+
+    void allocate() override
+    {
+      m_data.resize(m_data.size() + 1);
+    }
+
+  private:
+    std::vector<T> m_data;
+};
+
+using ComponentArrayPtr = std::unique_ptr<IComponentArray>;
 
 class ComponentArrayGroup
 {
@@ -27,27 +67,18 @@ class ComponentArrayGroup
     template<typename T>
     void allocate()
     {
-      static_assert(std::is_trivially_copyable_v<T>);
-      static_assert(T::TypeId && (T::TypeId & (T::TypeId - 1)) == 0, "TypeId must be power of 2");
-
-      auto componentSize = sizeof(T);
-
       auto i = m_componentData.find(T::TypeId);
       if (i == m_componentData.end()) {
-        i = m_componentData.insert({T::TypeId, ComponentArray{
-          .componentSize = componentSize,
-          .data{}
-        }}).first;
+        i = m_componentData.insert({ T::TypeId, std::make_unique<ComponentArray<T>>() }).first;
       }
 
-      auto& array = i->second;
-      array.data.resize(array.data.size() + componentSize);
+      i->second->allocate();
 
       assert(m_entityIds.size() == m_indices.size());
     }
 
     template<typename T>
-    T* getComponents()
+    T* components()
     {
       auto i = m_componentData.find(T::TypeId);
       if (i == m_componentData.end()) {
@@ -55,13 +86,13 @@ class ComponentArrayGroup
       }
 
       auto& array = i->second;
-      return reinterpret_cast<T*>(array.data.data());
+      return reinterpret_cast<T*>(array->data());
     }
 
     template<typename T>
-    T& getComponent(EntityId entityId)
+    T& component(EntityId entityId)
     {
-      return getComponents<T>()[entityPosition(entityId)];
+      return components<T>()[entityPosition(entityId)];
     }
 
     void remove(EntityId entityId)
@@ -78,18 +109,7 @@ class ComponentArrayGroup
       EntityId lastEntityId = m_entityIds[lastEntityIndex];
 
       for (auto& [type, components] : m_componentData) {
-        size_t size = components.componentSize;
-
-        if (entityId != lastEntityId) {
-          size_t entityStart = entityIndex * size;
-          size_t lastStart = components.data.size() - size;
-
-          assert(lastStart == lastEntityIndex * size);
-
-          memcpy(components.data.data() + entityStart, components.data.data() + lastStart, size);
-        }
-
-        components.data.resize(components.data.size() - size);
+        components->remove(entityIndex);
       }
 
       m_indices.erase(entityId);
@@ -128,7 +148,7 @@ class ComponentArrayGroup
     }
 
   private:
-    std::map<ComponentType, ComponentArray> m_componentData;
+    std::map<ComponentType, ComponentArrayPtr> m_componentData;
     std::vector<EntityId> m_entityIds;
     std::map<EntityId, size_t> m_indices;
 };
@@ -152,7 +172,7 @@ class World
     }
 
     template<typename... Ts>
-    std::vector<ComponentArrayGroup*> getComponents()
+    std::vector<ComponentArrayGroup*> components()
     {
       std::vector<ComponentArrayGroup*> groups;
 
@@ -168,13 +188,13 @@ class World
     }
 
     template<typename T>
-    T& getComponent(EntityId entityId)
+    T& component(EntityId entityId)
     {
       auto i = m_archetypes.find(entityId);
       if (i == m_archetypes.end()) {
         throw std::runtime_error("No such entity");
       }
-      return m_groups.at(i->second).getComponent<T>(entityId);
+      return m_groups.at(i->second).component<T>(entityId);
     }
 
     bool hasEntity(EntityId entityId) const

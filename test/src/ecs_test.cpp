@@ -35,7 +35,7 @@ class ExampleSystem
 
     void addEntity(EntityId id, const CExample& data)
     {
-      m_world.getComponent<CExampleData>(id) = CExampleData{
+      m_world.component<CExampleData>(id) = CExampleData{
         .a = data.a + data.c,
         .b = data.b
       };
@@ -73,10 +73,10 @@ TEST_F(EcsTest, store_and_retrieve_single_component)
 
   system.addEntity(entityId, example);
 
-  auto arrayGroups = world.getComponents<CExampleView>();
+  auto arrayGroups = world.components<CExampleView>();
   ASSERT_EQ(1, arrayGroups.size());
 
-  auto components = arrayGroups[0]->getComponents<CExampleView>();
+  auto components = arrayGroups[0]->components<CExampleView>();
 
   auto& entityIds = arrayGroups[0]->entityIds();
   ASSERT_EQ(1, entityIds.size());
@@ -136,15 +136,15 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
   };
 
   auto entityId = world.allocate<ComponentA, ComponentB>();
-  world.getComponent<ComponentA>(entityId) = componentA;
-  world.getComponent<ComponentB>(entityId) = componentB;
+  world.component<ComponentA>(entityId) = componentA;
+  world.component<ComponentB>(entityId) = componentB;
 
-  auto arrayGroups = world.getComponents<ComponentA, ComponentB>();
+  auto arrayGroups = world.components<ComponentA, ComponentB>();
 
   ASSERT_EQ(1, arrayGroups.size());
 
-  auto aComponents = arrayGroups[0]->getComponents<ComponentA>();
-  auto bComponents = arrayGroups[0]->getComponents<ComponentB>();
+  auto aComponents = arrayGroups[0]->components<ComponentA>();
+  auto bComponents = arrayGroups[0]->components<ComponentB>();
 
   auto& entityIds = arrayGroups[0]->entityIds();
   ASSERT_EQ(1, entityIds.size());
@@ -175,17 +175,17 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
   auto entity1 = world.allocate<ComponentA>();
   auto entity2 = world.allocate<ComponentA>();
 
-  world.getComponent<ComponentA>(entity1) = entity1ComponentA;
-  world.getComponent<ComponentA>(entity2) = entity2ComponentA;
+  world.component<ComponentA>(entity1) = entity1ComponentA;
+  world.component<ComponentA>(entity2) = entity2ComponentA;
 
-  auto arrayGroups = world.getComponents<ComponentA>();
+  auto arrayGroups = world.components<ComponentA>();
 
   auto& entityIds = arrayGroups[0]->entityIds();
   ASSERT_EQ(2, entityIds.size());
   EXPECT_EQ(entity1, entityIds[0]);
   EXPECT_EQ(entity2, entityIds[1]);
 
-  auto aComponents = arrayGroups[0]->getComponents<ComponentA>();
+  auto aComponents = arrayGroups[0]->components<ComponentA>();
 
   EXPECT_EQ(1.f, aComponents[0].a);
   EXPECT_EQ(2.f, aComponents[0].b);
@@ -217,11 +217,11 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
   auto entity1 = world.allocate<ComponentA>();
   auto entity2 = world.allocate<ComponentA, ComponentB>();
 
-  world.getComponent<ComponentA>(entity1) = entity1ComponentA;
-  world.getComponent<ComponentA>(entity2) = entity2ComponentA;
-  world.getComponent<ComponentB>(entity2) = entity2ComponentB;
+  world.component<ComponentA>(entity1) = entity1ComponentA;
+  world.component<ComponentA>(entity2) = entity2ComponentA;
+  world.component<ComponentB>(entity2) = entity2ComponentB;
 
-  auto arrayGroups = world.getComponents<ComponentA>();
+  auto arrayGroups = world.components<ComponentA>();
   ASSERT_EQ(2, arrayGroups.size());
 
   {
@@ -231,7 +231,7 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     ASSERT_EQ(1, entityIds.size());
     EXPECT_EQ(entity1, entityIds[0]);
 
-    auto aComponents = arrayGroups[group]->getComponents<ComponentA>();
+    auto aComponents = arrayGroups[group]->components<ComponentA>();
 
     EXPECT_EQ(1.f, aComponents[0].a);
     EXPECT_EQ(2.f, aComponents[0].b);
@@ -244,8 +244,8 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     ASSERT_EQ(1, entityIds.size());
     EXPECT_EQ(entity2, entityIds[0]);
 
-    auto aComponents = arrayGroups[group]->getComponents<ComponentA>();
-    auto bComponents = arrayGroups[group]->getComponents<ComponentB>();
+    auto aComponents = arrayGroups[group]->components<ComponentA>();
+    auto bComponents = arrayGroups[group]->components<ComponentB>();
 
     EXPECT_EQ(3.f, aComponents[0].a);
     EXPECT_EQ(4.f, aComponents[0].b);
@@ -279,11 +279,11 @@ TEST_F(EcsTest, get_entity_by_id)
   auto entity1 = world.allocate<ComponentA>();
   auto entity2 = world.allocate<ComponentA, ComponentB>();
 
-  world.getComponent<ComponentA>(entity1) = entity1ComponentA;
-  world.getComponent<ComponentA>(entity2) = entity2ComponentA;
-  world.getComponent<ComponentB>(entity2) = entity2ComponentB;
+  world.component<ComponentA>(entity1) = entity1ComponentA;
+  world.component<ComponentA>(entity2) = entity2ComponentA;
+  world.component<ComponentB>(entity2) = entity2ComponentB;
 
-  auto& c = world.getComponent<ComponentA>(entity2);
+  auto& c = world.component<ComponentA>(entity2);
   EXPECT_EQ(3.f, c.a);
   EXPECT_EQ(4.f, c.b);
 }
@@ -305,10 +305,10 @@ TEST_F(EcsTest, remove_only_entity)
 
   auto entityId = world.allocate<ComponentA, ComponentB>();
 
-  world.getComponent<ComponentA>(entityId) = componentA;
-  world.getComponent<ComponentB>(entityId) = componentB;
+  world.component<ComponentA>(entityId) = componentA;
+  world.component<ComponentB>(entityId) = componentB;
 
-  auto arrayGroups = world.getComponents<ComponentA, ComponentB>();
+  auto arrayGroups = world.components<ComponentA, ComponentB>();
 
   ASSERT_EQ(1, arrayGroups.size());
   EXPECT_EQ(1, arrayGroups[0]->numEntities());
