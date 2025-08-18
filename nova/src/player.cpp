@@ -1,4 +1,5 @@
 #include "player.hpp"
+#include "ecs.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
@@ -91,10 +92,10 @@ void BUserControl::update(Tick, const InputState& inputState)
 
 }
 
-EntityId constructPlayer(EventSystem& eventSystem, SysGrid& sysGrid, SysRender& sysRender,
-  SysBehaviour& sysBehaviour)
+EntityId constructPlayer(EventSystem& eventSystem, World& world, SysGrid& sysGrid,
+  SysRender& sysRender, SysBehaviour& sysBehaviour)
 {
-  auto id = System::nextId();
+  auto id = world.allocate<CRenderView>(); // TODO
 
   sysGrid.addEntity(id, 0, 0);
 

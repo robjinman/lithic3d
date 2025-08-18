@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "ecs.hpp"
 #include "sys_render.hpp"
 #include "sys_grid.hpp"
 #include "sys_behaviour.hpp"
@@ -22,7 +23,7 @@ namespace
 class GameImpl : public Game
 {
   public:
-    GameImpl(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
+    GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
       EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
@@ -38,6 +39,7 @@ class GameImpl : public Game
     Logger& m_logger;
     const FileSystem& m_fileSystem;
     EventSystem& m_eventSystem;
+    World& m_world;
     SysRender& m_sysRender;
     SysGrid& m_sysGrid;
     SysBehaviour& m_sysBehaviour;
@@ -57,11 +59,12 @@ class GameImpl : public Game
     void constructSoil();
 };
 
-GameImpl::GameImpl(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
+GameImpl::GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
   EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_eventSystem(eventSystem)
+  , m_world(world)
   , m_sysRender(sysRender)
   , m_sysGrid(sysGrid)
   , m_sysBehaviour(sysBehaviour)
@@ -83,7 +86,7 @@ GameImpl::GameImpl(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysR
     // TODO
   });
 
-  constructPlayer(m_eventSystem, m_sysGrid, m_sysRender, m_sysBehaviour);
+  constructPlayer(m_eventSystem, m_world, m_sysGrid, m_sysRender, m_sysBehaviour);
   constructSky();
   constructTrees();
   constructFakeSoil();
@@ -170,7 +173,7 @@ void GameImpl::update()
 
 void GameImpl::constructSky()
 {
-  auto id = System::nextId();
+  auto id = m_world.allocate<CRenderView>();
 
   CRender render{
     .textureRect = Rectf{
@@ -189,7 +192,7 @@ void GameImpl::constructSky()
 
 void GameImpl::constructTrees()
 {
-  auto id = System::nextId();
+  auto id = m_world.allocate<CRenderView>();
 
   CRender render{
     .textureRect = Rectf{
@@ -209,7 +212,7 @@ void GameImpl::constructTrees()
 void GameImpl::constructFakeSoil()
 {
   for (float_t x = 0.f; x <= 1.25; x += 0.0625) {
-    auto id = System::nextId();
+    auto id = m_world.allocate<CRenderView>();
 
     CRender render{
       .textureRect = Rectf{
@@ -234,9 +237,9 @@ void GameImpl::constructSoil()
 
 } // namespace
 
-GamePtr createGame(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
+GamePtr createGame(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
   EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<GameImpl>(sysBehaviour, sysGrid, sysRender, eventSystem, fileSystem,
-    logger);
+  return std::make_unique<GameImpl>(world, sysBehaviour, sysGrid, sysRender, eventSystem,
+    fileSystem, logger);
 }

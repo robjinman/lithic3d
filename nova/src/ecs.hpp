@@ -1,9 +1,9 @@
 #include <vector>
 #include <map>
-#include <cstring>
 #include <cassert>
 #include <stdexcept>
 #include <memory>
+#include <span>
 
 using EntityId = size_t;
 using ComponentType = size_t;
@@ -13,10 +13,13 @@ struct IComponentArray
   virtual size_t componentSize() const = 0;
   virtual void remove(size_t index) = 0;
   virtual char* data() = 0;
+  virtual size_t size() const = 0;
   virtual void allocate() = 0;
 
   virtual ~IComponentArray() = default;
 };
+
+using ComponentArrayPtr = std::unique_ptr<IComponentArray>;
 
 template<typename T>
 class ComponentArray : public IComponentArray
@@ -42,6 +45,11 @@ class ComponentArray : public IComponentArray
       return reinterpret_cast<char*>(m_data.data());
     }
 
+    size_t size() const override
+    {
+      return m_data.size();
+    }
+
     void allocate() override
     {
       m_data.resize(m_data.size() + 1);
@@ -50,8 +58,6 @@ class ComponentArray : public IComponentArray
   private:
     std::vector<T> m_data;
 };
-
-using ComponentArrayPtr = std::unique_ptr<IComponentArray>;
 
 class ComponentArrayGroup
 {
@@ -78,15 +84,15 @@ class ComponentArrayGroup
     }
 
     template<typename T>
-    T* components()
+    std::span<T> components()
     {
       auto i = m_componentData.find(T::TypeId);
       if (i == m_componentData.end()) {
-        throw std::runtime_error("Entity does not have component of given type");
+        throw std::runtime_error("Group does not have components of given type");
       }
 
       auto& array = i->second;
-      return reinterpret_cast<T*>(array->data());
+      return std::span<T>{reinterpret_cast<T*>(array->data()), array->size()};
     }
 
     template<typename T>
@@ -158,6 +164,63 @@ using Archetype = size_t;
 class World
 {
   public:
+    class View
+    {
+      public:
+        class iterator
+        {
+          public:
+            iterator(std::map<Archetype, ComponentArrayGroup>& groups,
+              std::map<Archetype, ComponentArrayGroup>::iterator i, Archetype mask)
+              : m_groups(groups)
+              , m_i(i)
+              , m_mask(mask)
+            {}
+
+            ComponentArrayGroup& operator*()
+            {
+              return m_i->second;
+            }
+
+            iterator& operator++()
+            {
+              while (m_i != m_groups.end() && m_i->first && (m_i->first & m_mask) == m_mask) {
+                ++m_i;
+              }
+              return *this;
+            }
+
+            bool operator==(const iterator& rhs) const
+            {
+              return m_i == rhs.m_i;
+            }
+
+          private:
+            std::map<Archetype, ComponentArrayGroup>& m_groups;
+            std::map<Archetype, ComponentArrayGroup>::iterator m_i;
+            Archetype m_mask;
+        };
+
+        View(std::map<Archetype, ComponentArrayGroup>& groups, Archetype mask)
+          : m_groups(groups)
+          , m_mask(mask)
+        {}
+
+        iterator begin()
+        {
+          return iterator{m_groups, m_groups.begin(), m_mask};
+        }
+
+        iterator end()
+        {
+          return iterator{m_groups, m_groups.end(), m_mask};
+        }
+
+      private:
+        std::map<Archetype, ComponentArrayGroup>& m_groups;
+        Archetype m_mask;
+    };
+
     template<typename... Ts>
     EntityId allocate()
     {
@@ -172,19 +235,10 @@ class World
     }
 
     template<typename... Ts>
-    std::vector<ComponentArrayGroup*> components()
+    View components()
     {
-      std::vector<ComponentArrayGroup*> groups;
-
       Archetype mask = (Ts::TypeId | ...);
-
-      for (auto& group : m_groups) {
-        if ((group.first & mask) == mask) {
-          groups.push_back(&group.second);
-        }
-      }
-
-      return groups;
+      return View{m_groups, mask};
     }
 
     template<typename T>

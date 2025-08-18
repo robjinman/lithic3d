@@ -19,7 +19,9 @@ struct CRenderView
 {
   Vec2f pos;
   uint32_t zIndex;
-  uint32_t padding[23];
+  uint32_t padding[20];
+
+  static constexpr size_t TypeId = 1 << 0;
 };
 
 class Camera;
@@ -44,9 +46,10 @@ class SysRender : public System
 
 using SysRenderPtr = std::unique_ptr<SysRender>;
 
+class World;
 namespace render { class Renderer; }
 class FileSystem;
 class Logger;
 
-SysRenderPtr createSysRender(render::Renderer& renderer, const FileSystem& fileSystem,
+SysRenderPtr createSysRender(World& world, render::Renderer& renderer, const FileSystem& fileSystem,
   Logger& logger);

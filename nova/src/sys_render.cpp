@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include "time.hpp"
 #include "file_system.hpp"
+#include "ecs.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -97,14 +98,18 @@ struct CRenderData
   Vec2f pos;
   uint32_t zIndex;
   MeshHandle mesh; // TODO: Share meshes or use instancing?
+
+  static constexpr size_t TypeId = 1 << 0;
 };
+
+//const size_t x = sizeof(MeshHandle);
 
 static_assert(sizeof(CRenderData) == sizeof(CRenderView));
 
 class SysRenderImpl : public SysRender
 {
   public:
-    SysRenderImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
+    SysRenderImpl(World& world, Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -125,19 +130,22 @@ class SysRenderImpl : public SysRender
 
   private:
     Logger& m_logger;
+    World& m_world;
     Camera m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
-    std::vector<CRenderData> m_data;
-    std::vector<EntityId> m_ids;              // m_data index -> EntityId
-    std::map<EntityId, uint32_t> m_lookup;    // EntityId -> m_data index
+    //std::vector<CRenderData> m_data;
+    //std::vector<EntityId> m_ids;              // m_data index -> EntityId
+    //std::map<EntityId, uint32_t> m_lookup;    // EntityId -> m_data index
     MaterialHandle m_textureAtlas;
 
     MeshHandle createMesh(const CRender& c) const;
 };
 
-SysRenderImpl::SysRenderImpl(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
+SysRenderImpl::SysRenderImpl(World& world, Renderer& renderer, const FileSystem& fileSystem,
+  Logger& logger)
   : m_logger(logger)
+  , m_world(world)
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
@@ -185,6 +193,12 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 {
   auto mesh = createMesh(data);
 
+  m_world.component<CRenderData>(entityId) = CRenderData{
+    .pos = data.pos,
+    .zIndex = data.zIndex,
+    .mesh = mesh
+  };
+/*
   m_data.push_back(CRenderData{
     .pos = data.pos,
     .zIndex = data.zIndex,
@@ -195,11 +209,11 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 
   assert(m_data.size() == m_ids.size());
 
-  m_lookup[entityId] = m_data.size() - 1;
+  m_lookup[entityId] = m_data.size() - 1;*/
 }
 
 void SysRenderImpl::removeEntity(EntityId entityId)
-{
+{/*
   if (m_data.empty()) {
     return;
   }
@@ -222,27 +236,28 @@ void SysRenderImpl::removeEntity(EntityId entityId)
   assert(m_data.size() == m_ids.size());
 
   m_lookup.erase(entityId);
-  m_lookup[lastId] = idx;
+  m_lookup[lastId] = idx;*/
 }
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
 {
-  return m_lookup.contains(entityId);
+  // TODO
+  return false;
 }
 
 const Vec2f& SysRenderImpl::getPosition(EntityId entityId) const
 {
-  return m_data[m_lookup.at(entityId)].pos;
+  return m_world.component<CRenderData>(entityId).pos;
 }
 
 void SysRenderImpl::setPosition(EntityId entityId, const Vec2f& pos)
 {
-  m_data[m_lookup.at(entityId)].pos = pos;
+  m_world.component<CRenderData>(entityId).pos = pos;
 }
 
 void SysRenderImpl::move(EntityId entityId, const Vec2f& pos)
 {
-  m_data[m_lookup.at(entityId)].pos += pos;
+  m_world.component<CRenderData>(entityId).pos += pos;
 }
 
 void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
@@ -266,11 +281,13 @@ void SysRenderImpl::update(Tick tick, const InputState&)
     m_renderer.beginFrame();
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-    for (auto& item : m_data) {
-      auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
-      auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
-      m_renderer.setOrderKey(item.zIndex);
-      m_renderer.drawModel(item.mesh, m_textureAtlas, screenSpaceTransform);
+    for (auto& group : m_world.components<CRenderData>()) {
+      for (auto& item : group.components<CRenderData>()) {
+        auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
+        auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
+        m_renderer.setOrderKey(item.zIndex);
+        m_renderer.drawModel(item.mesh, m_textureAtlas, screenSpaceTransform);
+      }
     }
 
     m_renderer.endPass();
@@ -284,7 +301,8 @@ void SysRenderImpl::update(Tick tick, const InputState&)
 
 } // namespace
 
-SysRenderPtr createSysRender(Renderer& renderer, const FileSystem& fileSystem, Logger& logger)
+SysRenderPtr createSysRender(World& world, Renderer& renderer, const FileSystem& fileSystem,
+  Logger& logger)
 {
-  return std::make_unique<SysRenderImpl>(renderer, fileSystem, logger);
+  return std::make_unique<SysRenderImpl>(world, renderer, fileSystem, logger);
 }

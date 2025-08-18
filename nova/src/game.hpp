@@ -63,10 +63,11 @@ using GamePtr = std::unique_ptr<Game>;
 
 class FileSystem;
 class Logger;
+class World;
 class EventSystem;
 class SysBehaviour;
 class SysGrid;
 class SysRender;
 
-GamePtr createGame(SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
+GamePtr createGame(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
   EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger);
