@@ -208,7 +208,7 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
     ++i;
   }
 }
-/*
+
 TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
 {
   World world;
@@ -236,31 +236,35 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
   world.component<ComponentA>(entity2) = entity2ComponentA;
   world.component<ComponentB>(entity2) = entity2ComponentB;
 
-  auto arrayGroups = world.components<ComponentA>();
-  ASSERT_EQ(2, arrayGroups.size());
+  auto view = world.components<ComponentA>();
+  auto i = view.begin();
+  ASSERT_FALSE(i == view.end());
 
   {
-    size_t group = 0;
+    auto& group = *i;
+    auto& entityIds = group.entityIds();
 
-    auto& entityIds = arrayGroups[group]->entityIds();
     ASSERT_EQ(1, entityIds.size());
     EXPECT_EQ(entity1, entityIds[0]);
 
-    auto aComponents = arrayGroups[group]->components<ComponentA>();
+    auto aComponents = group.components<ComponentA>();
 
     EXPECT_EQ(1.f, aComponents[0].a);
     EXPECT_EQ(2.f, aComponents[0].b);
   }
 
-  {
-    size_t group = 1;
+  ++i;
+  ASSERT_FALSE(i == view.end());
 
-    auto& entityIds = arrayGroups[group]->entityIds();
+  {
+    auto& group = *i;
+    auto& entityIds = group.entityIds();
+
     ASSERT_EQ(1, entityIds.size());
     EXPECT_EQ(entity2, entityIds[0]);
 
-    auto aComponents = arrayGroups[group]->components<ComponentA>();
-    auto bComponents = arrayGroups[group]->components<ComponentB>();
+    auto aComponents = group.components<ComponentA>();
+    auto bComponents = group.components<ComponentB>();
 
     EXPECT_EQ(3.f, aComponents[0].a);
     EXPECT_EQ(4.f, aComponents[0].b);
@@ -269,6 +273,9 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     EXPECT_EQ(6, bComponents[0].b);
     EXPECT_EQ(7.0, bComponents[0].c);
   }
+
+  ++i;
+  EXPECT_TRUE(i == view.end());
 }
 
 TEST_F(EcsTest, get_entity_by_id)
@@ -323,13 +330,55 @@ TEST_F(EcsTest, remove_only_entity)
   world.component<ComponentA>(entityId) = componentA;
   world.component<ComponentB>(entityId) = componentB;
 
-  auto arrayGroups = world.components<ComponentA, ComponentB>();
+  auto view = world.components<ComponentA, ComponentB>();
+  auto& group = *view.begin();
 
-  ASSERT_EQ(1, arrayGroups.size());
-  EXPECT_EQ(1, arrayGroups[0]->numEntities());
+  EXPECT_EQ(1, group.numEntities());
 
   world.remove(entityId);
 
-  EXPECT_EQ(0, arrayGroups[0]->numEntities());
+  EXPECT_EQ(0, group.numEntities());
 }
-*/
+
+TEST_F(EcsTest, cannot_modify_const_world)
+{
+  World world;
+
+  ComponentA componentA{
+    .a = 1.f,
+    .b = 2.f,
+  };
+
+  ComponentB componentB{
+    .a = 1,
+    .b = 2,
+    .c = 3.0
+  };
+
+  auto entityId = world.allocate<ComponentA, ComponentB>();
+
+  world.component<ComponentA>(entityId) = componentA;
+  world.component<ComponentB>(entityId) = componentB;
+
+  auto tryModify = [entityId](const World& cWorld) {
+    auto view = cWorld.components<ComponentA, ComponentB>();
+    //auto& group = *view.begin(); // Not allowed
+    auto& group = *view.cbegin();
+
+    auto& compA = group.component<ComponentA>(entityId);
+    auto compAs = group.components<ComponentA>();
+    //comps[0].a = 123; // Not allowed
+
+    auto& compB = group.component<ComponentB>(entityId);
+
+    // Reading is fine
+    EXPECT_EQ(1.f, compA.a);
+    EXPECT_EQ(2.f, compA.b);
+    EXPECT_EQ(1, compB.a);
+    EXPECT_EQ(2, compB.b);
+    EXPECT_EQ(3.0, compB.c);
+  };
+
+  tryModify(world);
+}
+

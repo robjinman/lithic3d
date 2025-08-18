@@ -99,7 +99,7 @@ struct CRenderData
   uint32_t zIndex;
   MeshHandle mesh; // TODO: Share meshes or use instancing?
 
-  static constexpr ComponentType TypeId = ComponentTypeId::Render;
+  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };
 
 static_assert(sizeof(CRenderData) == sizeof(CRenderView));

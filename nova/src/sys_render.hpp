@@ -12,7 +12,7 @@ struct CRender
   Vec2f pos;
   uint32_t zIndex = 0;
 
-  static constexpr ComponentType TypeId = ComponentTypeId::Render;
+  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };
 
 // Matches layout of private CRenderData, with only public fields visible
@@ -26,7 +26,7 @@ struct CRenderView
   uint32_t padding[23];
 #endif
 
-  static constexpr ComponentType TypeId = ComponentTypeId::Render;
+  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };
 
 class Camera;

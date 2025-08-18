@@ -1,18 +1,15 @@
+#pragma once
+
 #include <vector>
 #include <map>
 #include <cassert>
 #include <stdexcept>
 #include <memory>
 #include <span>
+#include <concepts>
 
 using EntityId = size_t;
 using ComponentType = size_t;
-
-template<typename T, typename... Ts>
-constexpr bool contains()
-{
-  return std::disjunction_v<std::is_same<T, Ts>...>;
-}
 
 struct IComponentArray
 {
@@ -92,17 +89,24 @@ class ComponentArrayGroup
     template<typename T>
     std::span<T> components()
     {
-      auto i = m_componentData.find(T::TypeId);
-      if (i == m_componentData.end()) {
-        throw std::runtime_error("Group does not have components of given type");
-      }
+      auto span = constComponents<T>();
+      return std::span<T>{const_cast<T*>(span.data()), span.size()};
+    }
 
-      auto& array = i->second;
-      return std::span<T>{reinterpret_cast<T*>(array->data()), array->size()};
+    template<typename T>
+    std::span<const T> components() const
+    {
+      return constComponents<T>();
     }
 
     template<typename T>
     T& component(EntityId entityId)
+    {
+      return components<T>()[entityPosition(entityId)];
+    }
+
+    template<typename T>
+    const T& component(EntityId entityId) const
     {
       return components<T>()[entityPosition(entityId)];
     }
@@ -163,67 +167,111 @@ class ComponentArrayGroup
     std::map<ComponentType, ComponentArrayPtr> m_componentData;
     std::vector<EntityId> m_entityIds;
     std::map<EntityId, size_t> m_indices;
+
+    template<typename T>
+    std::span<const T> constComponents() const
+    {
+      auto i = m_componentData.find(T::TypeId);
+      if (i == m_componentData.end()) {
+        throw std::runtime_error("Group does not have components of given type");
+      }
+
+      auto& array = i->second;
+      return std::span<const T>{reinterpret_cast<const T*>(array->data()), array->size()};
+    }
 };
 
 using Archetype = size_t;
 
 class World
 {
+  using GroupMap = std::map<Archetype, ComponentArrayGroup>;
+
   public:
+    template<bool IsConstView>
     class View
     {
+      using GroupMapRef = std::conditional<IsConstView, const GroupMap&, GroupMap&>::type;
+
       public:
-        class iterator
+        template<bool IsConstIter>
+        class IteratorImpl
         {
           public:
-            iterator(std::map<Archetype, ComponentArrayGroup>& groups,
-              std::map<Archetype, ComponentArrayGroup>::iterator i, Archetype mask)
+            IteratorImpl(GroupMap& groups, GroupMap::iterator i, Archetype mask)
               : m_groups(groups)
               , m_i(i)
               , m_mask(mask)
             {}
 
-            ComponentArrayGroup& operator*()
+            IteratorImpl(const GroupMap& groups, GroupMap::const_iterator i, Archetype mask)
+              : m_groups(groups)
+              , m_i(i)
+              , m_mask(mask)
+            {}
+
+            ComponentArrayGroup& operator*() requires(!IsConstIter)
             {
               return m_i->second;
             }
 
-            iterator& operator++()
+            const ComponentArrayGroup& operator*() const
             {
-              while (m_i != m_groups.end() && m_i->first && (m_i->first & m_mask) == m_mask) {
+              return m_i->second;
+            }
+
+            IteratorImpl<IsConstIter>& operator++()
+            {
+              while (m_i != m_groups.end()) {
                 ++m_i;
+                if ((m_i->first & m_mask) == m_mask) {
+                  break;
+                }
               }
               return *this;
             }
 
-            bool operator==(const iterator& rhs) const
+            bool operator==(const IteratorImpl<IsConstIter>& rhs) const
             {
               return m_i == rhs.m_i;
             }
 
           private:
-            std::map<Archetype, ComponentArrayGroup>& m_groups;
-            std::map<Archetype, ComponentArrayGroup>::iterator m_i;
+            std::conditional<IsConstIter, const GroupMap&, GroupMap&>::type& m_groups;
+            std::conditional<IsConstIter, GroupMap::const_iterator, GroupMap::iterator>::type m_i;
             Archetype m_mask;
         };
 
-        View(std::map<Archetype, ComponentArrayGroup>& groups, Archetype mask)
+        using iterator = IteratorImpl<false>;
+        using const_iterator = IteratorImpl<true>;
+
+        View(GroupMapRef& groups, Archetype mask)
           : m_groups(groups)
           , m_mask(mask)
         {}
 
-        iterator begin()
+        const_iterator cbegin()
+        {
+          return const_iterator{m_groups, m_groups.cbegin(), m_mask};
+        }
+
+        const_iterator cend()
+        {
+          return const_iterator{m_groups, m_groups.cend(), m_mask};
+        }
+
+        iterator begin() requires(!IsConstView)
         {
           return iterator{m_groups, m_groups.begin(), m_mask};
         }
 
-        iterator end()
+        iterator end() requires(!IsConstView)
         {
           return iterator{m_groups, m_groups.end(), m_mask};
         }
 
       private:
-        std::map<Archetype, ComponentArrayGroup>& m_groups;
+        GroupMapRef m_groups;
         Archetype m_mask;
     };
 
@@ -241,10 +289,17 @@ class World
     }
 
     template<typename... Ts>
-    View components()
+    View<false> components()
     {
       Archetype mask = (Ts::TypeId | ...);
-      return View{m_groups, mask};
+      return View<false>{m_groups, mask};
+    }
+
+    template<typename... Ts>
+    View<true> components() const
+    {
+      Archetype mask = (Ts::TypeId | ...);
+      return View<true>{m_groups, mask};
     }
 
     template<typename T>
@@ -255,6 +310,12 @@ class World
         throw std::runtime_error("No such entity");
       }
       return m_groups.at(i->second).component<T>(entityId);
+    }
+
+    template<typename T>
+    const T& component(EntityId entityId) const
+    {
+      return component<T>(entityId);
     }
 
     bool hasEntity(EntityId entityId) const
@@ -273,31 +334,6 @@ class World
 
   private:
     EntityId m_nextId = 0;
-    std::map<Archetype, ComponentArrayGroup> m_groups;
+    GroupMap m_groups;
     std::map<EntityId, Archetype> m_archetypes;
-};
-
-template<typename... NConstTypes>
-class WorldWrapper
-{
-  public:
-    WorldWrapper(World& world)
-      : m_world(world)
-    {}
-
-    template<typename T>
-    std::enable_if_t<contains<T, NConstTypes...>>
-    T& component(EntityId entityId)
-    {
-      return m_world.component<T>(entityId);
-    }
-
-    template<typename T>
-    const T& component(EntityId entityId) const
-    {
-      return m_world.component<T>(entityId);
-    }
-
-  private:
-    World& m_world;
 };
