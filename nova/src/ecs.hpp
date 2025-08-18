@@ -8,6 +8,12 @@
 using EntityId = size_t;
 using ComponentType = size_t;
 
+template<typename T, typename... Ts>
+constexpr bool contains()
+{
+  return std::disjunction_v<std::is_same<T, Ts>...>;
+}
+
 struct IComponentArray
 {
   virtual size_t componentSize() const = 0;
@@ -269,4 +275,29 @@ class World
     EntityId m_nextId = 0;
     std::map<Archetype, ComponentArrayGroup> m_groups;
     std::map<EntityId, Archetype> m_archetypes;
+};
+
+template<typename... NConstTypes>
+class WorldWrapper
+{
+  public:
+    WorldWrapper(World& world)
+      : m_world(world)
+    {}
+
+    template<typename T>
+    std::enable_if_t<contains<T, NConstTypes...>>
+    T& component(EntityId entityId)
+    {
+      return m_world.component<T>(entityId);
+    }
+
+    template<typename T>
+    const T& component(EntityId entityId) const
+    {
+      return m_world.component<T>(entityId);
+    }
+
+  private:
+    World& m_world;
 };

@@ -3,6 +3,7 @@
 #include "system.hpp"
 #include "utils.hpp"
 #include "math.hpp"
+#include "component_types.hpp"
 
 struct CRender
 {
@@ -11,7 +12,7 @@ struct CRender
   Vec2f pos;
   uint32_t zIndex = 0;
 
-  static constexpr size_t TypeId = 1 << 0;
+  static constexpr ComponentType TypeId = ComponentTypeId::Render;
 };
 
 // Matches layout of private CRenderData, with only public fields visible
@@ -19,9 +20,13 @@ struct CRenderView
 {
   Vec2f pos;
   uint32_t zIndex;
+#ifdef _WIN32
   uint32_t padding[20];
+#else
+  uint32_t padding[23];
+#endif
 
-  static constexpr size_t TypeId = 1 << 0;
+  static constexpr ComponentType TypeId = ComponentTypeId::Render;
 };
 
 class Camera;

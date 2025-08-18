@@ -99,10 +99,8 @@ struct CRenderData
   uint32_t zIndex;
   MeshHandle mesh; // TODO: Share meshes or use instancing?
 
-  static constexpr size_t TypeId = 1 << 0;
+  static constexpr ComponentType TypeId = ComponentTypeId::Render;
 };
-
-//const size_t x = sizeof(MeshHandle);
 
 static_assert(sizeof(CRenderData) == sizeof(CRenderView));
 
@@ -134,9 +132,6 @@ class SysRenderImpl : public SysRender
     Camera m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
-    //std::vector<CRenderData> m_data;
-    //std::vector<EntityId> m_ids;              // m_data index -> EntityId
-    //std::map<EntityId, uint32_t> m_lookup;    // EntityId -> m_data index
     MaterialHandle m_textureAtlas;
 
     MeshHandle createMesh(const CRender& c) const;
@@ -198,45 +193,10 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
     .zIndex = data.zIndex,
     .mesh = mesh
   };
-/*
-  m_data.push_back(CRenderData{
-    .pos = data.pos,
-    .zIndex = data.zIndex,
-    .mesh = mesh
-  });
-
-  m_ids.push_back(entityId);
-
-  assert(m_data.size() == m_ids.size());
-
-  m_lookup[entityId] = m_data.size() - 1;*/
 }
 
 void SysRenderImpl::removeEntity(EntityId entityId)
-{/*
-  if (m_data.empty()) {
-    return;
-  }
-
-  auto i = m_lookup.find(entityId);
-  if (i == m_lookup.end()) {
-    return;
-  }
-
-  auto idx = i->second;
-  auto last = m_data.size() - 1;
-
-  auto lastId = m_ids[last];
-
-  std::swap(m_data[idx], m_data[last]);
-  std::swap(m_ids[idx], m_ids[idx]);
-  m_data.pop_back();
-  m_ids.pop_back();
-
-  assert(m_data.size() == m_ids.size());
-
-  m_lookup.erase(entityId);
-  m_lookup[lastId] = idx;*/
+{
 }
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
