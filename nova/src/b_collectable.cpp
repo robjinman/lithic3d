@@ -69,7 +69,7 @@ void BCollectable::processEvent(const GameEvent& event)
   }
 }
 
-}
+} // namespace
 
 CBehaviourPtr createBCollectable(SysAnimation& sysAnimation, EventSystem& eventSystem,
   EntityId entityId, EntityId playerId, int value)

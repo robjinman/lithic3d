@@ -29,7 +29,7 @@ void EventSystemImpl::fireEvent(const Event& event)
   }
 }
 
-}
+} // namespace
 
 EventSystemPtr createEventSystem()
 {

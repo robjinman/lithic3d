@@ -33,7 +33,7 @@ void SysUiImpl::processEvent(const GameEvent& event)
 
 }
 
-}
+} // namespace
 
 SysUiPtr createSysUi()
 {

@@ -207,9 +207,7 @@ class ComponentStore
               , m_i(i)
               , m_mask(mask)
             {
-              while (m_i != m_groups.end() && (m_i->first & m_mask) != m_mask) {
-                ++m_i;
-              }
+              skipNonMatchingGroups();
             }
 
             IteratorImpl(const GroupMap& groups, GroupMap::const_iterator i, Archetype mask)
@@ -231,9 +229,7 @@ class ComponentStore
             IteratorImpl<IsConstIter>& operator++()
             {
               ++m_i;
-              while (m_i != m_groups.end() && (m_i->first & m_mask) != m_mask) {
-                ++m_i;
-              }
+              skipNonMatchingGroups();
               return *this;
             }
 
@@ -246,6 +242,13 @@ class ComponentStore
             std::conditional<IsConstIter, const GroupMap&, GroupMap&>::type& m_groups;
             std::conditional<IsConstIter, GroupMap::const_iterator, GroupMap::iterator>::type m_i;
             Archetype m_mask;
+
+            void skipNonMatchingGroups()
+            {
+              while (m_i != m_groups.end() && (m_i->first & m_mask) != m_mask) {
+                ++m_i;
+              }
+            }
         };
 
         using iterator = IteratorImpl<false>;
@@ -256,12 +259,12 @@ class ComponentStore
           , m_mask(mask)
         {}
 
-        const_iterator cbegin()
+        const_iterator cbegin() const
         {
           return const_iterator{m_groups, m_groups.cbegin(), m_mask};
         }
 
-        const_iterator cend()
+        const_iterator cend() const
         {
           return const_iterator{m_groups, m_groups.cend(), m_mask};
         }

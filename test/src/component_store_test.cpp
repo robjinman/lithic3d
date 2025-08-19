@@ -366,8 +366,10 @@ TEST_F(EcsTest, cannot_modify_const_componentStore)
     auto& group = *view.cbegin();
 
     auto& compA = group.component<ComponentA>(entityId);
+    //compA.a = 123; // Not allowed
+
     auto compAs = group.components<ComponentA>();
-    //comps[0].a = 123; // Not allowed
+    //compAs[0].a = 123; // Not allowed
 
     auto& compB = group.component<ComponentB>(entityId);
 

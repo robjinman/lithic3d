@@ -60,7 +60,6 @@ class Game
 
 using GamePtr = std::unique_ptr<Game>;
 
-
 class ComponentStore;
 class FileSystem;
 class Logger;

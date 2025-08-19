@@ -84,7 +84,7 @@ void SysBehaviourImpl::processEvent(const GameEvent& event)
   }
 }
 
-}
+} // namespace
 
 SysBehaviourPtr createSysBehaviour()
 {

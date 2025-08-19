@@ -153,7 +153,7 @@ bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
   return m_componentStore.component<CAnimationData>(entityId).currentAnimation != -1;
 }
 
-}
+} // namespace
 
 SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger)
 {

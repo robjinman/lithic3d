@@ -8,8 +8,8 @@
 namespace
 {
 
-const int GRID_W = 100;
-const int GRID_H = 80;
+const int GRID_W = 21;
+const int GRID_H = 11;
 
 class SysGridImpl : public SysGrid
 {
@@ -38,7 +38,7 @@ class SysGridImpl : public SysGrid
 
 bool SysGridImpl::isInRange(int x, int y) const
 {
-  return inRange(x, 0, GRID_W) && inRange(y, 0, GRID_H);
+  return inRange(x, 0, GRID_W - 1) && inRange(y, 0, GRID_H - 1);
 }
 
 void SysGridImpl::removeEntity(EntityId entityId)
@@ -94,7 +94,7 @@ bool SysGridImpl::hasEntityAt(EntityId entityId, int x, int y) const
   return m_cells[y][x].contains(entityId);
 }
 
-}
+} // namespace
 
 SysGridPtr createSysGrid(EventSystem& eventSystem)
 {

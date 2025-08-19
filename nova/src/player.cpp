@@ -43,7 +43,7 @@ void PlayerBehaviour::processEvent(const GameEvent& event)
 {
 }
 
-}
+} // namespace
 
 EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStore, SysGrid& sysGrid,
   SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation)
@@ -79,7 +79,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0 }
+          .delta = Vec2f{ -0.015625f, 0.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -88,7 +88,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0 }
+          .delta = Vec2f{ -0.015625f, 0.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -97,7 +97,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvX(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0 }
+          .delta = Vec2f{ -0.015625f, 0.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -106,7 +106,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvX(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0 }
+          .delta = Vec2f{ -0.015625f, 0.f }
         }
       }
     },
@@ -121,7 +121,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0 }
+          .delta = Vec2f{ 0.015625f, 0.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -130,7 +130,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0 }
+          .delta = Vec2f{ 0.015625f, 0.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -139,7 +139,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0 }
+          .delta = Vec2f{ 0.015625f, 0.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -148,7 +148,91 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0 }
+          .delta = Vec2f{ 0.015625f, 0.f }
+        }
+      }
+    },
+    Animation{
+      .name = hashString("move_up"),
+      .duration = 10,
+      .frames = {
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(384.f),
+            .y = pxToUvY(256.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, 0.015625f }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(416.f),
+            .y = pxToUvY(256.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, 0.015625f }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(448.f),
+            .y = pxToUvY(256.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, 0.015625f }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(480.f),
+            .y = pxToUvY(304.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, 0.015625f }
+        }
+      }
+    },
+    Animation{
+      .name = hashString("move_down"),
+      .duration = 10,
+      .frames = {
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(384.f),
+            .y = pxToUvY(400.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, -0.015625f }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(416.f),
+            .y = pxToUvY(400.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, -0.015625f }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(448.f),
+            .y = pxToUvY(400.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, -0.015625f }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(480.f),
+            .y = pxToUvY(400.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.f, -0.015625f }
         }
       }
     }
