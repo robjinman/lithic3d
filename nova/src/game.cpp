@@ -4,6 +4,7 @@
 #include "sys_grid.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_ui.hpp"
+#include "sys_animation.hpp"
 #include "game_events.hpp"
 #include "file_system.hpp"
 #include "time.hpp"
@@ -12,7 +13,6 @@
 #include "utils.hpp"
 #include "units.hpp"
 #include "player.hpp"
-#include "input_state.hpp"
 #include <set>
 #undef max
 #undef min
@@ -20,11 +20,20 @@
 namespace
 {
 
+struct InputState
+{
+  bool left = false;
+  bool right = false;
+  bool up = false;
+  bool down = false;
+};
+
 class GameImpl : public Game
 {
   public:
     GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-      EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger);
+      SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
+      Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -43,11 +52,13 @@ class GameImpl : public Game
     SysRender& m_sysRender;
     SysGrid& m_sysGrid;
     SysBehaviour& m_sysBehaviour;
+    SysAnimation& m_sysAnimation;
     InputState m_inputState;
     Vec2f m_leftStickDelta;
     Timer m_timer;
     size_t m_currentTick = 0;
     double m_measuredTickRate = 0;
+    EntityId m_playerId = 0;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -60,7 +71,8 @@ class GameImpl : public Game
 };
 
 GameImpl::GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-  EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger)
+  SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
+  Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_eventSystem(eventSystem)
@@ -68,6 +80,7 @@ GameImpl::GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, S
   , m_sysRender(sysRender)
   , m_sysGrid(sysGrid)
   , m_sysBehaviour(sysBehaviour)
+  , m_sysAnimation(sysAnimation)
 {
   static auto strGame = hashString("game");
   static auto strUi = hashString("ui");
@@ -86,7 +99,8 @@ GameImpl::GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, S
     // TODO
   });
 
-  constructPlayer(m_eventSystem, m_world, m_sysGrid, m_sysRender, m_sysBehaviour);
+  m_playerId = constructPlayer(m_eventSystem, m_world, m_sysGrid, m_sysRender, m_sysBehaviour,
+    m_sysAnimation);
   constructSky();
   constructTrees();
   constructFakeSoil();
@@ -143,7 +157,35 @@ void GameImpl::onRightStickMove(const Vec2f& delta)
 
 void GameImpl::processKeyboardInput()
 {
+  static auto strMoveLeft = hashString("move_left");
+  static auto strMoveRight = hashString("move_right");
+  static auto strMoveUp = hashString("move_up");
+  static auto strMoveDown = hashString("move_down");
 
+  if (m_sysAnimation.hasAnimationPlaying(m_playerId)) {
+    return;
+  }
+
+  if (m_inputState.left) {
+    if (m_sysGrid.tryMove(m_playerId, -1, 0)) {
+      m_sysAnimation.playAnimation(m_playerId, strMoveLeft);
+    }
+  }
+  else if (m_inputState.right) {
+    if (m_sysGrid.tryMove(m_playerId, 1, 0)) {
+      m_sysAnimation.playAnimation(m_playerId, strMoveRight);
+    }
+  }
+  else if (m_inputState.up) {
+    if (m_sysGrid.tryMove(m_playerId, 0, 1)) {
+      m_sysAnimation.playAnimation(m_playerId, strMoveUp);
+    }
+  }
+  else if (m_inputState.down) {
+    if (m_sysGrid.tryMove(m_playerId, 0, -1)) {
+      m_sysAnimation.playAnimation(m_playerId, strMoveDown);
+    }
+  }
 }
 
 void GameImpl::processMouseInput()
@@ -166,9 +208,10 @@ void GameImpl::update()
   processKeyboardInput();
   processMouseInput();
 
-  m_sysBehaviour.update(m_currentTick, m_inputState);
-  m_sysGrid.update(m_currentTick, m_inputState);
-  m_sysRender.update(m_currentTick, m_inputState);
+  m_sysBehaviour.update(m_currentTick);
+  m_sysGrid.update(m_currentTick);
+  m_sysRender.update(m_currentTick);
+  m_sysAnimation.update(m_currentTick);
 }
 
 void GameImpl::constructSky()
@@ -238,8 +281,9 @@ void GameImpl::constructSoil()
 } // namespace
 
 GamePtr createGame(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-  EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger)
+  SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
+  Logger& logger)
 {
-  return std::make_unique<GameImpl>(world, sysBehaviour, sysGrid, sysRender, eventSystem,
-    fileSystem, logger);
+  return std::make_unique<GameImpl>(world, sysBehaviour, sysGrid, sysRender, sysAnimation,
+    eventSystem, fileSystem, logger);
 }

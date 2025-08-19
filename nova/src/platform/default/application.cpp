@@ -5,6 +5,7 @@
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
+#include "sys_animation.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #include "units.hpp"
@@ -82,6 +83,7 @@ class Application
     SysBehaviourPtr m_sysBehaviour;
     SysGridPtr m_sysGrid;
     SysRenderPtr m_sysRender;
+    SysAnimationPtr m_sysAnimation;
     GamePtr m_game;
 
     bool m_fullscreen = false;
@@ -154,9 +156,10 @@ Application::Application()
   m_sysBehaviour = createSysBehaviour();
   m_sysGrid = createSysGrid(*m_eventSystem);
   m_sysRender = createSysRender(m_world, *m_renderer, *m_fileSystem, *m_logger);
+  m_sysAnimation = createSysAnimation(m_world, *m_logger);
 
-  m_game = createGame(m_world, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_eventSystem,
-    *m_fileSystem, *m_logger);
+  m_game = createGame(m_world, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_sysAnimation,
+    *m_eventSystem, *m_fileSystem, *m_logger);
   m_sysRender->start();
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);

@@ -7,7 +7,8 @@ class World;
 class SysGrid;
 class SysRender;
 class SysBehaviour;
+class SysAnimation;
 
 EntityId constructPlayer(EventSystem& eventSystem, World& world, SysGrid& sysGrid,
-  SysRender& sysRender, SysBehaviour& sysBehaviour);
+  SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation);
 

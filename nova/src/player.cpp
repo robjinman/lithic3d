@@ -3,99 +3,53 @@
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
+#include "sys_animation.hpp"
 #include "event_system.hpp"
 #include "game_events.hpp"
-#include "input_state.hpp"
-#include "b_animation.hpp"
 
 namespace
 {
 
-class BUserControl : public CBehaviour
+class PlayerBehaviour : public CBehaviour
 {
   public:
-    BUserControl(EntityId entityId, EventSystem& eventSystem, SysGrid& sysGrid,
-      SysBehaviour& sysBehaviour);
+    PlayerBehaviour(EntityId entityId);
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
     void processEvent(const GameEvent& event) override;
-    void update(Tick tick, const InputState& inputState) override;
 
   private:
     EntityId m_entityId;
-    EventSystem& m_eventSystem;
-    SysGrid& m_sysGrid;
-    SysBehaviour& m_sysBehaviour;
 };
 
-BUserControl::BUserControl(EntityId entityId, EventSystem& eventSystem, SysGrid& sysGrid,
-  SysBehaviour& sysBehaviour)
+PlayerBehaviour::PlayerBehaviour(EntityId entityId)
   : m_entityId(entityId)
-  , m_eventSystem(eventSystem)
-  , m_sysGrid(sysGrid)
-  , m_sysBehaviour(sysBehaviour)
 {
 }
 
-HashedString BUserControl::name() const
+HashedString PlayerBehaviour::name() const
 {
-  static HashedString strUserControl = hashString("user_control");
+  static HashedString strUserControl = hashString("player");
   return strUserControl;
 }
 
-const std::set<HashedString>& BUserControl::subscriptions() const
+const std::set<HashedString>& PlayerBehaviour::subscriptions() const
 {
   static std::set<HashedString> subs{};
   return subs;
 }
 
-void BUserControl::processEvent(const GameEvent&)
+void PlayerBehaviour::processEvent(const GameEvent& event)
 {
-}
-
-void BUserControl::update(Tick, const InputState& inputState)
-{
-  static auto strAnimation = hashString("animation");
-  static auto strMoveLeft = hashString("move_left");
-  static auto strMoveRight = hashString("move_right");
-  static auto strMoveUp = hashString("move_up");
-  static auto strMoveDown = hashString("move_down");
-
-  auto& anim = dynamic_cast<BAnimation&>(m_sysBehaviour.getBehaviour(m_entityId, strAnimation));
-
-  if (anim.hasAnimationPlaying()) {
-    return;
-  }
-
-  if (inputState.left) {
-    if (m_sysGrid.tryMove(m_entityId, -1, 0)) {
-      anim.playAnimation(strMoveLeft);
-    }
-  }
-  else if (inputState.right) {
-    if (m_sysGrid.tryMove(m_entityId, 1, 0)) {
-      anim.playAnimation(strMoveRight);
-    }
-  }
-  else if (inputState.up) {
-    if (m_sysGrid.tryMove(m_entityId, 0, 1)) {
-      anim.playAnimation(strMoveUp);
-    }
-  }
-  else if (inputState.down) {
-    if (m_sysGrid.tryMove(m_entityId, 0, -1)) {
-      anim.playAnimation(strMoveDown);
-    }
-  }
 }
 
 }
 
 EntityId constructPlayer(EventSystem& eventSystem, World& world, SysGrid& sysGrid,
-  SysRender& sysRender, SysBehaviour& sysBehaviour)
+  SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation)
 {
-  auto id = world.allocate<CRenderView>(); // TODO
+  auto id = world.allocate<CRenderView, CAnimationView>();
 
   sysGrid.addEntity(id, 0, 0);
 
@@ -113,100 +67,98 @@ EntityId constructPlayer(EventSystem& eventSystem, World& world, SysGrid& sysGri
 
   sysRender.addEntity(id, render);
 
-  auto userCtrlBehaviour = std::make_unique<BUserControl>(id, eventSystem, sysGrid, sysBehaviour);
-
-  Animation moveLeft{
-    .name = hashString("move_left"),
-    .duration = 10,
-    .frames = {
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
+  CAnimation animation;
+  animation.animations = {
+    Animation{
+      .name = hashString("move_left"),
+      .duration = 10,
+      .frames = {
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(384.f),
+            .y = pxToUvY(352.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ -0.015625f, 0 }
         },
-        .delta = Vec2f{ -0.015625f, 0 }
-      },
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(416.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(416.f),
+            .y = pxToUvY(352.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ -0.015625f, 0 }
         },
-        .delta = Vec2f{ -0.015625f, 0 }
-      },
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvX(48.f)
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(448.f),
+            .y = pxToUvY(352.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvX(48.f)
+          },
+          .delta = Vec2f{ -0.015625f, 0 }
         },
-        .delta = Vec2f{ -0.015625f, 0 }
-      },
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(480.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvX(48.f)
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(480.f),
+            .y = pxToUvY(352.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvX(48.f)
+          },
+          .delta = Vec2f{ -0.015625f, 0 }
+        }
+      }
+    },
+    Animation{
+      .name = hashString("move_right"),
+      .duration = 10,
+      .frames = {
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(384.f),
+            .y = pxToUvY(304.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.015625f, 0 }
         },
-        .delta = Vec2f{ -0.015625f, 0 }
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(416.f),
+            .y = pxToUvY(304.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.015625f, 0 }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(448.f),
+            .y = pxToUvY(304.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.015625f, 0 }
+        },
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(480.f),
+            .y = pxToUvY(304.f, 48.f),
+            .w = pxToUvW(32.f),
+            .h = pxToUvH(48.f)
+          },
+          .delta = Vec2f{ 0.015625f, 0 }
+        }
       }
     }
   };
 
-  Animation moveRight{
-    .name = hashString("move_right"),
-    .duration = 10,
-    .frames = {
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .delta = Vec2f{ 0.015625f, 0 }
-      },
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(416.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .delta = Vec2f{ 0.015625f, 0 }
-      },
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .delta = Vec2f{ 0.015625f, 0 }
-      },
-      AnimationFrame{
-        .textureRect = Rectf{
-          .x = pxToUvX(480.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .delta = Vec2f{ 0.015625f, 0 }
-      }
-    }
-  };
+  sysAnimation.addEntity(id, animation);
 
-  auto animBehaviour = createBAnimation(id, sysRender);
-  animBehaviour->addAnimation(std::move(moveLeft));
-  animBehaviour->addAnimation(std::move(moveRight));
-
-  sysBehaviour.addBehaviour(id, std::move(userCtrlBehaviour));
-  sysBehaviour.addBehaviour(id, std::move(animBehaviour));
+  auto behaviour = std::make_unique<PlayerBehaviour>(id);
+  sysBehaviour.addBehaviour(id, std::move(behaviour));
 
   return id;
 }

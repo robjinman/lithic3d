@@ -206,7 +206,11 @@ class World
               : m_groups(groups)
               , m_i(i)
               , m_mask(mask)
-            {}
+            {
+              while (m_i != m_groups.end() && (m_i->first & m_mask) != m_mask) {
+                ++m_i;
+              }
+            }
 
             IteratorImpl(const GroupMap& groups, GroupMap::const_iterator i, Archetype mask)
               : m_groups(groups)
@@ -226,11 +230,9 @@ class World
 
             IteratorImpl<IsConstIter>& operator++()
             {
-              while (m_i != m_groups.end()) {
+              ++m_i;
+              while (m_i != m_groups.end() && (m_i->first & m_mask) != m_mask) {
                 ++m_i;
-                if ((m_i->first & m_mask) == m_mask) {
-                  break;
-                }
               }
               return *this;
             }

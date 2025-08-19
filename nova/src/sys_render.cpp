@@ -123,7 +123,7 @@ class SysRenderImpl : public SysRender
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick tick, const InputState& inputState) override;
+    void update(Tick tick) override;
     void processEvent(const GameEvent& event) override {}
 
   private:
@@ -234,7 +234,7 @@ const Camera& SysRenderImpl::camera() const
   return m_camera;
 }
 
-void SysRenderImpl::update(Tick tick, const InputState&)
+void SysRenderImpl::update(Tick tick)
 {
   try {
     m_renderer.beginFrame();

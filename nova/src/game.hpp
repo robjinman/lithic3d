@@ -68,6 +68,8 @@ class EventSystem;
 class SysBehaviour;
 class SysGrid;
 class SysRender;
+class SysAnimation;
 
 GamePtr createGame(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-  EventSystem& eventSystem, const FileSystem& fileSystem, Logger& logger);
+  SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
+  Logger& logger);

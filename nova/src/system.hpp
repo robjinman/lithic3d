@@ -5,13 +5,12 @@
 #include <string>
 #include "event_system.hpp"
 #include "units.hpp"
-
-using EntityId = size_t;
+#include "ecs.hpp"
 
 class GameEvent : public Event
 {
   public:
-    GameEvent(HashedString name)
+    explicit GameEvent(HashedString name)
       : Event(hashString("game"))
       , name(name) {}
 
@@ -24,24 +23,15 @@ class GameEvent : public Event
     std::set<EntityId> targets;
 };
 
-class InputState;
-
 class System
 {
   public:
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;
-    virtual void update(Tick tick, const InputState& inputState) = 0;
+    virtual void update(Tick tick) = 0;
     virtual void processEvent(const GameEvent& event) = 0;
 
-    virtual ~System() {}
-
-    static EntityId idFromString(const std::string& name);
-    static EntityId nextId();
-
-  private:
-    static EntityId m_nextId;
-    static std::set<EntityId> m_reservedIds;
+    virtual ~System() = default;
 };
 
 using SystemPtr = std::unique_ptr<System>;
