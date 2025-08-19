@@ -201,8 +201,7 @@ void SysRenderImpl::removeEntity(EntityId entityId)
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
 {
-  // TODO
-  return false;
+  return m_world.hasComponentForEntity<CRenderData>(entityId);
 }
 
 const Vec2f& SysRenderImpl::getPosition(EntityId entityId) const

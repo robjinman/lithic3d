@@ -21,9 +21,9 @@ struct CRenderView
   Vec2f pos;
   uint32_t zIndex;
 #ifdef _WIN32
-  uint32_t padding[20];
+  uint32_t _padding[20];
 #else
-  uint32_t padding[23];
+  uint32_t _padding[23];
 #endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;

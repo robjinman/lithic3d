@@ -31,16 +31,12 @@ class ComponentArray : public IComponentArray
   static_assert(std::is_trivially_copyable_v<T>);
   static_assert(T::TypeId && (T::TypeId & (T::TypeId - 1)) == 0, "TypeId must be power of 2");
 
+  friend class ComponentArrayGroup;
+
   public:
     size_t componentSize() const override
     {
       return sizeof(T);
-    }
-
-    void remove(size_t index) override
-    {
-      std::swap(m_data[index], m_data[m_data.size() - 1]);
-      m_data.pop_back();
     }
 
     char* data() override
@@ -60,10 +56,18 @@ class ComponentArray : public IComponentArray
 
   private:
     std::vector<T> m_data;
+
+    void remove(size_t index) override
+    {
+      std::swap(m_data[index], m_data[m_data.size() - 1]);
+      m_data.pop_back();
+    }
 };
 
 class ComponentArrayGroup
 {
+  friend class World;
+
   public:
     template<typename... Ts>
     void allocate(EntityId entityId)
@@ -111,33 +115,6 @@ class ComponentArrayGroup
       return components<T>()[entityPosition(entityId)];
     }
 
-    void remove(EntityId entityId)
-    {
-      auto i = m_indices.find(entityId);
-      if (i == m_indices.end()) {
-        return;
-      }
-
-      assert(m_entityIds.size() == m_indices.size());
-
-      size_t entityIndex = i->second;
-      size_t lastEntityIndex = m_entityIds.size() - 1;
-      EntityId lastEntityId = m_entityIds[lastEntityIndex];
-
-      for (auto& [type, components] : m_componentData) {
-        components->remove(entityIndex);
-      }
-
-      m_indices.erase(entityId);
-      if (entityId != lastEntityId) {
-        m_indices[lastEntityId] = entityIndex;
-        m_entityIds[entityIndex] = lastEntityId;
-      }
-      m_entityIds.pop_back();
-
-      assert(m_entityIds.size() == m_indices.size());
-    }
-
     const std::vector<EntityId>& entityIds() const
     {
       return m_entityIds;
@@ -178,6 +155,33 @@ class ComponentArrayGroup
 
       auto& array = i->second;
       return std::span<const T>{reinterpret_cast<const T*>(array->data()), array->size()};
+    }
+
+    void remove(EntityId entityId)
+    {
+      auto i = m_indices.find(entityId);
+      if (i == m_indices.end()) {
+        return;
+      }
+
+      assert(m_entityIds.size() == m_indices.size());
+
+      size_t entityIndex = i->second;
+      size_t lastEntityIndex = m_entityIds.size() - 1;
+      EntityId lastEntityId = m_entityIds[lastEntityIndex];
+
+      for (auto& [type, components] : m_componentData) {
+        components->remove(entityIndex);
+      }
+
+      m_indices.erase(entityId);
+      if (entityId != lastEntityId) {
+        m_indices[lastEntityId] = entityIndex;
+        m_entityIds[entityIndex] = lastEntityId;
+      }
+      m_entityIds.pop_back();
+
+      assert(m_entityIds.size() == m_indices.size());
     }
 };
 
@@ -321,6 +325,16 @@ class World
     bool hasEntity(EntityId entityId) const
     {
       return m_archetypes.contains(entityId);
+    }
+
+    template<typename T>
+    bool hasComponentForEntity(EntityId entityId) const
+    {
+      auto i = m_archetypes.find(entityId);
+      if (i == m_archetypes.end()) {
+        return false;
+      }
+      m_groups.at(i->second).hasEntity(entityId);
     }
 
     void remove(EntityId entityId)
