@@ -1,6 +1,5 @@
 #include "sys_animation.hpp"
 #include "sys_render.hpp"
-#include "ecs.hpp"
 #include <chrono>
 #include <map>
 #include <cassert>
@@ -33,7 +32,7 @@ static_assert(sizeof(CAnimationData) == sizeof(CAnimationView));
 class SysAnimationImpl : public SysAnimation
 {
   public:
-    SysAnimationImpl(World& world, Logger& logger);
+    SysAnimationImpl(ComponentStore& componentStore, Logger& logger);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -46,14 +45,14 @@ class SysAnimationImpl : public SysAnimation
 
   private:
     Logger& m_logger;
-    World& m_world;
+    ComponentStore& m_componentStore;
     std::map<EntityId, std::map<HashedString, size_t>> m_animations;
     Tick m_currentTick = 0;
 };
 
-SysAnimationImpl::SysAnimationImpl(World& world, Logger& logger)
+SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logger)
   : m_logger(logger)
-  , m_world(world)
+  , m_componentStore(componentStore)
 {
 }
 
@@ -61,7 +60,7 @@ void SysAnimationImpl::update(Tick tick)
 {
   m_currentTick = tick;
 
-  for (auto& group : m_world.components<CRenderView, CAnimationData>()) {
+  for (auto& group : m_componentStore.components<CRenderView, CAnimationData>()) {
     auto renderComps = group.components<CRenderView>();
     auto animComps = group.components<CAnimationData>();
     size_t n = group.numEntities();
@@ -129,7 +128,7 @@ void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& data)
     ++i;
   }
 
-  m_world.component<CAnimationData>(entityId) = CAnimationData{
+  m_componentStore.component<CAnimationData>(entityId) = CAnimationData{
     .animations = animations,
     .currentAnimation = -1
   };
@@ -138,7 +137,7 @@ void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& data)
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name)
 {
   size_t i = m_animations.at(entityId).at(name);
-  auto& component = m_world.component<CAnimationData>(entityId);
+  auto& component = m_componentStore.component<CAnimationData>(entityId);
   auto& anim = component.animations[i];
   if (anim.isRunning) {
     return;
@@ -151,12 +150,12 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name)
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
 {
-  return m_world.component<CAnimationData>(entityId).currentAnimation != -1;
+  return m_componentStore.component<CAnimationData>(entityId).currentAnimation != -1;
 }
 
 }
 
-SysAnimationPtr createSysAnimation(World& world, Logger& logger)
+SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger)
 {
-  return std::make_unique<SysAnimationImpl>(world, logger);
+  return std::make_unique<SysAnimationImpl>(componentStore, logger);
 }

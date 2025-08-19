@@ -61,15 +61,15 @@ class Game
 using GamePtr = std::unique_ptr<Game>;
 
 
+class ComponentStore;
 class FileSystem;
 class Logger;
-class World;
 class EventSystem;
 class SysBehaviour;
 class SysGrid;
 class SysRender;
 class SysAnimation;
 
-GamePtr createGame(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-  SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
-  Logger& logger);
+GamePtr createGame(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
+  SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
+  const FileSystem& fileSystem, Logger& logger);

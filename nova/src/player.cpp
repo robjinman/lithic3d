@@ -1,5 +1,4 @@
 #include "player.hpp"
-#include "ecs.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
@@ -46,10 +45,10 @@ void PlayerBehaviour::processEvent(const GameEvent& event)
 
 }
 
-EntityId constructPlayer(EventSystem& eventSystem, World& world, SysGrid& sysGrid,
+EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStore, SysGrid& sysGrid,
   SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation)
 {
-  auto id = world.allocate<CRenderView, CAnimationView>();
+  auto id = componentStore.allocate<CRenderView, CAnimationView>();
 
   sysGrid.addEntity(id, 0, 0);
 

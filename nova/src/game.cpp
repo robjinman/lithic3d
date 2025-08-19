@@ -1,5 +1,4 @@
 #include "game.hpp"
-#include "ecs.hpp"
 #include "sys_render.hpp"
 #include "sys_grid.hpp"
 #include "sys_behaviour.hpp"
@@ -31,9 +30,9 @@ struct InputState
 class GameImpl : public Game
 {
   public:
-    GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-      SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
-      Logger& logger);
+    GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
+      SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
+      const FileSystem& fileSystem, Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -48,7 +47,7 @@ class GameImpl : public Game
     Logger& m_logger;
     const FileSystem& m_fileSystem;
     EventSystem& m_eventSystem;
-    World& m_world;
+    ComponentStore& m_componentStore;
     SysRender& m_sysRender;
     SysGrid& m_sysGrid;
     SysBehaviour& m_sysBehaviour;
@@ -70,13 +69,13 @@ class GameImpl : public Game
     void constructSoil();
 };
 
-GameImpl::GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
+GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
   SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
   Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_eventSystem(eventSystem)
-  , m_world(world)
+  , m_componentStore(componentStore)
   , m_sysRender(sysRender)
   , m_sysGrid(sysGrid)
   , m_sysBehaviour(sysBehaviour)
@@ -99,8 +98,9 @@ GameImpl::GameImpl(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, S
     // TODO
   });
 
-  m_playerId = constructPlayer(m_eventSystem, m_world, m_sysGrid, m_sysRender, m_sysBehaviour,
-    m_sysAnimation);
+  m_playerId = constructPlayer(m_eventSystem, m_componentStore, m_sysGrid, m_sysRender,
+    m_sysBehaviour, m_sysAnimation);
+
   constructSky();
   constructTrees();
   constructFakeSoil();
@@ -216,7 +216,7 @@ void GameImpl::update()
 
 void GameImpl::constructSky()
 {
-  auto id = m_world.allocate<CRenderView>();
+  auto id = m_componentStore.allocate<CRenderView>();
 
   CRender render{
     .textureRect = Rectf{
@@ -235,7 +235,7 @@ void GameImpl::constructSky()
 
 void GameImpl::constructTrees()
 {
-  auto id = m_world.allocate<CRenderView>();
+  auto id = m_componentStore.allocate<CRenderView>();
 
   CRender render{
     .textureRect = Rectf{
@@ -255,7 +255,7 @@ void GameImpl::constructTrees()
 void GameImpl::constructFakeSoil()
 {
   for (float_t x = 0.f; x <= 1.25; x += 0.0625) {
-    auto id = m_world.allocate<CRenderView>();
+    auto id = m_componentStore.allocate<CRenderView>();
 
     CRender render{
       .textureRect = Rectf{
@@ -280,10 +280,10 @@ void GameImpl::constructSoil()
 
 } // namespace
 
-GamePtr createGame(World& world, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-  SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
-  Logger& logger)
+GamePtr createGame(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
+  SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
+  const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<GameImpl>(world, sysBehaviour, sysGrid, sysRender, sysAnimation,
+  return std::make_unique<GameImpl>(componentStore, sysBehaviour, sysGrid, sysRender, sysAnimation,
     eventSystem, fileSystem, logger);
 }

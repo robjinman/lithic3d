@@ -6,7 +6,6 @@
 #include "utils.hpp"
 #include "time.hpp"
 #include "file_system.hpp"
-#include "ecs.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -107,7 +106,8 @@ static_assert(sizeof(CRenderData) == sizeof(CRenderView));
 class SysRenderImpl : public SysRender
 {
   public:
-    SysRenderImpl(World& world, Renderer& renderer, const FileSystem& fileSystem, Logger& logger);
+    SysRenderImpl(ComponentStore& componentStore, Renderer& renderer, const FileSystem& fileSystem,
+      Logger& logger);
 
     void start() override;
     double frameRate() const override;
@@ -128,7 +128,7 @@ class SysRenderImpl : public SysRender
 
   private:
     Logger& m_logger;
-    World& m_world;
+    ComponentStore& m_componentStore;
     Camera m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
@@ -137,10 +137,10 @@ class SysRenderImpl : public SysRender
     MeshHandle createMesh(const CRender& c) const;
 };
 
-SysRenderImpl::SysRenderImpl(World& world, Renderer& renderer, const FileSystem& fileSystem,
-  Logger& logger)
+SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
+  const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
-  , m_world(world)
+  , m_componentStore(componentStore)
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
@@ -188,7 +188,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 {
   auto mesh = createMesh(data);
 
-  m_world.component<CRenderData>(entityId) = CRenderData{
+  m_componentStore.component<CRenderData>(entityId) = CRenderData{
     .pos = data.pos,
     .zIndex = data.zIndex,
     .mesh = mesh
@@ -201,22 +201,22 @@ void SysRenderImpl::removeEntity(EntityId entityId)
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
 {
-  return m_world.hasComponentForEntity<CRenderData>(entityId);
+  return m_componentStore.hasComponentForEntity<CRenderData>(entityId);
 }
 
 const Vec2f& SysRenderImpl::getPosition(EntityId entityId) const
 {
-  return m_world.component<CRenderData>(entityId).pos;
+  return m_componentStore.component<CRenderData>(entityId).pos;
 }
 
 void SysRenderImpl::setPosition(EntityId entityId, const Vec2f& pos)
 {
-  m_world.component<CRenderData>(entityId).pos = pos;
+  m_componentStore.component<CRenderData>(entityId).pos = pos;
 }
 
 void SysRenderImpl::move(EntityId entityId, const Vec2f& pos)
 {
-  m_world.component<CRenderData>(entityId).pos += pos;
+  m_componentStore.component<CRenderData>(entityId).pos += pos;
 }
 
 void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
@@ -240,7 +240,7 @@ void SysRenderImpl::update(Tick tick)
     m_renderer.beginFrame();
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-    for (auto& group : m_world.components<CRenderData>()) {
+    for (auto& group : m_componentStore.components<CRenderData>()) {
       for (auto& item : group.components<CRenderData>()) {
         auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
@@ -260,8 +260,8 @@ void SysRenderImpl::update(Tick tick)
 
 } // namespace
 
-SysRenderPtr createSysRender(World& world, Renderer& renderer, const FileSystem& fileSystem,
-  Logger& logger)
+SysRenderPtr createSysRender(ComponentStore& componentStore, Renderer& renderer,
+  const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<SysRenderImpl>(world, renderer, fileSystem, logger);
+  return std::make_unique<SysRenderImpl>(componentStore, renderer, fileSystem, logger);
 }

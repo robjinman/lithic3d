@@ -5,7 +5,7 @@
 #include <string>
 #include "event_system.hpp"
 #include "units.hpp"
-#include "ecs.hpp"
+#include "component_store.hpp"
 
 class GameEvent : public Event
 {

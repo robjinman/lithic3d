@@ -3,12 +3,12 @@
 #include "system.hpp"
 
 class EventSystem;
-class World;
+class ComponentStore;
 class SysGrid;
 class SysRender;
 class SysBehaviour;
 class SysAnimation;
 
-EntityId constructPlayer(EventSystem& eventSystem, World& world, SysGrid& sysGrid,
+EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStore, SysGrid& sysGrid,
   SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation);
 

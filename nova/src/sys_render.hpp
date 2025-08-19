@@ -51,10 +51,9 @@ class SysRender : public System
 
 using SysRenderPtr = std::unique_ptr<SysRender>;
 
-class World;
 namespace render { class Renderer; }
 class FileSystem;
 class Logger;
 
-SysRenderPtr createSysRender(World& world, render::Renderer& renderer, const FileSystem& fileSystem,
-  Logger& logger);
+SysRenderPtr createSysRender(ComponentStore& componentStore, render::Renderer& renderer,
+  const FileSystem& fileSystem, Logger& logger);

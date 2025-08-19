@@ -1,4 +1,4 @@
-#include <ecs.hpp>
+#include <component_store.hpp>
 #include <gtest/gtest.h>
 #include <vector>
 #include "sys_render.hpp"
@@ -30,19 +30,19 @@ struct CExampleView
 class ExampleSystem
 {
   public:
-    ExampleSystem(World& world)
-      : m_world(world) {}
+    ExampleSystem(ComponentStore& componentStore)
+      : m_componentStore(componentStore) {}
 
     void addEntity(EntityId id, const CExample& data)
     {
-      m_world.component<CExampleData>(id) = CExampleData{
+      m_componentStore.component<CExampleData>(id) = CExampleData{
         .a = data.a + data.c,
         .b = data.b
       };
     }
 
   private:
-    World& m_world;
+    ComponentStore& m_componentStore;
 
     struct CExampleData
     {
@@ -59,11 +59,11 @@ class ExampleSystem
 
 TEST_F(EcsTest, store_and_retrieve_single_component)
 {
-  World world;
+  ComponentStore componentStore;
 
-  ExampleSystem system{world};
+  ExampleSystem system{componentStore};
 
-  auto entityId = world.allocate<CExampleView>();
+  auto entityId = componentStore.allocate<CExampleView>();
 
   CExample example{
     .a = 1,
@@ -74,7 +74,7 @@ TEST_F(EcsTest, store_and_retrieve_single_component)
   system.addEntity(entityId, example);
 
   size_t i = 0;
-  for (auto& arrayGroup : world.components<CExampleView>()) {
+  for (auto& arrayGroup : componentStore.components<CExampleView>()) {
     ASSERT_LT(i, 1);
 
     auto components = arrayGroup.components<CExampleView>();
@@ -126,7 +126,7 @@ struct ComponentD
 
 TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
 {
-  World world;
+  ComponentStore componentStore;
 
   ComponentA componentA{
     .a = 1.f,
@@ -139,12 +139,12 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
     .c = 3.0
   };
 
-  auto entityId = world.allocate<ComponentA, ComponentB>();
-  world.component<ComponentA>(entityId) = componentA;
-  world.component<ComponentB>(entityId) = componentB;
+  auto entityId = componentStore.allocate<ComponentA, ComponentB>();
+  componentStore.component<ComponentA>(entityId) = componentA;
+  componentStore.component<ComponentB>(entityId) = componentB;
 
   size_t i = 0;
-  for (auto& group : world.components<ComponentA, ComponentB>()) {
+  for (auto& group : componentStore.components<ComponentA, ComponentB>()) {
     ASSERT_LT(i, 1);
 
     auto aComponents = group.components<ComponentA>();
@@ -167,7 +167,7 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
 
 TEST_F(EcsTest, store_2_entities_with_single_component)
 {
-  World world;
+  ComponentStore componentStore;
 
   ComponentA entity1ComponentA{
     .a = 1.f,
@@ -179,14 +179,14 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
     .b = 4.f,
   };
 
-  auto entity1 = world.allocate<ComponentA>();
-  auto entity2 = world.allocate<ComponentA>();
+  auto entity1 = componentStore.allocate<ComponentA>();
+  auto entity2 = componentStore.allocate<ComponentA>();
 
-  world.component<ComponentA>(entity1) = entity1ComponentA;
-  world.component<ComponentA>(entity2) = entity2ComponentA;
+  componentStore.component<ComponentA>(entity1) = entity1ComponentA;
+  componentStore.component<ComponentA>(entity2) = entity2ComponentA;
 
   size_t i = 0;
-  for (auto& group : world.components<ComponentA>()) {
+  for (auto& group : componentStore.components<ComponentA>()) {
     ASSERT_LT(i, 1);
 
     auto& entityIds = group.entityIds();
@@ -211,7 +211,7 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
 
 TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
 {
-  World world;
+  ComponentStore componentStore;
 
   ComponentA entity1ComponentA{
     .a = 1.f,
@@ -229,14 +229,14 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     .c = 7.0
   };
 
-  auto entity1 = world.allocate<ComponentA>();
-  auto entity2 = world.allocate<ComponentA, ComponentB>();
+  auto entity1 = componentStore.allocate<ComponentA>();
+  auto entity2 = componentStore.allocate<ComponentA, ComponentB>();
 
-  world.component<ComponentA>(entity1) = entity1ComponentA;
-  world.component<ComponentA>(entity2) = entity2ComponentA;
-  world.component<ComponentB>(entity2) = entity2ComponentB;
+  componentStore.component<ComponentA>(entity1) = entity1ComponentA;
+  componentStore.component<ComponentA>(entity2) = entity2ComponentA;
+  componentStore.component<ComponentB>(entity2) = entity2ComponentB;
 
-  auto view = world.components<ComponentA>();
+  auto view = componentStore.components<ComponentA>();
   auto i = view.begin();
   ASSERT_FALSE(i == view.end());
 
@@ -280,7 +280,7 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
 
 TEST_F(EcsTest, get_entity_by_id)
 {
-  World world;
+  ComponentStore componentStore;
 
   ComponentA entity1ComponentA{
     .a = 1.f,
@@ -298,21 +298,21 @@ TEST_F(EcsTest, get_entity_by_id)
     .c = 7.0
   };
 
-  auto entity1 = world.allocate<ComponentA>();
-  auto entity2 = world.allocate<ComponentA, ComponentB>();
+  auto entity1 = componentStore.allocate<ComponentA>();
+  auto entity2 = componentStore.allocate<ComponentA, ComponentB>();
 
-  world.component<ComponentA>(entity1) = entity1ComponentA;
-  world.component<ComponentA>(entity2) = entity2ComponentA;
-  world.component<ComponentB>(entity2) = entity2ComponentB;
+  componentStore.component<ComponentA>(entity1) = entity1ComponentA;
+  componentStore.component<ComponentA>(entity2) = entity2ComponentA;
+  componentStore.component<ComponentB>(entity2) = entity2ComponentB;
 
-  auto& c = world.component<ComponentA>(entity2);
+  auto& c = componentStore.component<ComponentA>(entity2);
   EXPECT_EQ(3.f, c.a);
   EXPECT_EQ(4.f, c.b);
 }
 
 TEST_F(EcsTest, remove_only_entity)
 {
-  World world;
+  ComponentStore componentStore;
 
   ComponentA componentA{
     .a = 1.f,
@@ -325,24 +325,24 @@ TEST_F(EcsTest, remove_only_entity)
     .c = 3.0
   };
 
-  auto entityId = world.allocate<ComponentA, ComponentB>();
+  auto entityId = componentStore.allocate<ComponentA, ComponentB>();
 
-  world.component<ComponentA>(entityId) = componentA;
-  world.component<ComponentB>(entityId) = componentB;
+  componentStore.component<ComponentA>(entityId) = componentA;
+  componentStore.component<ComponentB>(entityId) = componentB;
 
-  auto view = world.components<ComponentA, ComponentB>();
+  auto view = componentStore.components<ComponentA, ComponentB>();
   auto& group = *view.begin();
 
   EXPECT_EQ(1, group.numEntities());
 
-  world.remove(entityId);
+  componentStore.remove(entityId);
 
   EXPECT_EQ(0, group.numEntities());
 }
 
-TEST_F(EcsTest, cannot_modify_const_world)
+TEST_F(EcsTest, cannot_modify_const_componentStore)
 {
-  World world;
+  ComponentStore componentStore;
 
   ComponentA componentA{
     .a = 1.f,
@@ -355,13 +355,13 @@ TEST_F(EcsTest, cannot_modify_const_world)
     .c = 3.0
   };
 
-  auto entityId = world.allocate<ComponentA, ComponentB>();
+  auto entityId = componentStore.allocate<ComponentA, ComponentB>();
 
-  world.component<ComponentA>(entityId) = componentA;
-  world.component<ComponentB>(entityId) = componentB;
+  componentStore.component<ComponentA>(entityId) = componentA;
+  componentStore.component<ComponentB>(entityId) = componentB;
 
-  auto tryModify = [entityId](const World& cWorld) {
-    auto view = cWorld.components<ComponentA, ComponentB>();
+  auto tryModify = [entityId](const ComponentStore& cComponentStore) {
+    auto view = cComponentStore.components<ComponentA, ComponentB>();
     //auto& group = *view.begin(); // Not allowed
     auto& group = *view.cbegin();
 
@@ -379,6 +379,6 @@ TEST_F(EcsTest, cannot_modify_const_world)
     EXPECT_EQ(3.0, compB.c);
   };
 
-  tryModify(world);
+  tryModify(componentStore);
 }
 

@@ -1,6 +1,5 @@
 #include "logger.hpp"
 #include "game.hpp"
-#include "ecs.hpp"
 #include "renderer.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
@@ -78,7 +77,7 @@ class Application
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
     EventSystemPtr m_eventSystem;
-    World m_world;
+    ComponentStore m_componentStore;
     render::RendererPtr m_renderer;
     SysBehaviourPtr m_sysBehaviour;
     SysGridPtr m_sysGrid;
@@ -155,10 +154,10 @@ Application::Application()
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
   m_sysBehaviour = createSysBehaviour();
   m_sysGrid = createSysGrid(*m_eventSystem);
-  m_sysRender = createSysRender(m_world, *m_renderer, *m_fileSystem, *m_logger);
-  m_sysAnimation = createSysAnimation(m_world, *m_logger);
+  m_sysRender = createSysRender(m_componentStore, *m_renderer, *m_fileSystem, *m_logger);
+  m_sysAnimation = createSysAnimation(m_componentStore, *m_logger);
 
-  m_game = createGame(m_world, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_sysAnimation,
+  m_game = createGame(m_componentStore, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_sysAnimation,
     *m_eventSystem, *m_fileSystem, *m_logger);
   m_sysRender->start();
 

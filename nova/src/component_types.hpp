@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ecs.hpp"
+#include "component_store.hpp"
 
 enum ComponentTypeId : ComponentType
 {

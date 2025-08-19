@@ -66,7 +66,7 @@ class ComponentArray : public IComponentArray
 
 class ComponentArrayGroup
 {
-  friend class World;
+  friend class ComponentStore;
 
   public:
     template<typename... Ts>
@@ -187,7 +187,7 @@ class ComponentArrayGroup
 
 using Archetype = size_t;
 
-class World
+class ComponentStore
 {
   using GroupMap = std::map<Archetype, ComponentArrayGroup>;
 
