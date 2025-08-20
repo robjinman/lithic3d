@@ -22,7 +22,7 @@ struct CRenderView
   Rectf textureRect;
   uint32_t zIndex;
 #ifdef _WIN32
-  char _padding[92];
+  char _padding[80];
 #else
   char _padding[92];
 #endif

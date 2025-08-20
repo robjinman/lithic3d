@@ -585,6 +585,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
   }
+
   if (node.type == RenderNodeType::DefaultModel) {
     assert(!node.mesh.features.flags.test(MeshFeatures::IsInstanced));
     assert(!node.mesh.features.flags.test(MeshFeatures::IsSkybox));
@@ -597,12 +598,12 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   else if (node.type == RenderNodeType::Sprite) {
     auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
 
+    // TODO: Push modified UVs
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
       &spriteNode.modelMatrix);
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Rectf),
-      &spriteNode.uvRect);
   }
-  if (node.mesh.features.flags.test(MeshFeatures::IsInstanced)) {
+
+  if (node.type == RenderNodeType::InstancedModel) {
     assert(node.mesh.features.flags.test(MeshFeatures::IsInstanced));
 
     vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
