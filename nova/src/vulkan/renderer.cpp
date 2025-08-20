@@ -102,7 +102,7 @@ class RendererImpl : public Renderer
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const std::vector<Mat4x4f>& jointTransforms) override;
-    void drawSprite(MeshHandle mesh, MaterialHandle material, const Rectf& uvRect,
+    void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
       const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
@@ -421,8 +421,8 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
   node->instances.push_back(MeshInstance{transform * mesh.transform});
 }
 
-void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material, const Rectf& uvRect,
-  const Mat4x4f& transform)
+void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
+  const std::array<Vec2f, 4>& uvCoords, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -434,7 +434,7 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material, const Re
   node->mesh = mesh;
   node->material = material;
   node->modelMatrix = transform;
-  node->uvRect = uvRect;
+  node->uvCoords = uvCoords;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 

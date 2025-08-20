@@ -15,18 +15,10 @@ layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 1) uniform LightTransforms
   mat4 projMatrix;
 } light;
 
-#ifdef FEATURE_VERTEX_SKINNING
-#define MAX_JOINTS 128
-
-layout(std140, set = DESCRIPTOR_SET_OBJECT, binding = 0) uniform JointTransformsUbo
-{
-  mat4 transforms[MAX_JOINTS];
-} joints;
-#endif
-
 layout(push_constant) uniform PushConstants
 {
   mat4 modelMatrix;
+  vec2 uvCoords[4];
 } constants;
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
@@ -42,17 +34,7 @@ layout(location = 5) out vec3 outBitangent;
 
 vec4 computeVertexPosition(mat4 modelMatrix)
 {
-#ifdef FEATURE_VERTEX_SKINNING
-  mat4 transform =
-    inWeights[0] * joints.transforms[inJoints[0]] +
-    inWeights[1] * joints.transforms[inJoints[1]] +
-    inWeights[2] * joints.transforms[inJoints[2]] +
-    inWeights[3] * joints.transforms[inJoints[3]];
-
-  return modelMatrix * transform * vec4(inPos, 1.0);
-#else
   return modelMatrix * vec4(inPos, 1.0);
-#endif
 }
 
 void main()
@@ -74,7 +56,7 @@ void main()
   outLightSpacePos = light.projMatrix * light.viewMatrix * worldPos;
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
-  outTexCoord = inTexCoord;
+  outTexCoord = constants.uvCoords[gl_VertexIndex];
 #endif
 
 #ifdef FEATURE_NORMAL_MAPPING

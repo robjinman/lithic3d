@@ -66,11 +66,13 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
 
   sysRender.addEntity(id, render);
 
+  long animationDuration = 16;
+
   CAnimation animation;
   animation.animations = {
     Animation{
       .name = hashString("move_left"),
-      .duration = 10,
+      .duration = animationDuration,
       .frames = {
         AnimationFrame{
           .textureRect = Rectf{
@@ -95,7 +97,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .x = pxToUvX(448.f),
             .y = pxToUvY(352.f, 48.f),
             .w = pxToUvW(32.f),
-            .h = pxToUvX(48.f)
+            .h = pxToUvH(48.f)
           },
           .delta = Vec2f{ -0.015625f, 0.f }
         },
@@ -104,7 +106,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .x = pxToUvX(480.f),
             .y = pxToUvY(352.f, 48.f),
             .w = pxToUvW(32.f),
-            .h = pxToUvX(48.f)
+            .h = pxToUvH(48.f)
           },
           .delta = Vec2f{ -0.015625f, 0.f }
         }
@@ -112,7 +114,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
     },
     Animation{
       .name = hashString("move_right"),
-      .duration = 10,
+      .duration = animationDuration,
       .frames = {
         AnimationFrame{
           .textureRect = Rectf{
@@ -154,7 +156,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
     },
     Animation{
       .name = hashString("move_up"),
-      .duration = 10,
+      .duration = animationDuration,
       .frames = {
         AnimationFrame{
           .textureRect = Rectf{
@@ -186,7 +188,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
         AnimationFrame{
           .textureRect = Rectf{
             .x = pxToUvX(480.f),
-            .y = pxToUvY(304.f, 48.f),
+            .y = pxToUvY(256.f, 48.f),
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
@@ -196,7 +198,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
     },
     Animation{
       .name = hashString("move_down"),
-      .duration = 10,
+      .duration = animationDuration,
       .frames = {
         AnimationFrame{
           .textureRect = Rectf{

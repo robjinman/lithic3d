@@ -14,6 +14,17 @@ namespace render
 namespace
 {
 
+struct DefaultPushConstants
+{
+  Mat4x4f modelMatrix;
+};
+
+struct SpritePushConstants
+{
+  Mat4x4f modelMatrix;
+  Vec2f spriteUvCoords[4];
+};
+
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
   VkShaderModuleCreateInfo createInfo{
@@ -443,14 +454,23 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
+  if (meshFeatures.flags.test(MeshFeatures::Is2d)) {
+    m_pushConstantRanges = {
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = 0,
+        .size = sizeof(SpritePushConstants)
+      }
+    };
+  }
+  else if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
     && !meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
 
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
         .offset = 0,
-        .size = sizeof(Mat4x4f)
+        .size = sizeof(DefaultPushConstants)
       }
     };
   }
@@ -592,15 +612,28 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
 
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
-      &defaultNode.modelMatrix);
+    DefaultPushConstants constants{
+      .modelMatrix = defaultNode.modelMatrix
+    };
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+      sizeof(DefaultPushConstants), &constants);
   }
   else if (node.type == RenderNodeType::Sprite) {
     auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
 
-    // TODO: Push modified UVs
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
-      &spriteNode.modelMatrix);
+    SpritePushConstants constants{
+      .modelMatrix = spriteNode.modelMatrix,
+      .spriteUvCoords = {
+        spriteNode.uvCoords[0],
+        spriteNode.uvCoords[1],
+        spriteNode.uvCoords[2],
+        spriteNode.uvCoords[3]
+      }
+    };
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+      sizeof(SpritePushConstants), &constants);
   }
 
   if (node.type == RenderNodeType::InstancedModel) {
@@ -632,6 +665,9 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
     }
   }
 
+  std::string vertShader = "main_default";
+  std::string fragShader = "main_default";
+
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     defines.push_back("ATTR_MODEL_MATRIX");
   }
@@ -642,7 +678,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 
   if (renderPass == RenderPass::Shadow) {
     defines.push_back("RENDER_PASS_SHADOW");
-    defines.push_back("FRAG_MAIN_DEPTH");
+    fragShader = "main_depth";
   }
   else {
     defines.push_back("FEATURE_MATERIALS");
@@ -651,9 +687,13 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
       defines.push_back("FEATURE_LIGHTING");
 
       if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
-        defines.push_back("VERT_MAIN_PASSTHROUGH");
-        defines.push_back("FRAG_MAIN_SKYBOX");
+        vertShader = "main_passthrough";
+        fragShader = "main_skybox";
       }
+    }
+
+    if (meshFeatures.flags.test(MeshFeatures::Is2d)) {
+      vertShader = "main_sprite";
     }
 
     if (materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
@@ -673,8 +713,8 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 
   ShaderProgram program;
 
-  auto vertShaderSrc = m_fileSystem.readFile("shaders/vertex/main.glsl");
-  auto fragShaderSrc = m_fileSystem.readFile("shaders/fragment/main.glsl");
+  auto vertShaderSrc = m_fileSystem.readFile(STR("shaders/vertex/" << vertShader << ".glsl"));
+  auto fragShaderSrc = m_fileSystem.readFile(STR("shaders/fragment/" << fragShader << ".glsl"));
   program.vertexShaderCode = compileShader("vertex", vertShaderSrc, ShaderType::Vertex, defines);
   program.fragmentShaderCode = compileShader("fragment", fragShaderSrc, ShaderType::Fragment,
     defines);

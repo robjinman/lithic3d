@@ -189,6 +189,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 
   m_componentStore.component<CRenderData>(entityId) = CRenderData{
     .pos = data.pos,
+    .textureRect = data.textureRect,
     .zIndex = data.zIndex,
     .mesh = mesh
   };
@@ -220,12 +221,25 @@ void SysRenderImpl::update(Tick tick)
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     for (auto& group : m_componentStore.components<CRenderData>()) {
-      for (auto& item : group.components<CRenderData>()) {
+      size_t n = group.numEntities();
+      auto renderComps = group.components<CRenderData>();
+      auto& entityIds = group.entityIds();
+
+      for (size_t i = 0; i < n; ++i) {
+        auto& item = renderComps[i];
+
         auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
+        std::array<Vec2f, 4> uvCoords{
+          Vec2f{ item.textureRect.x, item.textureRect.y + item.textureRect.h },
+          Vec2f{ item.textureRect.x + item.textureRect.w, item.textureRect.y + item.textureRect.h },
+          Vec2f{ item.textureRect.x + item.textureRect.w, item.textureRect.y },
+          Vec2f{ item.textureRect.x, item.textureRect.y }
+        };
+
         m_renderer.setOrderKey(item.zIndex);
-        m_renderer.drawSprite(item.mesh, m_textureAtlas, item.textureRect, screenSpaceTransform);
+        m_renderer.drawSprite(item.mesh, m_textureAtlas, uvCoords, screenSpaceTransform);
       }
     }
 
