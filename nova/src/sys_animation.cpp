@@ -25,8 +25,8 @@ struct CAnimationData
   static constexpr ComponentType TypeId = ComponentTypeId::CAnimationTypeId;
 };
 
-// Uncomment to find difference
-//const size_t diff = sizeof(CAnimationData) - sizeof(CAnimationView);
+// Uncomment to see difference
+//const long diff = sizeof(CAnimationData) - sizeof(CAnimationView);
 static_assert(sizeof(CAnimationData) == sizeof(CAnimationView));
 
 class SysAnimationImpl : public SysAnimation
@@ -60,6 +60,9 @@ void SysAnimationImpl::update(Tick tick)
 {
   m_currentTick = tick;
 
+  // Would be much more efficient to store a list of entities with currently playing animations,
+  // unless almost all entities have an animation playing. However, this is a good demo of how to
+  // use the component store.
   for (auto& group : m_componentStore.components<CRenderView, CAnimationData>()) {
     auto renderComps = group.components<CRenderView>();
     auto animComps = group.components<CAnimationData>();
@@ -88,7 +91,7 @@ void SysAnimationImpl::update(Tick tick)
         const auto& frame = anim.animation.frames[anim.currentFrame];
 
         renderComp.pos += frame.delta;
-        // TODO: Update texture rect
+        renderComp.textureRect = frame.textureRect;
 
         anim.currentFrame = (anim.currentFrame + 1) % numFrames;
 

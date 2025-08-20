@@ -31,7 +31,7 @@ struct CAnimationView
 #ifdef _WIN32
   char _padding[1032];
 #else
-  char _padding[1032];
+  char _padding[1096];
 #endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CAnimationTypeId;

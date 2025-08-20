@@ -585,15 +585,26 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
   }
-  if (!node.mesh.features.flags.test(MeshFeatures::IsInstanced)
-    && !node.mesh.features.flags.test(MeshFeatures::IsSkybox)) {
+  if (node.type == RenderNodeType::DefaultModel) {
+    assert(!node.mesh.features.flags.test(MeshFeatures::IsInstanced));
+    assert(!node.mesh.features.flags.test(MeshFeatures::IsSkybox));
 
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
       &defaultNode.modelMatrix);
   }
+  else if (node.type == RenderNodeType::Sprite) {
+    auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mat4x4f),
+      &spriteNode.modelMatrix);
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Rectf),
+      &spriteNode.uvRect);
+  }
   if (node.mesh.features.flags.test(MeshFeatures::IsInstanced)) {
+    assert(node.mesh.features.flags.test(MeshFeatures::IsInstanced));
+
     vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
   }
   else {

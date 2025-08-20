@@ -19,11 +19,12 @@ struct CRender
 struct CRenderView
 {
   Vec2f pos;
+  Rectf textureRect;
   uint32_t zIndex;
 #ifdef _WIN32
-  uint32_t _padding[20];
+  char _padding[92];
 #else
-  uint32_t _padding[23];
+  char _padding[92];
 #endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
@@ -41,10 +42,6 @@ class SysRender : public System
     virtual const Camera& camera() const = 0;
 
     virtual void addEntity(EntityId entityId, const CRender& data) = 0;
-    virtual const Vec2f& getPosition(EntityId entityId) const = 0;
-    virtual void setPosition(EntityId entityId, const Vec2f& pos) = 0;
-    virtual void move(EntityId entityId, const Vec2f& delta) = 0;
-    virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
 
     virtual ~SysRender() {}
 };

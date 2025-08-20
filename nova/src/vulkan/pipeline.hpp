@@ -16,7 +16,8 @@ enum class RenderNodeType
 {
   DefaultModel,
   InstancedModel,
-  Skybox
+  Skybox,
+  Sprite
 };
 
 struct RenderNode
@@ -44,6 +45,8 @@ struct PipelineKey
   bool operator==(const PipelineKey& rhs) const = default;
 };
 
+// TODO: Replace inheritance
+
 struct DefaultModelNode : public RenderNode
 {
   DefaultModelNode()
@@ -61,6 +64,16 @@ struct InstancedModelNode : public RenderNode
   {}
 
   std::vector<MeshInstance> instances;
+};
+
+struct SpriteNode : public RenderNode
+{
+  SpriteNode()
+    : RenderNode(RenderNodeType::Sprite)
+  {}
+
+  Mat4x4f modelMatrix;
+  Rectf uvRect;
 };
 
 struct SkyboxNode : public RenderNode

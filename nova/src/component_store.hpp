@@ -1,3 +1,6 @@
+// Very simple ECS. Entities are grouped by archetypes so components within an archetype can be
+// stored contiguously for maximum cache efficiency.
+
 #pragma once
 
 #include <vector>

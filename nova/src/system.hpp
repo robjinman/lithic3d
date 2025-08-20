@@ -23,6 +23,9 @@ class GameEvent : public Event
     std::set<EntityId> targets;
 };
 
+// Some systems may choose to store their components in the component store for efficiency, but that
+// is optional.
+
 class System
 {
   public:

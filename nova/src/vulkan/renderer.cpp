@@ -102,6 +102,8 @@ class RendererImpl : public Renderer
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const std::vector<Mat4x4f>& jointTransforms) override;
+    void drawSprite(MeshHandle mesh, MaterialHandle material, const Rectf& uvRect,
+      const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
@@ -417,6 +419,27 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
     state.lookup.insert({ key, node });
   }
   node->instances.push_back(MeshInstance{transform * mesh.transform});
+}
+
+void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material, const Rectf& uvRect,
+  const Mat4x4f& transform)
+{
+  //DBG_TRACE(m_logger);
+
+  FrameState& frameState = m_frameStates.getWritable();
+  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  RenderGraph& renderGraph = state.graph;
+
+  auto node = std::make_unique<SpriteNode>();
+  node->mesh = mesh;
+  node->material = material;
+  node->modelMatrix = transform;
+  node->uvRect = uvRect;
+
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+
+  state.lookup.insert({ key, node.get() });
+  renderGraph.insert(key, std::move(node));
 }
 
 void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,

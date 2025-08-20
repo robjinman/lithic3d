@@ -95,12 +95,15 @@ MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
 struct CRenderData
 {
   Vec2f pos;
+  Rectf textureRect;
   uint32_t zIndex;
   MeshHandle mesh; // TODO: Share meshes or use instancing?
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };
 
+// Uncomment to see difference
+//const long diff = sizeof(CRenderData) - sizeof(CRenderView);
 static_assert(sizeof(CRenderData) == sizeof(CRenderView));
 
 class SysRenderImpl : public SysRender
@@ -116,10 +119,6 @@ class SysRenderImpl : public SysRender
     const Camera& camera() const override;
 
     void addEntity(EntityId entityId, const CRender& component) override;
-    const Vec2f& getPosition(EntityId entityId) const override;
-    void setPosition(EntityId entityId, const Vec2f& pos) override;
-    void move(EntityId entityId, const Vec2f& delta) override;
-    void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -204,26 +203,6 @@ bool SysRenderImpl::hasEntity(EntityId entityId) const
   return m_componentStore.hasComponentForEntity<CRenderData>(entityId);
 }
 
-const Vec2f& SysRenderImpl::getPosition(EntityId entityId) const
-{
-  return m_componentStore.component<CRenderData>(entityId).pos;
-}
-
-void SysRenderImpl::setPosition(EntityId entityId, const Vec2f& pos)
-{
-  m_componentStore.component<CRenderData>(entityId).pos = pos;
-}
-
-void SysRenderImpl::move(EntityId entityId, const Vec2f& pos)
-{
-  m_componentStore.component<CRenderData>(entityId).pos += pos;
-}
-
-void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
-{
-  // TODO
-}
-
 Camera& SysRenderImpl::camera()
 {
   return m_camera;
@@ -244,8 +223,9 @@ void SysRenderImpl::update(Tick tick)
       for (auto& item : group.components<CRenderData>()) {
         auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
+
         m_renderer.setOrderKey(item.zIndex);
-        m_renderer.drawModel(item.mesh, m_textureAtlas, screenSpaceTransform);
+        m_renderer.drawSprite(item.mesh, m_textureAtlas, item.textureRect, screenSpaceTransform);
       }
     }
 
