@@ -31,7 +31,7 @@ struct CAnimation
 struct CAnimationView
 {
 #ifdef _WIN32
-  char _padding[2052];
+  char _padding[3080];
 #else
   char _padding[3144];
 #endif
