@@ -5,7 +5,8 @@
 #include "math.hpp"
 #include "component_types.hpp"
 
-constexpr size_t MAX_ANIMATION_FRAMES = 4;
+constexpr size_t MAX_ANIMATIONS = 8;
+constexpr size_t MAX_ANIMATION_FRAMES = 8;
 
 struct AnimationFrame
 {
@@ -17,7 +18,7 @@ struct Animation
 {
   HashedString name;
   Tick duration = 1;
-  std::array<AnimationFrame, MAX_ANIMATION_FRAMES> frames;
+  std::vector<AnimationFrame> frames;
 };
 
 struct CAnimation
@@ -29,9 +30,9 @@ struct CAnimation
 struct CAnimationView
 {
 #ifdef _WIN32
-  char _padding[1096];
+  char _padding[1928];
 #else
-  char _padding[1160];
+  char _padding[1992];
 #endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CAnimationTypeId;
@@ -50,5 +51,7 @@ class SysAnimation : public System
 using SysAnimationPtr = std::unique_ptr<SysAnimation>;
 
 class Logger;
+class EventSystem;
 
-SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger);
+SysAnimationPtr createSysAnimation(ComponentStore& componentStore, EventSystem& eventSystem,
+  Logger& logger);

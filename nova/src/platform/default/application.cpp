@@ -150,12 +150,12 @@ Application::Application()
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_eventSystem = createEventSystem();
+  m_eventSystem = createEventSystem(*m_logger);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
   m_sysBehaviour = createSysBehaviour();
   m_sysGrid = createSysGrid(*m_eventSystem);
   m_sysRender = createSysRender(m_componentStore, *m_renderer, *m_fileSystem, *m_logger);
-  m_sysAnimation = createSysAnimation(m_componentStore, *m_logger);
+  m_sysAnimation = createSysAnimation(m_componentStore, *m_eventSystem, *m_logger);
 
   m_game = createGame(m_componentStore, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_sysAnimation,
     *m_eventSystem, *m_fileSystem, *m_logger);

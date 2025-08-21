@@ -8,9 +8,6 @@
 namespace
 {
 
-const int GRID_W = 21;
-const int GRID_H = 11;
-
 class SysGridImpl : public SysGrid
 {
   public:
@@ -68,10 +65,14 @@ bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)
     return false;
   }
 
+  auto entities = m_cells[dest[1]][dest[0]];
+
   removeEntity(entityId);
   addEntity(entityId, dest[0], dest[1]);
 
-  m_eventSystem.fireEvent(EEntityStepOn{entityId, coords, dest, m_cells[dest[1]][dest[0]]});
+  if (!entities.empty()) {
+    m_eventSystem.fireEvent(EEntityStepOn{entityId, coords, dest, entities});
+  }
 
   return true;
 }

@@ -44,3 +44,9 @@ inline float_t pxToUvH(float_t ph)
 {
   return ph / static_cast<float_t>(ATLAS_HEIGHT_PX);
 }
+
+const int GRID_W = 21;
+const int GRID_H = 11;
+
+const float_t GRID_CELL_W = 0.0625;
+const float_t GRID_CELL_H = 0.0625;

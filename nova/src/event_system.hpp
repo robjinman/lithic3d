@@ -15,6 +15,8 @@ class Event
       return m_name;
     }
 
+    virtual std::string toString() const = 0;
+
     virtual ~Event() {};
 
   private:
@@ -32,4 +34,6 @@ class EventSystem
 
 using EventSystemPtr = std::unique_ptr<EventSystem>;
 
-EventSystemPtr createEventSystem();
+class Logger;
+
+EventSystemPtr createEventSystem(Logger& logger);

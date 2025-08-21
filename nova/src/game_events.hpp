@@ -26,6 +26,14 @@ class EEntityStepOn : public GameEvent
       , fromPos(fromPos)
       , toPos(toPos) {}
 
+    std::string toString() const override
+    {
+      return STR(GameEvent::toString() << " ("
+        << "entityId = " << entityId << ", "
+        << "fromPos = " << fromPos << ", "
+        << "toPos = " << toPos << ")");
+    }
+
     EntityId entityId;
     Vec2i fromPos;
     Vec2i toPos;
@@ -44,6 +52,13 @@ class EItemCollect : public GameEvent
       , entityId(entityId)
       , value(value) {}
 
+    std::string toString() const override
+    {
+      return STR(GameEvent::toString() << " ("
+        << "entityId = " << entityId << ", "
+        << "value = " << value << ")");
+    }
+
     EntityId entityId;
     uint32_t value;
 };
@@ -59,6 +74,12 @@ class ERequestDeletion : public GameEvent
       : GameEvent(g_strRequestDeletion, targets)
       , entityId(entityId) {}
 
+    std::string toString() const override
+    {
+      return STR(GameEvent::toString() << " ("
+        << "entityId = " << entityId << ")");
+    }
+
     EntityId entityId;
 };
 
@@ -68,13 +89,20 @@ class EAnimationFinished : public GameEvent
     EAnimationFinished(EntityId entityId, HashedString name)
       : GameEvent(g_strAnimationFinished)
       , entityId(entityId)
-      , name(name) {}
+      , animationName(name) {}
 
     EAnimationFinished(EntityId entityId, HashedString name, const std::set<EntityId>& targets)
       : GameEvent(g_strAnimationFinished, targets)
       , entityId(entityId)
-      , name(name) {}
+      , animationName(name) {}
+
+    std::string toString() const override
+    {
+      return STR(GameEvent::toString() << " ("
+        << "entityId = " << entityId << ", "
+        << "animationName = " << getHashedString(animationName) << ")");
+    }
 
     EntityId entityId;
-    HashedString name;
+    HashedString animationName;
 };

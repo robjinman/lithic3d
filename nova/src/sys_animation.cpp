@@ -3,20 +3,23 @@
 #include <chrono>
 #include <map>
 #include <cassert>
+#include "game_events.hpp"
 
 namespace
 {
 
+// TODO: Share animations?
 struct AnimationState
 {
-  Animation animation;  // TODO: Share animations?
+  HashedString name;
+  std::array<AnimationFrame, MAX_ANIMATION_FRAMES> frames;
+  uint32_t numFrames;
+  Tick duration = 1;
   Tick timeStarted = 0;
-  bool isRunning = false;
   size_t currentFrame = 0;
   Vec2f startPos;
+  bool isRunning = false;
 };
-
-constexpr size_t MAX_ANIMATIONS = 8;
 
 struct CAnimationData
 {
@@ -33,7 +36,7 @@ static_assert(sizeof(CAnimationData) == sizeof(CAnimationView));
 class SysAnimationImpl : public SysAnimation
 {
   public:
-    SysAnimationImpl(ComponentStore& componentStore, Logger& logger);
+    SysAnimationImpl(ComponentStore& componentStore, EventSystem& eventSystem, Logger& logger);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -46,13 +49,16 @@ class SysAnimationImpl : public SysAnimation
 
   private:
     Logger& m_logger;
+    EventSystem& m_eventSystem;
     ComponentStore& m_componentStore;
     std::map<EntityId, std::map<HashedString, size_t>> m_animations;
     Tick m_currentTick = 0;
 };
 
-SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logger)
+SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& eventSystem,
+  Logger& logger)
   : m_logger(logger)
+  , m_eventSystem(eventSystem)
   , m_componentStore(componentStore)
 {
 }
@@ -66,6 +72,8 @@ void SysAnimationImpl::update(Tick tick)
   for (auto& group : m_componentStore.components<CRenderView, CAnimationData>()) {
     auto renderComps = group.components<CRenderView>();
     auto animComps = group.components<CAnimationData>();
+    auto& entityIds = group.entityIds();
+
     size_t n = group.numEntities();
 
     for (size_t i = 0; i < n; ++i) {
@@ -79,16 +87,15 @@ void SysAnimationImpl::update(Tick tick)
       auto& anim = animComp.animations[animComp.currentAnimation];
       assert(anim.isRunning);
 
-      size_t numFrames = anim.animation.frames.size();
-      float frameDuration = static_cast<float>(anim.animation.duration)
-        / (numFrames * TICKS_PER_SECOND);
+      size_t numFrames = anim.numFrames;
+      float frameDuration = static_cast<float>(anim.duration) / (numFrames * TICKS_PER_SECOND);
       float currentFrameTime = static_cast<float>(anim.currentFrame) * frameDuration;
       float nextFrameTime = static_cast<float>(anim.currentFrame + 1) * frameDuration;
 
       float tickDuration = 1.f / TICKS_PER_SECOND;
       float elapsed = tickDuration * (tick - anim.timeStarted);
 
-      const auto& frame = anim.animation.frames[anim.currentFrame];
+      const auto& frame = anim.frames[anim.currentFrame];
 
       float s = std::min((elapsed - currentFrameTime) / frameDuration, 1.f);
       assert(s >= 0.f);
@@ -104,6 +111,8 @@ void SysAnimationImpl::update(Tick tick)
           anim.isRunning = false;
           anim.currentFrame = 0;
           animComp.currentAnimation = -1;
+
+          m_eventSystem.fireEvent(EAnimationFinished{entityIds[i], anim.name, { entityIds[i] }});
         }
       }
     }
@@ -122,16 +131,37 @@ bool SysAnimationImpl::hasEntity(EntityId entityId) const
 
 void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& data)
 {
+  if (data.animations.size() > MAX_ANIMATIONS) {
+    EXCEPTION("Entities cannot have more than " << MAX_ANIMATIONS << " animations");
+  }
+
   std::array<AnimationState, MAX_ANIMATIONS> animations;
+
+  auto extractFrames = [](const Animation& a) {
+    if (a.frames.size() > MAX_ANIMATION_FRAMES) {
+      EXCEPTION("Animations cannot have more than " << MAX_ANIMATION_FRAMES << " frames");
+    }
+
+    std::array<AnimationFrame, MAX_ANIMATION_FRAMES> frames;
+
+    for (size_t i = 0; i < a.frames.size(); ++i) {
+      frames[i] = a.frames[i];
+    }
+
+    return frames;
+  };
 
   size_t i = 0;
   for (auto& anim : data.animations) {
     animations[i] = AnimationState{
-      .animation = anim,
+      .name = anim.name,
+      .frames = extractFrames(anim),
+      .numFrames = static_cast<uint32_t>(anim.frames.size()),
+      .duration = anim.duration,
       .timeStarted = 0,
-      .isRunning = false,
       .currentFrame = 0,
-      .startPos = Vec2f{}
+      .startPos = Vec2f{},
+      .isRunning = false
     };
     m_animations[entityId].insert({ anim.name, i });
     ++i;
@@ -167,7 +197,8 @@ bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
 
 } // namespace
 
-SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger)
+SysAnimationPtr createSysAnimation(ComponentStore& componentStore, EventSystem& eventSystem,
+  Logger& logger)
 {
-  return std::make_unique<SysAnimationImpl>(componentStore, logger);
+  return std::make_unique<SysAnimationImpl>(componentStore, eventSystem, logger);
 }

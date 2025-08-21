@@ -13,6 +13,7 @@
 #include "units.hpp"
 #include "player.hpp"
 #include <set>
+#include "b_collectable.hpp"
 #undef max
 #undef min
 
@@ -58,6 +59,7 @@ class GameImpl : public Game
     size_t m_currentTick = 0;
     double m_measuredTickRate = 0;
     EntityId m_playerId = 0;
+    std::vector<EntityId> m_pendingDeletion;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -90,6 +92,12 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
     m_sysRender.processEvent(gameEvent);
     m_sysGrid.processEvent(gameEvent);
     m_sysBehaviour.processEvent(gameEvent);
+    m_sysAnimation.processEvent(gameEvent);
+
+    if (gameEvent.name == g_strRequestDeletion) {
+      auto& event = dynamic_cast<const ERequestDeletion&>(gameEvent);
+      m_pendingDeletion.push_back(event.entityId);
+    }
   });
 
   m_eventSystem.listen(strUi, [&](const Event& e) {
@@ -212,6 +220,18 @@ void GameImpl::update()
   m_sysGrid.update(m_currentTick);
   m_sysRender.update(m_currentTick);
   m_sysAnimation.update(m_currentTick);
+
+  for (auto id : m_pendingDeletion) {
+    DBG_LOG(m_logger, STR("Deleting entity " << id));
+
+    m_sysRender.removeEntity(id);
+    m_sysGrid.removeEntity(id);
+    m_sysBehaviour.removeEntity(id);
+    m_sysAnimation.removeEntity(id);
+
+    m_componentStore.remove(id);
+  }
+  m_pendingDeletion.clear();
 }
 
 void GameImpl::constructSky()
@@ -225,8 +245,8 @@ void GameImpl::constructSky()
       .w = pxToUvW(128.f),
       .h = pxToUvH(32.f)
     },
-    .size = Vec2f{ 1.3125f, 0.25f },
-    .pos = Vec2f{ 0.f, 0.75f },
+    .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
+    .pos = Vec2f{ 0.f, 12.f * GRID_CELL_H },
     .zIndex = 0
   };
 
@@ -244,8 +264,8 @@ void GameImpl::constructTrees()
       .w = pxToUvW(256.f),
       .h = pxToUvH(40.f)
     },
-    .size = Vec2f{ 1.3125f, 0.1875f },
-    .pos = Vec2f{ 0.f, 0.68375 },
+    .size = Vec2f{ GRID_CELL_W * GRID_W, 3.f * GRID_CELL_H },
+    .pos = Vec2f{ 0.f, 11.f * GRID_CELL_H },
     .zIndex = 2
   };
 
@@ -254,8 +274,10 @@ void GameImpl::constructTrees()
 
 void GameImpl::constructFakeSoil()
 {
-  for (float_t x = 0.f; x <= 1.25; x += 0.0625) {
+  for (size_t i = 0; i < GRID_W; ++i) {
     auto id = m_componentStore.allocate<CRenderView>();
+
+    float_t x = GRID_CELL_W * i;
 
     CRender render{
       .textureRect = Rectf{
@@ -264,8 +286,8 @@ void GameImpl::constructFakeSoil()
         .w = pxToUvW(16.f),
         .h = pxToUvH(16.f)
       },
-      .size = Vec2f{ 0.0625, 0.0625f },
-      .pos = Vec2f{ x, 0.6875f },
+      .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
+      .pos = Vec2f{ x, 11.f * GRID_CELL_H },
       .zIndex = 1
     };
 
@@ -275,7 +297,123 @@ void GameImpl::constructFakeSoil()
 
 void GameImpl::constructSoil()
 {
-  // TODO
+  for (size_t j = 0; j < GRID_H; ++j) {
+    for (size_t i = 0; i < GRID_W; ++i) {
+      if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
+        continue;
+      }
+
+      auto id = m_componentStore.allocate<CRenderView, CAnimationView>();
+
+      m_sysGrid.addEntity(id, i, j);
+
+      float_t x = GRID_CELL_W * i;
+      float_t y = GRID_CELL_H * j;
+
+      CRender render{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
+        .pos = Vec2f{ x, y },
+        .zIndex = 1
+      };
+
+      m_sysRender.addEntity(id, render);
+
+      long animationDuration = 16;
+
+      CAnimation animation;
+      animation.animations = {
+        Animation{
+          .name = hashString("collect"),
+          .duration = animationDuration,
+          .frames = {
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            },
+            AnimationFrame{
+              .textureRect = Rectf{
+                .x = pxToUvX(384.f),
+                .y = pxToUvY(0.f, 16.f),
+                .w = pxToUvW(16.f),
+                .h = pxToUvH(16.f)
+              },
+              .delta = Vec2f{ 0.f, 0.f }
+            }
+          }
+        }
+      };
+
+      m_sysAnimation.addEntity(id, animation);
+
+      auto behaviour = createBCollectable(m_sysAnimation, m_eventSystem, id, m_playerId, 0);
+      m_sysBehaviour.addBehaviour(id, std::move(behaviour));
+    }
+  }
 }
 
 } // namespace

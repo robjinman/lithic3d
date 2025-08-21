@@ -19,6 +19,17 @@ class GameEvent : public Event
       , name(name)
       , targets(targets) {}
 
+    std::string toString() const override
+    {
+      std::stringstream ss;
+      ss << getHashedString(name) << ", targets = [ ";
+      for (auto id : targets) {
+        ss << id << " ";
+      }
+      ss << "]";
+      return ss.str();
+    }
+
     HashedString name;
     std::set<EntityId> targets;
 };

@@ -63,7 +63,7 @@ void BCollectable::processEvent(const GameEvent& event)
   else if (event.name == g_strAnimationFinished) {
     auto& e = dynamic_cast<const EAnimationFinished&>(event);
 
-    if (e.entityId == m_entityId && e.name == strCollect) {
+    if (e.animationName == strCollect) {
       m_eventSystem.fireEvent(ERequestDeletion{m_entityId});
     }
   }
