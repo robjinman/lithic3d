@@ -13,6 +13,7 @@ struct AnimationState
   Tick timeStarted = 0;
   bool isRunning = false;
   size_t currentFrame = 0;
+  Vec2f startPos;
 };
 
 constexpr size_t MAX_ANIMATIONS = 8;
@@ -60,9 +61,8 @@ void SysAnimationImpl::update(Tick tick)
 {
   m_currentTick = tick;
 
-  // Would be much more efficient to store a list of entities with currently playing animations,
-  // unless almost all entities have an animation playing. However, this is a good demo of how to
-  // use the component store.
+  // TODO: Consider storing list of entities with currently playing animations rather than iterating
+  // over all entities.
   for (auto& group : m_componentStore.components<CRenderView, CAnimationData>()) {
     auto renderComps = group.components<CRenderView>();
     auto animComps = group.components<CAnimationData>();
@@ -82,20 +82,25 @@ void SysAnimationImpl::update(Tick tick)
       size_t numFrames = anim.animation.frames.size();
       float frameDuration = static_cast<float>(anim.animation.duration)
         / (numFrames * TICKS_PER_SECOND);
-      float lastFrame = anim.currentFrame * frameDuration;
+      float currentFrameTime = static_cast<float>(anim.currentFrame) * frameDuration;
+      float nextFrameTime = static_cast<float>(anim.currentFrame + 1) * frameDuration;
 
       float tickDuration = 1.f / TICKS_PER_SECOND;
-      float elapsed = (tick - anim.timeStarted) * tickDuration;
+      float elapsed = tickDuration * (tick - anim.timeStarted);
 
-      if (tick == anim.timeStarted || elapsed > lastFrame) {
-        const auto& frame = anim.animation.frames[anim.currentFrame];
+      const auto& frame = anim.animation.frames[anim.currentFrame];
 
-        renderComp.pos += frame.delta;
+      float s = std::min((elapsed - currentFrameTime) / frameDuration, 1.f);
+      assert(s >= 0.f);
+
+      renderComp.pos = anim.startPos + frame.delta * (static_cast<float>(anim.currentFrame) + s);
+
+      if (elapsed >= nextFrameTime) {
         renderComp.textureRect = frame.textureRect;
 
-        anim.currentFrame = (anim.currentFrame + 1) % numFrames;
+        ++anim.currentFrame;
 
-        if (anim.currentFrame == 0) {
+        if (anim.currentFrame == numFrames) {
           anim.isRunning = false;
           anim.currentFrame = 0;
           animComp.currentAnimation = -1;
@@ -125,7 +130,8 @@ void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& data)
       .animation = anim,
       .timeStarted = 0,
       .isRunning = false,
-      .currentFrame = 0
+      .currentFrame = 0,
+      .startPos = Vec2f{}
     };
     m_animations[entityId].insert({ anim.name, i });
     ++i;
@@ -140,15 +146,18 @@ void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& data)
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name)
 {
   size_t i = m_animations.at(entityId).at(name);
-  auto& component = m_componentStore.component<CAnimationData>(entityId);
-  auto& anim = component.animations[i];
+  auto& animComp = m_componentStore.component<CAnimationData>(entityId);
+  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+
+  auto& anim = animComp.animations[i];
   if (anim.isRunning) {
     return;
   }
   anim.timeStarted = m_currentTick;
   anim.isRunning = true;
   anim.currentFrame = 0;
-  component.currentAnimation = i;
+  anim.startPos = renderComp.pos;
+  animComp.currentAnimation = i;
 }
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
