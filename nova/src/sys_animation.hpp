@@ -12,6 +12,7 @@ struct AnimationFrame
 {
   Rectf textureRect;
   Vec2f delta;
+  Vec4f colour;
 };
 
 struct Animation
@@ -30,9 +31,9 @@ struct CAnimation
 struct CAnimationView
 {
 #ifdef _WIN32
-  char _padding[1928];
+  char _padding[2052];
 #else
-  char _padding[1992];
+  char _padding[3144];
 #endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CAnimationTypeId;

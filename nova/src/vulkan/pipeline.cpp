@@ -14,6 +14,7 @@ namespace render
 namespace
 {
 
+#pragma pack(push, 4)
 struct DefaultPushConstants
 {
   Mat4x4f modelMatrix;
@@ -21,9 +22,19 @@ struct DefaultPushConstants
 
 struct SpritePushConstants
 {
-  Mat4x4f modelMatrix;
-  Vec2f spriteUvCoords[4];
+  // Vert shader
+  Mat4x4f modelMatrix;        // 64 bytes
+  Vec2f spriteUvCoords[4];    // 32 bytes
+
+  // Frag shader
+  Vec4f colour;               // 16 bytes
 };
+#pragma pack(pop)
+
+constexpr size_t SpritePushConstantsVertOffset = 0;
+constexpr size_t SpritePushConstantsFragOffset = 96;
+constexpr size_t SpritePushConstantsVertSize = 96;
+constexpr size_t SpritePushConstantsFragSize = 16;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
@@ -458,9 +469,14 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .offset = 0,
-        .size = sizeof(SpritePushConstants)
-      }
+        .offset = SpritePushConstantsVertOffset,
+        .size = SpritePushConstantsVertSize
+      },
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = SpritePushConstantsFragOffset,
+        .size = SpritePushConstantsFragSize
+      },
     };
   }
   else if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
@@ -629,11 +645,17 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
         spriteNode.uvCoords[1],
         spriteNode.uvCoords[2],
         spriteNode.uvCoords[3]
-      }
+      },
+      .colour = spriteNode.colour
     };
 
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-      sizeof(SpritePushConstants), &constants);
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+      SpritePushConstantsVertOffset, SpritePushConstantsVertSize, &constants);
+
+    void* fragPart = reinterpret_cast<char*>(&constants) + SpritePushConstantsFragOffset;
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+      SpritePushConstantsFragOffset, SpritePushConstantsFragSize, fragPart);
   }
 
   if (node.type == RenderNodeType::InstancedModel) {
@@ -694,6 +716,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 
     if (meshFeatures.flags.test(MeshFeatures::Is2d)) {
       vertShader = "main_sprite";
+      fragShader = "main_sprite";
     }
 
     if (materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {

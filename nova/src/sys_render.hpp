@@ -20,6 +20,7 @@ struct CRenderView
 {
   Vec2f pos;
   Rectf textureRect;
+  Vec4f colour;
   uint32_t zIndex;
 #ifdef _WIN32
   char _padding[80];

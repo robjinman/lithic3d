@@ -103,7 +103,7 @@ class RendererImpl : public Renderer
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const std::vector<Mat4x4f>& jointTransforms) override;
     void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
-      const Mat4x4f& transform) override;
+      const Vec4f& colour, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
@@ -422,7 +422,7 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
 }
 
 void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
-  const std::array<Vec2f, 4>& uvCoords, const Mat4x4f& transform)
+  const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -435,6 +435,7 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   node->material = material;
   node->modelMatrix = transform;
   node->uvCoords = uvCoords;
+  node->colour = colour;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 

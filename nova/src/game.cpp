@@ -339,7 +339,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.875f }
             },
             AnimationFrame{
               .textureRect = Rectf{
@@ -348,7 +349,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.75f }
             },
             AnimationFrame{
               .textureRect = Rectf{
@@ -357,7 +359,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.625f }
             },
             AnimationFrame{
               .textureRect = Rectf{
@@ -366,7 +369,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
             },
             AnimationFrame{
               .textureRect = Rectf{
@@ -375,7 +379,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.375f }
             },
             AnimationFrame{
               .textureRect = Rectf{
@@ -384,7 +389,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.25f }
             },
             AnimationFrame{
               .textureRect = Rectf{
@@ -393,16 +399,8 @@ void GameImpl::constructSoil()
                 .w = pxToUvW(16.f),
                 .h = pxToUvH(16.f)
               },
-              .delta = Vec2f{ 0.f, 0.f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f }
+              .delta = Vec2f{ 0.f, 0.f },
+              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.125f }
             }
           }
         }

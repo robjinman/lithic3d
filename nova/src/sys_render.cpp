@@ -96,6 +96,7 @@ struct CRenderData
 {
   Vec2f pos;
   Rectf textureRect;
+  Vec4f colour;
   uint32_t zIndex;
   MeshHandle mesh; // TODO: Share meshes or use instancing?
 
@@ -190,6 +191,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
   m_componentStore.component<CRenderData>(entityId) = CRenderData{
     .pos = data.pos,
     .textureRect = data.textureRect,
+    .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
     .zIndex = data.zIndex,
     .mesh = mesh
   };
@@ -239,7 +241,8 @@ void SysRenderImpl::update(Tick tick)
         };
 
         m_renderer.setOrderKey(item.zIndex);
-        m_renderer.drawSprite(item.mesh, m_textureAtlas, uvCoords, screenSpaceTransform);
+        m_renderer.drawSprite(item.mesh, m_textureAtlas, uvCoords, item.colour,
+          screenSpaceTransform);
       }
     }
 

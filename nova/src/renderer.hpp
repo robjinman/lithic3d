@@ -67,7 +67,7 @@ class Renderer
     virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
       const Mat4x4f& transform) = 0;
     virtual void drawSprite(MeshHandle mesh, MaterialHandle material,
-      const std::array<Vec2f, 4>& uvCoords, const Mat4x4f& transform) = 0;
+      const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) = 0;
     virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;

@@ -18,6 +18,7 @@ struct AnimationState
   Tick timeStarted = 0;
   size_t currentFrame = 0;
   Vec2f startPos;
+  Vec4f startColour;
   bool isRunning = false;
 };
 
@@ -104,6 +105,7 @@ void SysAnimationImpl::update(Tick tick)
 
       if (elapsed >= nextFrameTime) {
         renderComp.textureRect = frame.textureRect;
+        renderComp.colour = frame.colour;
 
         ++anim.currentFrame;
 

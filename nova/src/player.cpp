@@ -81,7 +81,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0.f }
+          .delta = Vec2f{ -0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -90,7 +91,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0.f }
+          .delta = Vec2f{ -0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -99,7 +101,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0.f }
+          .delta = Vec2f{ -0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -108,7 +111,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ -0.015625f, 0.f }
+          .delta = Vec2f{ -0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         }
       }
     },
@@ -123,7 +127,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0.f }
+          .delta = Vec2f{ 0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -132,7 +137,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0.f }
+          .delta = Vec2f{ 0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -141,7 +147,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0.f }
+          .delta = Vec2f{ 0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -150,7 +157,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.015625f, 0.f }
+          .delta = Vec2f{ 0.015625f, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         }
       }
     },
@@ -165,7 +173,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, 0.015625f }
+          .delta = Vec2f{ 0.f, 0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -174,7 +183,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, 0.015625f }
+          .delta = Vec2f{ 0.f, 0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -183,7 +193,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, 0.015625f }
+          .delta = Vec2f{ 0.f, 0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -192,7 +203,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, 0.015625f }
+          .delta = Vec2f{ 0.f, 0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         }
       }
     },
@@ -207,7 +219,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, -0.015625f }
+          .delta = Vec2f{ 0.f, -0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -216,7 +229,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, -0.015625f }
+          .delta = Vec2f{ 0.f, -0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -225,7 +239,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, -0.015625f }
+          .delta = Vec2f{ 0.f, -0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         },
         AnimationFrame{
           .textureRect = Rectf{
@@ -234,7 +249,8 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
             .w = pxToUvW(32.f),
             .h = pxToUvH(48.f)
           },
-          .delta = Vec2f{ 0.f, -0.015625f }
+          .delta = Vec2f{ 0.f, -0.015625f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
         }
       }
     }

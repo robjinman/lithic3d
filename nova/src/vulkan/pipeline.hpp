@@ -74,6 +74,7 @@ struct SpriteNode : public RenderNode
 
   Mat4x4f modelMatrix;
   std::array<Vec2f, 4> uvCoords;
+  Vec4f colour;
 };
 
 struct SkyboxNode : public RenderNode
