@@ -14,6 +14,7 @@
 #include "player.hpp"
 #include <set>
 #include "b_collectable.hpp"
+#include <random>
 #undef max
 #undef min
 
@@ -69,6 +70,8 @@ class GameImpl : public Game
     void constructTrees();
     void constructFakeSoil();
     void constructSoil();
+    std::set<std::pair<int, int>> constructMines();
+    void constructNumbers(const std::set<std::pair<int, int>>& mines);
 };
 
 GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
@@ -113,6 +116,8 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
   constructTrees();
   constructFakeSoil();
   constructSoil();
+  auto mines = constructMines();
+  constructNumbers(mines);
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -410,6 +415,109 @@ void GameImpl::constructSoil()
 
       auto behaviour = createBCollectable(m_sysAnimation, m_eventSystem, id, m_playerId, 0);
       m_sysBehaviour.addBehaviour(id, std::move(behaviour));
+    }
+  }
+}
+
+std::set<std::pair<int, int>> GameImpl::constructMines()
+{
+  size_t numMines = 40; // TODO
+
+  std::vector<Vec2i> coords;
+  for (int j = 0; j < GRID_H; ++j) {
+    for (int i = 0; i < GRID_W; ++i) {
+      if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
+        continue;
+      }
+
+      coords.push_back(Vec2i{ i, j });
+    }
+  }
+
+  std::random_device device;
+  std::mt19937 generator(device());
+
+  std::shuffle(coords.begin(), coords.end(), generator);
+
+  std::set<std::pair<int, int>> mines;
+  for (size_t i = 0; i < numMines; ++i) {
+    auto id = m_componentStore.allocate<CRenderView>();
+
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    m_sysGrid.addEntity(id, x, y);
+
+    CRender render{
+      .textureRect = Rectf{
+        .x = pxToUvX(672.f),
+        .y = pxToUvY(224.f, 32.f),
+        .w = pxToUvW(32.f),
+        .h = pxToUvH(32.f)
+      },
+      .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
+      .pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y },
+      .zIndex = 0
+    };
+
+    m_sysRender.addEntity(id, render);
+
+    mines.insert({ x, y });
+  }
+
+  return mines;
+}
+
+void GameImpl::constructNumbers(const std::set<std::pair<int, int>>& mines)
+{
+  std::array<std::array<int, GRID_W>, GRID_H> numbers{};
+
+  auto inRange = [](int x, int y) {
+    return x >= 0 && x < GRID_W && y >= 0 && y < GRID_H;
+  };
+
+  for (auto& mine : mines) {
+    for (int i = -1; i <= 1; ++i) {
+      for (int j = -1; j <= 1; ++j) {
+        if (i == 0 && j == 0) {
+          continue;
+        }
+
+        int x = mine.first + i;
+        int y = mine.second + j;
+
+        if (inRange(x, y)) {
+          ++numbers[y][x];
+        }
+      }
+    }
+  }
+
+  for (int j = 0; j < GRID_H; ++j) {
+    for (int i = 0; i < GRID_W; ++i) {
+      int value = numbers[j][i];
+      if (value == 0) {
+        continue;
+      }
+      if (mines.contains({ i, j })) {
+        continue;
+      }
+
+      auto id = m_componentStore.allocate<CRenderView>();
+
+      CRender render{
+        .textureRect = Rectf{
+          .x = pxToUvX(16.f * (value - 1)),
+          .y = pxToUvY(400.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
+        .pos = Vec2f{ GRID_CELL_W * i, GRID_CELL_H * j },
+        .zIndex = 0
+      };
+
+      m_sysRender.addEntity(id, render);
     }
   }
 }
