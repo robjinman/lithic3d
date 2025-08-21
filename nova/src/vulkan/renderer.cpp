@@ -95,7 +95,7 @@ class RendererImpl : public Renderer
 
     // Per frame draw functions
     //
-    void beginFrame() override;
+    void beginFrame(const Vec4f& clearColour) override;
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void setOrderKey(uint32_t order) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
@@ -223,6 +223,7 @@ class RendererImpl : public Renderer
     {
       std::map<RenderPass, RenderPassState> renderPasses;
       LightingState lighting;
+      Vec4f clearColour;
       std::optional<RenderPass> currentRenderPass;
       uint32_t currentOrderKey = 0;
     };
@@ -510,12 +511,13 @@ void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::beginFrame()
+void RendererImpl::beginFrame(const Vec4f& clearColour)
 {
   DBG_TRACE(m_logger);
 
   auto& state = m_frameStates.getWritable();
   state.lighting = LightingState{};
+  state.clearColour = clearColour;
   state.currentRenderPass = std::nullopt;
   state.renderPasses.clear();
 }
@@ -1326,6 +1328,9 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   updateCameraTransformsUbo(RenderPass::Main);
   updateLightingUbo(RenderPass::Main);
 
+  auto& frameState = m_frameStates.getReadable();
+  auto& colour = frameState.clearColour;
+
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
     .pNext = nullptr,
@@ -1359,7 +1364,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .clearValue = VkClearValue{
-      .color = VkClearColorValue{ .float32 = { 0.f, 0.f, 1.f, 1.f } }
+      .color = VkClearColorValue{ .float32 = { colour[0], colour[1], colour[2], colour[3] }}
     }
   };
 
@@ -1396,7 +1401,6 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
-  auto& frameState = m_frameStates.getReadable();
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
   const auto& renderGraph = renderPassState.graph;
 
@@ -1431,6 +1435,9 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
 {
   updateCameraTransformsUbo(RenderPass::Overlay);
 
+  auto& frameState = m_frameStates.getReadable();
+  auto& colour = frameState.clearColour;
+
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
     .pNext = nullptr,
@@ -1464,7 +1471,7 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .clearValue = VkClearValue{
-      .color = VkClearColorValue{ .float32 = { 0.f, 0.f, 1.f, 1.f } }
+      .color = VkClearColorValue{ .float32 = { colour[0], colour[1], colour[2], colour[3] }}
     }
   };
 
@@ -1483,7 +1490,6 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
 
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
-  auto& frameState = m_frameStates.getReadable();
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Overlay);
   const auto& renderGraph = renderPassState.graph;
 

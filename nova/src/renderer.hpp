@@ -57,7 +57,7 @@ class Renderer
 
     // Per-frame draw functions
     //
-    virtual void beginFrame() = 0;
+    virtual void beginFrame(const Vec4f& clearColour) = 0;
     virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
       const Mat4x4f& viewMatrix) = 0;
     virtual void setOrderKey(uint32_t order) = 0;

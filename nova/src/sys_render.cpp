@@ -219,7 +219,7 @@ const Camera& SysRenderImpl::camera() const
 void SysRenderImpl::update(Tick tick)
 {
   try {
-    m_renderer.beginFrame();
+    m_renderer.beginFrame({ 0.f, 0.f, 0.f, 1.f });
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     for (auto& group : m_componentStore.components<CRenderData>()) {
