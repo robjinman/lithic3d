@@ -10,6 +10,7 @@
 #include "units.hpp"
 #include "window_delegate.hpp"
 #include "file_system.hpp"
+#include "audio_system.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
 
@@ -76,6 +77,7 @@ class Application
     FileSystemPtr m_fileSystem;
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
+    AudioSystemPtr m_audioSystem;
     EventSystemPtr m_eventSystem;
     ComponentStore m_componentStore;
     render::RendererPtr m_renderer;
@@ -150,6 +152,7 @@ Application::Application()
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  m_audioSystem = createAudioSystem();
   m_eventSystem = createEventSystem(*m_logger);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
   m_sysBehaviour = createSysBehaviour();
@@ -158,7 +161,7 @@ Application::Application()
   m_sysAnimation = createSysAnimation(m_componentStore, *m_eventSystem, *m_logger);
 
   m_game = createGame(m_componentStore, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_sysAnimation,
-    *m_eventSystem, *m_fileSystem, *m_logger);
+    *m_eventSystem, *m_audioSystem, *m_fileSystem, *m_logger);
   m_sysRender->start();
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);

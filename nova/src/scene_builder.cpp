@@ -5,6 +5,8 @@
 #include "sys_render.hpp"
 #include "sys_ui.hpp"
 #include "b_collectable.hpp"
+#include "b_generic.hpp"
+#include "game_events.hpp"
 #include "player.hpp"
 #include <random>
 
@@ -342,7 +344,167 @@ void SceneBuilderImpl::constructSoil()
 
 std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 {
+  static auto strExplode = hashString("explode");
   size_t numMines = 40; // TODO
+
+  auto animExplode = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("explode"),
+    .duration = 30,
+    .frames = {
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(0.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(512.f),
+          .y = pxToUvY(0.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(576.f),
+          .y = pxToUvY(0.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(640.f),
+          .y = pxToUvY(0.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(64.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(512.f),
+          .y = pxToUvY(64.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(576.f),
+          .y = pxToUvY(64.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(640.f),
+          .y = pxToUvY(64.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(128.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(512.f),
+          .y = pxToUvY(128.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(576.f),
+          .y = pxToUvY(128.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(640.f),
+          .y = pxToUvY(128.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(192.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(512.f),
+          .y = pxToUvY(192.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(576.f),
+          .y = pxToUvY(192.f, 64.f),
+          .w = pxToUvW(64.f),
+          .h = pxToUvH(64.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animExplodeId = m_sysAnimation.addAnimation(std::move(animExplode));
 
   std::vector<Vec2i> coords;
   for (int j = 0; j < GRID_H; ++j) {
@@ -382,6 +544,35 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
     };
 
     m_sysRender.addEntity(id, render);
+
+    auto onStepOn = [this, id, x, y](const GameEvent& e) {
+      if (e.name == g_strEntityStepOn) {
+        auto& event = dynamic_cast<const EEntityStepOn&>(e);
+
+        Vec2i pos{ x, y };
+        if (event.toPos == pos) {
+          EntityIdSet targets = m_sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
+
+          m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, pos, targets));
+
+          m_sysAnimation.playAnimation(id, strExplode);
+        }
+      }
+      else if (e.name == g_strAnimationFinished) {
+        auto& event = dynamic_cast<const EAnimationFinished&>(e);
+
+        if (event.entityId == id && event.animationName == strExplode) {
+          m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
+        }
+      }
+    };
+
+    auto explode = createGenericBehaviour(strExplode, { g_strEntityStepOn }, onStepOn);
+    m_sysBehaviour.addBehaviour(id, std::move(explode));
+
+    m_sysAnimation.addEntity(id, CAnimation{
+      .animations = { animExplodeId }
+    });
 
     mines.insert({ x, y });
   }

@@ -5,6 +5,7 @@
 #include "camera.hpp"
 #include "logger.hpp"
 #include "scene_builder.hpp"
+#include "audio_system.hpp"
 #include "sys_animation.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
@@ -29,7 +30,7 @@ class GameImpl : public Game
   public:
     GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
       SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-      const FileSystem& fileSystem, Logger& logger);
+      AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -44,6 +45,7 @@ class GameImpl : public Game
     Logger& m_logger;
     const FileSystem& m_fileSystem;
     EventSystem& m_eventSystem;
+    AudioSystem& m_audioSystem;
     ComponentStore& m_componentStore;
     SysRender& m_sysRender;
     SysGrid& m_sysGrid;
@@ -61,14 +63,16 @@ class GameImpl : public Game
     void measureTickRate();
     void processKeyboardInput();
     void processMouseInput();
+    void playSoundForEvent(const GameEvent& event);
 };
 
 GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
   SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-  const FileSystem& fileSystem, Logger& logger)
+  AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_eventSystem(eventSystem)
+  , m_audioSystem(audioSystem)
   , m_componentStore(componentStore)
   , m_sysRender(sysRender)
   , m_sysGrid(sysGrid)
@@ -83,6 +87,8 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
 
   m_eventSystem.listen(strGame, [&](const Event& e) {
     auto& gameEvent = dynamic_cast<const GameEvent&>(e);
+
+    playSoundForEvent(gameEvent);
 
     m_sysRender.processEvent(gameEvent);
     m_sysGrid.processEvent(gameEvent);
@@ -102,6 +108,15 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
   });
 
   m_playerId = m_sceneBuilder->buildScene();
+}
+
+void GameImpl::playSoundForEvent(const GameEvent& event)
+{
+  static auto strBang = hashString("bang");
+
+  if (event.name == g_strEntityExplode) {
+    m_audioSystem.playSound(strBang);
+  }
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -229,8 +244,8 @@ void GameImpl::update()
 
 GamePtr createGame(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
   SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-  const FileSystem& fileSystem, Logger& logger)
+  AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger)
 {
   return std::make_unique<GameImpl>(componentStore, sysBehaviour, sysGrid, sysRender, sysAnimation,
-    eventSystem, fileSystem, logger);
+    eventSystem, audioSystem, fileSystem, logger);
 }

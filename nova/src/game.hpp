@@ -63,6 +63,7 @@ using GamePtr = std::unique_ptr<Game>;
 class ComponentStore;
 class FileSystem;
 class Logger;
+class AudioSystem;
 class EventSystem;
 class SysBehaviour;
 class SysGrid;
@@ -71,4 +72,4 @@ class SysAnimation;
 
 GamePtr createGame(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
   SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-  const FileSystem& fileSystem, Logger& logger);
+  AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger);

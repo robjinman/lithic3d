@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sys_behaviour.hpp"
-#include "math.hpp"
 
 class SysAnimation;
 class EventSystem;

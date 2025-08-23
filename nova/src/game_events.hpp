@@ -9,6 +9,7 @@ const HashedString g_strEntityStepOn = hashString("entity_step_on");
 const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strRequestDeletion = hashString("request_deletion");
 const HashedString g_strAnimationFinished = hashString("animation_finished");
+const HashedString g_strEntityExplode = hashString("entity_explode");
 
 class EEntityStepOn : public GameEvent
 {
@@ -105,4 +106,28 @@ class EAnimationFinished : public GameEvent
 
     EntityId entityId;
     HashedString animationName;
+};
+
+class EEntityExplode : public GameEvent
+{
+  public:
+    EEntityExplode(EntityId entityId, const Vec2i& pos)
+      : GameEvent(g_strEntityExplode)
+      , entityId(entityId)
+      , pos(pos) {}
+
+    EEntityExplode(EntityId entityId, const Vec2i& pos, const EntityIdSet& targets)
+      : GameEvent(g_strEntityExplode, targets)
+      , entityId(entityId)
+      , pos(pos) {}
+
+    std::string toString() const override
+    {
+      return STR(GameEvent::toString() << " ("
+        << "entityId = " << entityId << ", "
+        << "pos = " << pos << ")");
+    }
+
+    EntityId entityId;
+    Vec2i pos;
 };

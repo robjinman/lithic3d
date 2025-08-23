@@ -21,13 +21,14 @@ class SysGridImpl : public SysGrid
     void processEvent(const GameEvent& event) override {}
 
     void addEntity(EntityId entityId, int x, int y) override;
-    const std::set<EntityId>& getEntities(int x, int y) const override;
+    const EntityIdSet& getEntities(int x, int y) const override;
+    EntityIdSet getEntities(int minX, int minY, int maxX, int maxY) const override;
     bool hasEntityAt(EntityId entityId, int x, int y) const override;
     bool tryMove(EntityId entityId, int dx, int dy) override;
 
   private:
     EventSystem& m_eventSystem;
-    std::array<std::array<std::set<EntityId>, GRID_W>, GRID_H> m_cells;
+    std::array<std::array<EntityIdSet, GRID_W>, GRID_H> m_cells;
     std::map<EntityId, Vec2i> m_entities;
 
     bool isInRange(int x, int y) const;
@@ -85,9 +86,25 @@ void SysGridImpl::addEntity(EntityId entityId, int x, int y)
   m_entities.insert({ entityId, { x, y }});
 }
 
-const std::set<EntityId>& SysGridImpl::getEntities(int x, int y) const
+const EntityIdSet& SysGridImpl::getEntities(int x, int y) const
 {
   return m_cells[y][x];
+}
+
+EntityIdSet SysGridImpl::getEntities(int minX, int minY, int maxX, int maxY) const
+{
+  EntityIdSet entities;
+
+  for (int y = minY; y <= maxY; ++y) {
+    for (int x = minX; x <= maxX; ++x) {
+      if (isInRange(x, y)) {
+        auto& inCell = getEntities(x, y);
+        entities.insert(inCell.begin(), inCell.end());
+      }
+    }
+  }
+
+  return entities;
 }
 
 bool SysGridImpl::hasEntityAt(EntityId entityId, int x, int y) const
