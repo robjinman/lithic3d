@@ -5,12 +5,9 @@
 #include "math.hpp"
 #include "component_types.hpp"
 
-constexpr size_t MAX_ANIMATIONS = 8;
-constexpr size_t MAX_ANIMATION_FRAMES = 8;
-
 struct AnimationFrame
 {
-  Rectf textureRect;
+  std::optional<Rectf> textureRect;
   Vec2f delta;
   Vec4f colour;
 };
@@ -22,28 +19,21 @@ struct Animation
   std::vector<AnimationFrame> frames;
 };
 
+using AnimationPtr = std::unique_ptr<Animation>;
+
+using AnimationId = size_t;
+
 struct CAnimation
 {
-  std::vector<Animation> animations;
-};
-
-// Matches layout of private CAnimationData, with only public fields visible
-struct CAnimationView
-{
-#ifdef _WIN32
-  char _padding[3080];
-#else
-  char _padding[3144];
-#endif
-
-  static constexpr ComponentType TypeId = ComponentTypeId::CAnimationTypeId;
+  std::set<AnimationId> animations;
 };
 
 class SysAnimation : public System
 {
   public:
     virtual void addEntity(EntityId entityId, const CAnimation& data) = 0;
-    virtual void playAnimation(EntityId entityId, HashedString name) = 0;
+    virtual AnimationId addAnimation(AnimationPtr animation) = 0;
+    virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
     virtual bool hasAnimationPlaying(EntityId entityId) const = 0;
 
     virtual ~SysAnimation() = default;

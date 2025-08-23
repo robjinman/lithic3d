@@ -12,8 +12,8 @@
 #include "utils.hpp"
 #include "units.hpp"
 #include "player.hpp"
-#include <set>
 #include "b_collectable.hpp"
+#include <set>
 #include <random>
 #undef max
 #undef min
@@ -66,17 +66,25 @@ class GameImpl : public Game
     void processKeyboardInput();
     void processMouseInput();
 
+    void constructMenus();
     void constructSky();
+    void constructClouds();
     void constructTrees();
     void constructFakeSoil();
     void constructSoil();
     std::set<std::pair<int, int>> constructMines();
     void constructNumbers(const std::set<std::pair<int, int>>& mines);
+    void constructGradient();
+    void constructCoins();
+    void constructGoldNuggets(const std::set<std::pair<int, int>>& mines);
+    void constructWanderers();
+    void constructSticks();
+    void constructHud();
 };
 
-GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid, SysRender& sysRender,
-  SysAnimation& sysAnimation, EventSystem& eventSystem, const FileSystem& fileSystem,
-  Logger& logger)
+GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
+  SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
+  const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_eventSystem(eventSystem)
@@ -112,12 +120,20 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
   m_playerId = constructPlayer(m_eventSystem, m_componentStore, m_sysGrid, m_sysRender,
     m_sysBehaviour, m_sysAnimation);
 
+  constructMenus();
   constructSky();
+  constructClouds();
   constructTrees();
   constructFakeSoil();
   constructSoil();
   auto mines = constructMines();
   constructNumbers(mines);
+  constructGradient();
+  constructCoins();
+  constructGoldNuggets(mines);
+  constructWanderers();
+  constructSticks();
+  constructHud();
 }
 
 void GameImpl::onKeyDown(KeyboardKey key)
@@ -226,6 +242,8 @@ void GameImpl::update()
   m_sysRender.update(m_currentTick);
   m_sysAnimation.update(m_currentTick);
 
+  m_eventSystem.processEvents();
+
   for (auto id : m_pendingDeletion) {
     DBG_LOG(m_logger, STR("Deleting entity " << id));
 
@@ -237,6 +255,11 @@ void GameImpl::update()
     m_componentStore.remove(id);
   }
   m_pendingDeletion.clear();
+}
+
+void GameImpl::constructMenus()
+{
+
 }
 
 void GameImpl::constructSky()
@@ -256,6 +279,58 @@ void GameImpl::constructSky()
   };
 
   m_sysRender.addEntity(id, render);
+}
+
+void GameImpl::constructClouds()
+{
+  long animationDuration = 220;
+
+  {
+    auto id = m_componentStore.allocate<CRenderView>();
+
+    CRender render{
+      .textureRect = Rectf{
+        .x = pxToUvX(256.f),
+        .y = pxToUvY(0.f, 32.f),
+        .w = pxToUvW(128.f),
+        .h = pxToUvH(32.f)
+      },
+      .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
+      .pos = Vec2f{ GRID_CELL_W * GRID_W, 0.8f },
+      .zIndex = 1
+    };
+
+    m_sysRender.addEntity(id, render);
+
+    auto animIdle = std::unique_ptr<Animation>(new Animation{
+      .name = hashString("idle"),
+      .duration = animationDuration,
+      .frames = {
+        AnimationFrame{
+          .textureRect = Rectf{
+            .x = pxToUvX(256.f),
+            .y = pxToUvY(0.f, 32.f),
+            .w = pxToUvW(128.f),
+            .h = pxToUvH(32.f)
+          },
+          .delta = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
+          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        }
+      }
+    });
+
+    auto animIdleId = m_sysAnimation.addAnimation(std::move(animIdle));
+
+    CAnimation animation{
+      .animations = { animIdleId }
+    };
+
+    m_sysAnimation.addEntity(id, animation);
+
+    m_sysAnimation.playAnimation(id, hashString("idle"), true);
+  }
+
+  // TODO: Second cloud
 }
 
 void GameImpl::constructTrees()
@@ -302,13 +377,94 @@ void GameImpl::constructFakeSoil()
 
 void GameImpl::constructSoil()
 {
+  long animationDuration = 16;
+
+  auto animCollect = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("collect"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.875f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.75f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.625f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.375f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.25f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .delta = Vec2f{ 0.f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.125f }
+      }
+    }
+  });
+
+  auto animCollectId = m_sysAnimation.addAnimation(std::move(animCollect));
+
   for (size_t j = 0; j < GRID_H; ++j) {
     for (size_t i = 0; i < GRID_W; ++i) {
       if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
         continue;
       }
 
-      auto id = m_componentStore.allocate<CRenderView, CAnimationView>();
+      auto id = m_componentStore.allocate<CRenderView>();
 
       m_sysGrid.addEntity(id, i, j);
 
@@ -329,89 +485,9 @@ void GameImpl::constructSoil()
 
       m_sysRender.addEntity(id, render);
 
-      long animationDuration = 16;
-
-      CAnimation animation;
-      animation.animations = {
-        Animation{
-          .name = hashString("collect"),
-          .duration = animationDuration,
-          .frames = {
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.875f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.75f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.625f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.375f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.25f }
-            },
-            AnimationFrame{
-              .textureRect = Rectf{
-                .x = pxToUvX(384.f),
-                .y = pxToUvY(0.f, 16.f),
-                .w = pxToUvW(16.f),
-                .h = pxToUvH(16.f)
-              },
-              .delta = Vec2f{ 0.f, 0.f },
-              .colour = Vec4f{ 1.f, 1.f, 1.f, 0.125f }
-            }
-          }
-        }
-      };
-
-      m_sysAnimation.addEntity(id, animation);
+      m_sysAnimation.addEntity(id, CAnimation{
+        .animations = { animCollectId }
+      });
 
       auto behaviour = createBCollectable(m_sysAnimation, m_eventSystem, id, m_playerId, 0);
       m_sysBehaviour.addBehaviour(id, std::move(behaviour));
@@ -520,6 +596,50 @@ void GameImpl::constructNumbers(const std::set<std::pair<int, int>>& mines)
       m_sysRender.addEntity(id, render);
     }
   }
+}
+
+void GameImpl::constructGradient()
+{
+  auto id = m_componentStore.allocate<CRenderView>();
+
+  CRender render{
+    .textureRect = Rectf{
+      .x = pxToUvX(512.f),
+      .y = pxToUvY(256.f, 128.f),
+      .w = pxToUvW(128.f),
+      .h = pxToUvH(128.f)
+    },
+    .size = Vec2f{ GRID_CELL_W * GRID_W, GRID_CELL_H * (5 + GRID_H) },
+    .pos = Vec2f{ 0.f, 0.f },
+    .zIndex = 9
+  };
+
+  m_sysRender.addEntity(id, render);
+}
+
+void GameImpl::constructCoins()
+{
+
+}
+
+void GameImpl::constructGoldNuggets(const std::set<std::pair<int, int>>& mines)
+{
+
+}
+
+void GameImpl::constructWanderers()
+{
+
+}
+
+void GameImpl::constructSticks()
+{
+
+}
+
+void GameImpl::constructHud()
+{
+
 }
 
 } // namespace

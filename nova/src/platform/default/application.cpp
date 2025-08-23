@@ -162,6 +162,8 @@ Application::Application()
   m_sysRender->start();
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
+
+  enterInputCapture();
 }
 
 void Application::run()
@@ -273,7 +275,7 @@ void Application::onMouseClick()
 
 void Application::enterInputCapture()
 {
-  glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetKeyCallback(m_window, Application::onKeyboardInput);
   glfwSetCursorPosCallback(m_window, Application::onMouseMove);
   glfwSetJoystickCallback(Application::onJoystickEvent);

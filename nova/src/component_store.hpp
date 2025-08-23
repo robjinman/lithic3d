@@ -342,7 +342,7 @@ class ComponentStore
       if (i == m_archetypes.end()) {
         return false;
       }
-      m_groups.at(i->second).hasEntity(entityId);
+      return m_groups.at(i->second).hasEntity(entityId);
     }
 
     void remove(EntityId entityId)

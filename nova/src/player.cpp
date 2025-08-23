@@ -48,7 +48,7 @@ void PlayerBehaviour::processEvent(const GameEvent& event)
 EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStore, SysGrid& sysGrid,
   SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation)
 {
-  auto id = componentStore.allocate<CRenderView, CAnimationView>();
+  auto id = componentStore.allocate<CRenderView>();
 
   sysGrid.addEntity(id, 0, 0);
 
@@ -68,195 +68,202 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
 
   long animationDuration = 16;
 
-  CAnimation animation;
-  animation.animations = {
-    Animation{
-      .name = hashString("move_left"),
-      .duration = animationDuration,
-      .frames = {
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(384.f),
-            .y = pxToUvY(352.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ -0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+  auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_left"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
         },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(416.f),
-            .y = pxToUvY(352.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ -0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        .delta = Vec2f{ -0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
         },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(448.f),
-            .y = pxToUvY(352.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ -0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        .delta = Vec2f{ -0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
         },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(480.f),
-            .y = pxToUvY(352.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ -0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        }
-      }
-    },
-    Animation{
-      .name = hashString("move_right"),
-      .duration = animationDuration,
-      .frames = {
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(384.f),
-            .y = pxToUvY(304.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        .delta = Vec2f{ -0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
         },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(416.f),
-            .y = pxToUvY(304.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(448.f),
-            .y = pxToUvY(304.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(480.f),
-            .y = pxToUvY(304.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.015625f, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        }
-      }
-    },
-    Animation{
-      .name = hashString("move_up"),
-      .duration = animationDuration,
-      .frames = {
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(384.f),
-            .y = pxToUvY(256.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, 0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(416.f),
-            .y = pxToUvY(256.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, 0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(448.f),
-            .y = pxToUvY(256.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, 0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(480.f),
-            .y = pxToUvY(256.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, 0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        }
-      }
-    },
-    Animation{
-      .name = hashString("move_down"),
-      .duration = animationDuration,
-      .frames = {
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(384.f),
-            .y = pxToUvY(400.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, -0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(416.f),
-            .y = pxToUvY(400.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, -0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(448.f),
-            .y = pxToUvY(400.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, -0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        },
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(480.f),
-            .y = pxToUvY(400.f, 48.f),
-            .w = pxToUvW(32.f),
-            .h = pxToUvH(48.f)
-          },
-          .delta = Vec2f{ 0.f, -0.015625f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        }
+        .delta = Vec2f{ -0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
       }
     }
-  };
+  });
 
-  sysAnimation.addEntity(id, animation);
+  auto animMoveRight = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_right"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.015625f, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animMoveUp = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_up"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, 0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, 0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, 0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, 0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animMoveDown = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_down"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, -0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, -0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, -0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .delta = Vec2f{ 0.f, -0.015625f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  sysAnimation.addEntity(id, CAnimation{
+    .animations = {
+      sysAnimation.addAnimation(std::move(animMoveLeft)),
+      sysAnimation.addAnimation(std::move(animMoveRight)),
+      sysAnimation.addAnimation(std::move(animMoveUp)),
+      sysAnimation.addAnimation(std::move(animMoveDown))
+    }
+  });
 
   auto behaviour = std::make_unique<PlayerBehaviour>(id);
   sysBehaviour.addBehaviour(id, std::move(behaviour));

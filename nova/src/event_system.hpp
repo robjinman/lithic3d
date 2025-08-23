@@ -23,13 +23,16 @@ class Event
     HashedString m_name;
 };
 
+using EventPtr = std::unique_ptr<Event>;
+
 using EventHandlerFn = std::function<void(const Event&)>;
 
 class EventSystem
 {
   public:
     virtual void listen(HashedString name, EventHandlerFn handler) = 0;
-    virtual void fireEvent(const Event& event) = 0;
+    virtual void queueEvent(EventPtr event) = 0;
+    virtual void processEvents() = 0;
 };
 
 using EventSystemPtr = std::unique_ptr<EventSystem>;

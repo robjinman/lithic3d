@@ -7,6 +7,8 @@
 #include "units.hpp"
 #include "component_store.hpp"
 
+using EntityIdSet = std::set<EntityId>;
+
 class GameEvent : public Event
 {
   public:
@@ -14,7 +16,7 @@ class GameEvent : public Event
       : Event(hashString("game"))
       , name(name) {}
 
-    GameEvent(HashedString name, const std::set<EntityId>& targets)
+    GameEvent(HashedString name, const EntityIdSet& targets)
       : Event(hashString("game"))
       , name(name)
       , targets(targets) {}
@@ -31,7 +33,7 @@ class GameEvent : public Event
     }
 
     HashedString name;
-    std::set<EntityId> targets;
+    EntityIdSet targets;
 };
 
 // Some systems may choose to store their components in the component store for efficiency, but that

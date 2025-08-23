@@ -12,11 +12,13 @@ class EventSystemImpl : public EventSystem
     EventSystemImpl(Logger& logger);
 
     void listen(HashedString name, EventHandlerFn handler) override;
-    void fireEvent(const Event& event) override;
+    void queueEvent(EventPtr event) override;
+    void processEvents() override;
 
   private:
     Logger& m_logger;
     std::map<HashedString, std::vector<EventHandlerFn>> m_handlers;
+    std::vector<EventPtr> m_eventQueue;
 };
 
 EventSystemImpl::EventSystemImpl(Logger& logger)
@@ -29,14 +31,25 @@ void EventSystemImpl::listen(HashedString name, EventHandlerFn handler)
   m_handlers[name].push_back(handler);
 }
 
-void EventSystemImpl::fireEvent(const Event& event)
+void EventSystemImpl::queueEvent(EventPtr event)
 {
-  DBG_LOG(m_logger, STR("Event: " << event.toString()));
+  m_eventQueue.push_back(std::move(event));
+}
 
-  auto i = m_handlers.find(event.name());
-  if (i != m_handlers.end()) {
-    for (auto& fn : i->second) {
-      fn(event);
+void EventSystemImpl::processEvents()
+{
+  auto queue = std::move(m_eventQueue);
+  m_eventQueue.clear();
+
+  for (auto& eventPtr : queue) {
+    auto& event = *eventPtr;
+    DBG_LOG(m_logger, STR("Event: " << event.toString()));
+
+    auto i = m_handlers.find(event.name());
+    if (i != m_handlers.end()) {
+      for (auto& fn : i->second) {
+        fn(event);
+      }
     }
   }
 }

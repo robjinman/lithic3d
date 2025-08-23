@@ -20,7 +20,7 @@ class EEntityStepOn : public GameEvent
       , toPos(toPos) {}
 
     EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos,
-      const std::set<EntityId>& targets)
+      const EntityIdSet& targets)
       : GameEvent(g_strEntityStepOn, targets)
       , entityId(entityId)
       , fromPos(fromPos)
@@ -47,7 +47,7 @@ class EItemCollect : public GameEvent
       , entityId(entityId)
       , value(value) {}
 
-    EItemCollect(EntityId entityId, uint32_t value, const std::set<EntityId>& targets)
+    EItemCollect(EntityId entityId, uint32_t value, const EntityIdSet& targets)
       : GameEvent(g_strItemCollect, targets)
       , entityId(entityId)
       , value(value) {}
@@ -70,7 +70,7 @@ class ERequestDeletion : public GameEvent
       : GameEvent(g_strRequestDeletion)
       , entityId(entityId) {}
 
-    ERequestDeletion(EntityId entityId, const std::set<EntityId>& targets)
+    ERequestDeletion(EntityId entityId, const EntityIdSet& targets)
       : GameEvent(g_strRequestDeletion, targets)
       , entityId(entityId) {}
 
@@ -91,7 +91,7 @@ class EAnimationFinished : public GameEvent
       , entityId(entityId)
       , animationName(name) {}
 
-    EAnimationFinished(EntityId entityId, HashedString name, const std::set<EntityId>& targets)
+    EAnimationFinished(EntityId entityId, HashedString name, const EntityIdSet& targets)
       : GameEvent(g_strAnimationFinished, targets)
       , entityId(entityId)
       , animationName(name) {}

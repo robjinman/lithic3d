@@ -57,14 +57,14 @@ void BCollectable::processEvent(const GameEvent& event)
 
     if (e.entityId == m_playerId) {
       m_sysAnimation.playAnimation(m_entityId, strCollect);
-      m_eventSystem.fireEvent(EItemCollect{m_entityId, m_value});
+      m_eventSystem.queueEvent(std::make_unique<EItemCollect>(m_entityId, m_value));
     }
   }
   else if (event.name == g_strAnimationFinished) {
     auto& e = dynamic_cast<const EAnimationFinished&>(event);
 
     if (e.animationName == strCollect) {
-      m_eventSystem.fireEvent(ERequestDeletion{m_entityId});
+      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
     }
   }
 }
