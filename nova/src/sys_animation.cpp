@@ -120,7 +120,9 @@ void SysAnimationImpl::update(Tick tick)
       if (frame.textureRect.has_value()) {
         renderComp.textureRect = frame.textureRect.value();
       }
-      renderComp.colour = frame.colour;
+      if (frame.colour.has_value()) {
+        renderComp.colour = frame.colour.value();
+      }
     }
   }
 

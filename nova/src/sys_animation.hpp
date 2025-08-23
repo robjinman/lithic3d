@@ -7,9 +7,9 @@
 
 struct AnimationFrame
 {
-  std::optional<Rectf> textureRect;
   Vec2f delta;
-  Vec4f colour;
+  std::optional<Rectf> textureRect;
+  std::optional<Vec4f> colour;
 };
 
 struct Animation

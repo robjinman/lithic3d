@@ -11,6 +11,7 @@ struct CRender
   Vec2f size;
   Vec2f pos;
   uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };

@@ -191,7 +191,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
   m_componentStore.component<CRenderData>(entityId) = CRenderData{
     .pos = data.pos,
     .textureRect = data.textureRect,
-    .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
+    .colour = data.colour,
     .zIndex = data.zIndex,
     .mesh = mesh
   };

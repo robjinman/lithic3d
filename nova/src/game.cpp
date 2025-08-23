@@ -291,9 +291,9 @@ void GameImpl::constructClouds()
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .textureRect = std::nullopt,
         .delta = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        .textureRect = std::nullopt,
+        .colour = std::nullopt
       }
     }
   });
@@ -312,7 +312,8 @@ void GameImpl::constructClouds()
       },
       .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
       .pos = Vec2f{ GRID_CELL_W * GRID_W, 0.8f },
-      .zIndex = 1
+      .zIndex = 1,
+      .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
 
     m_sysRender.addEntity(id, render);
@@ -339,7 +340,8 @@ void GameImpl::constructClouds()
       },
       .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
       .pos = Vec2f{ GRID_CELL_W * GRID_W, 0.8f },
-      .zIndex = 1
+      .zIndex = 1,
+      .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
 
     m_sysRender.addEntity(id, render);
@@ -405,73 +407,73 @@ void GameImpl::constructSoil()
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.875f }
       },
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.75f }
       },
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.625f }
       },
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
       },
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.375f }
       },
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.25f }
       },
       AnimationFrame{
+        .delta = Vec2f{ 0.f, 0.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .delta = Vec2f{ 0.f, 0.f },
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.125f }
       }
     }
