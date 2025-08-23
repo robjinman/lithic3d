@@ -17,7 +17,6 @@ struct AnimationState
   Vec2f startPos;
   Vec4f startColour;
   bool repeats = false;
-  bool bringToFront = false;
 };
 
 struct CAnimationData
@@ -39,8 +38,7 @@ class SysAnimationImpl : public SysAnimation
 
     void addEntity(EntityId entityId, const CAnimation& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;
-    void playAnimation(EntityId entityId, HashedString name, bool repeat,
-      bool bringToFront) override;
+    void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
     void seek(EntityId entityId, Tick tick) override;
     bool hasAnimationPlaying(EntityId entityId) const override;
 
@@ -71,7 +69,7 @@ void SysAnimationImpl::update(Tick tick)
   m_currentTick = tick;
 
   // Entity id, animation name, bring to front
-  std::vector<std::tuple<EntityId, HashedString, bool>> toRepeat;
+  std::vector<std::tuple<EntityId, HashedString>> toRepeat;
 
   for (auto i = m_activeAnimation.begin(); i != m_activeAnimation.end(); ++i) {
     auto entityId = i->first;
@@ -109,7 +107,7 @@ void SysAnimationImpl::update(Tick tick)
 
       if (animState.repeats) {
         renderComp.pos = animState.startPos;
-        toRepeat.push_back({ entityId, anim.name, animState.bringToFront });
+        toRepeat.push_back({ entityId, anim.name });
       }
 
       i = m_activeAnimation.erase(i);
@@ -131,7 +129,7 @@ void SysAnimationImpl::update(Tick tick)
   }
 
   for (auto& anim : toRepeat) {
-    playAnimation(std::get<0>(anim), std::get<1>(anim), true, std::get<2>(anim));
+    playAnimation(std::get<0>(anim), std::get<1>(anim), true);
   }
 }
 
@@ -167,16 +165,11 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
   return id;
 }
 
-void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat,
-  bool bringToFront)
+void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
   auto& renderComp = m_componentStore.component<CRenderView>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);
-
-  if (bringToFront) {
-    renderComp.zIndex = std::numeric_limits<uint32_t>::max();
-  }
 
   m_activeAnimation.insert({ entityId, AnimationState{
     .id = animId,
@@ -185,8 +178,7 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
     .timeStarted = m_currentTick,
     .startPos = renderComp.pos,
     .startColour = renderComp.colour,
-    .repeats = repeat,
-    .bringToFront = bringToFront
+    .repeats = repeat
   }});
 }
 

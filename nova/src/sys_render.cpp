@@ -99,6 +99,7 @@ struct CRenderData
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex;
+  bool visible;
   MeshHandle mesh; // TODO: Share meshes or use instancing?
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
@@ -121,6 +122,9 @@ class SysRenderImpl : public SysRender
     const Camera& camera() const override;
 
     void addEntity(EntityId entityId, const CRender& component) override;
+    void setZIndex(EntityId entityId, uint32_t zIndex) override;
+    void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
+    void setVisible(EntityId entityId, bool visible) override;
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -195,8 +199,27 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
     .textureRect = data.textureRect,
     .colour = data.colour,
     .zIndex = data.zIndex,
+    .visible = true,
     .mesh = mesh
   };
+}
+
+void SysRenderImpl::setZIndex(EntityId entityId, uint32_t zIndex)
+{
+  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  renderComp.zIndex = zIndex;
+}
+
+void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
+{
+  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  renderComp.textureRect = textureRect;
+}
+
+void SysRenderImpl::setVisible(EntityId entityId, bool visible)
+{
+  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  renderComp.visible = visible;
 }
 
 void SysRenderImpl::removeEntity(EntityId entityId)
@@ -231,6 +254,9 @@ void SysRenderImpl::update(Tick tick)
 
       for (size_t i = 0; i < n; ++i) {
         auto& item = renderComps[i];
+        if (!item.visible) {
+          continue;
+        }
 
         auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f }) * scaleMatrix4x4(Vec3f{ item.scale[0], item.scale[1], 1.f });
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);

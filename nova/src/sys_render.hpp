@@ -24,10 +24,11 @@ struct CRenderView
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex;
+  bool visible;
 #ifdef _WIN32
-  char _padding[80];
+  char _padding[76];
 #else
-  char _padding[92];
+  char _padding[88];
 #endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
@@ -45,6 +46,9 @@ class SysRender : public System
     virtual const Camera& camera() const = 0;
 
     virtual void addEntity(EntityId entityId, const CRender& data) = 0;
+    virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;
+    virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
+    virtual void setVisible(EntityId entityId, bool visible) = 0;
 
     virtual ~SysRender() {}
 };

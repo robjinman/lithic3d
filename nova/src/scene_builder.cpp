@@ -5,6 +5,7 @@
 #include "sys_render.hpp"
 #include "sys_ui.hpp"
 #include "b_collectable.hpp"
+#include "b_numeric_tile.hpp"
 #include "b_generic.hpp"
 #include "game_events.hpp"
 #include "player.hpp"
@@ -570,7 +571,8 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
           m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, pos, targets));
 
-          m_sysAnimation.playAnimation(id, strExplode, false, true);
+          m_sysAnimation.playAnimation(id, strExplode);
+          m_sysRender.setZIndex(id, 100);
         }
       }
       else if (e.name == g_strAnimationFinished) {
@@ -607,7 +609,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
     for (int i = -1; i <= 1; ++i) {
       for (int j = -1; j <= 1; ++j) {
         if (i == 0 && j == 0) {
-          continue;
+          //continue;
         }
 
         int x = mine.first + i;
@@ -626,11 +628,10 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
       if (value == 0) {
         continue;
       }
-      if (mines.contains({ i, j })) {
-        continue;
-      }
 
       auto id = m_componentStore.allocate<CRenderView>();
+
+      m_sysGrid.addEntity(id, i, j);
 
       CRender render{
         .textureRect = Rectf{
@@ -645,6 +646,11 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
       };
 
       m_sysRender.addEntity(id, render);
+      m_sysRender.setVisible(id, !mines.contains({ i, j }));
+
+      auto behaviour = createBNumericTile(m_sysRender, m_eventSystem, id, Vec2i{ i, j }, value);
+
+      m_sysBehaviour.addBehaviour(id, std::move(behaviour));
     }
   }
 }

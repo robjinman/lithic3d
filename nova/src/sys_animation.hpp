@@ -34,8 +34,7 @@ class SysAnimation : public System
   public:
     virtual void addEntity(EntityId entityId, const CAnimation& data) = 0;
     virtual AnimationId addAnimation(AnimationPtr animation) = 0;
-    virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false,
-      bool bringToFront = false) = 0;
+    virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
     virtual void seek(EntityId entityId, Tick tick) = 0;
     virtual bool hasAnimationPlaying(EntityId entityId) const = 0;
 
