@@ -95,6 +95,7 @@ MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
 struct CRenderData
 {
   Vec2f pos;
+  Vec2f scale;
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex;
@@ -190,6 +191,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 
   m_componentStore.component<CRenderData>(entityId) = CRenderData{
     .pos = data.pos,
+    .scale = Vec2f{ 1.f, 1.f },
     .textureRect = data.textureRect,
     .colour = data.colour,
     .zIndex = data.zIndex,
@@ -230,7 +232,7 @@ void SysRenderImpl::update(Tick tick)
       for (size_t i = 0; i < n; ++i) {
         auto& item = renderComps[i];
 
-        auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f });
+        auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f }) * scaleMatrix4x4(Vec3f{ item.scale[0], item.scale[1], 1.f });
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
         std::array<Vec2f, 4> uvCoords{

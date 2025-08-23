@@ -20,6 +20,7 @@ struct CRender
 struct CRenderView
 {
   Vec2f pos;
+  Vec2f scale;
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex;

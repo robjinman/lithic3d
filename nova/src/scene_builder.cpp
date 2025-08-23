@@ -352,7 +352,8 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
     .duration = 30,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .delta = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(0.f, 64.f),
@@ -363,6 +364,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
           .y = pxToUvY(0.f, 64.f),
@@ -373,6 +375,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
           .y = pxToUvY(0.f, 64.f),
@@ -383,6 +386,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(640.f),
           .y = pxToUvY(0.f, 64.f),
@@ -393,6 +397,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(64.f, 64.f),
@@ -403,6 +408,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
           .y = pxToUvY(64.f, 64.f),
@@ -413,6 +419,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
           .y = pxToUvY(64.f, 64.f),
@@ -423,6 +430,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(640.f),
           .y = pxToUvY(64.f, 64.f),
@@ -433,6 +441,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(128.f, 64.f),
@@ -443,6 +452,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
           .y = pxToUvY(128.f, 64.f),
@@ -453,6 +463,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
           .y = pxToUvY(128.f, 64.f),
@@ -463,6 +474,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(640.f),
           .y = pxToUvY(128.f, 64.f),
@@ -473,6 +485,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(192.f, 64.f),
@@ -483,6 +496,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
           .y = pxToUvY(192.f, 64.f),
@@ -493,6 +507,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       },
       AnimationFrame{
         .delta = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
           .y = pxToUvY(192.f, 64.f),
@@ -555,7 +570,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
           m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, pos, targets));
 
-          m_sysAnimation.playAnimation(id, strExplode);
+          m_sysAnimation.playAnimation(id, strExplode, false, true);
         }
       }
       else if (e.name == g_strAnimationFinished) {

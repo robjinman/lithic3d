@@ -8,6 +8,7 @@
 struct AnimationFrame
 {
   Vec2f delta;
+  Vec2f scale{ 1.f, 1.f };  // Relative to initial scale
   std::optional<Rectf> textureRect;
   std::optional<Vec4f> colour;
 };
@@ -33,7 +34,8 @@ class SysAnimation : public System
   public:
     virtual void addEntity(EntityId entityId, const CAnimation& data) = 0;
     virtual AnimationId addAnimation(AnimationPtr animation) = 0;
-    virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
+    virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false,
+      bool bringToFront = false) = 0;
     virtual void seek(EntityId entityId, Tick tick) = 0;
     virtual bool hasAnimationPlaying(EntityId entityId) const = 0;
 
