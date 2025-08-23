@@ -283,7 +283,22 @@ void GameImpl::constructSky()
 
 void GameImpl::constructClouds()
 {
-  long animationDuration = 220;
+  static auto strIdle = hashString("idle");
+  long animationDuration = 7200;
+
+  auto animIdle = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("idle"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .textureRect = std::nullopt,
+        .delta = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animIdleId = m_sysAnimation.addAnimation(std::move(animIdle));
 
   {
     auto id = m_componentStore.allocate<CRenderView>();
@@ -302,24 +317,32 @@ void GameImpl::constructClouds()
 
     m_sysRender.addEntity(id, render);
 
-    auto animIdle = std::unique_ptr<Animation>(new Animation{
-      .name = hashString("idle"),
-      .duration = animationDuration,
-      .frames = {
-        AnimationFrame{
-          .textureRect = Rectf{
-            .x = pxToUvX(256.f),
-            .y = pxToUvY(0.f, 32.f),
-            .w = pxToUvW(128.f),
-            .h = pxToUvH(32.f)
-          },
-          .delta = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
-          .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-        }
-      }
-    });
+    CAnimation animation{
+      .animations = { animIdleId }
+    };
 
-    auto animIdleId = m_sysAnimation.addAnimation(std::move(animIdle));
+    m_sysAnimation.addEntity(id, animation);
+
+    m_sysAnimation.playAnimation(id, strIdle, true);
+    m_sysAnimation.seek(id, animationDuration / 2);
+  }
+
+  {
+    auto id = m_componentStore.allocate<CRenderView>();
+
+    CRender render{
+      .textureRect = Rectf{
+        .x = pxToUvX(256.f),
+        .y = pxToUvY(32.f, 32.f),
+        .w = pxToUvW(128.f),
+        .h = pxToUvH(32.f)
+      },
+      .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
+      .pos = Vec2f{ GRID_CELL_W * GRID_W, 0.8f },
+      .zIndex = 1
+    };
+
+    m_sysRender.addEntity(id, render);
 
     CAnimation animation{
       .animations = { animIdleId }
@@ -327,10 +350,8 @@ void GameImpl::constructClouds()
 
     m_sysAnimation.addEntity(id, animation);
 
-    m_sysAnimation.playAnimation(id, hashString("idle"), true);
+    m_sysAnimation.playAnimation(id, strIdle, true);
   }
-
-  // TODO: Second cloud
 }
 
 void GameImpl::constructTrees()

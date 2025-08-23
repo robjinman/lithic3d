@@ -14,7 +14,6 @@ struct AnimationState
   HashedString name;
   bool isPlaying = false;
   Tick timeStarted = 0;
-  size_t currentFrame = 0;
   Vec2f startPos;
   Vec4f startColour;
   bool shouldRepeat = false;
@@ -40,6 +39,7 @@ class SysAnimationImpl : public SysAnimation
     void addEntity(EntityId entityId, const CAnimation& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
+    void seek(EntityId entityId, Tick tick) override;
     bool hasAnimationPlaying(EntityId entityId) const override;
 
   private:
@@ -82,45 +82,45 @@ void SysAnimationImpl::update(Tick tick)
     auto& renderComp = m_componentStore.component<CRenderView>(entityId);
 
     size_t numFrames = anim.frames.size();
-    float frameDuration = static_cast<float>(anim.duration) / (numFrames * TICKS_PER_SECOND);
-    float currentFrameTime = static_cast<float>(animState.currentFrame) * frameDuration;
-    float nextFrameTime = static_cast<float>(animState.currentFrame + 1) * frameDuration;
+    Tick elapsed = tick - animState.timeStarted;
+    float_t fractionComplete = static_cast<float_t>(elapsed) / anim.duration;
+    float_t frameNumFloat = fractionComplete * numFrames;
+    size_t frameNumInt = static_cast<size_t>(frameNumFloat);
+    float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
 
-    float tickDuration = 1.f / TICKS_PER_SECOND;
-    float elapsed = tickDuration * (tick - animState.timeStarted);
+    assert(numFrames > 0);
+    assert(frameNumInt <= numFrames);
 
-    const auto& frame = anim.frames[animState.currentFrame];
+    Vec2f delta;
+    for (size_t f = 0; f < frameNumInt; ++f) {
+      delta += anim.frames[f].delta;
+    }
+    delta += anim.frames[frameNumInt].delta * fractionOfFrameComplete;
+    renderComp.pos = animState.startPos + delta;
 
-    float s = std::min((elapsed - currentFrameTime) / frameDuration, 1.f);
-    assert(s >= 0.f);
+    if (frameNumInt == numFrames) {
+      animState.isPlaying = false;
 
-    renderComp.pos = animState.startPos +
-      frame.delta * (static_cast<float>(animState.currentFrame) + s);
+      auto e = std::make_unique<EAnimationFinished>(entityId, anim.name, EntityIdSet{ entityId });
+      m_eventSystem.queueEvent(std::move(e));
 
-    if (elapsed >= nextFrameTime) {
+      if (animState.shouldRepeat) {
+        renderComp.pos = animState.startPos;
+        toRepeat.push_back({ entityId, anim.name });
+      }
+
+      i = m_activeAnimation.erase(i);
+      if (i == m_activeAnimation.end()) {
+        break;
+      }
+    }
+    else {
+      auto& frame = anim.frames[frameNumInt];
+
       if (frame.textureRect.has_value()) {
         renderComp.textureRect = frame.textureRect.value();
       }
       renderComp.colour = frame.colour;
-
-      ++animState.currentFrame;
-
-      if (animState.currentFrame == numFrames) {
-        animState.isPlaying = false;
-
-        auto e = std::make_unique<EAnimationFinished>(entityId, anim.name, EntityIdSet{ entityId });
-        m_eventSystem.queueEvent(std::move(e));
-
-        if (animState.shouldRepeat) {
-          renderComp.pos = animState.startPos;
-          toRepeat.push_back({ entityId, anim.name });
-        }
-
-        i = m_activeAnimation.erase(i);
-        if (i == m_activeAnimation.end()) {
-          break;
-        }
-      }
     }
   }
 
@@ -172,11 +172,21 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
     .name = name,
     .isPlaying = true,
     .timeStarted = m_currentTick,
-    .currentFrame = 0,
     .startPos = renderComp.pos,
     .startColour = renderComp.colour,
     .shouldRepeat = repeat
   }});
+}
+
+void SysAnimationImpl::seek(EntityId entityId, Tick tick)
+{
+  auto i = m_activeAnimation.find(entityId);
+  if (i == m_activeAnimation.end()) {
+    EXCEPTION("Entity doesn't have animation playing");
+  }
+
+  auto& state = i->second;
+  state.timeStarted = m_currentTick - tick;
 }
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
