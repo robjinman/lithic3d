@@ -8,8 +8,9 @@
 const HashedString g_strEntityStepOn = hashString("entity_step_on");
 const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strRequestDeletion = hashString("request_deletion");
-const HashedString g_strAnimationFinished = hashString("animation_finished");
+const HashedString g_strAnimationFinish = hashString("animation_finish");
 const HashedString g_strEntityExplode = hashString("entity_explode");
+const HashedString g_strPlayerDeath = hashString("player_death");
 
 class EEntityStepOn : public GameEvent
 {
@@ -84,16 +85,16 @@ class ERequestDeletion : public GameEvent
     EntityId entityId;
 };
 
-class EAnimationFinished : public GameEvent
+class EAnimationFinish : public GameEvent
 {
   public:
-    EAnimationFinished(EntityId entityId, HashedString name)
-      : GameEvent(g_strAnimationFinished)
+    EAnimationFinish(EntityId entityId, HashedString name)
+      : GameEvent(g_strAnimationFinish)
       , entityId(entityId)
       , animationName(name) {}
 
-    EAnimationFinished(EntityId entityId, HashedString name, const EntityIdSet& targets)
-      : GameEvent(g_strAnimationFinished, targets)
+    EAnimationFinish(EntityId entityId, HashedString name, const EntityIdSet& targets)
+      : GameEvent(g_strAnimationFinish, targets)
       , entityId(entityId)
       , animationName(name) {}
 
@@ -130,4 +131,16 @@ class EEntityExplode : public GameEvent
 
     EntityId entityId;
     Vec2i pos;
+};
+
+class EPlayerDeath : public GameEvent
+{
+  public:
+    EPlayerDeath()
+      : GameEvent(g_strPlayerDeath) {}
+
+    std::string toString() const override
+    {
+      return STR(GameEvent::toString());
+    }
 };

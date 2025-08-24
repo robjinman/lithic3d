@@ -43,7 +43,7 @@ const std::set<HashedString>& BCollectable::subscriptions() const
 {
   static std::set<HashedString> subs{
     g_strEntityStepOn,
-    g_strAnimationFinished
+    g_strAnimationFinish
   };
   return subs;
 }
@@ -60,8 +60,8 @@ void BCollectable::processEvent(const GameEvent& event)
       m_eventSystem.queueEvent(std::make_unique<EItemCollect>(m_entityId, m_value));
     }
   }
-  else if (event.name == g_strAnimationFinished) {
-    auto& e = dynamic_cast<const EAnimationFinished&>(event);
+  else if (event.name == g_strAnimationFinish) {
+    auto& e = dynamic_cast<const EAnimationFinish&>(event);
 
     if (e.animationName == strCollect) {
       m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));

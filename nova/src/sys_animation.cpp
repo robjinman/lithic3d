@@ -102,7 +102,7 @@ void SysAnimationImpl::update(Tick tick)
     if (frameNumInt == numFrames) {
       animState.isPlaying = false;
 
-      auto e = std::make_unique<EAnimationFinished>(entityId, anim.name, EntityIdSet{ entityId });
+      auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
       m_eventSystem.queueEvent(std::move(e));
 
       if (animState.repeats) {

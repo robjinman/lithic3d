@@ -12,7 +12,7 @@ namespace
 class PlayerBehaviour : public CBehaviour
 {
   public:
-    PlayerBehaviour(EntityId entityId);
+    PlayerBehaviour(EntityId entityId, SysGrid& grid, EventSystem& eventSystem);
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
@@ -20,10 +20,14 @@ class PlayerBehaviour : public CBehaviour
 
   private:
     EntityId m_entityId;
+    SysGrid& m_sysGrid;
+    EventSystem& m_eventSystem;
 };
 
-PlayerBehaviour::PlayerBehaviour(EntityId entityId)
+PlayerBehaviour::PlayerBehaviour(EntityId entityId, SysGrid& sysGrid, EventSystem& eventSystem)
   : m_entityId(entityId)
+  , m_sysGrid(sysGrid)
+  , m_eventSystem(eventSystem)
 {
 }
 
@@ -35,12 +39,21 @@ HashedString PlayerBehaviour::name() const
 
 const std::set<HashedString>& PlayerBehaviour::subscriptions() const
 {
-  static std::set<HashedString> subs{};
+  static std::set<HashedString> subs{
+    g_strEntityExplode
+  };
   return subs;
 }
 
 void PlayerBehaviour::processEvent(const GameEvent& event)
 {
+  if (event.name == g_strEntityExplode) {
+    auto& e = dynamic_cast<const EEntityExplode&>(event);
+    if (m_sysGrid.hasEntityAt(m_entityId, e.pos[0], e.pos[1])) {
+      m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
+      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+    }
+  }
 }
 
 } // namespace
@@ -265,7 +278,7 @@ EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStor
     }
   });
 
-  auto behaviour = std::make_unique<PlayerBehaviour>(id);
+  auto behaviour = std::make_unique<PlayerBehaviour>(id, sysGrid, eventSystem);
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 
   return id;

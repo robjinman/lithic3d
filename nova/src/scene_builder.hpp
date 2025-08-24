@@ -1,12 +1,14 @@
 #pragma once
 
 #include "component_store.hpp"
+#include "system.hpp"
 #include <memory>
 
 class SceneBuilder
 {
   public:
     virtual EntityId buildScene() = 0;
+    virtual EntityIdSet entities() const = 0;
 
     virtual ~SceneBuilder() = default;
 };

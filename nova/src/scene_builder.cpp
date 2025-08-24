@@ -22,6 +22,7 @@ class SceneBuilderImpl : public SceneBuilder
       SysRender& sysRender);
 
     EntityId buildScene() override;
+    EntityIdSet entities() const override;
 
   private:
     EventSystem& m_eventSystem;
@@ -31,6 +32,7 @@ class SceneBuilderImpl : public SceneBuilder
     SysGrid& m_sysGrid;
     SysRender& m_sysRender;
     EntityId m_playerId;
+    EntityIdSet m_entities;
 
     void constructMenus();
     void constructSky();
@@ -60,8 +62,15 @@ SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, ComponentStore& com
 {
 }
 
+EntityIdSet SceneBuilderImpl::entities() const
+{
+  return m_entities;
+}
+
 EntityId SceneBuilderImpl::buildScene()
 {
+  m_entities.clear();
+
   m_playerId = constructPlayer(m_eventSystem, m_componentStore, m_sysGrid, m_sysRender,
     m_sysBehaviour, m_sysAnimation);
   constructMenus();
@@ -90,6 +99,7 @@ void SceneBuilderImpl::constructMenus()
 void SceneBuilderImpl::constructSky()
 {
   auto id = m_componentStore.allocate<CRenderView>();
+  m_entities.insert(id);
 
   CRender render{
     .textureRect = Rectf{
@@ -127,6 +137,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_componentStore.allocate<CRenderView>();
+    m_entities.insert(id);
 
     CRender render{
       .textureRect = Rectf{
@@ -155,6 +166,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_componentStore.allocate<CRenderView>();
+    m_entities.insert(id);
 
     CRender render{
       .textureRect = Rectf{
@@ -184,6 +196,7 @@ void SceneBuilderImpl::constructClouds()
 void SceneBuilderImpl::constructTrees()
 {
   auto id = m_componentStore.allocate<CRenderView>();
+  m_entities.insert(id);
 
   CRender render{
     .textureRect = Rectf{
@@ -204,6 +217,7 @@ void SceneBuilderImpl::constructFakeSoil()
 {
   for (size_t i = 0; i < GRID_W; ++i) {
     auto id = m_componentStore.allocate<CRenderView>();
+    m_entities.insert(id);
 
     float_t x = GRID_CELL_W * i;
 
@@ -313,6 +327,7 @@ void SceneBuilderImpl::constructSoil()
       }
 
       auto id = m_componentStore.allocate<CRenderView>();
+      m_entities.insert(id);
 
       m_sysGrid.addEntity(id, i, j);
 
@@ -541,6 +556,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
     auto id = m_componentStore.allocate<CRenderView>();
+    m_entities.insert(id);
 
     int x = coords[i][0];
     int y = coords[i][1];
@@ -575,8 +591,8 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
           m_sysRender.setZIndex(id, 100);
         }
       }
-      else if (e.name == g_strAnimationFinished) {
-        auto& event = dynamic_cast<const EAnimationFinished&>(e);
+      else if (e.name == g_strAnimationFinish) {
+        auto& event = dynamic_cast<const EAnimationFinish&>(e);
 
         if (event.entityId == id && event.animationName == strExplode) {
           m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
@@ -608,10 +624,6 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
   for (auto& mine : mines) {
     for (int i = -1; i <= 1; ++i) {
       for (int j = -1; j <= 1; ++j) {
-        if (i == 0 && j == 0) {
-          //continue;
-        }
-
         int x = mine.first + i;
         int y = mine.second + j;
 
@@ -630,6 +642,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
       }
 
       auto id = m_componentStore.allocate<CRenderView>();
+      m_entities.insert(id);
 
       m_sysGrid.addEntity(id, i, j);
 
@@ -658,6 +671,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
 void SceneBuilderImpl::constructGradient()
 {
   auto id = m_componentStore.allocate<CRenderView>();
+  m_entities.insert(id);
 
   CRender render{
     .textureRect = Rectf{

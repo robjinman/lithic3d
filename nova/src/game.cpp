@@ -23,6 +23,16 @@ struct InputState
   bool right = false;
   bool up = false;
   bool down = false;
+  bool enter = false;
+  bool escape = false;
+};
+
+enum class GameState
+{
+  Playing,
+  Paused,
+  MainMenu,
+  Dead
 };
 
 class GameImpl : public Game
@@ -59,11 +69,14 @@ class GameImpl : public Game
     double m_measuredTickRate = 0;
     EntityId m_playerId = 0;
     std::vector<EntityId> m_pendingDeletion;
+    GameState m_gameState;
 
     void measureTickRate();
     void processKeyboardInput();
     void processMouseInput();
     void playSoundForEvent(const GameEvent& event);
+    void onPlayerDeath();
+    void restartGame();
 };
 
 GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
@@ -95,6 +108,10 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
     m_sysBehaviour.processEvent(gameEvent);
     m_sysAnimation.processEvent(gameEvent);
 
+    if (gameEvent.name == g_strPlayerDeath) {
+      onPlayerDeath();
+    }
+
     if (gameEvent.name == g_strRequestDeletion) {
       auto& event = dynamic_cast<const ERequestDeletion&>(gameEvent);
       m_pendingDeletion.push_back(event.entityId);
@@ -107,7 +124,34 @@ GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, S
     // TODO
   });
 
+  restartGame(); // TODO: Start on main menu
+}
+
+void GameImpl::restartGame()
+{
+  m_eventSystem.processEvents();
+
+  auto entities = m_sceneBuilder->entities();
+  for (auto id : entities) {
+    DBG_LOG(m_logger, STR("Deleting entity " << id));
+
+    m_sysRender.removeEntity(id);
+    m_sysGrid.removeEntity(id);
+    m_sysBehaviour.removeEntity(id);
+    m_sysAnimation.removeEntity(id);
+
+    m_componentStore.remove(id);
+  }
+
   m_playerId = m_sceneBuilder->buildScene();
+  m_gameState = GameState::Playing;
+}
+
+void GameImpl::onPlayerDeath()
+{
+  m_gameState = GameState::Dead;
+
+  // TODO: Display text
 }
 
 void GameImpl::playSoundForEvent(const GameEvent& event)
@@ -130,6 +174,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
     case KeyboardKey::Right: m_inputState.right = true; break;
     case KeyboardKey::Up: m_inputState.up = true; break;
     case KeyboardKey::Down: m_inputState.down = true; break;
+    case KeyboardKey::Enter: m_inputState.enter = true; break;
     default: break;
   }
 }
@@ -141,6 +186,7 @@ void GameImpl::onKeyUp(KeyboardKey key)
     case KeyboardKey::Right: m_inputState.right = false; break;
     case KeyboardKey::Up: m_inputState.up = false; break;
     case KeyboardKey::Down: m_inputState.down = false; break;
+    case KeyboardKey::Enter: m_inputState.enter = false; break;
     default: break;
   }
 }
@@ -174,29 +220,42 @@ void GameImpl::processKeyboardInput()
   static auto strMoveUp = hashString("move_up");
   static auto strMoveDown = hashString("move_down");
 
-  if (m_sysAnimation.hasAnimationPlaying(m_playerId)) {
-    return;
-  }
+  switch (m_gameState) {
+    case GameState::Playing: {
+      if (m_sysAnimation.hasAnimationPlaying(m_playerId)) {
+        return;
+      }
 
-  if (m_inputState.left) {
-    if (m_sysGrid.tryMove(m_playerId, -1, 0)) {
-      m_sysAnimation.playAnimation(m_playerId, strMoveLeft);
+      if (m_inputState.left) {
+        if (m_sysGrid.tryMove(m_playerId, -1, 0)) {
+          m_sysAnimation.playAnimation(m_playerId, strMoveLeft);
+        }
+      }
+      else if (m_inputState.right) {
+        if (m_sysGrid.tryMove(m_playerId, 1, 0)) {
+          m_sysAnimation.playAnimation(m_playerId, strMoveRight);
+        }
+      }
+      else if (m_inputState.up) {
+        if (m_sysGrid.tryMove(m_playerId, 0, 1)) {
+          m_sysAnimation.playAnimation(m_playerId, strMoveUp);
+        }
+      }
+      else if (m_inputState.down) {
+        if (m_sysGrid.tryMove(m_playerId, 0, -1)) {
+          m_sysAnimation.playAnimation(m_playerId, strMoveDown);
+        }
+      }
+
+      break;
     }
-  }
-  else if (m_inputState.right) {
-    if (m_sysGrid.tryMove(m_playerId, 1, 0)) {
-      m_sysAnimation.playAnimation(m_playerId, strMoveRight);
+    case GameState::Dead: {
+      if (m_inputState.enter) {
+        restartGame();
+      }
+      break;
     }
-  }
-  else if (m_inputState.up) {
-    if (m_sysGrid.tryMove(m_playerId, 0, 1)) {
-      m_sysAnimation.playAnimation(m_playerId, strMoveUp);
-    }
-  }
-  else if (m_inputState.down) {
-    if (m_sysGrid.tryMove(m_playerId, 0, -1)) {
-      m_sysAnimation.playAnimation(m_playerId, strMoveDown);
-    }
+    default: break;
   }
 }
 
