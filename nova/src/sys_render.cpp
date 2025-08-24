@@ -92,22 +92,7 @@ MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
   return mesh;
 }
 
-struct CRenderData
-{
-  Vec2f pos;
-  Vec2f scale;
-  Rectf textureRect;
-  Vec4f colour;
-  uint32_t zIndex;
-  bool visible;
-  MeshHandle mesh; // TODO: Share meshes or use instancing?
-
-  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
-};
-
-// Uncomment to see difference
-//const long diff = sizeof(CRenderData) - sizeof(CRenderView);
-static_assert(sizeof(CRenderData) == sizeof(CRenderView));
+using CRenderData = CRenderView;
 
 class SysRenderImpl : public SysRender
 {
@@ -138,8 +123,7 @@ class SysRenderImpl : public SysRender
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
     MaterialHandle m_textureAtlas;
-
-    MeshHandle createMesh(const CRender& c) const;
+    MeshHandle m_mesh;
 };
 
 SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
@@ -171,6 +155,8 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
 
   m_textureAtlas = m_renderer.addMaterial(std::move(material));
 
+  m_mesh = m_renderer.addMesh(quad(Vec2f{ 1.f, 1.f }, Rectf{ 0.f, 0.f, 1.f, 1.f }));
+
   m_camera.setPosition(Vec3f{ 0.f, 0.f, 1.f });
 }
 
@@ -184,23 +170,16 @@ double SysRenderImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
-MeshHandle SysRenderImpl::createMesh(const CRender& c) const
-{
-  return m_renderer.addMesh(quad(c.size, c.textureRect));
-}
-
 void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 {
-  auto mesh = createMesh(data);
-
   m_componentStore.component<CRenderData>(entityId) = CRenderData{
     .pos = data.pos,
+    .size = data.size,
     .scale = Vec2f{ 1.f, 1.f },
     .textureRect = data.textureRect,
     .colour = data.colour,
     .zIndex = data.zIndex,
-    .visible = true,
-    .mesh = mesh
+    .visible = true
   };
 }
 
@@ -258,7 +237,13 @@ void SysRenderImpl::update(Tick tick)
           continue;
         }
 
-        auto t = translationMatrix4x4(Vec3f{ item.pos[0], item.pos[1], 0.f }) * scaleMatrix4x4(Vec3f{ item.scale[0], item.scale[1], 1.f });
+        Vec3f pos{ item.pos[0], item.pos[1], 0.f };
+        Vec3f scale{
+          item.size[0] * item.scale[0],
+          item.size[1] * item.scale[1],
+          1.f
+        };
+        auto t = translationMatrix4x4(pos) * scaleMatrix4x4(scale);
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
         std::array<Vec2f, 4> uvCoords{
@@ -269,7 +254,7 @@ void SysRenderImpl::update(Tick tick)
         };
 
         m_renderer.setOrderKey(item.zIndex);
-        m_renderer.drawSprite(item.mesh, m_textureAtlas, uvCoords, item.colour,
+        m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, item.colour,
           screenSpaceTransform);
       }
     }

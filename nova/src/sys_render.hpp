@@ -20,16 +20,12 @@ struct CRender
 struct CRenderView
 {
   Vec2f pos;
+  Vec2f size;
   Vec2f scale;
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex;
   bool visible;
-#ifdef _WIN32
-  char _padding[76];
-#else
-  char _padding[88];
-#endif
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };
