@@ -34,7 +34,7 @@ class SysAnimationImpl : public SysAnimation
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick) override;
-    void processEvent(const GameEvent& event) override {}
+    void processEvent(const Event& event) override {}
 
     void addEntity(EntityId entityId, const CAnimation& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;

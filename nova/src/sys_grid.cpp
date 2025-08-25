@@ -18,7 +18,7 @@ class SysGridImpl : public SysGrid
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick) override {}
-    void processEvent(const GameEvent& event) override {}
+    void processEvent(const Event& event) override {}
 
     void addEntity(EntityId entityId, int x, int y) override;
     const EntityIdSet& getEntities(int x, int y) const override;

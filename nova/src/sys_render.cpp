@@ -114,7 +114,7 @@ class SysRenderImpl : public SysRender
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick) override;
-    void processEvent(const GameEvent& event) override {}
+    void processEvent(const Event& event) override {}
 
   private:
     Logger& m_logger;

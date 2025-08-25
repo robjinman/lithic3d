@@ -2,8 +2,8 @@
 
 #include "sys_behaviour.hpp"
 
-class SysRender;
+class Ecs;
 class EventSystem;
 
-CBehaviourPtr createBNumericTile(SysRender& sysRender, EventSystem& eventSystem, EntityId entityId,
+CBehaviourPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   const Vec2i& pos, int value);

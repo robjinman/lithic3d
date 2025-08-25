@@ -1,13 +1,13 @@
 #pragma once
 
-#include "system.hpp"
+#include "ecs.hpp"
 
 class CBehaviour
 {
   public:
     virtual HashedString name() const = 0;
     virtual const std::set<HashedString>& subscriptions() const = 0;
-    virtual void processEvent(const GameEvent& event) = 0;
+    virtual void processEvent(const Event& event) = 0;
 
     virtual ~CBehaviour() {}
 };

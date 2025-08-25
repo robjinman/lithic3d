@@ -1,10 +1,6 @@
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
-#include "sys_behaviour.hpp"
-#include "sys_grid.hpp"
-#include "sys_render.hpp"
-#include "sys_animation.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #include "units.hpp"
@@ -78,13 +74,7 @@ class Application
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
     AudioSystemPtr m_audioSystem;
-    EventSystemPtr m_eventSystem;
-    ComponentStore m_componentStore;
     render::RendererPtr m_renderer;
-    SysBehaviourPtr m_sysBehaviour;
-    SysGridPtr m_sysGrid;
-    SysRenderPtr m_sysRender;
-    SysAnimationPtr m_sysAnimation;
     GamePtr m_game;
 
     bool m_fullscreen = false;
@@ -153,16 +143,9 @@ Application::Application()
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_audioSystem = createAudioSystem();
-  m_eventSystem = createEventSystem(*m_logger);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
-  m_sysBehaviour = createSysBehaviour();
-  m_sysGrid = createSysGrid(*m_eventSystem);
-  m_sysRender = createSysRender(m_componentStore, *m_renderer, *m_fileSystem, *m_logger);
-  m_sysAnimation = createSysAnimation(m_componentStore, *m_eventSystem, *m_logger);
 
-  m_game = createGame(m_componentStore, *m_sysBehaviour, *m_sysGrid, *m_sysRender, *m_sysAnimation,
-    *m_eventSystem, *m_audioSystem, *m_fileSystem, *m_logger);
-  m_sysRender->start();
+  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 

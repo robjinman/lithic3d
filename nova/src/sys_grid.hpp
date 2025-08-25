@@ -1,6 +1,6 @@
 #pragma once
 
-#include "system.hpp"
+#include "ecs.hpp"
 
 class SysGrid : public System
 {
@@ -13,5 +13,7 @@ class SysGrid : public System
 };
 
 using SysGridPtr = std::unique_ptr<SysGrid>;
+
+class EventSystem;
 
 SysGridPtr createSysGrid(EventSystem& eventSystem);

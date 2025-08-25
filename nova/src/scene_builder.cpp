@@ -3,12 +3,15 @@
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
-#include "sys_ui.hpp"
+#include "sys_menu.hpp"
+#include "ecs.hpp"
 #include "b_collectable.hpp"
 #include "b_numeric_tile.hpp"
 #include "b_generic.hpp"
 #include "game_events.hpp"
 #include "player.hpp"
+#include "systems.hpp"
+#include "events.hpp"
 #include <random>
 
 namespace
@@ -17,20 +20,14 @@ namespace
 class SceneBuilderImpl : public SceneBuilder
 {
   public:
-    SceneBuilderImpl(EventSystem& eventSystem, ComponentStore& componentStore,
-      SysAnimation& sysAnimation, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-      SysRender& sysRender);
+    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs);
 
     EntityId buildScene() override;
     EntityIdSet entities() const override;
 
   private:
     EventSystem& m_eventSystem;
-    ComponentStore&  m_componentStore;
-    SysAnimation& m_sysAnimation;
-    SysBehaviour& m_sysBehaviour;
-    SysGrid& m_sysGrid;
-    SysRender& m_sysRender;
+    Ecs& m_ecs;
     EntityId m_playerId;
     EntityIdSet m_entities;
 
@@ -50,15 +47,9 @@ class SceneBuilderImpl : public SceneBuilder
     void constructHud();
 };
 
-SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, ComponentStore& componentStore,
-  SysAnimation& sysAnimation, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-  SysRender& sysRender)
+SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs)
   : m_eventSystem(eventSystem)
-  , m_componentStore(componentStore)
-  , m_sysAnimation(sysAnimation)
-  , m_sysBehaviour(sysBehaviour)
-  , m_sysGrid(sysGrid)
-  , m_sysRender(sysRender)
+  , m_ecs(ecs)
 {
 }
 
@@ -71,8 +62,7 @@ EntityId SceneBuilderImpl::buildScene()
 {
   m_entities.clear();
 
-  m_playerId = constructPlayer(m_eventSystem, m_componentStore, m_sysGrid, m_sysRender,
-    m_sysBehaviour, m_sysAnimation);
+  m_playerId = constructPlayer(m_eventSystem, m_ecs);
   constructMenus();
   constructSky();
   constructClouds();
@@ -98,7 +88,7 @@ void SceneBuilderImpl::constructMenus()
 
 void SceneBuilderImpl::constructSky()
 {
-  auto id = m_componentStore.allocate<CRenderView>();
+  auto id = m_ecs.componentStore().allocate<CRenderView>();
   m_entities.insert(id);
 
   CRender render{
@@ -113,12 +103,17 @@ void SceneBuilderImpl::constructSky()
     .zIndex = 0
   };
 
-  m_sysRender.addEntity(id, render);
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  sysRender.addEntity(id, render);
 }
 
 void SceneBuilderImpl::constructClouds()
 {
   static auto strIdle = hashString("idle");
+
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
+
   long animationDuration = 7200;
 
   auto animIdle = std::unique_ptr<Animation>(new Animation{
@@ -133,10 +128,10 @@ void SceneBuilderImpl::constructClouds()
     }
   });
 
-  auto animIdleId = m_sysAnimation.addAnimation(std::move(animIdle));
+  auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
 
   {
-    auto id = m_componentStore.allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CRenderView>();
     m_entities.insert(id);
 
     CRender render{
@@ -152,20 +147,20 @@ void SceneBuilderImpl::constructClouds()
       .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
 
-    m_sysRender.addEntity(id, render);
+    sysRender.addEntity(id, render);
 
     CAnimation animation{
       .animations = { animIdleId }
     };
 
-    m_sysAnimation.addEntity(id, animation);
+    sysAnimation.addEntity(id, animation);
 
-    m_sysAnimation.playAnimation(id, strIdle, true);
-    m_sysAnimation.seek(id, animationDuration / 2);
+    sysAnimation.playAnimation(id, strIdle, true);
+    sysAnimation.seek(id, animationDuration / 2);
   }
 
   {
-    auto id = m_componentStore.allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CRenderView>();
     m_entities.insert(id);
 
     CRender render{
@@ -181,21 +176,23 @@ void SceneBuilderImpl::constructClouds()
       .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
 
-    m_sysRender.addEntity(id, render);
+    sysRender.addEntity(id, render);
 
     CAnimation animation{
       .animations = { animIdleId }
     };
 
-    m_sysAnimation.addEntity(id, animation);
+    sysAnimation.addEntity(id, animation);
 
-    m_sysAnimation.playAnimation(id, strIdle, true);
+    sysAnimation.playAnimation(id, strIdle, true);
   }
 }
 
 void SceneBuilderImpl::constructTrees()
 {
-  auto id = m_componentStore.allocate<CRenderView>();
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+
+  auto id = m_ecs.componentStore().allocate<CRenderView>();
   m_entities.insert(id);
 
   CRender render{
@@ -210,13 +207,15 @@ void SceneBuilderImpl::constructTrees()
     .zIndex = 2
   };
 
-  m_sysRender.addEntity(id, render);
+  sysRender.addEntity(id, render);
 }
 
 void SceneBuilderImpl::constructFakeSoil()
 {
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+
   for (size_t i = 0; i < GRID_W; ++i) {
-    auto id = m_componentStore.allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CRenderView>();
     m_entities.insert(id);
 
     float_t x = GRID_CELL_W * i;
@@ -233,12 +232,17 @@ void SceneBuilderImpl::constructFakeSoil()
       .zIndex = 1
     };
 
-    m_sysRender.addEntity(id, render);
+    sysRender.addEntity(id, render);
   }
 }
 
 void SceneBuilderImpl::constructSoil()
 {
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(g_strSysGrid));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(g_strSysBehaviour));
+
   long animationDuration = 16;
 
   auto animCollect = std::unique_ptr<Animation>(new Animation{
@@ -318,7 +322,7 @@ void SceneBuilderImpl::constructSoil()
     }
   });
 
-  auto animCollectId = m_sysAnimation.addAnimation(std::move(animCollect));
+  auto animCollectId = sysAnimation.addAnimation(std::move(animCollect));
 
   for (size_t j = 0; j < GRID_H; ++j) {
     for (size_t i = 0; i < GRID_W; ++i) {
@@ -326,10 +330,10 @@ void SceneBuilderImpl::constructSoil()
         continue;
       }
 
-      auto id = m_componentStore.allocate<CRenderView>();
+      auto id = m_ecs.componentStore().allocate<CRenderView>();
       m_entities.insert(id);
 
-      m_sysGrid.addEntity(id, i, j);
+      sysGrid.addEntity(id, i, j);
 
       float_t x = GRID_CELL_W * i;
       float_t y = GRID_CELL_H * j;
@@ -346,14 +350,14 @@ void SceneBuilderImpl::constructSoil()
         .zIndex = 1
       };
 
-      m_sysRender.addEntity(id, render);
+      sysRender.addEntity(id, render);
 
-      m_sysAnimation.addEntity(id, CAnimation{
+      sysAnimation.addEntity(id, CAnimation{
         .animations = { animCollectId }
       });
 
-      auto behaviour = createBCollectable(m_sysAnimation, m_eventSystem, id, m_playerId, 0);
-      m_sysBehaviour.addBehaviour(id, std::move(behaviour));
+      auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 0);
+      sysBehaviour.addBehaviour(id, std::move(behaviour));
     }
   }
 }
@@ -361,6 +365,12 @@ void SceneBuilderImpl::constructSoil()
 std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 {
   static auto strExplode = hashString("explode");
+
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(g_strSysGrid));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(g_strSysBehaviour));
+
   size_t numMines = 40; // TODO
 
   auto animExplode = std::unique_ptr<Animation>(new Animation{
@@ -535,7 +545,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
     }
   });
 
-  auto animExplodeId = m_sysAnimation.addAnimation(std::move(animExplode));
+  auto animExplodeId = sysAnimation.addAnimation(std::move(animExplode));
 
   std::vector<Vec2i> coords;
   for (int j = 0; j < GRID_H; ++j) {
@@ -555,13 +565,13 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
-    auto id = m_componentStore.allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CRenderView>();
     m_entities.insert(id);
 
     int x = coords[i][0];
     int y = coords[i][1];
 
-    m_sysGrid.addEntity(id, x, y);
+    sysGrid.addEntity(id, x, y);
 
     CRender render{
       .textureRect = Rectf{
@@ -575,20 +585,20 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       .zIndex = 0
     };
 
-    m_sysRender.addEntity(id, render);
+    sysRender.addEntity(id, render);
 
-    auto onStepOn = [this, id, x, y](const GameEvent& e) {
+    auto onStepOn = [&, this, id, x, y](const Event& e) {
       if (e.name == g_strEntityStepOn) {
         auto& event = dynamic_cast<const EEntityStepOn&>(e);
 
         Vec2i pos{ x, y };
         if (event.toPos == pos) {
-          EntityIdSet targets = m_sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
+          EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
 
           m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, pos, targets));
 
-          m_sysAnimation.playAnimation(id, strExplode);
-          m_sysRender.setZIndex(id, 100);
+          sysAnimation.playAnimation(id, strExplode);
+          sysRender.setZIndex(id, 100);
         }
       }
       else if (e.name == g_strAnimationFinish) {
@@ -601,9 +611,9 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
     };
 
     auto explode = createGenericBehaviour(strExplode, { g_strEntityStepOn }, onStepOn);
-    m_sysBehaviour.addBehaviour(id, std::move(explode));
+    sysBehaviour.addBehaviour(id, std::move(explode));
 
-    m_sysAnimation.addEntity(id, CAnimation{
+    sysAnimation.addEntity(id, CAnimation{
       .animations = { animExplodeId }
     });
 
@@ -615,6 +625,10 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
 void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& mines)
 {
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(g_strSysGrid));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(g_strSysBehaviour));
+
   std::array<std::array<int, GRID_W>, GRID_H> numbers{};
 
   auto inRange = [](int x, int y) {
@@ -641,10 +655,10 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
         continue;
       }
 
-      auto id = m_componentStore.allocate<CRenderView>();
+      auto id = m_ecs.componentStore().allocate<CRenderView>();
       m_entities.insert(id);
 
-      m_sysGrid.addEntity(id, i, j);
+      sysGrid.addEntity(id, i, j);
 
       CRender render{
         .textureRect = Rectf{
@@ -658,19 +672,21 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
         .zIndex = 0
       };
 
-      m_sysRender.addEntity(id, render);
-      m_sysRender.setVisible(id, !mines.contains({ i, j }));
+      sysRender.addEntity(id, render);
+      sysRender.setVisible(id, !mines.contains({ i, j }));
 
-      auto behaviour = createBNumericTile(m_sysRender, m_eventSystem, id, Vec2i{ i, j }, value);
+      auto behaviour = createBNumericTile(m_ecs, m_eventSystem, id, Vec2i{ i, j }, value);
 
-      m_sysBehaviour.addBehaviour(id, std::move(behaviour));
+      sysBehaviour.addBehaviour(id, std::move(behaviour));
     }
   }
 }
 
 void SceneBuilderImpl::constructGradient()
 {
-  auto id = m_componentStore.allocate<CRenderView>();
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+
+  auto id = m_ecs.componentStore().allocate<CRenderView>();
   m_entities.insert(id);
 
   CRender render{
@@ -685,7 +701,7 @@ void SceneBuilderImpl::constructGradient()
     .zIndex = 9
   };
 
-  m_sysRender.addEntity(id, render);
+  sysRender.addEntity(id, render);
 }
 
 void SceneBuilderImpl::constructCoins()
@@ -715,10 +731,7 @@ void SceneBuilderImpl::constructHud()
 
 } // namespace
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, ComponentStore& componentStore,
-  SysAnimation& sysAnimation, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-  SysRender& sysRender)
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs)
 {
-  return std::make_unique<SceneBuilderImpl>(eventSystem, componentStore, sysAnimation, sysBehaviour,
-    sysGrid, sysRender);  
+  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs);  
 }

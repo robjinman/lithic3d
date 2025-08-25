@@ -6,11 +6,15 @@
 #include "logger.hpp"
 #include "scene_builder.hpp"
 #include "audio_system.hpp"
+#include "renderer.hpp"
 #include "sys_animation.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
-#include "sys_ui.hpp"
+#include "sys_menu.hpp"
+#include "sys_spatial.hpp"
+#include "ecs.hpp"
+#include "systems.hpp"
 #undef max
 #undef min
 
@@ -38,9 +42,8 @@ enum class GameState
 class GameImpl : public Game
 {
   public:
-    GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-      SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-      AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger);
+    GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, const FileSystem& fileSystem,
+      Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -54,13 +57,10 @@ class GameImpl : public Game
   private:
     Logger& m_logger;
     const FileSystem& m_fileSystem;
-    EventSystem& m_eventSystem;
     AudioSystem& m_audioSystem;
-    ComponentStore& m_componentStore;
-    SysRender& m_sysRender;
-    SysGrid& m_sysGrid;
-    SysBehaviour& m_sysBehaviour;
-    SysAnimation& m_sysAnimation;
+    render::Renderer& m_renderer;
+    EventSystemPtr m_eventSystem;
+    EcsPtr m_ecs;
     SceneBuilderPtr m_sceneBuilder;
     InputState m_inputState;
     Vec2f m_leftStickDelta;
@@ -68,80 +68,68 @@ class GameImpl : public Game
     size_t m_currentTick = 0;
     double m_measuredTickRate = 0;
     EntityId m_playerId = 0;
-    std::vector<EntityId> m_pendingDeletion;
     GameState m_gameState;
 
     void measureTickRate();
     void processKeyboardInput();
     void processMouseInput();
-    void playSoundForEvent(const GameEvent& event);
+    void playSoundForEvent(const Event& event);
     void onPlayerDeath();
     void restartGame();
 };
 
-GameImpl::GameImpl(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-  SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-  AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger)
+GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
+  const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
-  , m_eventSystem(eventSystem)
   , m_audioSystem(audioSystem)
-  , m_componentStore(componentStore)
-  , m_sysRender(sysRender)
-  , m_sysGrid(sysGrid)
-  , m_sysBehaviour(sysBehaviour)
-  , m_sysAnimation(sysAnimation)
+  , m_renderer(renderer)
 {
-  static auto strGame = hashString("game");
-  static auto strUi = hashString("ui");
+  m_eventSystem = createEventSystem(m_logger);
+  m_ecs = createEcs(m_logger);
 
-  m_sceneBuilder = createSceneBuilder(m_eventSystem, m_componentStore, m_sysAnimation,
-    m_sysBehaviour, m_sysGrid, m_sysRender);
+  auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_eventSystem, m_logger);
+  auto sysBehaviour = createSysBehaviour();
+  auto sysGrid = createSysGrid(*m_eventSystem);
+  //auto sysMenu = createSysMenu();
+  auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
+  //auto sysSpatial = createSysSpatial();
 
-  m_eventSystem.listen(strGame, [&](const Event& e) {
-    auto& gameEvent = dynamic_cast<const GameEvent&>(e);
+  m_ecs->addSystem(g_strSysAnimation, std::move(sysAnimation));
+  m_ecs->addSystem(g_strSysBehaviour, std::move(sysBehaviour));
+  m_ecs->addSystem(g_strSysGrid, std::move(sysGrid));
+  //m_ecs->addSystem(g_strSysMenu, std::move(sysMenu));
+  m_ecs->addSystem(g_strSysRender, std::move(sysRender));
+  //m_ecs->addSystem(g_strSysSpatial, std::move(sysSpatial));
 
-    playSoundForEvent(gameEvent);
+  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs);
 
-    m_sysRender.processEvent(gameEvent);
-    m_sysGrid.processEvent(gameEvent);
-    m_sysBehaviour.processEvent(gameEvent);
-    m_sysAnimation.processEvent(gameEvent);
+  m_eventSystem->listen([&](const Event& event) {
+    playSoundForEvent(event);
 
-    if (gameEvent.name == g_strPlayerDeath) {
+    m_ecs->processEvent(event);
+
+    if (event.name == g_strPlayerDeath) {
       onPlayerDeath();
     }
-
-    if (gameEvent.name == g_strRequestDeletion) {
-      auto& event = dynamic_cast<const ERequestDeletion&>(gameEvent);
-      m_pendingDeletion.push_back(event.entityId);
-    }
-  });
-
-  m_eventSystem.listen(strUi, [&](const Event& e) {
-    auto& uiEvent = dynamic_cast<const UiEvent&>(e);
-
-    // TODO
   });
 
   restartGame(); // TODO: Start on main menu
+
+  m_renderer.start();
 }
 
 void GameImpl::restartGame()
 {
-  m_eventSystem.processEvents();
+  // Will delete entities pending deletion
+  m_ecs->update(m_currentTick);
 
   auto entities = m_sceneBuilder->entities();
   for (auto id : entities) {
-    DBG_LOG(m_logger, STR("Deleting entity " << id));
-
-    m_sysRender.removeEntity(id);
-    m_sysGrid.removeEntity(id);
-    m_sysBehaviour.removeEntity(id);
-    m_sysAnimation.removeEntity(id);
-
-    m_componentStore.remove(id);
+    m_ecs->removeEntity(id);
   }
+
+  m_eventSystem->dropEvents();
 
   m_playerId = m_sceneBuilder->buildScene();
   m_gameState = GameState::Playing;
@@ -154,7 +142,7 @@ void GameImpl::onPlayerDeath()
   // TODO: Display text
 }
 
-void GameImpl::playSoundForEvent(const GameEvent& event)
+void GameImpl::playSoundForEvent(const Event& event)
 {
   static auto strBang = hashString("bang");
 
@@ -220,30 +208,33 @@ void GameImpl::processKeyboardInput()
   static auto strMoveUp = hashString("move_up");
   static auto strMoveDown = hashString("move_down");
 
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(g_strSysAnimation));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs->system(g_strSysGrid));
+
   switch (m_gameState) {
     case GameState::Playing: {
-      if (m_sysAnimation.hasAnimationPlaying(m_playerId)) {
+      if (sysAnimation.hasAnimationPlaying(m_playerId)) {
         return;
       }
 
       if (m_inputState.left) {
-        if (m_sysGrid.tryMove(m_playerId, -1, 0)) {
-          m_sysAnimation.playAnimation(m_playerId, strMoveLeft);
+        if (sysGrid.tryMove(m_playerId, -1, 0)) {
+          sysAnimation.playAnimation(m_playerId, strMoveLeft);
         }
       }
       else if (m_inputState.right) {
-        if (m_sysGrid.tryMove(m_playerId, 1, 0)) {
-          m_sysAnimation.playAnimation(m_playerId, strMoveRight);
+        if (sysGrid.tryMove(m_playerId, 1, 0)) {
+          sysAnimation.playAnimation(m_playerId, strMoveRight);
         }
       }
       else if (m_inputState.up) {
-        if (m_sysGrid.tryMove(m_playerId, 0, 1)) {
-          m_sysAnimation.playAnimation(m_playerId, strMoveUp);
+        if (sysGrid.tryMove(m_playerId, 0, 1)) {
+          sysAnimation.playAnimation(m_playerId, strMoveUp);
         }
       }
       else if (m_inputState.down) {
-        if (m_sysGrid.tryMove(m_playerId, 0, -1)) {
-          m_sysAnimation.playAnimation(m_playerId, strMoveDown);
+        if (sysGrid.tryMove(m_playerId, 0, -1)) {
+          sysAnimation.playAnimation(m_playerId, strMoveDown);
         }
       }
 
@@ -279,32 +270,14 @@ void GameImpl::update()
   processKeyboardInput();
   processMouseInput();
 
-  m_sysBehaviour.update(m_currentTick);
-  m_sysGrid.update(m_currentTick);
-  m_sysRender.update(m_currentTick);
-  m_sysAnimation.update(m_currentTick);
-
-  m_eventSystem.processEvents();
-
-  for (auto id : m_pendingDeletion) {
-    DBG_LOG(m_logger, STR("Deleting entity " << id));
-
-    m_sysRender.removeEntity(id);
-    m_sysGrid.removeEntity(id);
-    m_sysBehaviour.removeEntity(id);
-    m_sysAnimation.removeEntity(id);
-
-    m_componentStore.remove(id);
-  }
-  m_pendingDeletion.clear();
+  m_ecs->update(m_currentTick);
+  m_eventSystem->processEvents();
 }
 
 } // namespace
 
-GamePtr createGame(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-  SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-  AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger)
+GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem,
+  const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<GameImpl>(componentStore, sysBehaviour, sysGrid, sysRender, sysAnimation,
-    eventSystem, audioSystem, fileSystem, logger);
+  return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger);
 }

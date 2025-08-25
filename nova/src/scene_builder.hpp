@@ -1,7 +1,6 @@
 #pragma once
 
-#include "component_store.hpp"
-#include "system.hpp"
+#include "ecs.hpp"
 #include <memory>
 
 class SceneBuilder
@@ -16,12 +15,5 @@ class SceneBuilder
 using SceneBuilderPtr = std::unique_ptr<SceneBuilder>;
 
 class EventSystem;
-class ComponentStore;
-class SysAnimation;
-class SysBehaviour;
-class SysGrid;
-class SysRender;
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, ComponentStore& componentStore,
-  SysAnimation& sysAnimation, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-  SysRender& sysRender);
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs);

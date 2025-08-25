@@ -1,6 +1,6 @@
 #pragma once
 
-#include "system.hpp"
+#include "ecs.hpp"
 #include "utils.hpp"
 #include "math.hpp"
 #include "component_types.hpp"

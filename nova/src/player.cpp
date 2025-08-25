@@ -5,6 +5,8 @@
 #include "sys_animation.hpp"
 #include "event_system.hpp"
 #include "game_events.hpp"
+#include "events.hpp"
+#include "systems.hpp"
 
 namespace
 {
@@ -16,7 +18,7 @@ class PlayerBehaviour : public CBehaviour
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
-    void processEvent(const GameEvent& event) override;
+    void processEvent(const Event& event) override;
 
   private:
     EntityId m_entityId;
@@ -45,7 +47,7 @@ const std::set<HashedString>& PlayerBehaviour::subscriptions() const
   return subs;
 }
 
-void PlayerBehaviour::processEvent(const GameEvent& event)
+void PlayerBehaviour::processEvent(const Event& event)
 {
   if (event.name == g_strEntityExplode) {
     auto& e = dynamic_cast<const EEntityExplode&>(event);
@@ -58,10 +60,14 @@ void PlayerBehaviour::processEvent(const GameEvent& event)
 
 } // namespace
 
-EntityId constructPlayer(EventSystem& eventSystem, ComponentStore& componentStore, SysGrid& sysGrid,
-  SysRender& sysRender, SysBehaviour& sysBehaviour, SysAnimation& sysAnimation)
+EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
 {
-  auto id = componentStore.allocate<CRenderView>();
+  auto& sysRender = dynamic_cast<SysRender&>(ecs.system(g_strSysRender));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(ecs.system(g_strSysAnimation));
+  auto& sysGrid = dynamic_cast<SysGrid&>(ecs.system(g_strSysGrid));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(ecs.system(g_strSysBehaviour));
+
+  auto id = ecs.componentStore().allocate<CRenderView>();
 
   sysGrid.addEntity(id, 0, 0);
 

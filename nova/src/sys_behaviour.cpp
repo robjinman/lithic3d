@@ -1,4 +1,5 @@
 #include "sys_behaviour.hpp"
+#include "event_system.hpp"
 #include <vector>
 #include <map>
 #include <cassert>
@@ -11,8 +12,8 @@ class SysBehaviourImpl : public SysBehaviour
   public:
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick tick) override {}
-    void processEvent(const GameEvent& event) override;
+    void update(Tick) override {}
+    void processEvent(const Event& event) override;
 
     void addBehaviour(EntityId entityId, CBehaviourPtr behaviour) override;
     CBehaviour& getBehaviour(EntityId entityId, HashedString name) override;
@@ -58,7 +59,7 @@ bool SysBehaviourImpl::hasEntity(EntityId entityId) const
   return m_behaviours.contains(entityId);
 }
 
-void SysBehaviourImpl::processEvent(const GameEvent& event)
+void SysBehaviourImpl::processEvent(const Event& event)
 {
   if (event.targets.empty()) {
     auto i = m_subscriptions.find(event.name);

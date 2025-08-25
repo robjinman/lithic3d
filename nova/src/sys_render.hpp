@@ -1,6 +1,6 @@
 #pragma once
 
-#include "system.hpp"
+#include "ecs.hpp"
 #include "utils.hpp"
 #include "math.hpp"
 #include "component_types.hpp"
@@ -17,6 +17,7 @@ struct CRender
 };
 
 // Matches layout of private CRenderData, with only public fields visible
+// TODO: Split into smaller components
 struct CRenderView
 {
   Vec2f pos;

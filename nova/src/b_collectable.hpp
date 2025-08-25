@@ -2,9 +2,9 @@
 
 #include "sys_behaviour.hpp"
 
-class SysAnimation;
+class Ecs;
 class EventSystem;
 
 // Entity must have an animation component with a "collect" animation
-CBehaviourPtr createBCollectable(SysAnimation& sysAnimation, EventSystem& eventSystem,
-  EntityId entityId, EntityId playerId, int value);
+CBehaviourPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+  EntityId playerId, int value);

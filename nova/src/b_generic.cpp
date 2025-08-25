@@ -10,7 +10,7 @@ class BGeneric : public CBehaviour
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
-    void processEvent(const GameEvent& event) override;
+    void processEvent(const Event& event) override;
 
   private:
     HashedString m_name;
@@ -35,7 +35,7 @@ const std::set<HashedString>& BGeneric::subscriptions() const
   return m_subscriptions;
 }
 
-void BGeneric::processEvent(const GameEvent& event)
+void BGeneric::processEvent(const Event& event)
 {
   m_fn(event);
 }

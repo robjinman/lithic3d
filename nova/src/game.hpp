@@ -60,16 +60,10 @@ class Game
 
 using GamePtr = std::unique_ptr<Game>;
 
-class ComponentStore;
+namespace render { class Renderer; }
+class AudioSystem;
 class FileSystem;
 class Logger;
-class AudioSystem;
-class EventSystem;
-class SysBehaviour;
-class SysGrid;
-class SysRender;
-class SysAnimation;
 
-GamePtr createGame(ComponentStore& componentStore, SysBehaviour& sysBehaviour, SysGrid& sysGrid,
-  SysRender& sysRender, SysAnimation& sysAnimation, EventSystem& eventSystem,
-  AudioSystem& audioSystem, const FileSystem& fileSystem, Logger& logger);
+GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem,
+  const FileSystem& fileSystem, Logger& logger);

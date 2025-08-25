@@ -1,26 +1,32 @@
 #pragma once
 
-#include "utils.hpp"
+#include "ecs.hpp"
 #include <functional>
 #include <memory>
 
 class Event
 {
   public:
-    Event(HashedString name)
-      : m_name(name) {}
+    explicit Event(HashedString name)
+      : name(name) {}
 
-    virtual HashedString name() const
+    Event(HashedString name, const EntityIdSet& targets)
+      : name(name)
+      , targets(targets) {}
+
+    virtual std::string toString() const
     {
-      return m_name;
+      std::stringstream ss;
+      ss << getHashedString(name) << ", targets = [ ";
+      for (auto id : targets) {
+        ss << id << " ";
+      }
+      ss << "]";
+      return ss.str();
     }
 
-    virtual std::string toString() const = 0;
-
-    virtual ~Event() {};
-
-  private:
-    HashedString m_name;
+    HashedString name;
+    EntityIdSet targets;
 };
 
 using EventPtr = std::unique_ptr<Event>;
@@ -30,9 +36,11 @@ using EventHandlerFn = std::function<void(const Event&)>;
 class EventSystem
 {
   public:
+    virtual void listen(EventHandlerFn handler) = 0;
     virtual void listen(HashedString name, EventHandlerFn handler) = 0;
     virtual void queueEvent(EventPtr event) = 0;
     virtual void processEvents() = 0;
+    virtual void dropEvents() = 0;
 };
 
 using EventSystemPtr = std::unique_ptr<EventSystem>;

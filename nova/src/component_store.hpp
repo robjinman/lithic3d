@@ -359,3 +359,5 @@ class ComponentStore
     GroupMap m_groups;
     std::map<EntityId, Archetype> m_archetypes;
 };
+
+using ComponentStorePtr = std::unique_ptr<ComponentStore>;

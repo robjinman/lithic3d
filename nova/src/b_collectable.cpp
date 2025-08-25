@@ -2,6 +2,8 @@
 #include "event_system.hpp"
 #include "sys_animation.hpp"
 #include "game_events.hpp"
+#include "systems.hpp"
+#include "events.hpp"
 
 namespace
 {
@@ -9,24 +11,24 @@ namespace
 class BCollectable : public CBehaviour
 {
   public:
-    BCollectable(SysAnimation& sysAnimation, EventSystem& eventSystem, EntityId entityId,
-      EntityId playerId, int value);
+    BCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
+      int value);
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
-    void processEvent(const GameEvent& event) override;
+    void processEvent(const Event& event) override;
 
   private:
-    SysAnimation& m_sysAnimation;
+    Ecs& m_ecs;
     EventSystem& m_eventSystem;
     EntityId m_entityId;
     EntityId m_playerId;
     uint32_t m_value = 0;
 };
 
-BCollectable::BCollectable(SysAnimation& sysAnimation, EventSystem& eventSystem, EntityId entityId,
-  EntityId playerId, int value)
-  : m_sysAnimation(sysAnimation)
+BCollectable::BCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
+  int value)
+  : m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_entityId(entityId)
   , m_playerId(playerId)
@@ -48,15 +50,16 @@ const std::set<HashedString>& BCollectable::subscriptions() const
   return subs;
 }
 
-void BCollectable::processEvent(const GameEvent& event)
+void BCollectable::processEvent(const Event& event)
 {
   static HashedString strCollect = hashString("collect");
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
 
   if (event.name == g_strEntityStepOn) {
     auto& e = dynamic_cast<const EEntityStepOn&>(event);
 
     if (e.entityId == m_playerId) {
-      m_sysAnimation.playAnimation(m_entityId, strCollect);
+      sysAnimation.playAnimation(m_entityId, strCollect);
       m_eventSystem.queueEvent(std::make_unique<EItemCollect>(m_entityId, m_value));
     }
   }
@@ -71,8 +74,8 @@ void BCollectable::processEvent(const GameEvent& event)
 
 } // namespace
 
-CBehaviourPtr createBCollectable(SysAnimation& sysAnimation, EventSystem& eventSystem,
-  EntityId entityId, EntityId playerId, int value)
+CBehaviourPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+  EntityId playerId, int value)
 {
-  return std::make_unique<BCollectable>(sysAnimation, eventSystem, entityId, playerId, value);
+  return std::make_unique<BCollectable>(ecs, eventSystem, entityId, playerId, value);
 }
