@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sys_behaviour.hpp"
+#include <functional>
 
 using BehaviourFn = std::function<void(const Event&)>;
 
