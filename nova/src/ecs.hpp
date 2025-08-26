@@ -6,7 +6,7 @@
 #include <set>
 #include <memory>
 
-using SystemName = HashedString;
+using SystemId = uint32_t;
 
 using EntityIdSet = std::set<EntityId>;
 
@@ -28,9 +28,9 @@ using SystemPtr = std::unique_ptr<System>;
 class Ecs
 {
   public:
-    virtual void addSystem(SystemName name, SystemPtr system) = 0;
-    virtual System& system(SystemName name) = 0;
-    virtual const System& system(SystemName name) const = 0;
+    virtual void addSystem(SystemId id, SystemPtr system) = 0;
+    virtual System& system(SystemId id) = 0;
+    virtual const System& system(SystemId id) const = 0;
     virtual void update(Tick tick) = 0;
     virtual void processEvent(const Event& event) = 0;
     // Warning: This will immediately delete the entity. Consider firing ERequestDeletion instead.

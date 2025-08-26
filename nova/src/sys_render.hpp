@@ -8,21 +8,12 @@
 struct CRender
 {
   Rectf textureRect;
-  Vec2f size;
-  Vec2f pos;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
-
-  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
 };
 
-// Matches layout of private CRenderData, with only public fields visible
-// TODO: Split into smaller components
 struct CRenderView
 {
-  Vec2f pos;
-  Vec2f size;
-  Vec2f scale;
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex;

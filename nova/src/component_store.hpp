@@ -12,7 +12,9 @@
 #include <concepts>
 
 using EntityId = size_t;
-using ComponentType = size_t;
+using ComponentType = uint64_t;
+
+const EntityId NULL_ENTITY = 0;
 
 struct IComponentArray
 {
@@ -31,7 +33,7 @@ template<typename T>
 class ComponentArray : public IComponentArray
 {
   static_assert(std::is_default_constructible_v<T>);
-  static_assert(std::is_trivially_copyable_v<T>);
+  //static_assert(std::is_trivially_copyable_v<T>);
   static_assert(T::TypeId && (T::TypeId & (T::TypeId - 1)) == 0, "TypeId must be power of 2");
 
   friend class ComponentArrayGroup;
@@ -335,6 +337,16 @@ class ComponentStore
       return m_archetypes.contains(entityId);
     }
 
+    ComponentArrayGroup& group(EntityId entityId)
+    {
+      return m_groups.at(m_archetypes.at(entityId));
+    }
+
+    const ComponentArrayGroup& group(EntityId entityId) const
+    {
+      return m_groups.at(m_archetypes.at(entityId));
+    }
+
     template<typename T>
     bool hasComponentForEntity(EntityId entityId) const
     {
@@ -355,9 +367,9 @@ class ComponentStore
     }
 
   private:
-    EntityId m_nextId = 0;
+    EntityId m_nextId = 1;
     GroupMap m_groups;
-    std::map<EntityId, Archetype> m_archetypes;
+    std::map<EntityId, Archetype> m_archetypes; // TODO: Use unsorted_map
 };
 
 using ComponentStorePtr = std::unique_ptr<ComponentStore>;

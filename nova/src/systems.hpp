@@ -1,10 +1,11 @@
 #pragma once
 
-#include "utils.hpp"
+#include "ecs.hpp"
 
-const HashedString g_strSysAnimation = hashString("sys_animation");
-const HashedString g_strSysBehaviour = hashString("sys_behaviour");
-const HashedString g_strSysGrid = hashString("sys_grid");
-const HashedString g_strSysRender = hashString("sys_render");
-const HashedString g_strSysSpatial = hashString("sys_spatial");
-const HashedString g_strSysMenu = hashString("sys_menu");
+// Systems are updating in order
+const uint32_t ANIMATION_SYSTEM = 0;
+const uint32_t SPATIAL_SYSTEM = 1;
+const uint32_t BEHAVIOUR_SYSTEM = 2;
+const uint32_t GRID_SYSTEM = 3;
+const uint32_t MENU_SYSTEM = 4;
+const uint32_t RENDER_SYSTEM = 5;

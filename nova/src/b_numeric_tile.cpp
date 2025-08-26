@@ -51,7 +51,7 @@ const std::set<HashedString>& BNumericTile::subscriptions() const
 
 void BNumericTile::processEvent(const Event& e)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   if (e.name == g_strEntityExplode) {
     auto& event = dynamic_cast<const EEntityExplode&>(e);
@@ -75,7 +75,7 @@ void BNumericTile::processEvent(const Event& e)
         }
       }
       else {
-        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+        //m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
       }
     }
   }

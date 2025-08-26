@@ -4,6 +4,7 @@
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
 #include "sys_menu.hpp"
+#include "sys_spatial.hpp"
 #include "ecs.hpp"
 #include "b_collectable.hpp"
 #include "b_numeric_tile.hpp"
@@ -16,6 +17,13 @@
 
 namespace
 {
+
+// TODO: Move this
+Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
+{
+  return translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+    scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+}
 
 class SceneBuilderImpl : public SceneBuilder
 {
@@ -88,8 +96,22 @@ void SceneBuilderImpl::constructMenus()
 
 void SceneBuilderImpl::constructSky()
 {
-  auto id = m_ecs.componentStore().allocate<CRenderView>();
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
   m_entities.insert(id);
+
+  Vec2f size{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H };
+  Vec2f pos{ 0.f, 12.f * GRID_CELL_H };
+
+  CSpatial spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = sysSpatial.root(),
+    .isActive = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
 
   CRender render{
     .textureRect = Rectf{
@@ -98,12 +120,9 @@ void SceneBuilderImpl::constructSky()
       .w = pxToUvW(128.f),
       .h = pxToUvH(32.f)
     },
-    .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
-    .pos = Vec2f{ 0.f, 12.f * GRID_CELL_H },
     .zIndex = 0
   };
 
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
   sysRender.addEntity(id, render);
 }
 
@@ -111,8 +130,9 @@ void SceneBuilderImpl::constructClouds()
 {
   static auto strIdle = hashString("idle");
 
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
   long animationDuration = 7200;
 
@@ -121,7 +141,8 @@ void SceneBuilderImpl::constructClouds()
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
+        .pos = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
         .colour = std::nullopt
       }
@@ -131,8 +152,19 @@ void SceneBuilderImpl::constructClouds()
   auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
 
   {
-    auto id = m_ecs.componentStore().allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
     m_entities.insert(id);
+
+    Vec2f size{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H };
+    Vec2f pos{ GRID_CELL_W * GRID_W, 0.8f };
+
+    CSpatial spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = sysSpatial.root(),
+      .isActive = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
 
     CRender render{
       .textureRect = Rectf{
@@ -141,8 +173,6 @@ void SceneBuilderImpl::constructClouds()
         .w = pxToUvW(128.f),
         .h = pxToUvH(32.f)
       },
-      .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
-      .pos = Vec2f{ GRID_CELL_W * GRID_W, 0.8f },
       .zIndex = 1,
       .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
@@ -160,8 +190,19 @@ void SceneBuilderImpl::constructClouds()
   }
 
   {
-    auto id = m_ecs.componentStore().allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
     m_entities.insert(id);
+
+    Vec2f size{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H };
+    Vec2f pos{ GRID_CELL_W * GRID_W, 0.8f };
+
+    CSpatial spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = sysSpatial.root(),
+      .isActive = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
 
     CRender render{
       .textureRect = Rectf{
@@ -170,8 +211,6 @@ void SceneBuilderImpl::constructClouds()
         .w = pxToUvW(128.f),
         .h = pxToUvH(32.f)
       },
-      .size = Vec2f{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H },
-      .pos = Vec2f{ GRID_CELL_W * GRID_W, 0.8f },
       .zIndex = 1,
       .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
@@ -190,11 +229,23 @@ void SceneBuilderImpl::constructClouds()
 
 void SceneBuilderImpl::constructTrees()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
-  auto id = m_ecs.componentStore().allocate<CRenderView>();
+  auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
   m_entities.insert(id);
 
+  Vec2f size{ GRID_CELL_W * GRID_W, 3.f * GRID_CELL_H };
+  Vec2f pos{ 0.f, 11.f * GRID_CELL_H };
+
+  CSpatial spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = sysSpatial.root(),
+    .isActive = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+  
   CRender render{
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
@@ -202,8 +253,6 @@ void SceneBuilderImpl::constructTrees()
       .w = pxToUvW(256.f),
       .h = pxToUvH(40.f)
     },
-    .size = Vec2f{ GRID_CELL_W * GRID_W, 3.f * GRID_CELL_H },
-    .pos = Vec2f{ 0.f, 11.f * GRID_CELL_H },
     .zIndex = 2
   };
 
@@ -212,13 +261,25 @@ void SceneBuilderImpl::constructTrees()
 
 void SceneBuilderImpl::constructFakeSoil()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   for (size_t i = 0; i < GRID_W; ++i) {
-    auto id = m_ecs.componentStore().allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
     m_entities.insert(id);
 
     float_t x = GRID_CELL_W * i;
+
+    Vec2f size{ GRID_CELL_W, GRID_CELL_H };
+    Vec2f pos{ x, 11.f * GRID_CELL_H };
+
+    CSpatial spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = sysSpatial.root(),
+      .isActive = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
 
     CRender render{
       .textureRect = Rectf{
@@ -227,8 +288,6 @@ void SceneBuilderImpl::constructFakeSoil()
         .w = pxToUvW(16.f),
         .h = pxToUvH(16.f)
       },
-      .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
-      .pos = Vec2f{ x, 11.f * GRID_CELL_H },
       .zIndex = 1
     };
 
@@ -238,10 +297,11 @@ void SceneBuilderImpl::constructFakeSoil()
 
 void SceneBuilderImpl::constructSoil()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(g_strSysGrid));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(g_strSysBehaviour));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   long animationDuration = 16;
 
@@ -250,7 +310,8 @@ void SceneBuilderImpl::constructSoil()
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -260,7 +321,8 @@ void SceneBuilderImpl::constructSoil()
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.875f }
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -270,7 +332,8 @@ void SceneBuilderImpl::constructSoil()
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.75f }
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -280,7 +343,8 @@ void SceneBuilderImpl::constructSoil()
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.625f }
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -290,7 +354,8 @@ void SceneBuilderImpl::constructSoil()
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -300,7 +365,8 @@ void SceneBuilderImpl::constructSoil()
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.375f }
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -310,7 +376,8 @@ void SceneBuilderImpl::constructSoil()
         .colour = Vec4f{ 1.f, 1.f, 1.f, 0.25f }
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -330,13 +397,24 @@ void SceneBuilderImpl::constructSoil()
         continue;
       }
 
-      auto id = m_ecs.componentStore().allocate<CRenderView>();
+      auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
       m_entities.insert(id);
 
       sysGrid.addEntity(id, i, j);
 
       float_t x = GRID_CELL_W * i;
       float_t y = GRID_CELL_H * j;
+
+      Vec2f size{ GRID_CELL_W, GRID_CELL_H };
+      Vec2f pos{ x, y };
+
+      CSpatial spatial{
+        .transform = spriteTransform(pos, size),
+        .parent = sysSpatial.root(),
+        .isActive = true
+      };
+
+      sysSpatial.addEntity(id, spatial);
 
       CRender render{
         .textureRect = Rectf{
@@ -345,8 +423,6 @@ void SceneBuilderImpl::constructSoil()
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
-        .pos = Vec2f{ x, y },
         .zIndex = 1
       };
 
@@ -366,10 +442,11 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 {
   static auto strExplode = hashString("explode");
 
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(g_strSysAnimation));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(g_strSysGrid));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(g_strSysBehaviour));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   size_t numMines = 40; // TODO
 
@@ -378,7 +455,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
     .duration = 30,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
@@ -389,7 +466,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
@@ -400,7 +477,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
@@ -411,7 +488,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(640.f),
@@ -422,7 +499,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
@@ -433,7 +510,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
@@ -444,7 +521,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
@@ -455,7 +532,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(640.f),
@@ -466,7 +543,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
@@ -477,7 +554,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
@@ -488,7 +565,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
@@ -499,7 +576,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(640.f),
@@ -510,7 +587,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
@@ -521,7 +598,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(512.f),
@@ -532,7 +609,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.f },
+        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
         .scale = Vec2f{ 2.f, 2.f },
         .textureRect = Rectf{
           .x = pxToUvX(576.f),
@@ -565,13 +642,24 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
-    auto id = m_ecs.componentStore().allocate<CRenderView>();
+    auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
     m_entities.insert(id);
 
     int x = coords[i][0];
     int y = coords[i][1];
 
     sysGrid.addEntity(id, x, y);
+
+    Vec2f size{ GRID_CELL_W, GRID_CELL_H };
+    Vec2f pos{ GRID_CELL_W * x, GRID_CELL_H * y };
+
+    CSpatial spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = sysSpatial.root(),
+      .isActive = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
 
     CRender render{
       .textureRect = Rectf{
@@ -580,8 +668,6 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .w = pxToUvW(32.f),
         .h = pxToUvH(32.f)
       },
-      .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
-      .pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y },
       .zIndex = 0
     };
 
@@ -625,9 +711,10 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
 void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& mines)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(g_strSysGrid));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(g_strSysBehaviour));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   std::array<std::array<int, GRID_W>, GRID_H> numbers{};
 
@@ -655,10 +742,21 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
         continue;
       }
 
-      auto id = m_ecs.componentStore().allocate<CRenderView>();
+      auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
       m_entities.insert(id);
 
       sysGrid.addEntity(id, i, j);
+
+      Vec2f size{ GRID_CELL_W, GRID_CELL_H };
+      Vec2f pos{ GRID_CELL_W * i, GRID_CELL_H * j };
+
+      CSpatial spatial{
+        .transform = spriteTransform(pos, size),
+        .parent = sysSpatial.root(),
+        .isActive = true
+      };
+
+      sysSpatial.addEntity(id, spatial);
 
       CRender render{
         .textureRect = Rectf{
@@ -667,8 +765,6 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .size = Vec2f{ GRID_CELL_W, GRID_CELL_H },
-        .pos = Vec2f{ GRID_CELL_W * i, GRID_CELL_H * j },
         .zIndex = 0
       };
 
@@ -684,10 +780,22 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
 
 void SceneBuilderImpl::constructGradient()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(g_strSysRender));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
-  auto id = m_ecs.componentStore().allocate<CRenderView>();
+  auto id = m_ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
   m_entities.insert(id);
+
+  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * (5 + GRID_H) };
+  Vec2f pos{ 0.f, 0.f };
+
+  CSpatial spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = sysSpatial.root(),
+    .isActive = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
 
   CRender render{
     .textureRect = Rectf{
@@ -696,8 +804,6 @@ void SceneBuilderImpl::constructGradient()
       .w = pxToUvW(128.f),
       .h = pxToUvH(128.f)
     },
-    .size = Vec2f{ GRID_CELL_W * GRID_W, GRID_CELL_H * (5 + GRID_H) },
-    .pos = Vec2f{ 0.f, 0.f },
     .zIndex = 9
   };
 

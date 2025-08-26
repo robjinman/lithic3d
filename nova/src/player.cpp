@@ -2,6 +2,7 @@
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
+#include "sys_spatial.hpp"
 #include "sys_animation.hpp"
 #include "event_system.hpp"
 #include "game_events.hpp"
@@ -10,6 +11,13 @@
 
 namespace
 {
+
+// TODO: Move this
+Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
+{
+  return translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+    scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+}
 
 class PlayerBehaviour : public CBehaviour
 {
@@ -62,14 +70,26 @@ void PlayerBehaviour::processEvent(const Event& event)
 
 EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(ecs.system(g_strSysRender));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(ecs.system(g_strSysAnimation));
-  auto& sysGrid = dynamic_cast<SysGrid&>(ecs.system(g_strSysGrid));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(ecs.system(g_strSysBehaviour));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(ecs.system(RENDER_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(ecs.system(ANIMATION_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(ecs.system(BEHAVIOUR_SYSTEM));
 
-  auto id = ecs.componentStore().allocate<CRenderView>();
+  auto id = ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
 
   sysGrid.addEntity(id, 0, 0);
+
+  Vec2f size{ 0.0625f, 0.0625f };
+  Vec2f pos{ 0.f, 0.f };
+
+  CSpatial spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = sysSpatial.root(),
+    .isActive = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
 
   CRender render{
     .textureRect = Rectf{
@@ -78,21 +98,21 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
       .w = pxToUvW(32.f),
       .h = pxToUvH(48.f)
     },
-    .size = Vec2f{ 0.0625f, 0.0625f },
-    .pos = Vec2f{ 0.f, 0.f },
     .zIndex = 2
   };
 
   sysRender.addEntity(id, render);
 
   long animationDuration = 16;
+  float_t delta = 0.015625f;
 
   auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ -0.015625f, 0.f },
+        .pos = Vec2f{ -delta * 1.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(352.f, 48.f),
@@ -102,7 +122,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ -0.015625f, 0.f },
+        .pos = Vec2f{ -delta * 2.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(416.f),
           .y = pxToUvY(352.f, 48.f),
@@ -112,7 +133,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ -0.015625f, 0.f },
+        .pos = Vec2f{ -delta * 3.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(352.f, 48.f),
@@ -122,7 +144,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ -0.015625f, 0.f },
+        .pos = Vec2f{ -delta * 4.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(480.f),
           .y = pxToUvY(352.f, 48.f),
@@ -139,7 +162,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ 0.015625f, 0.f },
+        .pos = Vec2f{ delta * 1.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(304.f, 48.f),
@@ -149,7 +173,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.015625f, 0.f },
+        .pos = Vec2f{ delta * 2.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(416.f),
           .y = pxToUvY(304.f, 48.f),
@@ -159,7 +184,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.015625f, 0.f },
+        .pos = Vec2f{ delta * 3.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(304.f, 48.f),
@@ -169,7 +195,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.015625f, 0.f },
+        .pos = Vec2f{ delta * 4.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(480.f),
           .y = pxToUvY(304.f, 48.f),
@@ -186,7 +213,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.015625f },
+        .pos = Vec2f{ 0.f, delta * 1.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(256.f, 48.f),
@@ -196,7 +224,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.015625f },
+        .pos = Vec2f{ 0.f, delta * 2.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(416.f),
           .y = pxToUvY(256.f, 48.f),
@@ -206,7 +235,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.015625f },
+        .pos = Vec2f{ 0.f, delta * 3.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(256.f, 48.f),
@@ -216,7 +246,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, 0.015625f },
+        .pos = Vec2f{ 0.f, delta * 4.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(480.f),
           .y = pxToUvY(256.f, 48.f),
@@ -233,7 +264,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
     .duration = animationDuration,
     .frames = {
       AnimationFrame{
-        .delta = Vec2f{ 0.f, -0.015625f },
+        .pos = Vec2f{ 0.f, -delta * 1.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(400.f, 48.f),
@@ -243,7 +275,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, -0.015625f },
+        .pos = Vec2f{ 0.f, -delta * 2.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(416.f),
           .y = pxToUvY(400.f, 48.f),
@@ -253,7 +286,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, -0.015625f },
+        .pos = Vec2f{ 0.f, -delta * 3.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(448.f),
           .y = pxToUvY(400.f, 48.f),
@@ -263,7 +297,8 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
         .colour = std::nullopt
       },
       AnimationFrame{
-        .delta = Vec2f{ 0.f, -0.015625f },
+        .pos = Vec2f{ 0.f, -delta * 4.f },
+        .scale = Vec2f{ 1.f, 1.f },
         .textureRect = Rectf{
           .x = pxToUvX(480.f),
           .y = pxToUvY(400.f, 48.f),

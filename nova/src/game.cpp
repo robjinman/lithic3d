@@ -93,14 +93,14 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   auto sysGrid = createSysGrid(*m_eventSystem);
   //auto sysMenu = createSysMenu();
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
-  //auto sysSpatial = createSysSpatial();
+  auto sysSpatial = createSysSpatial(m_ecs->componentStore());
 
-  m_ecs->addSystem(g_strSysAnimation, std::move(sysAnimation));
-  m_ecs->addSystem(g_strSysBehaviour, std::move(sysBehaviour));
-  m_ecs->addSystem(g_strSysGrid, std::move(sysGrid));
-  //m_ecs->addSystem(g_strSysMenu, std::move(sysMenu));
-  m_ecs->addSystem(g_strSysRender, std::move(sysRender));
-  //m_ecs->addSystem(g_strSysSpatial, std::move(sysSpatial));
+  m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
+  m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
+  m_ecs->addSystem(GRID_SYSTEM, std::move(sysGrid));
+  //m_ecs->addSystem(MENU_SYSTEM, std::move(sysMenu));
+  m_ecs->addSystem(RENDER_SYSTEM, std::move(sysRender));
+  m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
 
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs);
 
@@ -132,6 +132,7 @@ void GameImpl::restartGame()
   m_eventSystem->dropEvents();
 
   m_playerId = m_sceneBuilder->buildScene();
+  m_logger.info(STR("Player id = " << m_playerId));
   m_gameState = GameState::Playing;
 }
 
@@ -208,8 +209,8 @@ void GameImpl::processKeyboardInput()
   static auto strMoveUp = hashString("move_up");
   static auto strMoveDown = hashString("move_down");
 
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(g_strSysAnimation));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs->system(g_strSysGrid));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(ANIMATION_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs->system(GRID_SYSTEM));
 
   switch (m_gameState) {
     case GameState::Playing: {

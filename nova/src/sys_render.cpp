@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include "time.hpp"
 #include "file_system.hpp"
+#include "sys_spatial.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -173,9 +174,6 @@ double SysRenderImpl::frameRate() const
 void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 {
   m_componentStore.component<CRenderData>(entityId) = CRenderData{
-    .pos = data.pos,
-    .size = data.size,
-    .scale = Vec2f{ 1.f, 1.f },
     .textureRect = data.textureRect,
     .colour = data.colour,
     .zIndex = data.zIndex,
@@ -229,6 +227,7 @@ void SysRenderImpl::update(Tick tick)
     for (auto& group : m_componentStore.components<CRenderData>()) {
       size_t n = group.numEntities();
       auto renderComps = group.components<CRenderData>();
+      auto globalTs = group.components<CGlobalTransform>();
       auto& entityIds = group.entityIds();
 
       for (size_t i = 0; i < n; ++i) {
@@ -237,13 +236,7 @@ void SysRenderImpl::update(Tick tick)
           continue;
         }
 
-        Vec3f pos{ item.pos[0], item.pos[1], 0.f };
-        Vec3f scale{
-          item.size[0] * item.scale[0],
-          item.size[1] * item.scale[1],
-          1.f
-        };
-        auto t = translationMatrix4x4(pos) * scaleMatrix4x4(scale);
+        auto& t = globalTs[i].transform;
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
         std::array<Vec2f, 4> uvCoords{

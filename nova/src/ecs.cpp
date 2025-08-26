@@ -3,7 +3,7 @@
 #include "logger.hpp"
 #include "component_store.hpp"
 #include "events.hpp"
-#include <unordered_map>
+#include <map>
 
 namespace
 {
@@ -13,9 +13,9 @@ class EcsImpl : public Ecs
   public:
     explicit EcsImpl(Logger& logger);
 
-    void addSystem(SystemName name, SystemPtr system) override;
-    System& system(SystemName name) override;
-    const System& system(SystemName name) const override;
+    void addSystem(SystemId id, SystemPtr system) override;
+    System& system(SystemId id) override;
+    const System& system(SystemId id) const override;
     void update(Tick tick) override;
     void processEvent(const Event& event) override;
     void removeEntity(EntityId entityId) override;
@@ -26,7 +26,7 @@ class EcsImpl : public Ecs
     Logger& m_logger;
     ComponentStorePtr m_componentStore;
     std::vector<EntityId> m_pendingDeletion;
-    std::unordered_map<SystemName, SystemPtr> m_systems;
+    std::map<SystemId, SystemPtr> m_systems;
 
     void handleEvent(const Event& event);
     void deletePending();
@@ -38,19 +38,19 @@ EcsImpl::EcsImpl(Logger& logger)
   m_componentStore = std::make_unique<ComponentStore>();
 }
 
-void EcsImpl::addSystem(SystemName name, SystemPtr system)
+void EcsImpl::addSystem(SystemId id, SystemPtr system)
 {
-  m_systems.insert({ name, std::move(system) });
+  m_systems.insert({ id, std::move(system) });
 }
 
-System& EcsImpl::system(SystemName name)
+System& EcsImpl::system(SystemId id)
 {
-  return *m_systems.at(name);
+  return *m_systems.at(id);
 }
 
-const System& EcsImpl::system(SystemName name) const
+const System& EcsImpl::system(SystemId id) const
 {
-  return *m_systems.at(name);
+  return *m_systems.at(id);
 }
 
 void EcsImpl::update(Tick tick)
@@ -73,9 +73,9 @@ void EcsImpl::processEvent(const Event& event)
 
 void EcsImpl::removeEntity(EntityId entityId)
 {
-  for (auto& entry : m_systems) {
-    DBG_LOG(m_logger, STR("Deleting entity " << entityId));
+  DBG_LOG(m_logger, STR("Deleting entity " << entityId));
 
+  for (auto& entry : m_systems) {
     entry.second->removeEntity(entityId);
   }
   m_componentStore->remove(entityId);
@@ -102,10 +102,7 @@ void EcsImpl::handleEvent(const Event& event)
 void EcsImpl::deletePending()
 {
   for (auto id : m_pendingDeletion) {
-    DBG_LOG(m_logger, STR("Deleting entity " << id));
-
     removeEntity(id);
-    m_componentStore->remove(id);
   }
   m_pendingDeletion.clear();
 }

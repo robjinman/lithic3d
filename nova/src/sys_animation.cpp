@@ -1,5 +1,6 @@
 #include "sys_animation.hpp"
 #include "sys_render.hpp"
+#include "sys_spatial.hpp"
 #include "game_events.hpp"
 #include <chrono>
 #include <map>
@@ -14,7 +15,7 @@ struct AnimationState
   HashedString name;
   bool isPlaying = false;
   Tick timeStarted = 0;
-  Vec2f startPos;
+  Mat4x4f initialT;
   Vec4f startColour;
   bool repeats = false;
 };
@@ -81,32 +82,32 @@ void SysAnimationImpl::update(Tick tick)
 
     auto& anim = *m_animations.at(animState.id);
     auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+    auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
 
     size_t numFrames = anim.frames.size();
     Tick elapsed = tick - animState.timeStarted;
     float_t fractionComplete = static_cast<float_t>(elapsed) / anim.duration;
     float_t frameNumFloat = fractionComplete * numFrames;
     size_t frameNumInt = static_cast<size_t>(frameNumFloat);
-    float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
 
     assert(numFrames > 0);
     assert(frameNumInt <= numFrames);
 
-    Vec2f delta;
-    for (size_t f = 0; f < frameNumInt; ++f) {
-      delta += anim.frames[f].delta;
-    }
-    delta += anim.frames[frameNumInt].delta * fractionOfFrameComplete;
-    renderComp.pos = animState.startPos + delta;
-
     if (frameNumInt == numFrames) {
+      auto& frame = anim.frames[frameNumInt - 1];
+
+      Vec3f pos{ frame.pos[0], frame.pos[1], 0.f };
+      Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
+
+      localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
+
       animState.isPlaying = false;
 
       auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
       m_eventSystem.queueEvent(std::move(e));
 
       if (animState.repeats) {
-        renderComp.pos = animState.startPos;
+        localTComp.transform = animState.initialT;
         toRepeat.push_back({ entityId, anim.name });
       }
 
@@ -114,9 +115,21 @@ void SysAnimationImpl::update(Tick tick)
       if (i == m_activeAnimation.end()) {
         break;
       }
+
+      continue;
     }
     else {
+      float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
       auto& frame = anim.frames[frameNumInt];
+
+      Vec2f prevPos = frameNumInt > 0 ? anim.frames[frameNumInt - 1].pos : Vec2f{};
+      Vec2f delta = frame.pos - prevPos;
+      Vec2f interp = prevPos + delta * fractionOfFrameComplete;
+
+      Vec3f pos{ interp[0], interp[1], 0.f };
+      Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
+
+      localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
 
       if (frame.textureRect.has_value()) {
         renderComp.textureRect = frame.textureRect.value();
@@ -124,7 +137,6 @@ void SysAnimationImpl::update(Tick tick)
       if (frame.colour.has_value()) {
         renderComp.colour = frame.colour.value();
       }
-      renderComp.scale = frame.scale; // TODO: Interpolate?
     }
   }
 
@@ -168,6 +180,7 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
   auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);
 
@@ -176,7 +189,7 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
     .name = name,
     .isPlaying = true,
     .timeStarted = m_currentTick,
-    .startPos = renderComp.pos,
+    .initialT = localTComp.transform,
     .startColour = renderComp.colour,
     .repeats = repeat
   }});
