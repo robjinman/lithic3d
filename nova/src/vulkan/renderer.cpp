@@ -776,7 +776,7 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 {
   for (auto& mode : availableModes) {
     if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      return mode;
+      //return mode;
     }
   }
 

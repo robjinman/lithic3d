@@ -259,8 +259,8 @@ void GameImpl::processMouseInput()
 void GameImpl::measureTickRate()
 {
   ++m_currentTick;
-  if (m_currentTick % TICKS_PER_SECOND == 0) {
-    m_measuredTickRate = TICKS_PER_SECOND / m_timer.elapsed();
+  if (m_currentTick % 10 == 0) {
+    m_measuredTickRate = 10.f / m_timer.elapsed();
     m_timer.reset();
   }
 }

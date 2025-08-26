@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <cassert>
 #include <stdexcept>
 #include <memory>
@@ -146,9 +146,9 @@ class ComponentArrayGroup
     }
 
   private:
-    std::map<ComponentType, ComponentArrayPtr> m_componentData;
+    std::unordered_map<ComponentType, ComponentArrayPtr> m_componentData;
     std::vector<EntityId> m_entityIds;
-    std::map<EntityId, size_t> m_indices;
+    std::unordered_map<EntityId, size_t> m_indices;
 
     template<typename T>
     std::span<const T> constComponents() const
@@ -194,7 +194,7 @@ using Archetype = size_t;
 
 class ComponentStore
 {
-  using GroupMap = std::map<Archetype, ComponentArrayGroup>;
+  using GroupMap = std::unordered_map<Archetype, ComponentArrayGroup>;
 
   public:
     template<bool IsConstView>
@@ -369,7 +369,7 @@ class ComponentStore
   private:
     EntityId m_nextId = 1;
     GroupMap m_groups;
-    std::map<EntityId, Archetype> m_archetypes; // TODO: Use unsorted_map
+    std::unordered_map<EntityId, Archetype> m_archetypes;
 };
 
 using ComponentStorePtr = std::unique_ptr<ComponentStore>;
