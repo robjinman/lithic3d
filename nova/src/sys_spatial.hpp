@@ -27,7 +27,7 @@ struct CGlobalTransform
 
 struct CSpatialFlags
 {
-  bool active = true;
+  bool active = true; // TODO: Replace with bitset
 
   static constexpr ComponentType TypeId = CSpatialFlagsTypeId;
 };
@@ -37,6 +37,7 @@ class SysSpatial : public System
   public:
     virtual EntityId root() const = 0;
     virtual void addEntity(EntityId entityId, const CSpatial& data) = 0;
+    virtual void setFlags(EntityId entityId, bool active) = 0;
 };
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;

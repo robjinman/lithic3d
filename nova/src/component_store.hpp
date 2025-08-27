@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <map> // TODO
 #include <cassert>
 #include <stdexcept>
 #include <memory>
@@ -39,6 +40,11 @@ class ComponentArray : public IComponentArray
   friend class ComponentArrayGroup;
 
   public:
+    ComponentArray()
+    {
+      m_data.reserve(1000);
+    }
+
     size_t componentSize() const override
     {
       return sizeof(T);
@@ -146,9 +152,9 @@ class ComponentArrayGroup
     }
 
   private:
-    std::unordered_map<ComponentType, ComponentArrayPtr> m_componentData;
+    std::map<ComponentType, ComponentArrayPtr> m_componentData;
     std::vector<EntityId> m_entityIds;
-    std::unordered_map<EntityId, size_t> m_indices;
+    std::map<EntityId, size_t> m_indices;
 
     template<typename T>
     std::span<const T> constComponents() const
@@ -194,7 +200,7 @@ using Archetype = size_t;
 
 class ComponentStore
 {
-  using GroupMap = std::unordered_map<Archetype, ComponentArrayGroup>;
+  using GroupMap = std::map<Archetype, ComponentArrayGroup>;
 
   public:
     template<bool IsConstView>
@@ -292,7 +298,7 @@ class ComponentStore
     template<typename... Ts>
     EntityId allocate()
     {
-      EntityId entityId = m_nextId++;
+      EntityId entityId = getNextId();
 
       Archetype archetype = (Ts::TypeId | ...);
 
@@ -300,6 +306,11 @@ class ComponentStore
       m_archetypes[entityId] = archetype;
 
       return entityId;
+    }
+
+    EntityId getNextId()
+    {
+      return m_nextId++;
     }
 
     template<typename... Ts>
@@ -369,7 +380,7 @@ class ComponentStore
   private:
     EntityId m_nextId = 1;
     GroupMap m_groups;
-    std::unordered_map<EntityId, Archetype> m_archetypes;
+    std::map<EntityId, Archetype> m_archetypes;
 };
 
 using ComponentStorePtr = std::unique_ptr<ComponentStore>;

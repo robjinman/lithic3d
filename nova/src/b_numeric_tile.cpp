@@ -75,7 +75,7 @@ void BNumericTile::processEvent(const Event& e)
         }
       }
       else {
-        //m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
       }
     }
   }

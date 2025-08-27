@@ -67,7 +67,7 @@ class GameImpl : public Game
     Timer m_timer;
     size_t m_currentTick = 0;
     double m_measuredTickRate = 0;
-    EntityId m_playerId = 0;
+    Scene m_scene;
     GameState m_gameState;
 
     void measureTickRate();
@@ -91,14 +91,14 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_eventSystem, m_logger);
   auto sysBehaviour = createSysBehaviour();
   auto sysGrid = createSysGrid(*m_eventSystem);
-  //auto sysMenu = createSysMenu();
+  auto sysMenu = createSysMenu();
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
   auto sysSpatial = createSysSpatial(m_ecs->componentStore());
 
   m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(GRID_SYSTEM, std::move(sysGrid));
-  //m_ecs->addSystem(MENU_SYSTEM, std::move(sysMenu));
+  m_ecs->addSystem(MENU_SYSTEM, std::move(sysMenu));
   m_ecs->addSystem(RENDER_SYSTEM, std::move(sysRender));
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
 
@@ -131,8 +131,7 @@ void GameImpl::restartGame()
 
   m_eventSystem->dropEvents();
 
-  m_playerId = m_sceneBuilder->buildScene();
-  m_logger.info(STR("Player id = " << m_playerId));
+  m_scene = m_sceneBuilder->buildScene();
   m_gameState = GameState::Playing;
 }
 
@@ -157,6 +156,25 @@ void GameImpl::onKeyDown(KeyboardKey key)
   switch (key) {
     case KeyboardKey::F: {
       m_logger.info(STR("Simulation tick rate: " << m_measuredTickRate));
+      break;
+    }
+    case KeyboardKey::Escape: {
+      auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+
+      switch (m_gameState) {
+        case GameState::Playing: {
+          sysSpatial.setFlags(m_scene.menuRoot, true);
+          sysSpatial.setFlags(m_scene.worldRoot, false);
+          m_gameState = GameState::Paused;
+          break;
+        }
+        case GameState::Paused: {
+          sysSpatial.setFlags(m_scene.menuRoot, false);
+          sysSpatial.setFlags(m_scene.worldRoot, true);
+          m_gameState = GameState::Playing;
+          break;
+        }
+      }
       break;
     }
     case KeyboardKey::Left: m_inputState.left = true; break;
@@ -214,28 +232,28 @@ void GameImpl::processKeyboardInput()
 
   switch (m_gameState) {
     case GameState::Playing: {
-      if (sysAnimation.hasAnimationPlaying(m_playerId)) {
+      if (sysAnimation.hasAnimationPlaying(m_scene.player)) {
         return;
       }
 
       if (m_inputState.left) {
-        if (sysGrid.tryMove(m_playerId, -1, 0)) {
-          sysAnimation.playAnimation(m_playerId, strMoveLeft);
+        if (sysGrid.tryMove(m_scene.player, -1, 0)) {
+          sysAnimation.playAnimation(m_scene.player, strMoveLeft);
         }
       }
       else if (m_inputState.right) {
-        if (sysGrid.tryMove(m_playerId, 1, 0)) {
-          sysAnimation.playAnimation(m_playerId, strMoveRight);
+        if (sysGrid.tryMove(m_scene.player, 1, 0)) {
+          sysAnimation.playAnimation(m_scene.player, strMoveRight);
         }
       }
       else if (m_inputState.up) {
-        if (sysGrid.tryMove(m_playerId, 0, 1)) {
-          sysAnimation.playAnimation(m_playerId, strMoveUp);
+        if (sysGrid.tryMove(m_scene.player, 0, 1)) {
+          sysAnimation.playAnimation(m_scene.player, strMoveUp);
         }
       }
       else if (m_inputState.down) {
-        if (sysGrid.tryMove(m_playerId, 0, -1)) {
-          sysAnimation.playAnimation(m_playerId, strMoveDown);
+        if (sysGrid.tryMove(m_scene.player, 0, -1)) {
+          sysAnimation.playAnimation(m_scene.player, strMoveDown);
         }
       }
 

@@ -203,7 +203,7 @@ void Application::onKeyboardInput(int code, int action)
 
     switch (key) {
       case KeyboardKey::Escape:
-        exitInputCapture();
+        //exitInputCapture();
         break;
       case KeyboardKey::F:
         m_logger->info(STR("Renderer frame rate: " << m_renderer->frameRate()));

@@ -3,10 +3,17 @@
 #include "ecs.hpp"
 #include <memory>
 
+struct Scene
+{
+  EntityId player = NULL_ENTITY;
+  EntityId worldRoot = NULL_ENTITY;
+  EntityId menuRoot = NULL_ENTITY;
+};
+
 class SceneBuilder
 {
   public:
-    virtual EntityId buildScene() = 0;
+    virtual Scene buildScene() = 0;
     virtual EntityIdSet entities() const = 0;
 
     virtual ~SceneBuilder() = default;

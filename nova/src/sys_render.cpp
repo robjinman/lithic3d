@@ -228,11 +228,15 @@ void SysRenderImpl::update(Tick tick)
       size_t n = group.numEntities();
       auto renderComps = group.components<CRenderData>();
       auto globalTs = group.components<CGlobalTransform>();
+      auto flags = group.components<CSpatialFlags>();
       auto& entityIds = group.entityIds();
 
       for (size_t i = 0; i < n; ++i) {
         auto& item = renderComps[i];
         if (!item.visible) {
+          continue;
+        }
+        if (!flags[i].active) {
           continue;
         }
 
