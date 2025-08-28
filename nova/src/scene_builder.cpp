@@ -74,7 +74,7 @@ Scene SceneBuilderImpl::buildScene()
   m_entities.clear();
 
   m_worldRoot = constructWorldRoot();
-  m_playerId = constructPlayer(m_eventSystem, m_ecs);
+  m_playerId = constructPlayer(m_eventSystem, m_ecs, m_worldRoot);
   m_menuRoot = constructMenus();
   constructSky();
   constructClouds();

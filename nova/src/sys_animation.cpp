@@ -14,7 +14,7 @@ struct AnimationState
   AnimationId id;
   HashedString name;
   bool isPlaying = false;
-  Tick timeStarted = 0;
+  Tick tick = 0;
   Mat4x4f initialT;
   Vec4f startColour;
   bool repeats = false;
@@ -50,7 +50,6 @@ class SysAnimationImpl : public SysAnimation
     std::map<EntityId, CAnimationDataPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimation;
     std::map<AnimationId, AnimationPtr> m_animations;
-    Tick m_currentTick = 0;
 
     static AnimationId m_nextId;
 };
@@ -65,10 +64,8 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& 
 {
 }
 
-void SysAnimationImpl::update(Tick tick)
+void SysAnimationImpl::update(Tick)
 {
-  m_currentTick = tick;
-
   // Entity id, animation name, bring to front
   std::vector<std::tuple<EntityId, HashedString>> toRepeat;
 
@@ -76,7 +73,10 @@ void SysAnimationImpl::update(Tick tick)
     auto entityId = i->first;
     auto& animState = i->second;
 
-    if (!animState.isPlaying) {
+    assert(animState.isPlaying);
+
+    auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
+    if (!flags.active) {
       continue;
     }
 
@@ -85,10 +85,12 @@ void SysAnimationImpl::update(Tick tick)
     auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
 
     size_t numFrames = anim.frames.size();
-    Tick elapsed = tick - animState.timeStarted;
+    Tick elapsed = animState.tick;
     float_t fractionComplete = static_cast<float_t>(elapsed) / anim.duration;
     float_t frameNumFloat = fractionComplete * numFrames;
     size_t frameNumInt = static_cast<size_t>(frameNumFloat);
+
+    ++animState.tick;
 
     assert(numFrames > 0);
     assert(frameNumInt <= numFrames);
@@ -188,7 +190,7 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
     .id = animId,
     .name = name,
     .isPlaying = true,
-    .timeStarted = m_currentTick,
+    .tick = 0,
     .initialT = localTComp.transform,
     .startColour = renderComp.colour,
     .repeats = repeat
@@ -203,7 +205,7 @@ void SysAnimationImpl::seek(EntityId entityId, Tick tick)
   }
 
   auto& state = i->second;
-  state.timeStarted = m_currentTick - tick;
+  state.tick = tick;
 }
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const

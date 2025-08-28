@@ -4,4 +4,4 @@
 
 class EventSystem;
 
-EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs);
+EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs, EntityId worldRoot);

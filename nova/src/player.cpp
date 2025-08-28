@@ -68,7 +68,7 @@ void PlayerBehaviour::processEvent(const Event& event)
 
 } // namespace
 
-EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
+EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs, EntityId worldRoot)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(ecs.system(RENDER_SYSTEM));
@@ -76,7 +76,9 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
   auto& sysGrid = dynamic_cast<SysGrid&>(ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(ecs.system(BEHAVIOUR_SYSTEM));
 
-  auto id = ecs.componentStore().allocate<CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView>();
+  auto id = ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView
+  >();
 
   sysGrid.addEntity(id, 0, 0);
 
@@ -85,7 +87,7 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs)
 
   CSpatial spatial{
     .transform = spriteTransform(pos, size),
-    .parent = sysSpatial.root(),
+    .parent = worldRoot,
     .isActive = true
   };
 

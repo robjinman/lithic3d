@@ -61,12 +61,15 @@ bool SysBehaviourImpl::hasEntity(EntityId entityId) const
 
 void SysBehaviourImpl::processEvent(const Event& event)
 {
+  // TODO: Don't send events to inactive entities
+
   if (event.targets.empty()) {
     auto i = m_subscriptions.find(event.name);
     if (i != m_subscriptions.end()) {
       for (auto id : i->second) {
         auto& behaviours = m_behaviours.at(id);
         for (auto& entry : behaviours) {
+
           entry.second->processEvent(event);
         }
       }
