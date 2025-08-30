@@ -30,10 +30,16 @@ class MenuSystemImpl : public MenuSystem
     MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
 
     EntityId root() const override;
+
     EntityId startGameBtn() const override;
     EntityId resumeBtn() const override;
     EntityId quitToMainMenuBtn() const override;
     EntityId quitGameBtn() const override;
+
+    float sfxVolume() const override;
+    float musicVolume() const override;
+    int difficultyLevel() const override;
+
     void showPauseMenu() override;
     void showMainMenu() override;
 
@@ -43,6 +49,8 @@ class MenuSystemImpl : public MenuSystem
     Logger& m_logger;
     EntityId m_root;
     EntityId m_pauseMenu;
+    EntityId m_pauseMenuMain;
+    EntityId m_pauseMenuSettings;
     EntityId m_mainMenu;
     EntityId m_startGameBtn;
     EntityId m_resumeBtn;
@@ -50,6 +58,9 @@ class MenuSystemImpl : public MenuSystem
     EntityId m_quitGameBtn;
     AnimationId m_animIdle;
     AnimationId m_animIdleActive;
+    float m_sfxVolume = 0.5f;
+    float m_musicVolume = 0.5f;
+    int m_difficultyLevel = 0;
 
     void constructRoot();
     void constructPauseMenu();
@@ -92,6 +103,21 @@ EntityId MenuSystemImpl::quitToMainMenuBtn() const
 EntityId MenuSystemImpl::quitGameBtn() const
 {
   return m_quitGameBtn;
+}
+
+float MenuSystemImpl::sfxVolume() const
+{
+  return m_sfxVolume;
+}
+
+float MenuSystemImpl::musicVolume() const
+{
+  return m_musicVolume;
+}
+
+int MenuSystemImpl::difficultyLevel() const
+{
+  return m_difficultyLevel;
 }
 
 void MenuSystemImpl::createAnimations()
@@ -151,6 +177,8 @@ void MenuSystemImpl::showPauseMenu()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   sysSpatial.setEnabled(m_mainMenu, false);
   sysSpatial.setEnabled(m_pauseMenu, true);
+  sysSpatial.setEnabled(m_pauseMenuMain, true);
+  sysSpatial.setEnabled(m_pauseMenuSettings, false);
 }
 
 void MenuSystemImpl::showMainMenu()
@@ -254,11 +282,40 @@ void MenuSystemImpl::constructMainMenu()
     .w = pxToUvW(192.f),
     .h = pxToUvH(32.f)
   });
+
+  auto options = constructMenuItem(m_mainMenu, { 0.02f, 0.31f }, { 0.3f, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(320.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
+
+  m_quitGameBtn = constructMenuItem(m_mainMenu, { 0.02f, 0.01f }, { 0.3f, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(192.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto credits = constructMenuItem(m_mainMenu, { 0.02f, 0.11f }, { 0.3f, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(64.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto settings = constructMenuItem(m_mainMenu, { 0.02f, 0.21f }, { 0.3f, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(32.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
 }
 
 EntityId MenuSystemImpl::constructSettingsSubmenu()
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -272,12 +329,68 @@ EntityId MenuSystemImpl::constructSettingsSubmenu()
 
   sysSpatial.addEntity(id, spatial);
 
+  auto sfxVolume = constructMenuItem(id, { 0.02f, 0.11f }, { 0.4, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(128.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
+
   auto sfxVolumeUp = constructMenuItem(id, { 0.5f, 0.11f }, { 0.075f, 0.05625f }, {
     .x = pxToUvX(224.f),
     .y = pxToUvY(0.f, 32.f),
     .w = pxToUvW(32.f),
     .h = pxToUvH(32.f)
   });
+
+  auto sfxVolumeDown = constructMenuItem(id, { 0.4f, 0.11f }, { 0.075f, 0.05625f }, {
+    .x = pxToUvX(192.f),
+    .y = pxToUvY(0.f, 32.f),
+    .w = pxToUvW(32.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto musicVolume = constructMenuItem(id, { 0.02f, 0.21f }, { 0.4, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(96.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto musicVolumeUp = constructMenuItem(id, { 0.5f, 0.21f }, { 0.075f, 0.05625f }, {
+    .x = pxToUvX(224.f),
+    .y = pxToUvY(0.f, 32.f),
+    .w = pxToUvW(32.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto musicVolumeDown = constructMenuItem(id, { 0.4f, 0.21f }, { 0.075f, 0.05625f }, {
+    .x = pxToUvX(192.f),
+    .y = pxToUvY(0.f, 32.f),
+    .w = pxToUvW(32.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4, 0.05625f }, {
+    .x = pxToUvX(0.f),
+    .y = pxToUvY(160.f, 32.f),
+    .w = pxToUvW(256.f),
+    .h = pxToUvH(32.f)
+  });
+
+  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strUiItemActivate },
+    [this, returnBtn, &sysSpatial](const Event& e) {
+
+    if (e.name == g_strUiItemActivate) {
+      auto& event = dynamic_cast<const EUiItemActivate&>(e);
+      if (event.entityId == returnBtn) {
+        sysSpatial.setEnabled(m_pauseMenuSettings, false);
+        sysSpatial.setEnabled(m_pauseMenuMain, true);
+      }
+    }
+  });
+
+  sysBehaviour.addBehaviour(id, std::move(behaviour));
 
   return id;
 }
@@ -299,7 +412,7 @@ void MenuSystemImpl::constructPauseMenu()
 
   sysSpatial.addEntity(m_pauseMenu, pauseMenuRootSpatial);
 
-  auto pauseMenuMain = m_ecs.componentStore().allocate<
+  m_pauseMenuMain = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
@@ -309,10 +422,10 @@ void MenuSystemImpl::constructPauseMenu()
     .enabled = true
   };
 
-  sysSpatial.addEntity(pauseMenuMain, pauseMenuMainSpatial);
+  sysSpatial.addEntity(m_pauseMenuMain, pauseMenuMainSpatial);
 
   // Resume
-  m_resumeBtn = constructMenuItem(pauseMenuMain, { 0.02f, 0.21f }, { 0.4f, 0.05625f }, {
+  m_resumeBtn = constructMenuItem(m_pauseMenuMain, { 0.02f, 0.21f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(224.f, 32.f),
     .w = pxToUvW(256.f),
@@ -320,7 +433,7 @@ void MenuSystemImpl::constructPauseMenu()
   });
 
   // Settings
-  auto settingsItem = constructMenuItem(pauseMenuMain, { 0.02f, 0.11f }, { 0.4f, 0.05625f }, {
+  auto settingsItem = constructMenuItem(m_pauseMenuMain, { 0.02f, 0.11f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(32.f, 32.f),
     .w = pxToUvW(256.f),
@@ -328,21 +441,23 @@ void MenuSystemImpl::constructPauseMenu()
   });
 
   // Quit
-  m_quitToMainBtn = constructMenuItem(pauseMenuMain, { 0.02f, 0.01f }, { 0.4f, 0.05625f }, {
+  m_quitToMainBtn = constructMenuItem(m_pauseMenuMain, { 0.02f, 0.01f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(256.f, 32.f),
     .w = pxToUvW(256.f),
     .h = pxToUvH(32.f)
   });
 
-  auto settingsSubmenu = constructSettingsSubmenu();
+  m_pauseMenuSettings = constructSettingsSubmenu();
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strUiItemActivate }, [pauseMenuMain, settingsSubmenu, settingsItem, &sysSpatial](const Event& e) {
+  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strUiItemActivate },
+    [this, settingsItem, &sysSpatial](const Event& e) {
+
     if (e.name == g_strUiItemActivate) {
       auto& event = dynamic_cast<const EUiItemActivate&>(e);
       if (event.entityId == settingsItem) {
-        sysSpatial.setEnabled(pauseMenuMain, false);
-        sysSpatial.setEnabled(settingsSubmenu, true);
+        sysSpatial.setEnabled(m_pauseMenuMain, false);
+        sysSpatial.setEnabled(m_pauseMenuSettings, true);
       }
     }
   });
