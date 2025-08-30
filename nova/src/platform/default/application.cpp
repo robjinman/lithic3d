@@ -78,6 +78,7 @@ class Application
     GamePtr m_game;
 
     bool m_fullscreen = false;
+    bool m_inputCaptured = false;
     WindowState m_initialWindowState;
     ControlMode m_controlMode;
     Vec2f m_lastMousePos;
@@ -159,7 +160,9 @@ void Application::run()
   while(!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();
 
-    m_game->update();
+    if (!m_game->update()) {
+      break;
+    }
 
     if (m_controlMode == ControlMode::Gamepad) {
       processGamepadInput();
@@ -249,14 +252,26 @@ void Application::toggleFullScreen()
 
 void Application::onMouseMove(float_t x, float_t y)
 {
-  Vec2f delta = (Vec2f{x, y} - m_lastMousePos) / static_cast<Vec2f>(windowSize());
-  m_game->onMouseMove(delta);
+  Vec2f pos{ x, y };
+  Vec2f delta = (pos - m_lastMousePos) / static_cast<Vec2f>(windowSize());
+  m_game->onMouseMove(pos, delta);
   m_lastMousePos = { x, y };
 }
 
 void Application::onMouseClick()
 {
-  enterInputCapture();
+  if (!m_inputCaptured) {
+    enterInputCapture();
+    return;
+  }
+
+  auto buttonState = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_1);
+  if (buttonState == GLFW_PRESS) {
+    m_game->onMouseButtonDown();
+  }
+  else {
+    m_game->onMouseButtonUp();
+  }
 }
 
 void Application::enterInputCapture()
@@ -270,6 +285,8 @@ void Application::enterInputCapture()
   double y = 0;
   glfwGetCursorPos(m_window, &x, &y);
   m_lastMousePos = { static_cast<float_t>(x), static_cast<float_t>(y) };
+
+  m_inputCaptured = true;
 }
 
 void Application::processGamepadInput()
@@ -303,6 +320,8 @@ void Application::exitInputCapture()
   glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   glfwSetKeyCallback(m_window, nullptr);
   glfwSetCursorPosCallback(m_window, nullptr);
+
+  m_inputCaptured = false;
 }
 
 Application::~Application()

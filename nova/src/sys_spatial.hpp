@@ -3,12 +3,11 @@
 #include "ecs.hpp"
 #include "component_types.hpp"
 
-// TODO: Better naming convention
-struct CSpatial
+struct SpatialData
 {
   Mat4x4f transform = identityMatrix<float_t, 4>();
   EntityId parent = NULL_ENTITY;
-  bool isActive = true;
+  bool enabled = true;
 };
 
 struct CLocalTransform
@@ -27,7 +26,8 @@ struct CGlobalTransform
 
 struct CSpatialFlags
 {
-  bool active = true; // TODO: Replace with bitset
+  bool enabled = true; // TODO: Replace with bitset
+  bool parentEnabled = true;
 
   static constexpr ComponentType TypeId = CSpatialFlagsTypeId;
 };
@@ -36,8 +36,8 @@ class SysSpatial : public System
 {
   public:
     virtual EntityId root() const = 0;
-    virtual void addEntity(EntityId entityId, const CSpatial& data) = 0;
-    virtual void setFlags(EntityId entityId, bool active) = 0;
+    virtual void addEntity(EntityId entityId, const SpatialData& data) = 0;
+    virtual void setEnabled(EntityId entityId, bool enabled) = 0;
 };
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;

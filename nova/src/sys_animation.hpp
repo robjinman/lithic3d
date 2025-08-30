@@ -24,7 +24,7 @@ using AnimationPtr = std::unique_ptr<Animation>;
 
 using AnimationId = size_t;
 
-struct CAnimation
+struct AnimationData
 {
   std::set<AnimationId> animations;
 };
@@ -32,7 +32,7 @@ struct CAnimation
 class SysAnimation : public System
 {
   public:
-    virtual void addEntity(EntityId entityId, const CAnimation& data) = 0;
+    virtual void addEntity(EntityId entityId, const AnimationData& data) = 0;
     virtual AnimationId addAnimation(AnimationPtr animation) = 0;
     virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
     virtual void seek(EntityId entityId, Tick tick) = 0;

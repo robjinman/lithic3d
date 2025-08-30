@@ -50,10 +50,12 @@ class Game
     virtual void onKeyUp(KeyboardKey key) = 0;
     virtual void onButtonDown(GamepadButton button) = 0;
     virtual void onButtonUp(GamepadButton button) = 0;
-    virtual void onMouseMove(const Vec2f& delta) = 0;
+    virtual void onMouseButtonDown() = 0;
+    virtual void onMouseButtonUp() = 0;
+    virtual void onMouseMove(const Vec2f& pos, const Vec2f& delta) = 0;
     virtual void onLeftStickMove(const Vec2f& delta) = 0;
     virtual void onRightStickMove(const Vec2f& delta) = 0;
-    virtual void update() = 0;
+    virtual bool update() = 0;
 
     virtual ~Game() {}
 };

@@ -19,7 +19,7 @@ Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
     scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
 }
 
-class PlayerBehaviour : public CBehaviour
+class PlayerBehaviour : public BehaviourData
 {
   public:
     PlayerBehaviour(EntityId entityId, SysGrid& grid, EventSystem& eventSystem);
@@ -77,7 +77,7 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs, EntityId worldRoot)
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRenderView
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
   >();
 
   sysGrid.addEntity(id, 0, 0);
@@ -85,15 +85,15 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs, EntityId worldRoot)
   Vec2f size{ 0.0625f, 0.0625f };
   Vec2f pos{ 0.f, 0.f };
 
-  CSpatial spatial{
+  SpatialData spatial{
     .transform = spriteTransform(pos, size),
     .parent = worldRoot,
-    .isActive = true
+    .enabled = true
   };
 
   sysSpatial.addEntity(id, spatial);
 
-  CRender render{
+  RenderData render{
     .textureRect = Rectf{
       .x = pxToUvX(384.f),
       .y = pxToUvY(256.f, 48.f),
@@ -312,7 +312,7 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs, EntityId worldRoot)
     }
   });
 
-  sysAnimation.addEntity(id, CAnimation{
+  sysAnimation.addEntity(id, AnimationData{
     .animations = {
       sysAnimation.addAnimation(std::move(animMoveLeft)),
       sysAnimation.addAnimation(std::move(animMoveRight)),

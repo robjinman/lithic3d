@@ -2,24 +2,24 @@
 
 #include "ecs.hpp"
 
-class CBehaviour
+class BehaviourData
 {
   public:
     virtual HashedString name() const = 0;
     virtual const std::set<HashedString>& subscriptions() const = 0;
     virtual void processEvent(const Event& event) = 0;
 
-    virtual ~CBehaviour() {}
+    virtual ~BehaviourData() {}
 };
 
-using CBehaviourPtr = std::unique_ptr<CBehaviour>;
+using BehaviourDataPtr = std::unique_ptr<BehaviourData>;
 
 class SysBehaviour : public System
 {
   public:
-    virtual void addBehaviour(EntityId entityId, CBehaviourPtr behaviour) = 0;
-    virtual CBehaviour& getBehaviour(EntityId entityId, HashedString name) = 0;
-    virtual const CBehaviour& getBehaviour(EntityId entityId, HashedString name) const = 0;
+    virtual void addBehaviour(EntityId entityId, BehaviourDataPtr behaviour) = 0;
+    virtual BehaviourData& getBehaviour(EntityId entityId, HashedString name) = 0;
+    virtual const BehaviourData& getBehaviour(EntityId entityId, HashedString name) const = 0;
 };
 
 using SysBehaviourPtr = std::unique_ptr<SysBehaviour>;

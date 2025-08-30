@@ -6,5 +6,5 @@ class Ecs;
 class EventSystem;
 
 // Entity must have an animation component with a "collect" animation
-CBehaviourPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+BehaviourDataPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId, int value);

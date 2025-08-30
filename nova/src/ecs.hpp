@@ -11,13 +11,14 @@ using SystemId = uint32_t;
 using EntityIdSet = std::set<EntityId>;
 
 class Event;
+class InputState;
 
 class System
 {
   public:
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;
-    virtual void update(Tick tick) = 0;
+    virtual void update(Tick tick, const InputState& inputState) = 0;
     virtual void processEvent(const Event& event) = 0;
 
     virtual ~System() = default;
@@ -31,7 +32,7 @@ class Ecs
     virtual void addSystem(SystemId id, SystemPtr system) = 0;
     virtual System& system(SystemId id) = 0;
     virtual const System& system(SystemId id) const = 0;
-    virtual void update(Tick tick) = 0;
+    virtual void update(Tick tick, const InputState& inputState) = 0;
     virtual void processEvent(const Event& event) = 0;
     // Warning: This will immediately delete the entity. Consider firing ERequestDeletion instead.
     virtual void removeEntity(EntityId entityId) = 0;

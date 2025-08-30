@@ -93,8 +93,6 @@ MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
   return mesh;
 }
 
-using CRenderData = CRenderView;
-
 class SysRenderImpl : public SysRender
 {
   public:
@@ -107,14 +105,14 @@ class SysRenderImpl : public SysRender
     Camera& camera() override;
     const Camera& camera() const override;
 
-    void addEntity(EntityId entityId, const CRender& component) override;
+    void addEntity(EntityId entityId, const RenderData& component) override;
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
     void setVisible(EntityId entityId, bool visible) override;
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick tick) override;
+    void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
   private:
@@ -171,9 +169,9 @@ double SysRenderImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
+void SysRenderImpl::addEntity(EntityId entityId, const RenderData& data)
 {
-  m_componentStore.component<CRenderData>(entityId) = CRenderData{
+  m_componentStore.component<CRender>(entityId) = CRender{
     .textureRect = data.textureRect,
     .colour = data.colour,
     .zIndex = data.zIndex,
@@ -183,19 +181,19 @@ void SysRenderImpl::addEntity(EntityId entityId, const CRender& data)
 
 void SysRenderImpl::setZIndex(EntityId entityId, uint32_t zIndex)
 {
-  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.zIndex = zIndex;
 }
 
 void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
 {
-  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.textureRect = textureRect;
 }
 
 void SysRenderImpl::setVisible(EntityId entityId, bool visible)
 {
-  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.visible = visible;
 }
 
@@ -205,7 +203,7 @@ void SysRenderImpl::removeEntity(EntityId entityId)
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
 {
-  return m_componentStore.hasComponentForEntity<CRenderData>(entityId);
+  return m_componentStore.hasComponentForEntity<CRender>(entityId);
 }
 
 Camera& SysRenderImpl::camera()
@@ -218,15 +216,15 @@ const Camera& SysRenderImpl::camera() const
   return m_camera;
 }
 
-void SysRenderImpl::update(Tick tick)
+void SysRenderImpl::update(Tick, const InputState&)
 {
   try {
     m_renderer.beginFrame({ 0.f, 0.f, 0.f, 1.f });
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-    for (auto& group : m_componentStore.components<CRenderData>()) {
+    for (auto& group : m_componentStore.components<CRender>()) {
       size_t n = group.numEntities();
-      auto renderComps = group.components<CRenderData>();
+      auto renderComps = group.components<CRender>();
       auto globalTs = group.components<CGlobalTransform>();
       auto flags = group.components<CSpatialFlags>();
       auto& entityIds = group.entityIds();
@@ -236,7 +234,7 @@ void SysRenderImpl::update(Tick tick)
         if (!item.visible) {
           continue;
         }
-        if (!flags[i].active) {
+        if (!(flags[i].enabled && flags[i].parentEnabled)) {
           continue;
         }
 

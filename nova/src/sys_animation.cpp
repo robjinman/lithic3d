@@ -20,12 +20,12 @@ struct AnimationState
   bool repeats = false;
 };
 
-struct CAnimationData
+struct CAnimation
 {
   std::map<HashedString, AnimationId> animations;
 };
 
-using CAnimationDataPtr = std::unique_ptr<CAnimationData>;
+using CAnimationPtr = std::unique_ptr<CAnimation>;
 
 class SysAnimationImpl : public SysAnimation
 {
@@ -34,10 +34,10 @@ class SysAnimationImpl : public SysAnimation
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick tick) override;
+    void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
-    void addEntity(EntityId entityId, const CAnimation& data) override;
+    void addEntity(EntityId entityId, const AnimationData& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
     void seek(EntityId entityId, Tick tick) override;
@@ -47,8 +47,8 @@ class SysAnimationImpl : public SysAnimation
     Logger& m_logger;
     EventSystem& m_eventSystem;
     ComponentStore& m_componentStore;
-    std::map<EntityId, CAnimationDataPtr> m_components;
-    std::map<EntityId, AnimationState> m_activeAnimation;
+    std::map<EntityId, CAnimationPtr> m_components;
+    std::map<EntityId, AnimationState> m_activeAnimations;
     std::map<AnimationId, AnimationPtr> m_animations;
 
     static AnimationId m_nextId;
@@ -64,24 +64,25 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& 
 {
 }
 
-void SysAnimationImpl::update(Tick)
+void SysAnimationImpl::update(Tick, const InputState&)
 {
   // Entity id, animation name, bring to front
   std::vector<std::tuple<EntityId, HashedString>> toRepeat;
 
-  for (auto i = m_activeAnimation.begin(); i != m_activeAnimation.end(); ++i) {
+  for (auto i = m_activeAnimations.begin(); i != m_activeAnimations.end();) {
     auto entityId = i->first;
     auto& animState = i->second;
 
     assert(animState.isPlaying);
 
     auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
-    if (!flags.active) {
+    if (!(flags.enabled && flags.parentEnabled)) {
+      ++i;
       continue;
     }
 
     auto& anim = *m_animations.at(animState.id);
-    auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+    auto& renderComp = m_componentStore.component<CRender>(entityId);
     auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
 
     size_t numFrames = anim.frames.size();
@@ -113,12 +114,7 @@ void SysAnimationImpl::update(Tick)
         toRepeat.push_back({ entityId, anim.name });
       }
 
-      i = m_activeAnimation.erase(i);
-      if (i == m_activeAnimation.end()) {
-        break;
-      }
-
-      continue;
+      i = m_activeAnimations.erase(i);
     }
     else {
       float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
@@ -137,8 +133,11 @@ void SysAnimationImpl::update(Tick)
         renderComp.textureRect = frame.textureRect.value();
       }
       if (frame.colour.has_value()) {
+        // TODO: interpolate
         renderComp.colour = frame.colour.value();
       }
+
+      ++i;
     }
   }
 
@@ -147,9 +146,9 @@ void SysAnimationImpl::update(Tick)
   }
 }
 
-void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& comp)
+void SysAnimationImpl::addEntity(EntityId entityId, const AnimationData& comp)
 {
-  auto data = std::make_unique<CAnimationData>();
+  auto data = std::make_unique<CAnimation>();
 
   for (auto animId : comp.animations) {
     auto& anim = *m_animations.at(animId);
@@ -161,7 +160,7 @@ void SysAnimationImpl::addEntity(EntityId entityId, const CAnimation& comp)
 
 void SysAnimationImpl::removeEntity(EntityId entityId)
 {
-  m_activeAnimation.erase(entityId);
+  m_activeAnimations.erase(entityId);
   m_components.erase(entityId);
 }
 
@@ -181,12 +180,12 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
 
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
-  auto& renderComp = m_componentStore.component<CRenderView>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);
 
-  m_activeAnimation.insert({ entityId, AnimationState{
+  m_activeAnimations.insert({ entityId, AnimationState{
     .id = animId,
     .name = name,
     .isPlaying = true,
@@ -199,8 +198,8 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
 
 void SysAnimationImpl::seek(EntityId entityId, Tick tick)
 {
-  auto i = m_activeAnimation.find(entityId);
-  if (i == m_activeAnimation.end()) {
+  auto i = m_activeAnimations.find(entityId);
+  if (i == m_activeAnimations.end()) {
     EXCEPTION("Entity doesn't have animation playing");
   }
 
@@ -210,8 +209,8 @@ void SysAnimationImpl::seek(EntityId entityId, Tick tick)
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
 {
-  auto i = m_activeAnimation.find(entityId);
-  return i != m_activeAnimation.end() && i->second.isPlaying;
+  auto i = m_activeAnimations.find(entityId);
+  return i != m_activeAnimations.end() && i->second.isPlaying;
 }
 
 } // namespace

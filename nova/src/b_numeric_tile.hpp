@@ -5,5 +5,5 @@
 class Ecs;
 class EventSystem;
 
-CBehaviourPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+BehaviourDataPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   const Vec2i& pos, int value);

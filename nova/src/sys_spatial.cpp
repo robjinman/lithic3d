@@ -13,12 +13,12 @@ class SysSpatialImpl : public SysSpatial
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick tick) override;
+    void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
-    void addEntity(EntityId entityId, const CSpatial& data) override;
+    void addEntity(EntityId entityId, const SpatialData& data) override;
     EntityId root() const override;
-    void setFlags(EntityId entityId, bool active) override;
+    void setEnabled(EntityId entityId, bool enabled) override;
 
   private:
     ComponentStore& m_componentStore;
@@ -37,11 +37,16 @@ EntityId SysSpatialImpl::root() const
   return m_sceneGraph->dfs[0];
 }
 
-void SysSpatialImpl::addEntity(EntityId entityId, const CSpatial& data)
+void SysSpatialImpl::addEntity(EntityId entityId, const SpatialData& data)
 {
+  auto& parentFlags = m_componentStore.component<CSpatialFlags>(data.parent);
+
   m_sceneGraph->addItem(entityId, data.parent);
   m_componentStore.component<CLocalTransform>(entityId).transform = data.transform;
-  m_componentStore.component<CSpatialFlags>(entityId).active = data.isActive;
+  m_componentStore.component<CSpatialFlags>(entityId) = CSpatialFlags{
+    .enabled = data.enabled,
+    .parentEnabled = parentFlags.parentEnabled && parentFlags.enabled
+  };
 }
 
 void SysSpatialImpl::removeEntity(EntityId entityId)
@@ -54,7 +59,7 @@ bool SysSpatialImpl::hasEntity(EntityId entityId) const
   return m_sceneGraph->hasItem(entityId);
 }
 
-void SysSpatialImpl::update(Tick)
+void SysSpatialImpl::update(Tick, const InputState&)
 {
   Mat4x4f I = identityMatrix<float_t, 4>();
 
@@ -78,14 +83,28 @@ void SysSpatialImpl::update(Tick)
   }
 }
 
-void SysSpatialImpl::setFlags(EntityId entityId, bool active)
+void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 {
   auto& node = *m_sceneGraph->nodes.at(entityId);
+  auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
+  flags.enabled = enabled;
 
-  for (size_t i = node.index; i <= node.index + node.numDescendents; ++i) {
-    auto id = m_sceneGraph->dfs[i];
-    auto& flags = m_componentStore.component<CSpatialFlags>(id);
-    flags.active = active;
+  EntityId prevParentId = entityId;
+  bool parentEnabled = flags.parentEnabled && flags.enabled;
+
+  // Propagate flags to descendents
+  for (size_t i = node.index + 1; i <= node.index + node.numDescendents; ++i) {
+    auto entityId = m_sceneGraph->dfs[i];
+    auto parentId = m_sceneGraph->parents[i];
+
+    if (parentId != prevParentId) {
+      auto& parentFlags = m_componentStore.component<CSpatialFlags>(parentId);
+      parentEnabled = parentFlags.parentEnabled && parentFlags.enabled;
+      prevParentId = parentId;
+    }
+
+    auto& descendentFlags = m_componentStore.component<CSpatialFlags>(entityId);
+    descendentFlags.parentEnabled = parentEnabled;
   }
 }
 

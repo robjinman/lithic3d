@@ -8,7 +8,7 @@
 namespace
 {
 
-class BNumericTile : public CBehaviour
+class BNumericTile : public BehaviourData
 {
   public:
     BNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, const Vec2i& pos,
@@ -83,7 +83,7 @@ void BNumericTile::processEvent(const Event& e)
 
 } // namespace
 
-CBehaviourPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+BehaviourDataPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   const Vec2i& pos, int value)
 {
   return std::make_unique<BNumericTile>(ecs, eventSystem, entityId, pos, value);

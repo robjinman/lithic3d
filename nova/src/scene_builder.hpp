@@ -7,7 +7,6 @@ struct Scene
 {
   EntityId player = NULL_ENTITY;
   EntityId worldRoot = NULL_ENTITY;
-  EntityId menuRoot = NULL_ENTITY;
 };
 
 class SceneBuilder

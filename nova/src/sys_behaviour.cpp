@@ -12,19 +12,19 @@ class SysBehaviourImpl : public SysBehaviour
   public:
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
-    void update(Tick) override {}
+    void update(Tick, const InputState&) override {}
     void processEvent(const Event& event) override;
 
-    void addBehaviour(EntityId entityId, CBehaviourPtr behaviour) override;
-    CBehaviour& getBehaviour(EntityId entityId, HashedString name) override;
-    const CBehaviour& getBehaviour(EntityId entityId, HashedString name) const override;
+    void addBehaviour(EntityId entityId, BehaviourDataPtr behaviour) override;
+    BehaviourData& getBehaviour(EntityId entityId, HashedString name) override;
+    const BehaviourData& getBehaviour(EntityId entityId, HashedString name) const override;
 
   private:
-    std::map<EntityId, std::map<HashedString, CBehaviourPtr>> m_behaviours;
+    std::map<EntityId, std::map<HashedString, BehaviourDataPtr>> m_behaviours;
     std::map<HashedString, std::set<EntityId>> m_subscriptions;
 };
 
-void SysBehaviourImpl::addBehaviour(EntityId entityId, CBehaviourPtr behaviour)
+void SysBehaviourImpl::addBehaviour(EntityId entityId, BehaviourDataPtr behaviour)
 {
   auto name = behaviour->name();
 
@@ -35,12 +35,12 @@ void SysBehaviourImpl::addBehaviour(EntityId entityId, CBehaviourPtr behaviour)
   m_behaviours[entityId].insert({ name, std::move(behaviour) });
 }
 
-CBehaviour& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name)
+BehaviourData& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name)
 {
   return *m_behaviours.at(entityId).at(name);
 }
 
-const CBehaviour& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name) const
+const BehaviourData& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name) const
 {
   return *m_behaviours.at(entityId).at(name);
 }

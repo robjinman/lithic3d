@@ -5,14 +5,14 @@
 #include "math.hpp"
 #include "component_types.hpp"
 
-struct CRender
+struct RenderData
 {
   Rectf textureRect;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
-struct CRenderView
+struct CRender
 {
   Rectf textureRect;
   Vec4f colour;
@@ -33,7 +33,7 @@ class SysRender : public System
     virtual Camera& camera() = 0;
     virtual const Camera& camera() const = 0;
 
-    virtual void addEntity(EntityId entityId, const CRender& data) = 0;
+    virtual void addEntity(EntityId entityId, const RenderData& data) = 0;
     virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;
     virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
     virtual void setVisible(EntityId entityId, bool visible) = 0;

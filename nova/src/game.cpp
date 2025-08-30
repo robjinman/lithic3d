@@ -7,29 +7,21 @@
 #include "scene_builder.hpp"
 #include "audio_system.hpp"
 #include "renderer.hpp"
+#include "menu_system.hpp"
 #include "sys_animation.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
 #include "sys_render.hpp"
-#include "sys_menu.hpp"
 #include "sys_spatial.hpp"
+#include "sys_ui.hpp"
 #include "ecs.hpp"
 #include "systems.hpp"
+#include "input_state.hpp"
 #undef max
 #undef min
 
 namespace
 {
-
-struct InputState
-{
-  bool left = false;
-  bool right = false;
-  bool up = false;
-  bool down = false;
-  bool enter = false;
-  bool escape = false;
-};
 
 enum class GameState
 {
@@ -49,10 +41,12 @@ class GameImpl : public Game
     void onKeyUp(KeyboardKey key) override;
     void onButtonDown(GamepadButton button) override;
     void onButtonUp(GamepadButton button) override;
-    void onMouseMove(const Vec2f& delta) override;
+    void onMouseButtonDown() override;
+    void onMouseButtonUp() override;
+    void onMouseMove(const Vec2f& pos, const Vec2f& delta) override;
     void onLeftStickMove(const Vec2f& delta) override;
     void onRightStickMove(const Vec2f& delta) override;
-    void update() override;
+    bool update() override;
 
   private:
     Logger& m_logger;
@@ -60,6 +54,7 @@ class GameImpl : public Game
     AudioSystem& m_audioSystem;
     render::Renderer& m_renderer;
     EventSystemPtr m_eventSystem;
+    MenuSystemPtr m_menuSystem;
     EcsPtr m_ecs;
     SceneBuilderPtr m_sceneBuilder;
     InputState m_inputState;
@@ -69,13 +64,17 @@ class GameImpl : public Game
     double m_measuredTickRate = 0;
     Scene m_scene;
     GameState m_gameState;
+    bool m_shouldExit = false;
 
     void measureTickRate();
     void processKeyboardInput();
     void processMouseInput();
     void playSoundForEvent(const Event& event);
     void onPlayerDeath();
-    void restartGame();
+    void destroyCurrentGame();
+    void startGame();
+    void handleEvent(const Event& event);
+    void handleUiEvent(const Event& event);
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
@@ -91,46 +90,88 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_eventSystem, m_logger);
   auto sysBehaviour = createSysBehaviour();
   auto sysGrid = createSysGrid(*m_eventSystem);
-  auto sysMenu = createSysMenu();
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
   auto sysSpatial = createSysSpatial(m_ecs->componentStore());
+  auto sysUi = createSysUi(m_ecs->componentStore(), *m_eventSystem, m_logger);
 
   m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(GRID_SYSTEM, std::move(sysGrid));
-  m_ecs->addSystem(MENU_SYSTEM, std::move(sysMenu));
   m_ecs->addSystem(RENDER_SYSTEM, std::move(sysRender));
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
+  m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
+  m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, m_logger);
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs);
 
-  m_eventSystem->listen([&](const Event& event) {
-    playSoundForEvent(event);
-
-    m_ecs->processEvent(event);
-
-    if (event.name == g_strPlayerDeath) {
-      onPlayerDeath();
-    }
-  });
-
-  restartGame(); // TODO: Start on main menu
+  m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 
   m_renderer.start();
+
+  dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_menuSystem->root(), true);
+  m_menuSystem->showMainMenu();
+
+  m_gameState = GameState::MainMenu;
 }
 
-void GameImpl::restartGame()
+void GameImpl::handleUiEvent(const Event& event)
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+
+  if (event.name == g_strUiItemActivate) {
+    auto& e = dynamic_cast<const EUiItemActivate&>(event);
+    if (e.entityId == m_menuSystem->quitGameBtn()) {
+      m_shouldExit = true;
+    }
+    else if (e.entityId == m_menuSystem->startGameBtn()) {
+      startGame();
+      sysSpatial.setEnabled(m_menuSystem->root(), false);
+      sysSpatial.setEnabled(m_scene.worldRoot, true);
+      m_gameState = GameState::Playing;
+    }
+    else if (e.entityId == m_menuSystem->resumeBtn()) {
+      sysSpatial.setEnabled(m_menuSystem->root(), false);
+      sysSpatial.setEnabled(m_scene.worldRoot, true);
+      m_gameState = GameState::Playing;
+    }
+    else if (e.entityId == m_menuSystem->quitToMainMenuBtn()) {
+      destroyCurrentGame();
+      m_menuSystem->showMainMenu();
+      m_gameState = GameState::MainMenu;
+    }
+  }
+}
+
+void GameImpl::handleEvent(const Event& event)
+{
+  playSoundForEvent(event);
+
+  m_ecs->processEvent(event);
+
+  if (event.name == g_strPlayerDeath) {
+    onPlayerDeath();
+  }
+  else if (event.name == g_strUiItemActivate) {
+    handleUiEvent(event);
+  }
+}
+
+void GameImpl::destroyCurrentGame()
 {
   // Will delete entities pending deletion
-  m_ecs->update(m_currentTick);
+  m_ecs->update(m_currentTick, m_inputState);
 
+  // TODO: Delete children before parents
   auto entities = m_sceneBuilder->entities();
   for (auto id : entities) {
     m_ecs->removeEntity(id);
   }
 
   m_eventSystem->dropEvents();
+}
 
+void GameImpl::startGame()
+{
   m_scene = m_sceneBuilder->buildScene();
   m_gameState = GameState::Playing;
 }
@@ -163,14 +204,15 @@ void GameImpl::onKeyDown(KeyboardKey key)
 
       switch (m_gameState) {
         case GameState::Playing: {
-          sysSpatial.setFlags(m_scene.menuRoot, true);
-          sysSpatial.setFlags(m_scene.worldRoot, false);
+          sysSpatial.setEnabled(m_menuSystem->root(), true);
+          sysSpatial.setEnabled(m_scene.worldRoot, false);
+          m_menuSystem->showPauseMenu();
           m_gameState = GameState::Paused;
           break;
         }
         case GameState::Paused: {
-          sysSpatial.setFlags(m_scene.menuRoot, false);
-          sysSpatial.setFlags(m_scene.worldRoot, true);
+          sysSpatial.setEnabled(m_menuSystem->root(), false);
+          sysSpatial.setEnabled(m_scene.worldRoot, true);
           m_gameState = GameState::Playing;
           break;
         }
@@ -206,8 +248,23 @@ void GameImpl::onButtonUp(GamepadButton button)
 {
 }
 
-void GameImpl::onMouseMove(const Vec2f& delta)
+void GameImpl::onMouseButtonDown()
 {
+  m_inputState.mouseBtn = true;
+}
+
+void GameImpl::onMouseButtonUp()
+{
+  m_inputState.mouseBtn = false;
+}
+
+void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
+{
+  int W = 630;
+  int H = 480; // TODO
+  float_t aspect = static_cast<float_t>(W) / H;
+  m_inputState.mousePos[0] = pos[0] / H;
+  m_inputState.mousePos[1] = 1.f - pos[1] / H;
 }
 
 void GameImpl::onLeftStickMove(const Vec2f& delta)
@@ -217,7 +274,6 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
 
 void GameImpl::onRightStickMove(const Vec2f& delta)
 {
-
 }
 
 void GameImpl::processKeyboardInput()
@@ -261,7 +317,8 @@ void GameImpl::processKeyboardInput()
     }
     case GameState::Dead: {
       if (m_inputState.enter) {
-        restartGame();
+        destroyCurrentGame();
+        startGame();
       }
       break;
     }
@@ -271,7 +328,6 @@ void GameImpl::processKeyboardInput()
 
 void GameImpl::processMouseInput()
 {
-
 }
 
 void GameImpl::measureTickRate()
@@ -283,14 +339,16 @@ void GameImpl::measureTickRate()
   }
 }
 
-void GameImpl::update()
+bool GameImpl::update()
 {
   measureTickRate();
   processKeyboardInput();
   processMouseInput();
 
-  m_ecs->update(m_currentTick);
+  m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();
+
+  return !m_shouldExit;
 }
 
 } // namespace

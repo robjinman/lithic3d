@@ -8,7 +8,7 @@
 namespace
 {
 
-class BCollectable : public CBehaviour
+class BCollectable : public BehaviourData
 {
   public:
     BCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
@@ -74,7 +74,7 @@ void BCollectable::processEvent(const Event& event)
 
 } // namespace
 
-CBehaviourPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+BehaviourDataPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId, int value)
 {
   return std::make_unique<BCollectable>(ecs, eventSystem, entityId, playerId, value);

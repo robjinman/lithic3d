@@ -16,7 +16,7 @@ class EcsImpl : public Ecs
     void addSystem(SystemId id, SystemPtr system) override;
     System& system(SystemId id) override;
     const System& system(SystemId id) const override;
-    void update(Tick tick) override;
+    void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override;
     void removeEntity(EntityId entityId) override;
     ComponentStore& componentStore() override;
@@ -53,12 +53,12 @@ const System& EcsImpl::system(SystemId id) const
   return *m_systems.at(id);
 }
 
-void EcsImpl::update(Tick tick)
+void EcsImpl::update(Tick tick, const InputState& inputState)
 {
   deletePending();
 
   for (auto& entry : m_systems) {
-    entry.second->update(tick);
+    entry.second->update(tick, inputState);
   }
 }
 
