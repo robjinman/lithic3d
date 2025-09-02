@@ -59,6 +59,13 @@ struct MeshInstance
 {
   Mat4x4f modelMatrix;
 };
+
+struct SpriteInstance
+{
+  Mat3x3f transform;
+  Rectf uvRect;
+  Vec4f colour;
+};
 #pragma pack(pop)
 
 struct MeshBuffers
@@ -107,6 +114,8 @@ class RenderResources
     virtual MeshBuffers getMeshBuffers(RenderItemId id) const = 0;
     virtual void updateMeshInstances(RenderItemId id,
       const std::vector<MeshInstance>& instances) = 0;
+    virtual void updateSpriteInstances(RenderItemId id,
+      const std::vector<SpriteInstance>& instances) = 0;
     virtual const MeshFeatureSet& getMeshFeatures(RenderItemId id) const = 0;
 
     // Materials

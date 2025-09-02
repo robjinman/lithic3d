@@ -63,6 +63,7 @@ enum class BufferUsage : uint8_t
   AttrJointWeights,
   Index
 };
+const uint32_t FIRST_ATTR_IDX = static_cast<uint32_t>(BufferUsage::AttrPosition);
 const uint32_t LAST_ATTR_IDX = static_cast<uint32_t>(BufferUsage::AttrJointWeights);
 const uint32_t MAX_ATTRIBUTES = LAST_ATTR_IDX;
 

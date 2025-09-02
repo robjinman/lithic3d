@@ -72,9 +72,7 @@ struct SpriteNode : public RenderNode
     : RenderNode(RenderNodeType::Sprite)
   {}
 
-  Mat4x4f modelMatrix;
-  std::array<Vec2f, 4> uvCoords;
-  Vec4f colour;
+  std::vector<SpriteInstance> instances;
 };
 
 struct SkyboxNode : public RenderNode

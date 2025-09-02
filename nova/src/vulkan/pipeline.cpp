@@ -19,22 +19,7 @@ struct DefaultPushConstants
 {
   Mat4x4f modelMatrix;
 };
-
-struct SpritePushConstants
-{
-  // Vert shader
-  Mat4x4f modelMatrix;        // 64 bytes
-  Vec2f spriteUvCoords[4];    // 32 bytes
-
-  // Frag shader
-  Vec4f colour;               // 16 bytes
-};
 #pragma pack(pop)
-
-constexpr size_t SpritePushConstantsVertOffset = 0;
-constexpr size_t SpritePushConstantsFragOffset = 96;
-constexpr size_t SpritePushConstantsVertSize = 96;
-constexpr size_t SpritePushConstantsFragSize = 16;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
@@ -67,22 +52,71 @@ VkFormat attributeFormat(BufferUsage usage)
 }
 
 std::vector<VkVertexInputAttributeDescription>
-  createAttributeDescriptions(const VertexLayout& layout)
+  createAttributeDescriptions(const MeshFeatureSet& features)
 {
   std::vector<VkVertexInputAttributeDescription> attributes;
 
-  const uint32_t first = static_cast<uint32_t>(BufferUsage::AttrPosition);
-  for (auto& attribute : layout) {
+  for (auto& attribute : features.vertexLayout) {
     if (attribute == BufferUsage::None) {
       break;
     }
 
     attributes.push_back(VkVertexInputAttributeDescription{
-      .location = static_cast<uint32_t>(attribute) - first,
+      .location = static_cast<uint32_t>(attribute) - FIRST_ATTR_IDX,
       .binding = 0,
       .format = attributeFormat(attribute),
-      .offset = static_cast<uint32_t>(calcOffsetInVertex(layout, attribute))
+      .offset = static_cast<uint32_t>(calcOffsetInVertex(features.vertexLayout, attribute))
     });
+  }
+
+  if (features.flags.test(MeshFeatures::IsInstanced)) {
+    if (features.flags.test(MeshFeatures::Is2d)) {  // Sprite
+      uint32_t location = LAST_ATTR_IDX - FIRST_ATTR_IDX + 1;
+
+      for (unsigned int i = 0; i < 3; ++i) {
+        uint32_t offset = offsetof(SpriteInstance, transform) + 3 * sizeof(float_t) * i;
+    
+        VkVertexInputAttributeDescription attr{
+          .location = location,
+          .binding = 1,
+          .format = VK_FORMAT_R32G32B32_SFLOAT,
+          .offset = offset
+        };
+    
+        attributes.push_back(attr);
+        ++location;
+      }
+
+      attributes.push_back(VkVertexInputAttributeDescription{
+        .location = location,
+        .binding = 1,
+        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+        .offset = offsetof(SpriteInstance, uvRect)
+      });
+
+      ++location;
+
+      attributes.push_back(VkVertexInputAttributeDescription{
+        .location = location,
+        .binding = 1,
+        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+        .offset = offsetof(SpriteInstance, colour)
+      });
+    }
+    else {
+      for (unsigned int i = 0; i < 4; ++i) {
+        uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
+    
+        VkVertexInputAttributeDescription attr{
+          .location = LAST_ATTR_IDX - FIRST_ATTR_IDX + 1 + i,
+          .binding = 1,
+          .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+          .offset = offset
+        };
+    
+        attributes.push_back(attr);
+      }
+    }
   }
 
   return attributes;
@@ -404,29 +438,17 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  m_vertexAttributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
-  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    for (unsigned int i = 0; i < 4; ++i) {
-      uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
-  
-      VkVertexInputAttributeDescription attr{
-        .location = (LAST_ATTR_IDX - static_cast<uint32_t>(BufferUsage::AttrPosition)) + 1 + i,
-        .binding = 1,
-        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-        .offset = offset
-      };
-  
-      m_vertexAttributeDescriptions.push_back(attr);
-    }
-  }
+  m_vertexAttributeDescriptions = createAttributeDescriptions(meshFeatures);
 
   m_vertexBindingDescriptions = {
     vertexBindingDescription
   };
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+    bool is2d = meshFeatures.flags.test(MeshFeatures::Is2d);
+
     m_vertexBindingDescriptions.push_back(VkVertexInputBindingDescription{
       .binding = 1,
-      .stride = sizeof(MeshInstance),
+      .stride = static_cast<uint32_t>(is2d ? sizeof(SpriteInstance) : sizeof(MeshInstance)),
       .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
     });
   }
@@ -465,21 +487,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (meshFeatures.flags.test(MeshFeatures::Is2d)) {
-    m_pushConstantRanges = {
-      VkPushConstantRange{
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .offset = SpritePushConstantsVertOffset,
-        .size = SpritePushConstantsVertSize
-      },
-      VkPushConstantRange{
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .offset = SpritePushConstantsFragOffset,
-        .size = SpritePushConstantsFragSize
-      },
-    };
-  }
-  else if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
+  if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
     && !meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
 
     m_pushConstantRanges = {
@@ -635,28 +643,6 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
       sizeof(DefaultPushConstants), &constants);
   }
-  else if (node.type == RenderNodeType::Sprite) {
-    auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
-
-    SpritePushConstants constants{
-      .modelMatrix = spriteNode.modelMatrix,
-      .spriteUvCoords = {
-        spriteNode.uvCoords[0],
-        spriteNode.uvCoords[1],
-        spriteNode.uvCoords[2],
-        spriteNode.uvCoords[3]
-      },
-      .colour = spriteNode.colour
-    };
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
-      SpritePushConstantsVertOffset, SpritePushConstantsVertSize, &constants);
-
-    void* fragPart = reinterpret_cast<char*>(&constants) + SpritePushConstantsFragOffset;
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-      SpritePushConstantsFragOffset, SpritePushConstantsFragSize, fragPart);
-  }
 
   if (node.type == RenderNodeType::InstancedModel) {
     assert(node.mesh.features.flags.test(MeshFeatures::IsInstanced));
@@ -691,7 +677,12 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
   std::string fragShader = "main_default";
 
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    defines.push_back("ATTR_MODEL_MATRIX");
+    if (meshFeatures.flags.test(MeshFeatures::Is2d)) {  // Sprites
+      defines.push_back("ATTR_SPRITE");
+    }
+    else {
+      defines.push_back("ATTR_MODEL_MATRIX");
+    }
   }
 
   if (meshFeatures.flags.test(MeshFeatures::IsAnimated)) {

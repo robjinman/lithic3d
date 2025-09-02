@@ -93,7 +93,7 @@ EntityId constructPlayer(EventSystem& eventSystem, Ecs& ecs, EntityId worldRoot)
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(384.f),
       .y = pxToUvY(256.f, 48.f),

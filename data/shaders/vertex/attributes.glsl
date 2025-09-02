@@ -22,3 +22,10 @@ layout(location = 7) in vec4 inModelMatrix1;
 layout(location = 8) in vec4 inModelMatrix2;
 layout(location = 9) in vec4 inModelMatrix3;
 #endif
+#ifdef ATTR_SPRITE
+layout(location = 6) in vec3 inTransform0;
+layout(location = 7) in vec3 inTransform1;
+layout(location = 8) in vec3 inTransform2;
+layout(location = 9) in vec4 inUvRect;
+layout(location = 10) in vec4 inColour;
+#endif

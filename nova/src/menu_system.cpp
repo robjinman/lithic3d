@@ -72,6 +72,7 @@ class MenuSystemImpl : public MenuSystem
     void createAnimations();
     EntityId constructMenuItem(EntityId parent, const Vec2f& pos, const Vec2f& size,
       const Rectf& texRect);
+    EntityId constructTextItem(EntityId parent, const std::string& text, const Vec2f& pos, float_t h);
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -210,7 +211,7 @@ void MenuSystemImpl::constructRoot()
 
   sysSpatial.addEntity(m_root, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
       .y = pxToUvY(0.f, 256.f),
@@ -243,7 +244,7 @@ void MenuSystemImpl::constructFlare()
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
       .y = pxToUvY(256.f, 256.f),
@@ -278,7 +279,7 @@ EntityId MenuSystemImpl::constructMenuItem(EntityId parentId, const Vec2f& pos, 
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = texRect,
     .zIndex = 102
   };
@@ -315,7 +316,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
 
   sysSpatial.addEntity(id, spatial);
 
-  auto sfxVolume = constructMenuItem(id, { 0.02f, 0.11f }, { 0.4, 0.05625f }, {
+  auto sfxVolume = constructMenuItem(id, { 0.02f, 0.11f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(128.f, 32.f),
     .w = pxToUvW(256.f),
@@ -348,7 +349,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
 
   sysSpatial.addEntity(musicIcon, musicIconSpatial);
 
-  RenderData musicIconRender{
+  SpriteData musicIconRender{
     .textureRect = Rectf{
       .x = pxToUvX(96.f),
       .y = pxToUvY(448.f, 64.f),
@@ -360,7 +361,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
 
   sysRender.addEntity(musicIcon, musicIconRender);
 
-  auto musicVolume = constructMenuItem(id, { 0.02f, 0.21f }, { 0.4, 0.05625f }, {
+  auto musicVolume = constructMenuItem(id, { 0.02f, 0.21f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(96.f, 32.f),
     .w = pxToUvW(256.f),
@@ -381,7 +382,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
     .h = pxToUvH(32.f)
   });
 
-  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4, 0.05625f }, {
+  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(160.f, 32.f),
     .w = pxToUvW(256.f),
@@ -496,10 +497,36 @@ void MenuSystemImpl::constructMainMenu()
   sysBehaviour.addBehaviour(m_mainMenu, std::move(behaviour));
 }
 
-EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
+EntityId MenuSystemImpl::constructTextItem(EntityId parent, const std::string& text,
+  const Vec2f& pos, float_t h)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+  >();
+
+  SpatialData spatial{
+    .transform = identityMatrix<float_t, 4>(),
+    .parent = parent,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  TextItemData render{
+    .text = text,
+    .zIndex = 102,
+    .colour = { 1.f, 1.f, 1.f, 1.f }
+  };
+
+  sysRender.addEntity(id, render);
+}
+
+EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
@@ -514,7 +541,9 @@ EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
 
   sysSpatial.addEntity(id, spatial);
 
-  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4, 0.05625f }, {
+  constructTextItem(id, "Design & Programming: Rob Jinman", { 0.2f, 0.5f }, 0.05625f);
+
+  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(160.f, 32.f),
     .w = pxToUvW(256.f),
@@ -541,7 +570,6 @@ EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
 EntityId MenuSystemImpl::constructGameOptionsSubmenu(EntityId prevMenu)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
@@ -556,21 +584,21 @@ EntityId MenuSystemImpl::constructGameOptionsSubmenu(EntityId prevMenu)
 
   sysSpatial.addEntity(id, spatial);
 
-  auto difficultyUp = constructMenuItem(id, { 0.5f, 0.11f }, { 0.075, 0.05625f }, {
+  auto difficultyUp = constructMenuItem(id, { 0.5f, 0.11f }, { 0.075f, 0.05625f }, {
     .x = pxToUvX(224.f),
     .y = pxToUvY(0.f, 32.f),
     .w = pxToUvW(32.f),
     .h = pxToUvH(32.f)
   });
 
-  auto difficultyDown = constructMenuItem(id, { 0.4f, 0.11f }, { 0.075, 0.05625f }, {
+  auto difficultyDown = constructMenuItem(id, { 0.4f, 0.11f }, { 0.075f, 0.05625f }, {
     .x = pxToUvX(192.f),
     .y = pxToUvY(0.f, 32.f),
     .w = pxToUvW(32.f),
     .h = pxToUvH(32.f)
   });
 
-  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4, 0.05625f }, {
+  auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4f, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(160.f, 32.f),
     .w = pxToUvW(256.f),

@@ -29,68 +29,17 @@ using render::toBytes;
 namespace
 {
 
-Mat4x4f screenToWorld(const Mat4x4f& transform, float_t aspect)
+Mat3x3f screenToWorld(const Mat3x3f& transform, float_t aspect)
 {
-  static Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 0.f });
+  static Mat3x3f M = ([aspect]() {
+    auto m = identityMatrix<float_t, 3>();
+    m.set(0, 2, -0.5 * aspect);
+    m.set(1, 2, -0.5 * aspect);
+    m.set(2, 2, 1.f);
+    return m;
+  })();
+
   return M * transform;
-}
-
-MeshPtr quad(const Vec2f& size, const Rectf& uvRect)
-{
-  float_t w = size[0];
-  float_t h = size[1];
-
-  float_t u0 = uvRect.x;
-  float_t v0 = uvRect.y;
-  float_t u1 = u0 + uvRect.w;
-  float_t v1 = v0 + uvRect.h;
-
-  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
-    .vertexLayout = {
-      BufferUsage::AttrPosition,
-      BufferUsage::AttrNormal,
-      BufferUsage::AttrTexCoord
-    },
-    .flags{}
-  });
-  mesh->featureSet.flags.set(MeshFeatures::Is2d);
-  mesh->attributeBuffers = {
-    Buffer{
-      .usage = BufferUsage::AttrPosition,
-      .data = toBytes(std::vector<Vec3f>{
-        { 0, 0, 0 },
-        { w, 0, 0 },
-        { w, h, 0 },
-        { 0, h, 0 }
-      })
-    },
-    Buffer{
-      .usage = BufferUsage::AttrNormal,
-      .data = toBytes(std::vector<Vec3f>{
-        { 0, 0, 1 },
-        { 0, 0, 1 },
-        { 0, 0, 1 },
-        { 0, 0, 1 }
-      })
-    },
-    Buffer{
-      .usage = BufferUsage::AttrTexCoord,
-      .data = toBytes(std::vector<Vec2f>{
-        { u0, v1 },
-        { u1, v1 },
-        { u1, v0 },
-        { u0, v0 }
-      })
-    }
-  };
-  mesh->indexBuffer = Buffer{
-    .usage = BufferUsage::Index,
-    .data = toBytes(std::vector<uint16_t>{
-      0, 1, 2, 0, 2, 3
-    })
-  };
-
-  return mesh;
 }
 
 class SysRenderImpl : public SysRender
@@ -105,7 +54,8 @@ class SysRenderImpl : public SysRender
     Camera& camera() override;
     const Camera& camera() const override;
 
-    void addEntity(EntityId entityId, const RenderData& component) override;
+    void addEntity(EntityId entityId, const SpriteData& data) override;
+    void addEntity(EntityId entityId, const TextItemData& data) override;
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
     void setVisible(EntityId entityId, bool visible) override;
@@ -122,7 +72,7 @@ class SysRenderImpl : public SysRender
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
     MaterialHandle m_textureAtlas;
-    MeshHandle m_mesh;
+    std::unordered_map<EntityId, TextItemData> m_textComponents;
 };
 
 SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
@@ -140,6 +90,7 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
     },
     .flags{}
   };
+  meshFeatures.flags.set(MeshFeatures::IsInstanced);
   meshFeatures.flags.set(MeshFeatures::Is2d);
 
   MaterialFeatureSet materialFeatures{};
@@ -154,8 +105,6 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
 
   m_textureAtlas = m_renderer.addMaterial(std::move(material));
 
-  m_mesh = m_renderer.addMesh(quad(Vec2f{ 1.f, 1.f }, Rectf{ 0.f, 0.f, 1.f, 1.f }));
-
   m_camera.setPosition(Vec3f{ 0.f, 0.f, 1.f });
 }
 
@@ -169,7 +118,7 @@ double SysRenderImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const RenderData& data)
+void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
 {
   m_componentStore.component<CRender>(entityId) = CRender{
     .textureRect = data.textureRect,
@@ -177,6 +126,11 @@ void SysRenderImpl::addEntity(EntityId entityId, const RenderData& data)
     .zIndex = data.zIndex,
     .visible = true
   };
+}
+
+void SysRenderImpl::addEntity(EntityId entityId, const TextItemData& data)
+{
+  m_textComponents.insert({ entityId, data });
 }
 
 void SysRenderImpl::setZIndex(EntityId entityId, uint32_t zIndex)
@@ -199,6 +153,7 @@ void SysRenderImpl::setVisible(EntityId entityId, bool visible)
 
 void SysRenderImpl::removeEntity(EntityId entityId)
 {
+  m_textComponents.erase(entityId);
 }
 
 bool SysRenderImpl::hasEntity(EntityId entityId) const
@@ -239,18 +194,15 @@ void SysRenderImpl::update(Tick, const InputState&)
         }
 
         auto& t = globalTs[i].transform;
-        auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
-
-        std::array<Vec2f, 4> uvCoords{
-          Vec2f{ item.textureRect.x, item.textureRect.y + item.textureRect.h },
-          Vec2f{ item.textureRect.x + item.textureRect.w, item.textureRect.y + item.textureRect.h },
-          Vec2f{ item.textureRect.x + item.textureRect.w, item.textureRect.y },
-          Vec2f{ item.textureRect.x, item.textureRect.y }
+        Mat3x3f transform{
+          t.at(0, 0), t.at(0, 1), t.at(0, 3),
+          t.at(1, 0), t.at(1, 1), t.at(1, 3),
+          t.at(2, 0), t.at(2, 1), t.at(2, 3),
         };
+        auto worldTransform = screenToWorld(transform, m_renderer.getViewParams().aspectRatio);
 
         m_renderer.setOrderKey(item.zIndex);
-        m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, item.colour,
-          screenSpaceTransform);
+        m_renderer.drawSprite(m_textureAtlas, item.textureRect, item.colour, worldTransform);
       }
     }
 

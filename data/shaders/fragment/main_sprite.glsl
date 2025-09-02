@@ -5,13 +5,7 @@
 
 layout(location = 0) in vec2 inTexCoord;
 layout(location = 1) in vec3 inWorldPos;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in vec4 inLightSpacePos;
-
-layout(push_constant) uniform PushConstants
-{
-  layout(offset = 96) vec4 colour;
-} constants;
+layout(location = 6) in vec4 inColour;
 
 #include "fragment/materials.glsl"
 
@@ -25,6 +19,6 @@ void main()
 //    discard;
 //  }
 //  else {
-    outColour = constants.colour * texel;
+    outColour = inColour * texel;
 //  }
 }

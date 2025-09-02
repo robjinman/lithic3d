@@ -133,7 +133,7 @@ void SceneBuilderImpl::constructSky()
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(416.f, 32.f),
@@ -189,7 +189,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
         .y = pxToUvY(0.f, 32.f),
@@ -230,7 +230,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
         .y = pxToUvY(32.f, 32.f),
@@ -275,7 +275,7 @@ void SceneBuilderImpl::constructTrees()
 
   sysSpatial.addEntity(id, spatial);
   
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(352.f, 40.f),
@@ -313,7 +313,7 @@ void SceneBuilderImpl::constructFakeSoil()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(384.f),
         .y = pxToUvY(0.f, 16.f),
@@ -451,7 +451,7 @@ void SceneBuilderImpl::constructSoil()
 
       sysSpatial.addEntity(id, spatial);
 
-      RenderData render{
+      SpriteData render{
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -699,7 +699,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(672.f),
         .y = pxToUvY(224.f, 32.f),
@@ -799,7 +799,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
 
       sysSpatial.addEntity(id, spatial);
 
-      RenderData render{
+      SpriteData render{
         .textureRect = Rectf{
           .x = pxToUvX(16.f * (value - 1)),
           .y = pxToUvY(400.f, 16.f),
@@ -841,7 +841,7 @@ void SceneBuilderImpl::constructGradient()
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(512.f),
       .y = pxToUvY(256.f, 128.f),

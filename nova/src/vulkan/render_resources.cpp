@@ -22,7 +22,6 @@ struct MeshData
   VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
   VkBuffer instanceBuffer = VK_NULL_HANDLE;
   VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
-  uint32_t numInstances = 0;
   std::vector<VkDescriptorSet> objectDescriptorSets;
   BufferedUboPtr jointTransformsUbo;
 };
@@ -116,6 +115,8 @@ class RenderResourcesImpl : public RenderResources
       size_t currentFrame) override;
     MeshBuffers getMeshBuffers(RenderItemId id) const override;
     void updateMeshInstances(RenderItemId id, const std::vector<MeshInstance>& instances) override;
+    void updateSpriteInstances(RenderItemId id,
+      const std::vector<SpriteInstance>& instances) override;
     const MeshFeatureSet& getMeshFeatures(RenderItemId id) const override;
 
     // Materials
@@ -185,8 +186,11 @@ class RenderResourcesImpl : public RenderResources
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
       VkBuffer& buffer, VkDeviceMemory& bufferMemory);
     VkBuffer createVertexBuffer(const Mesh& mesh, VkDeviceMemory& vertexBufferMemory);
-    VkBuffer createInstanceBuffer(size_t maxInstances, VkDeviceMemory& instanceBufferMemory);
-    void updateInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
+    VkBuffer createInstanceBuffer(VkDeviceSize size, VkDeviceMemory& instanceBufferMemory);
+    void updateInstanceBuffer(const char* data, VkDeviceSize size, VkBuffer buffer);
+    void updateSpriteInstanceBuffer(const std::vector<SpriteInstance>& instanceData,
+      VkBuffer buffer);
+    void updateMeshInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
     void createTextureSampler();
     void createNormalMapSampler();
     void createCubeMapSampler();
@@ -389,8 +393,11 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   data->vertexBuffer = createVertexBuffer(*data->mesh, data->vertexBufferMemory);
   data->indexBuffer = createIndexBuffer(data->mesh->indexBuffer, data->indexBufferMemory);
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsInstanced)) {
-    data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances,
-      data->instanceBufferMemory);
+    bool is2d = data->mesh->featureSet.flags.test(MeshFeatures::Is2d);
+    VkDeviceSize instanceSize = is2d ? sizeof(SpriteInstance) : sizeof(MeshInstance);
+    VkDeviceSize bufferSize = instanceSize * data->mesh->maxInstances;
+
+    data->instanceBuffer = createInstanceBuffer(bufferSize, data->instanceBufferMemory);
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
@@ -473,8 +480,7 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
     .vertexBuffer = mesh->vertexBuffer,
     .indexBuffer = mesh->indexBuffer,
     .instanceBuffer = mesh->instanceBuffer,
-    .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.size() / sizeof(uint16_t)),
-    .numInstances = mesh->numInstances
+    .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.size() / sizeof(uint16_t))
   };
 }
 
@@ -489,8 +495,21 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
     "Can't instance a non-instanced mesh");
   ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
 
-  mesh->numInstances = static_cast<uint32_t>(instances.size());
-  updateInstanceBuffer(instances, mesh->instanceBuffer);
+  updateMeshInstanceBuffer(instances, mesh->instanceBuffer);
+}
+
+// TODO: This is far too slow
+void RenderResourcesImpl::updateSpriteInstances(RenderItemId id,
+  const std::vector<SpriteInstance>& instances)
+{
+  DBG_TRACE(m_logger);
+
+  auto& mesh = m_meshes.at(id);
+  ASSERT(mesh->mesh->featureSet.flags.test(MeshFeatures::IsInstanced),
+    "Can't instance a non-instanced mesh");
+  ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
+
+  updateSpriteInstanceBuffer(instances, mesh->instanceBuffer);
 }
 
 void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints,
@@ -862,12 +881,10 @@ VkBuffer RenderResourcesImpl::createIndexBuffer(const Buffer& indexBuffer,
   return buffer;
 }
 
-VkBuffer RenderResourcesImpl::createInstanceBuffer(size_t maxInstances,
+VkBuffer RenderResourcesImpl::createInstanceBuffer(VkDeviceSize size,
   VkDeviceMemory& instanceBufferMemory)
 {
   DBG_TRACE(m_logger);
-
-  VkDeviceSize size = sizeof(MeshInstance) * maxInstances;
 
   VkBuffer buffer = VK_NULL_HANDLE;
   createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -876,12 +893,9 @@ VkBuffer RenderResourcesImpl::createInstanceBuffer(size_t maxInstances,
   return buffer;
 }
 
-void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& instances,
-  VkBuffer buffer)
+void RenderResourcesImpl::updateInstanceBuffer(const char* data, VkDeviceSize size, VkBuffer buffer)
 {
   DBG_TRACE(m_logger);
-
-  VkDeviceSize size = sizeof(MeshInstance) * instances.size();
 
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
@@ -891,15 +905,33 @@ void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& 
 
   // TODO: Consider partial updates?
 
-  void* data = nullptr;
-  vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, instances.data(), size);
+  void* mappedLocation = nullptr;
+  vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &mappedLocation);
+  memcpy(mappedLocation, data, size);
   vkUnmapMemory(m_device, stagingBufferMemory);
 
   copyBuffer(stagingBuffer, buffer, size);
 
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+}
+
+void RenderResourcesImpl::updateMeshInstanceBuffer(const std::vector<MeshInstance>& instances,
+  VkBuffer buffer)
+{
+  DBG_TRACE(m_logger);
+
+  VkDeviceSize size = sizeof(MeshInstance) * instances.size();
+  updateInstanceBuffer(reinterpret_cast<const char*>(instances.data()), size, buffer);
+}
+
+void RenderResourcesImpl::updateSpriteInstanceBuffer(const std::vector<SpriteInstance>& instances,
+  VkBuffer buffer)
+{
+  DBG_TRACE(m_logger);
+
+  VkDeviceSize size = sizeof(SpriteInstance) * instances.size();
+  updateInstanceBuffer(reinterpret_cast<const char*>(instances.data()), size, buffer);
 }
 
 void RenderResourcesImpl::createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory,

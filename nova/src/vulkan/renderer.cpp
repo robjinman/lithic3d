@@ -29,6 +29,58 @@ namespace render
 namespace
 {
 
+MeshPtr quad()
+{
+  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  });
+  mesh->featureSet.flags.set(MeshFeatures::Is2d);
+  mesh->featureSet.flags.set(MeshFeatures::IsInstanced);
+  mesh->attributeBuffers = {
+    Buffer{
+      .usage = BufferUsage::AttrPosition,
+      .data = toBytes(std::vector<Vec3f>{
+        { 0, 0, 0 },
+        { 1, 0, 0 },
+        { 1, 1, 0 },
+        { 0, 1, 0 }
+      })
+    },
+    Buffer{
+      .usage = BufferUsage::AttrNormal,
+      .data = toBytes(std::vector<Vec3f>{
+        { 0, 0, 1 },
+        { 0, 0, 1 },
+        { 0, 0, 1 },
+        { 0, 0, 1 }
+      })
+    },
+    Buffer{
+      .usage = BufferUsage::AttrTexCoord,
+      .data = toBytes(std::vector<Vec2f>{
+        { 0, 1 },
+        { 1, 1 },
+        { 1, 0 },
+        { 0, 0 }
+      })
+    }
+  };
+  mesh->indexBuffer = Buffer{
+    .usage = BufferUsage::Index,
+    .data = toBytes(std::vector<uint16_t>{
+      0, 1, 2, 0, 2, 3
+    })
+  };
+  mesh->maxInstances = 1000;
+
+  return mesh;
+}
+
 const std::vector<const char*> ValidationLayers = {
   "VK_LAYER_KHRONOS_validation"
 };
@@ -102,8 +154,10 @@ class RendererImpl : public Renderer
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const std::vector<Mat4x4f>& jointTransforms) override;
-    void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
-      const Vec4f& colour, const Mat4x4f& transform) override;
+    void drawSprite(MaterialHandle material, const Rectf& uvRect, const Vec4f& colour,
+      const Mat3x3f& transform) override;
+    void drawText(MaterialHandle material, const Rectf& uvRect, const Vec4f& colour,
+      const Vec2f& pos, const Vec2f& charSize) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
@@ -190,6 +244,8 @@ class RendererImpl : public Renderer
     std::atomic<bool> m_framebufferResized = false;
     Mat4x4f m_perspectiveMatrix;
     Mat4x4f m_orthographicMatrix;
+
+    MeshHandle m_quad;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -282,6 +338,8 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
     createCommandBuffers();
     createSyncObjects();
   }).get();
+
+  m_quad = addMesh(quad());
 }
 
 void RendererImpl::start()
@@ -361,7 +419,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHan
   MaterialHandle material) const
 {
   PipelineKey pipelineKey{
-    .renderPass = RenderPass::Main,
+    .renderPass = RenderPass::Main, // Dummy value
     .meshFeatures = mesh.features,
     .materialFeatures = material.features
   };
@@ -419,11 +477,13 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
     renderGraph.insert(key, std::move(newNode));
     state.lookup.insert({ key, node });
   }
-  node->instances.push_back(MeshInstance{transform * mesh.transform});
+  node->instances.push_back(MeshInstance{
+    .modelMatrix = transform * mesh.transform
+  });
 }
 
-void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
-  const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform)
+void RendererImpl::drawSprite(MaterialHandle material, const Rectf& uvRect, const Vec4f& colour,
+  const Mat3x3f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -431,17 +491,47 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
   RenderGraph& renderGraph = state.graph;
 
-  auto node = std::make_unique<SpriteNode>();
-  node->mesh = mesh;
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, m_quad, material);
+  SpriteNode* node = nullptr;
+  auto i = state.lookup.find(key);
+  if (i != state.lookup.end()) {
+    node = dynamic_cast<SpriteNode*>(i->second);
+  }
+  else {
+    auto newNode = std::make_unique<SpriteNode>();
+    newNode->mesh = m_quad;
+    newNode->material = material;
+    node = newNode.get();
+    renderGraph.insert(key, std::move(newNode));
+    state.lookup.insert({ key, node });
+  }
+  node->instances.push_back(SpriteInstance{
+    .transform = transform,
+    .uvRect = uvRect,
+    .colour = colour
+  });
+}
+
+void RendererImpl::drawText(MaterialHandle material, const Rectf& uvRect, const Vec4f& colour,
+  const Vec2f& pos, const Vec2f& charSize)
+{
+  //DBG_TRACE(m_logger);
+/*
+  FrameState& frameState = m_frameStates.getWritable();
+  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  RenderGraph& renderGraph = state.graph;
+
+  auto node = std::make_unique<TextNode>();
+  node->mesh = m_quad;
   node->material = material;
-  node->modelMatrix = transform;
+  node->pos = pos;
   node->uvCoords = uvCoords;
   node->colour = colour;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, m_quad, material);
 
   state.lookup.insert({ key, node.get() });
-  renderGraph.insert(key, std::move(node));
+  renderGraph.insert(key, std::move(node));*/
 }
 
 void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
@@ -1224,6 +1314,11 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
       case RenderNodeType::InstancedModel: {
         auto& instancedNode = dynamic_cast<const InstancedModelNode&>(*node);
         m_resources->updateMeshInstances(instancedNode.mesh.id, instancedNode.instances);
+        break;
+      }
+      case RenderNodeType::Sprite: {
+        auto& spriteNode = dynamic_cast<const SpriteNode&>(*node);
+        m_resources->updateSpriteInstances(spriteNode.mesh.id, spriteNode.instances);
         break;
       }
     }
