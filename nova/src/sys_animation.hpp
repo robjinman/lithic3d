@@ -17,6 +17,7 @@ struct Animation
 {
   HashedString name;
   Tick duration = 1;
+  Vec2f startPos;
   std::vector<AnimationFrame> frames;
 };
 

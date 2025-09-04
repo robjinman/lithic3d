@@ -488,6 +488,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
   auto animExplode = std::unique_ptr<Animation>(new Animation{
     .name = hashString("explode"),
     .duration = 30,
+    .startPos{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
     .frames = {
       AnimationFrame{
         .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },

@@ -120,12 +120,12 @@ void SysAnimationImpl::update(Tick, const InputState&)
       float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
       auto& frame = anim.frames[frameNumInt];
 
-      Vec2f prevPos = frameNumInt > 0 ? anim.frames[frameNumInt - 1].pos : Vec2f{};
+      Vec2f prevPos = frameNumInt > 0 ? anim.frames[frameNumInt - 1].pos : anim.startPos;
       Vec2f delta = frame.pos - prevPos;
       Vec2f interp = prevPos + delta * fractionOfFrameComplete;
 
       Vec3f pos{ interp[0], interp[1], 0.f };
-      Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
+      Vec3f scale{ frame.scale[0], frame.scale[1], 1.f }; // TODO: interpolate?
 
       localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
 
