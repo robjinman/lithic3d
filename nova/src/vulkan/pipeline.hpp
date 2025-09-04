@@ -54,6 +54,7 @@ struct DefaultModelNode : public RenderNode
   {}
 
   Mat4x4f modelMatrix;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
   std::optional<std::vector<Mat4x4f>> jointTransforms;
 };
 

@@ -99,9 +99,10 @@ class RendererImpl : public Renderer
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void setOrderKey(uint32_t order) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
-    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const std::vector<Mat4x4f>& jointTransforms) override;
+      const Vec4f& colour) override;
+    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+      const Vec4f& colour, const std::vector<Mat4x4f>& jointTransforms) override;
     void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
       const Vec4f& colour, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
@@ -160,7 +161,7 @@ class RendererImpl : public Renderer
       MaterialHandle material) const;
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
     void drawModelInternal(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const std::optional<std::vector<Mat4x4f>>& jointTransforms);
+      const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
 
     ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
@@ -447,20 +448,22 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
 }
 
 void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-  const std::vector<Mat4x4f>& jointTransforms)
+  const Vec4f& colour, const std::vector<Mat4x4f>& jointTransforms)
 {
-  drawModelInternal(mesh, material, transform, jointTransforms);
+  drawModelInternal(mesh, material, transform, colour, jointTransforms);
 }
 
-void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
+void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
+  const Vec4f& colour)
 {
   //DBG_TRACE(m_logger);
 
-  drawModelInternal(mesh, material, transform, std::nullopt);
+  drawModelInternal(mesh, material, transform, colour, std::nullopt);
 }
 
 void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
-  const Mat4x4f& transform, const std::optional<std::vector<Mat4x4f>>& jointTransforms)
+  const Mat4x4f& transform, const Vec4f& colour,
+  const std::optional<std::vector<Mat4x4f>>& jointTransforms)
 {
   //DBG_TRACE(m_logger);
 
@@ -472,6 +475,7 @@ void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
   node->mesh = mesh;
   node->material = material;
   node->modelMatrix = transform;
+  node->colour = colour;
   node->jointTransforms = jointTransforms;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);

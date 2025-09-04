@@ -331,7 +331,7 @@ void SysRenderImpl::update(Tick, const InputState&)
 
         if (item.isText) {
           const auto& mesh = m_textItems.at(entityIds[i]);
-          m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform);
+          m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, item.colour);
         }
         else {
           const Rectf& r = item.textureRect;

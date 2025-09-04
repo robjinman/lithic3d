@@ -73,7 +73,7 @@ class MenuSystemImpl : public MenuSystem
     EntityId constructMenuItem(EntityId parent, const Vec2f& pos, const Vec2f& size,
       const Rectf& texRect);
     EntityId constructTextItem(EntityId parent, const Vec2f& pos, const Vec2f& charSize,
-      const std::string& text);
+      const std::string& text, const Vec4f& colour);
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -499,7 +499,7 @@ void MenuSystemImpl::constructMainMenu()
 }
 
 EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, const Vec2f& charSize,
-  const std::string& text)
+  const std::string& text, const Vec4f& colour)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -523,8 +523,8 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
       .w = pxToUvW(192.f),
       .h = pxToUvH(192.f)
     },
-    .zIndex = 101,
-    .colour = { 1.f, 0.f, 0.f, 1.f },
+    .zIndex = 102,
+    .colour = colour,
     .text = text
   };
 
@@ -551,7 +551,10 @@ EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
 
   sysSpatial.addEntity(id, spatial);
 
-  constructTextItem(id, { 0.2, 0.3 }, { 0.02f, 0.05f }, "Hello");
+  Vec4f colour{ 0.f, 0.f, 0.f, 1.f };
+  Vec2f charSize{ 0.018f, 0.04f };
+  constructTextItem(id, { 0.35, 0.7 }, charSize, "Design & Programming: Rob Jinman", colour);
+  constructTextItem(id, { 0.35, 0.65 }, charSize, "Music:                Jack Normal", colour);
 
   auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4, 0.05625f }, {
     .x = pxToUvX(0.f),

@@ -25,6 +25,11 @@ layout(location = 5) in vec3 inBitangent;
 layout(location = 0) out vec4 outColour;
 #endif
 
+layout(push_constant) uniform PushConstants
+{
+  layout(offset = 64) vec4 colour;
+} constants;
+
 void main()
 {
 #ifdef FEATURE_NORMAL_MAPPING
@@ -51,6 +56,6 @@ void main()
 //    discard;
 //  }
 //  else {
-    outColour = vec4(light, 1.0) * texel;
+    outColour = constants.colour * vec4(light, 1.0) * texel;
 //  }
 }

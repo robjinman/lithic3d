@@ -17,7 +17,11 @@ namespace
 #pragma pack(push, 4)
 struct DefaultPushConstants
 {
-  Mat4x4f modelMatrix;
+  // Vert shader
+  Mat4x4f modelMatrix;        // 64 bytes
+
+  // Frag shader
+  Vec4f colour;               // 16 bytes
 };
 
 struct SpritePushConstants
@@ -31,10 +35,15 @@ struct SpritePushConstants
 };
 #pragma pack(pop)
 
-constexpr size_t SpritePushConstantsVertOffset = 0;
-constexpr size_t SpritePushConstantsFragOffset = 96;
-constexpr size_t SpritePushConstantsVertSize = 96;
-constexpr size_t SpritePushConstantsFragSize = 16;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_OFFSET = 0;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET = 64;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_SIZE = 64;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_SIZE = 16;
+
+constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_OFFSET = 0;
+constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_OFFSET = 96;
+constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_SIZE = 96;
+constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
@@ -467,14 +476,14 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .offset = SpritePushConstantsVertOffset,
-        .size = SpritePushConstantsVertSize
+        .offset = SPRITE_PUSH_CONSTANTS_VERT_OFFSET,
+        .size = SPRITE_PUSH_CONSTANTS_VERT_SIZE
       },
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .offset = SpritePushConstantsFragOffset,
-        .size = SpritePushConstantsFragSize
-      },
+        .offset = SPRITE_PUSH_CONSTANTS_FRAG_OFFSET,
+        .size = SPRITE_PUSH_CONSTANTS_FRAG_SIZE
+      }
     };
   }
   else if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
@@ -483,8 +492,13 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .offset = 0,
-        .size = sizeof(DefaultPushConstants)
+        .offset = DEFAULT_PUSH_CONSTANTS_VERT_OFFSET,
+        .size = DEFAULT_PUSH_CONSTANTS_VERT_SIZE
+      },
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET,
+        .size = DEFAULT_PUSH_CONSTANTS_FRAG_SIZE
       }
     };
   }
@@ -628,11 +642,17 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
     DefaultPushConstants constants{
-      .modelMatrix = defaultNode.modelMatrix
+      .modelMatrix = defaultNode.modelMatrix,
+      .colour = defaultNode.colour
     };
 
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-      sizeof(DefaultPushConstants), &constants);
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+      DEFAULT_PUSH_CONSTANTS_VERT_OFFSET, DEFAULT_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+    void* fragPart = reinterpret_cast<char*>(&constants) + DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET;
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+      DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET, DEFAULT_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
   }
   else if (node.type == RenderNodeType::Sprite) {
     auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
@@ -649,12 +669,12 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     };
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
-      SpritePushConstantsVertOffset, SpritePushConstantsVertSize, &constants);
+      SPRITE_PUSH_CONSTANTS_VERT_OFFSET, SPRITE_PUSH_CONSTANTS_VERT_SIZE, &constants);
 
-    void* fragPart = reinterpret_cast<char*>(&constants) + SpritePushConstantsFragOffset;
+    void* fragPart = reinterpret_cast<char*>(&constants) + SPRITE_PUSH_CONSTANTS_FRAG_OFFSET;
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-      SpritePushConstantsFragOffset, SpritePushConstantsFragSize, fragPart);
+      SPRITE_PUSH_CONSTANTS_FRAG_OFFSET, SPRITE_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
   }
 
   if (node.type == RenderNodeType::InstancedModel) {
