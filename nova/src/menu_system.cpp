@@ -72,6 +72,8 @@ class MenuSystemImpl : public MenuSystem
     void createAnimations();
     EntityId constructMenuItem(EntityId parent, const Vec2f& pos, const Vec2f& size,
       const Rectf& texRect);
+    EntityId constructTextItem(EntityId parent, const Vec2f& pos, const Vec2f& charSize,
+      const std::string& text);
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -196,7 +198,7 @@ void MenuSystemImpl::constructRoot()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   m_root = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
   >();
 
   Vec2f size{ GRID_CELL_W * GRID_W, (5.f + GRID_H) * GRID_CELL_H };
@@ -210,7 +212,7 @@ void MenuSystemImpl::constructRoot()
 
   sysSpatial.addEntity(m_root, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
       .y = pxToUvY(0.f, 256.f),
@@ -229,7 +231,7 @@ void MenuSystemImpl::constructFlare()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
   >();
 
   Vec2f size{ 1.5f, 1.5f };
@@ -243,7 +245,7 @@ void MenuSystemImpl::constructFlare()
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
       .y = pxToUvY(256.f, 256.f),
@@ -267,7 +269,7 @@ EntityId MenuSystemImpl::constructMenuItem(EntityId parentId, const Vec2f& pos, 
   auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CUi
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CUi
   >();
 
   SpatialData spatial{
@@ -278,7 +280,7 @@ EntityId MenuSystemImpl::constructMenuItem(EntityId parentId, const Vec2f& pos, 
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = texRect,
     .zIndex = 102
   };
@@ -337,7 +339,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
   });
 
   auto musicIcon = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
   >();
 
   SpatialData musicIconSpatial{
@@ -348,7 +350,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
 
   sysSpatial.addEntity(musicIcon, musicIconSpatial);
 
-  RenderData musicIconRender{
+  SpriteData musicIconRender{
     .textureRect = Rectf{
       .x = pxToUvX(96.f),
       .y = pxToUvY(448.f, 64.f),
@@ -496,6 +498,41 @@ void MenuSystemImpl::constructMainMenu()
   sysBehaviour.addBehaviour(m_mainMenu, std::move(behaviour));
 }
 
+EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, const Vec2f& charSize,
+  const std::string& text)
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+  >();
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, charSize),
+    .parent = parent,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .zIndex = 101,
+    .colour = { 1.f, 0.f, 0.f, 1.f },
+    .text = text
+  };
+
+  sysRender.addEntity(id, render);
+
+  return id;
+}
+
 EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
@@ -513,6 +550,8 @@ EntityId MenuSystemImpl::constructCreditsSubmenu(EntityId prevMenu)
   };
 
   sysSpatial.addEntity(id, spatial);
+
+  constructTextItem(id, { 0.2, 0.3 }, { 0.02f, 0.05f }, "Hello");
 
   auto returnBtn = constructMenuItem(id, { 0.02f, 0.01f }, { 0.4, 0.05625f }, {
     .x = pxToUvX(0.f),

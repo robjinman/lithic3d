@@ -117,7 +117,7 @@ void SceneBuilderImpl::constructSky()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
   >();
 
   m_entities.insert(id);
@@ -133,7 +133,7 @@ void SceneBuilderImpl::constructSky()
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(416.f, 32.f),
@@ -173,7 +173,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
     >();
 
     m_entities.insert(id);
@@ -189,7 +189,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
         .y = pxToUvY(0.f, 32.f),
@@ -214,7 +214,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
     >();
 
     m_entities.insert(id);
@@ -230,7 +230,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
         .y = pxToUvY(32.f, 32.f),
@@ -259,7 +259,7 @@ void SceneBuilderImpl::constructTrees()
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
   >();
   
   m_entities.insert(id);
@@ -275,7 +275,7 @@ void SceneBuilderImpl::constructTrees()
 
   sysSpatial.addEntity(id, spatial);
   
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(352.f, 40.f),
@@ -295,7 +295,7 @@ void SceneBuilderImpl::constructFakeSoil()
 
   for (size_t i = 0; i < GRID_W; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
     >();
     
     m_entities.insert(id);
@@ -313,7 +313,7 @@ void SceneBuilderImpl::constructFakeSoil()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(384.f),
         .y = pxToUvY(0.f, 16.f),
@@ -430,7 +430,7 @@ void SceneBuilderImpl::constructSoil()
       }
 
       auto id = m_ecs.componentStore().allocate<
-        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+        CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
       >();
       
       m_entities.insert(id);
@@ -451,7 +451,7 @@ void SceneBuilderImpl::constructSoil()
 
       sysSpatial.addEntity(id, spatial);
 
-      RenderData render{
+      SpriteData render{
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -678,7 +678,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
     >();
 
     m_entities.insert(id);
@@ -699,7 +699,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
     sysSpatial.addEntity(id, spatial);
 
-    RenderData render{
+    SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(672.f),
         .y = pxToUvY(224.f, 32.f),
@@ -781,7 +781,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
       }
 
       auto id = m_ecs.componentStore().allocate<
-        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+        CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
       >();
 
       m_entities.insert(id);
@@ -799,7 +799,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
 
       sysSpatial.addEntity(id, spatial);
 
-      RenderData render{
+      SpriteData render{
         .textureRect = Rectf{
           .x = pxToUvX(16.f * (value - 1)),
           .y = pxToUvY(400.f, 16.f),
@@ -825,7 +825,7 @@ void SceneBuilderImpl::constructGradient()
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
   >();
 
   m_entities.insert(id);
@@ -841,7 +841,7 @@ void SceneBuilderImpl::constructGradient()
 
   sysSpatial.addEntity(id, spatial);
 
-  RenderData render{
+  SpriteData render{
     .textureRect = Rectf{
       .x = pxToUvX(512.f),
       .y = pxToUvY(256.f, 128.f),

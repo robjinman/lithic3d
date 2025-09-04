@@ -949,6 +949,8 @@ void RenderResourcesImpl::createGlobalDescriptorSetLayout()
 
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_globalDescriptorSetLayout), "Failed to create descriptor set layout");
+
+  m_logger.info(STR("Global descriptor set layout: " << m_globalDescriptorSetLayout));
 }
 
 void RenderResourcesImpl::createRenderPassDescriptorSetLayout()
@@ -987,6 +989,8 @@ void RenderResourcesImpl::createRenderPassDescriptorSetLayout()
   
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_renderPassDescriptorSetLayout), "Failed to create descriptor set layout");
+
+  m_logger.info(STR("Render pass descriptor set layout: " << m_renderPassDescriptorSetLayout));
 }
 
 void RenderResourcesImpl::createMaterialDescriptorSetLayout()
@@ -1062,6 +1066,8 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
+
+  m_logger.info(STR("Material descriptor set layout: " << m_materialDescriptorSetLayout));
 }
 
 void RenderResourcesImpl::createObjectDescriptorSetLayout()
@@ -1091,6 +1097,8 @@ void RenderResourcesImpl::createObjectDescriptorSetLayout()
   
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_objectDescriptorSetLayout), "Failed to create descriptor set layout");
+
+  m_logger.info(STR("Object descriptor set layout: " << m_objectDescriptorSetLayout));
 }
 
 void RenderResourcesImpl::createGlobalDescriptorSet()
@@ -1248,6 +1256,8 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
   
     vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(descriptorWrites.size()),
       descriptorWrites.data(), 0, nullptr);
+
+    m_logger.info(STR("Main pass descriptor set: " << m_mainPassDescriptorSets[i]));
   }
 }
 

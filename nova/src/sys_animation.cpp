@@ -82,7 +82,7 @@ void SysAnimationImpl::update(Tick, const InputState&)
     }
 
     auto& anim = *m_animations.at(animState.id);
-    auto& renderComp = m_componentStore.component<CRender>(entityId);
+    auto& renderComp = m_componentStore.component<CSprite>(entityId);
     auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
 
     size_t numFrames = anim.frames.size();
@@ -180,7 +180,7 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
 
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
-  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  auto& renderComp = m_componentStore.component<CSprite>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);

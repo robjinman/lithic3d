@@ -309,35 +309,37 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
   return m_thread.run<void>([&, this]() {
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
-    bool is2d = meshFeatures.flags.test(MeshFeatures::Is2d);
-
-    PipelineKey key{
-      .renderPass = is2d ? RenderPass::Overlay : RenderPass::Main,
-      .meshFeatures = meshFeatures,
-      .materialFeatures = materialFeatures
-    };
-  
-    if (!m_pipelines.contains(key)) {
-      auto pipeline = createPipeline(key.renderPass, meshFeatures, materialFeatures, m_fileSystem,
-        *m_resources, m_logger, m_device, m_swapchainExtent, m_swapchainImageFormat, depthFormat);
-
-      m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
-    }
-
-    if (meshFeatures.flags.test(MeshFeatures::CastsShadow)) {
-      key = PipelineKey{
-        .renderPass = RenderPass::Shadow,
-        .meshFeatures = meshFeatures,
-        .materialFeatures = std::nullopt
-      };
+    auto addPipeline = [this, depthFormat, &meshFeatures, &materialFeatures](PipelineKey key,
+      VkExtent2D extent) {
 
       if (!m_pipelines.contains(key)) {
-        auto pipeline = createPipeline(RenderPass::Shadow, meshFeatures, materialFeatures,
-          m_fileSystem, *m_resources, m_logger, m_device, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H },
-          m_swapchainImageFormat, depthFormat);
+        auto pipeline = createPipeline(key.renderPass, meshFeatures, materialFeatures, m_fileSystem,
+          *m_resources, m_logger, m_device, extent, m_swapchainImageFormat, depthFormat);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
       }
+    };
+
+    // TODO: Bit wasteful creating identical pipelines for main and overlay
+
+    addPipeline(PipelineKey{
+      .renderPass = RenderPass::Main,
+      .meshFeatures = meshFeatures,
+      .materialFeatures = materialFeatures
+    }, m_swapchainExtent);
+
+    addPipeline(PipelineKey{
+      .renderPass = RenderPass::Overlay,
+      .meshFeatures = meshFeatures,
+      .materialFeatures = materialFeatures
+    }, m_swapchainExtent);
+
+    if (meshFeatures.flags.test(MeshFeatures::CastsShadow)) {
+       addPipeline(PipelineKey{
+        .renderPass = RenderPass::Shadow,
+        .meshFeatures = meshFeatures,
+        .materialFeatures = std::nullopt
+      }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
     }
   }).get();
 }
@@ -1202,7 +1204,7 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   }
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
-    EXCEPTION("No shader has been compiled for this combination of mesh/material features");
+    EXCEPTION("No shader has been compiled for this combination of pass/mesh/material features");
   }
   return *i->second;
 }

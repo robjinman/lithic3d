@@ -24,7 +24,7 @@ std::vector<char> toBytes(const std::vector<T>& data)
 {
   const char* p = reinterpret_cast<const char*>(data.data());
   size_t n = data.size() * sizeof(T);
-  return std::vector<char>(p, p + n);
+  return std::vector<char>(p, p + n); // TODO: Alignment?
 }
 
 template<typename T>
@@ -90,7 +90,7 @@ enum Enum : uint64_t
   IsAnimated,
   HasTangents,
   CastsShadow,
-  Is2d
+  IsSprite
 };
 using Flags = std::bitset<32>;
 }

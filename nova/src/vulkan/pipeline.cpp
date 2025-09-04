@@ -454,9 +454,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
-  m_depthStencilStateInfo = m_renderPass == RenderPass::Overlay ?
-    disabledDepthStencilState() :
-    defaultDepthStencilState();
+  m_depthStencilStateInfo = defaultDepthStencilState();
 
   m_descriptorSetLayouts = {
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),
@@ -465,7 +463,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (meshFeatures.flags.test(MeshFeatures::Is2d)) {
+  if (meshFeatures.flags.test(MeshFeatures::IsSprite)) {
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -502,6 +500,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   };
 
   switch (m_renderPass) {
+    case RenderPass::Overlay:
     case RenderPass::Main:
       m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -524,17 +523,6 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
         .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
       };
       break;
-    case RenderPass::Overlay:
-      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .pNext = nullptr,
-        .viewMask = 0,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &m_swapchainImageFormat,
-        .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
-        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
-      };
-      break;
   }
 
   constructPipeline(swapchainExtent);
@@ -546,6 +534,10 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
 
   VK_CHECK(vkCreatePipelineLayout(m_device, &m_layoutInfo, nullptr, &m_layout),
     "Failed to create default pipeline layout");
+
+  m_logger.info(STR("Pipeline layout: " << m_layout));
+  m_logger.info(STR("Render pass overlay: " << (m_renderPass == RenderPass::Overlay)));
+  m_logger.info(STR("Render pass main: " << (m_renderPass == RenderPass::Main)));
 
   VkPipelineShaderStageCreateInfo shaderStages[] = {
     m_vertShaderStageInfo,
@@ -578,6 +570,8 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
 
   VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
     &m_pipeline), "Failed to create default pipeline");
+
+  m_logger.info(STR("Pipeline: " << m_pipeline));
 }
 
 void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
@@ -617,10 +611,15 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     descriptorSets.push_back(objectDescriptorSet);
   }
 
-  if (descriptorSets != bindState.descriptorSets) {
+  //m_logger.info(STR("Global descriptor set: " << globalDescriptorSet));
+  //m_logger.info(STR("Render pass descriptor set: " << renderPassDescriptorSet));
+  //m_logger.info(STR("Material descriptor set: " << materialDescriptorSet));
+  //m_logger.info(STR("Object descriptor set: " << objectDescriptorSet));
+
+  //if (descriptorSets != bindState.descriptorSets) {
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
-  }
+  //}
 
   if (node.type == RenderNodeType::DefaultModel) {
     assert(!node.mesh.features.flags.test(MeshFeatures::IsInstanced));
@@ -714,7 +713,7 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
       }
     }
 
-    if (meshFeatures.flags.test(MeshFeatures::Is2d)) {
+    if (meshFeatures.flags.test(MeshFeatures::IsSprite)) {
       vertShader = "main_sprite";
       fragShader = "main_sprite";
     }
