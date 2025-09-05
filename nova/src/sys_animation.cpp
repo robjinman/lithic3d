@@ -204,8 +204,10 @@ void SysAnimationImpl::seek(EntityId entityId, Tick tick)
     EXCEPTION("Entity doesn't have animation playing");
   }
 
-  auto& state = i->second;
-  state.tick = tick;
+  auto& animState = i->second;
+  auto& anim = *m_animations.at(animState.id);
+
+  animState.tick = tick % anim.duration;
 }
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const

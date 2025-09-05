@@ -1237,6 +1237,8 @@ void SceneBuilderImpl::constructCoins()
     });
 
     sysAnimation.playAnimation(id, hashString("idle"), true);
+    std::uniform_int_distribution dist{};
+    sysAnimation.seek(id, dist(generator));
 
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 1);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
