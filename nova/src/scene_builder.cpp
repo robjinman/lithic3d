@@ -857,7 +857,390 @@ void SceneBuilderImpl::constructGradient()
 
 void SceneBuilderImpl::constructCoins()
 {
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  size_t numCoins = 10; // TODO
+
+  auto animIdle = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("idle"),
+    .duration = 60,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(1008.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(1008.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(1008.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(48.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(48.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(48.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(1008.f),
+          .y = pxToUvY(48.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
+
+  auto animCollect = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("collect"),
+    .duration = 12,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.9f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.8f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(1008.f),
+          .y = pxToUvY(0.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.7f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.6f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.4f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(1008.f),
+          .y = pxToUvY(16.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.3f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.2f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(976.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.1f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(992.f),
+          .y = pxToUvY(32.f, 16.f),
+          .w = pxToUvW(16.f),
+          .h = pxToUvH(16.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.0f }
+      }
+    }
+  });
+
+  auto animCollectId = sysAnimation.addAnimation(std::move(animCollect));
+
+  std::vector<Vec2i> coords;
+  for (int j = 0; j < GRID_H; ++j) {
+    for (int i = 0; i < GRID_W; ++i) {
+      if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
+        continue;
+      }
+
+      coords.push_back(Vec2i{ i, j });
+    }
+  }
+
+  std::random_device device;
+  std::mt19937 generator(device());
+
+  std::shuffle(coords.begin(), coords.end(), generator);
+
+  for (size_t i = 0; i < numCoins; ++i) {
+    auto id = m_ecs.componentStore().allocate<
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    >();
+
+    m_entities.insert(id);
+
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    sysGrid.addEntity(id, x, y);
+
+    Vec2f size{ 0.03f, 0.03f };
+    Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
+    Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
+
+    SpatialData spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = m_worldRoot,
+      .enabled = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
+
+    SpriteData render{
+      .textureRect = Rectf{
+        .x = pxToUvX(960.f),
+        .y = pxToUvY(0.f, 16.f),
+        .w = pxToUvW(16.f),
+        .h = pxToUvH(16.f)
+      },
+      .zIndex = 3
+    };
+
+    sysRender.addEntity(id, render);
+
+    sysAnimation.addEntity(id, AnimationData{
+      .animations = { animIdleId, animCollectId }
+    });
+
+    sysAnimation.playAnimation(id, hashString("idle"), true);
+
+    auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 1);
+    sysBehaviour.addBehaviour(id, std::move(behaviour));
+  }
 }
 
 void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>& mines)

@@ -185,6 +185,7 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);
 
+  m_activeAnimations.erase(entityId);
   m_activeAnimations.insert({ entityId, AnimationState{
     .id = animId,
     .name = name,
