@@ -292,25 +292,35 @@ void GameImpl::processKeyboardInput()
         return;
       }
 
+      bool moved = false;
       if (m_inputState.left) {
         if (sysGrid.tryMove(m_scene.player, -1, 0)) {
           sysAnimation.playAnimation(m_scene.player, strMoveLeft);
+          moved = true;
         }
       }
       else if (m_inputState.right) {
         if (sysGrid.tryMove(m_scene.player, 1, 0)) {
           sysAnimation.playAnimation(m_scene.player, strMoveRight);
+          moved = true;
         }
       }
       else if (m_inputState.up) {
         if (sysGrid.tryMove(m_scene.player, 0, 1)) {
           sysAnimation.playAnimation(m_scene.player, strMoveUp);
+          moved = true;
         }
       }
       else if (m_inputState.down) {
         if (sysGrid.tryMove(m_scene.player, 0, -1)) {
           sysAnimation.playAnimation(m_scene.player, strMoveDown);
+          moved = true;
         }
+      }
+
+      if (moved) {
+        auto event = std::make_unique<EPlayerMove>(sysGrid.entityPos(m_scene.player));
+        m_eventSystem->queueEvent(std::move(event));
       }
 
       break;

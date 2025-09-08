@@ -8,6 +8,8 @@
 #include "b_collectable.hpp"
 #include "b_numeric_tile.hpp"
 #include "b_generic.hpp"
+#include "b_stick.hpp"
+#include "b_wanderer.hpp"
 #include "game_events.hpp"
 #include "player.hpp"
 #include "systems.hpp"
@@ -17,11 +19,58 @@
 namespace
 {
 
+enum class ZIndex : uint32_t
+{
+  NumericTile,
+  Mine,
+  Nugget,
+  Soil,
+  Sky,
+  Cloud,
+  Trees,
+  Gradient,
+  Player,
+  Wanderer,
+  Coin,
+  Stick
+};
+
 // TODO: Move this
-Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
+Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size, float_t rotation = 0.f)
 {
   return translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+    rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation }) *
     scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+}
+
+std::vector<Vec2i> randomGridCoords()
+{
+  std::vector<Vec2i> coords;
+  for (int j = 0; j < GRID_H; ++j) {
+    for (int i = 0; i < GRID_W; ++i) {
+      if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
+        continue;
+      }
+
+      coords.push_back(Vec2i{ i, j });
+    }
+  }
+
+  std::random_device device;
+  std::mt19937 generator(device());
+
+  std::shuffle(coords.begin(), coords.end(), generator);
+
+  return coords;
+}
+
+int randomInt()
+{
+  std::random_device device;
+  std::mt19937 generator(device());
+  std::uniform_int_distribution distribution;
+
+  return distribution(generator);
 }
 
 class SceneBuilderImpl : public SceneBuilder
@@ -47,7 +96,7 @@ class SceneBuilderImpl : public SceneBuilder
     void constructFakeSoil();
     void constructSoil();
     std::set<std::pair<int, int>> constructMines();
-    void constructNumbers(const std::set<std::pair<int, int>>& mines);
+    void constructNumericTiles(const std::set<std::pair<int, int>>& mines);
     void constructGradient();
     void constructCoins();
     void constructGoldNuggets(const std::set<std::pair<int, int>>& mines);
@@ -79,7 +128,7 @@ Scene SceneBuilderImpl::buildScene()
   constructFakeSoil();
   constructSoil();
   auto mines = constructMines();
-  constructNumbers(mines);
+  constructNumericTiles(mines);
   constructGradient();
   constructCoins();
   constructGoldNuggets(mines);
@@ -140,7 +189,7 @@ void SceneBuilderImpl::constructSky()
       .w = pxToUvW(128.f),
       .h = pxToUvH(32.f)
     },
-    .zIndex = 0
+    .zIndex = static_cast<uint32_t>(ZIndex::Sky)
   };
 
   sysRender.addEntity(id, render);
@@ -196,7 +245,7 @@ void SceneBuilderImpl::constructClouds()
         .w = pxToUvW(128.f),
         .h = pxToUvH(32.f)
       },
-      .zIndex = 1,
+      .zIndex = static_cast<uint32_t>(ZIndex::Cloud),
       .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
 
@@ -237,7 +286,7 @@ void SceneBuilderImpl::constructClouds()
         .w = pxToUvW(128.f),
         .h = pxToUvH(32.f)
       },
-      .zIndex = 1,
+      .zIndex = static_cast<uint32_t>(ZIndex::Cloud),
       .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
     };
 
@@ -282,7 +331,7 @@ void SceneBuilderImpl::constructTrees()
       .w = pxToUvW(256.f),
       .h = pxToUvH(40.f)
     },
-    .zIndex = 2
+      .zIndex = static_cast<uint32_t>(ZIndex::Trees)
   };
 
   sysRender.addEntity(id, render);
@@ -320,7 +369,7 @@ void SceneBuilderImpl::constructFakeSoil()
         .w = pxToUvW(16.f),
         .h = pxToUvH(16.f)
       },
-      .zIndex = 1
+      .zIndex = static_cast<uint32_t>(ZIndex::Soil)
     };
 
     sysRender.addEntity(id, render);
@@ -458,7 +507,7 @@ void SceneBuilderImpl::constructSoil()
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .zIndex = 1
+      .zIndex = static_cast<uint32_t>(ZIndex::Soil)
       };
 
       sysRender.addEntity(id, render);
@@ -660,21 +709,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
   auto animExplodeId = sysAnimation.addAnimation(std::move(animExplode));
 
-  std::vector<Vec2i> coords;
-  for (int j = 0; j < GRID_H; ++j) {
-    for (int i = 0; i < GRID_W; ++i) {
-      if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
-        continue;
-      }
-
-      coords.push_back(Vec2i{ i, j });
-    }
-  }
-
-  std::random_device device;
-  std::mt19937 generator(device());
-
-  std::shuffle(coords.begin(), coords.end(), generator);
+  std::vector<Vec2i> coords = randomGridCoords();
 
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
@@ -707,7 +742,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .w = pxToUvW(32.f),
         .h = pxToUvH(32.f)
       },
-      .zIndex = 0
+      .zIndex = static_cast<uint32_t>(ZIndex::Mine)
     };
 
     sysRender.addEntity(id, render);
@@ -748,7 +783,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
   return mines;
 }
 
-void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& mines)
+void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -807,7 +842,7 @@ void SceneBuilderImpl::constructNumbers(const std::set<std::pair<int, int>>& min
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-        .zIndex = 0
+        .zIndex = static_cast<uint32_t>(ZIndex::NumericTile)
       };
 
       sysRender.addEntity(id, render);
@@ -849,7 +884,7 @@ void SceneBuilderImpl::constructGradient()
       .w = pxToUvW(128.f),
       .h = pxToUvH(128.f)
     },
-    .zIndex = 9
+    .zIndex = static_cast<uint32_t>(ZIndex::Gradient)
   };
 
   sysRender.addEntity(id, render);
@@ -1180,21 +1215,7 @@ void SceneBuilderImpl::constructCoins()
 
   auto animCollectId = sysAnimation.addAnimation(std::move(animCollect));
 
-  std::vector<Vec2i> coords;
-  for (int j = 0; j < GRID_H; ++j) {
-    for (int i = 0; i < GRID_W; ++i) {
-      if ((i < 2 && j < 2) || (i > GRID_W - 3 && j > GRID_H - 3)) {
-        continue;
-      }
-
-      coords.push_back(Vec2i{ i, j });
-    }
-  }
-
-  std::random_device device;
-  std::mt19937 generator(device());
-
-  std::shuffle(coords.begin(), coords.end(), generator);
+  std::vector<Vec2i> coords = randomGridCoords();
 
   for (size_t i = 0; i < numCoins; ++i) {
     auto id = m_ecs.componentStore().allocate<
@@ -1227,7 +1248,7 @@ void SceneBuilderImpl::constructCoins()
         .w = pxToUvW(16.f),
         .h = pxToUvH(16.f)
       },
-      .zIndex = 3
+      .zIndex = static_cast<uint32_t>(ZIndex::Coin)
     };
 
     sysRender.addEntity(id, render);
@@ -1237,8 +1258,7 @@ void SceneBuilderImpl::constructCoins()
     });
 
     sysAnimation.playAnimation(id, hashString("idle"), true);
-    std::uniform_int_distribution dist{};
-    sysAnimation.seek(id, dist(generator));
+    sysAnimation.seek(id, randomInt());
 
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 1);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
@@ -1252,12 +1272,158 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
 
 void SceneBuilderImpl::constructWanderers()
 {
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  size_t numWanderers = 5; // TODO
+
+  auto animDissolve = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("dissolve"),
+    .duration = 30,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animThrowId = sysAnimation.addAnimation(std::move(animDissolve));
+
+  // TODO: Walk animations
+
+  auto coords = randomGridCoords();
+
+  for (size_t i = 0; i < numWanderers; ++i) {
+    auto id = m_ecs.componentStore().allocate<
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    >();
+
+    m_entities.insert(id);
+
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    sysGrid.addEntity(id, x, y);
+
+    Vec2f size{ 0.0625, 0.0625f };
+    Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
+    Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
+
+    SpatialData spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = m_worldRoot,
+      .enabled = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
+
+    SpriteData render{
+      .textureRect = Rectf{
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(256.f, 48.f),
+      .w = pxToUvW(32.f),
+      .h = pxToUvH(48.f)
+      },
+      .zIndex = static_cast<uint32_t>(ZIndex::Wanderer)
+    };
+
+    sysRender.addEntity(id, render);
+
+    sysAnimation.addEntity(id, AnimationData{
+      .animations = { animThrowId }
+    });
+
+    auto behaviour = createBWanderer(m_ecs, m_eventSystem, id, m_playerId);
+    sysBehaviour.addBehaviour(id, std::move(behaviour));
+  }
 }
 
 void SceneBuilderImpl::constructSticks()
 {
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  size_t numSticks = 5; // TODO
+
+  auto animThrow = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("throw"),
+    .duration = 30,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(960.f),
+          .y = pxToUvY(160.f, 32.f),
+          .w = pxToUvW(8.f),
+          .h = pxToUvH(32.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animThrowId = sysAnimation.addAnimation(std::move(animThrow));
+
+  auto coords = randomGridCoords();
+
+  for (size_t i = 0; i < numSticks; ++i) {
+    auto id = m_ecs.componentStore().allocate<
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    >();
+
+    m_entities.insert(id);
+
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    sysGrid.addEntity(id, x, y);
+
+    Vec2f size{ 0.016f, 0.0625f };
+    Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
+    Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
+
+    SpatialData spatial{
+      .transform = spriteTransform(pos, size, PIf / 4.f),
+      .parent = m_worldRoot,
+      .enabled = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
+
+    SpriteData render{
+      .textureRect = Rectf{
+        .x = pxToUvX(960.f),
+        .y = pxToUvY(160.f, 32.f),
+        .w = pxToUvW(8.f),
+        .h = pxToUvH(32.f)
+      },
+      .zIndex = static_cast<uint32_t>(ZIndex::Stick)
+    };
+
+    sysRender.addEntity(id, render);
+
+    sysAnimation.addEntity(id, AnimationData{
+      .animations = { animThrowId }
+    });
+
+    auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId);
+    sysBehaviour.addBehaviour(id, std::move(behaviour));
+  }
 }
 
 void SceneBuilderImpl::constructHud()

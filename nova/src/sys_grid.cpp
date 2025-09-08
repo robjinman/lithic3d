@@ -24,6 +24,7 @@ class SysGridImpl : public SysGrid
     const EntityIdSet& getEntities(int x, int y) const override;
     EntityIdSet getEntities(int minX, int minY, int maxX, int maxY) const override;
     bool hasEntityAt(EntityId entityId, int x, int y) const override;
+    const Vec2i& entityPos(EntityId entityId) const override;
     bool tryMove(EntityId entityId, int dx, int dy) override;
 
   private:
@@ -53,6 +54,16 @@ void SysGridImpl::removeEntity(EntityId entityId)
 bool SysGridImpl::hasEntity(EntityId entityId) const
 {
   return m_entities.contains(entityId);
+}
+
+const Vec2i& SysGridImpl::entityPos(EntityId entityId) const
+{
+  try {
+    return m_entities.at(entityId);
+  }
+  catch (const std::exception& e) { // TODO: More specific type
+    EXCEPTION(STR("Entity " << entityId << " not in grid"));
+  }
 }
 
 bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)

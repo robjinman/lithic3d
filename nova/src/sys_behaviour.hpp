@@ -9,7 +9,7 @@ class BehaviourData
     virtual const std::set<HashedString>& subscriptions() const = 0;
     virtual void processEvent(const Event& event) = 0;
 
-    virtual ~BehaviourData() {}
+    virtual ~BehaviourData() = default;
 };
 
 using BehaviourDataPtr = std::unique_ptr<BehaviourData>;

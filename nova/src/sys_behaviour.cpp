@@ -47,11 +47,12 @@ const BehaviourData& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedStr
 
 void SysBehaviourImpl::removeEntity(EntityId entityId)
 {
-  auto i = m_behaviours.find(entityId);
-  if (i == m_behaviours.end()) {
-    return;
+  m_behaviours.erase(entityId);
+
+  // TODO: Slow?
+  for (auto& entry : m_subscriptions) {
+    entry.second.erase(entityId);
   }
-  m_behaviours.erase(i);
 }
 
 bool SysBehaviourImpl::hasEntity(EntityId entityId) const

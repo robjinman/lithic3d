@@ -8,6 +8,7 @@ const HashedString g_strEntityStepOn = hashString("entity_step_on");
 const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strAnimationFinish = hashString("animation_finish");
 const HashedString g_strEntityExplode = hashString("entity_explode");
+const HashedString g_strPlayerMove = hashString("player_move");
 const HashedString g_strPlayerDeath = hashString("player_death");
 
 class EEntityStepOn : public Event
@@ -121,4 +122,20 @@ class EPlayerDeath : public Event
     {
       return STR(Event::toString());
     }
+};
+
+class EPlayerMove : public Event
+{
+  public:
+    EPlayerMove(const Vec2i& pos)
+      : Event(g_strPlayerMove)
+      , pos(pos) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "pos = " << pos << ")");
+    }
+
+    Vec2i pos;
 };
