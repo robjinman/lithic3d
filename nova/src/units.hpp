@@ -27,21 +27,27 @@ const uint32_t ATLAS_HEIGHT_PX = 512;
 
 inline float_t pxToUvX(float_t px)
 {
+  px += 0.5f;
   return px / static_cast<float_t>(ATLAS_WIDTH_PX);
 }
 
 inline float_t pxToUvY(float_t pxY, float_t pxH)
 {
-  return (static_cast<float_t>(ATLAS_HEIGHT_PX) - pxY - pxH) / static_cast<float_t>(ATLAS_HEIGHT_PX);
+  pxY += 0.5f;
+  pxH -= 1.f;
+  return (static_cast<float_t>(ATLAS_HEIGHT_PX) - pxY - pxH) /
+    static_cast<float_t>(ATLAS_HEIGHT_PX);
 }
 
 inline float_t pxToUvW(float_t pw)
 {
+  pw -= 1.f;
   return pw / static_cast<float_t>(ATLAS_WIDTH_PX);
 }
 
 inline float_t pxToUvH(float_t ph)
 {
+  ph -= 1.f;
   return ph / static_cast<float_t>(ATLAS_HEIGHT_PX);
 }
 

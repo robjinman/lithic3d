@@ -369,7 +369,9 @@ void SceneBuilderImpl::constructFakeSoil()
         .w = pxToUvW(16.f),
         .h = pxToUvH(16.f)
       },
-      .zIndex = static_cast<uint32_t>(ZIndex::Soil)
+      .zIndex = static_cast<uint32_t>(ZIndex::Soil),
+      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
+      .text = ""
     };
 
     sysRender.addEntity(id, render);
@@ -507,7 +509,9 @@ void SceneBuilderImpl::constructSoil()
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-      .zIndex = static_cast<uint32_t>(ZIndex::Soil)
+      .zIndex = static_cast<uint32_t>(ZIndex::Soil),
+      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
+      .text = ""
       };
 
       sysRender.addEntity(id, render);
@@ -866,7 +870,7 @@ void SceneBuilderImpl::constructGradient()
 
   m_entities.insert(id);
 
-  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * (5 + GRID_H) };
+  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * (GRID_H + 1) };
   Vec2f pos{ 0.f, 0.f };
 
   SpatialData spatial{
