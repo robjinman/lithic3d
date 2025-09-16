@@ -33,6 +33,16 @@ struct SpritePushConstants
   // Frag shader
   Vec4f colour;               // 16 bytes
 };
+
+struct DynamicTextPushConstants
+{
+  // Vert shader
+  Mat4x4f modelMatrix;        // 64 bytes
+  uint32_t text[8];           // 32 bytes
+
+  // Frag shader
+  Vec4f colour;               // 16 bytes
+};
 #pragma pack(pop)
 
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_OFFSET = 0;
@@ -44,6 +54,11 @@ constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_SIZE = 96;
 constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_SIZE = 16;
+
+constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET = 0;
+constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET = 96;
+constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE = 96;
+constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
@@ -486,6 +501,20 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
       }
     };
   }
+  else if (meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
+    m_pushConstantRanges = {
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET,
+        .size = DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE
+      },
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET,
+        .size = DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE
+      }
+    };
+  }
   else if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
     && !meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
 
@@ -676,6 +705,24 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
       SPRITE_PUSH_CONSTANTS_FRAG_OFFSET, SPRITE_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
   }
+  else if (node.type == RenderNodeType::DynamicText) {
+    auto& textNode = dynamic_cast<const DynamicTextNode&>(node);
+
+    DynamicTextPushConstants constants{
+      .modelMatrix = textNode.modelMatrix,
+      .colour = textNode.colour
+    };
+
+    strncpy(reinterpret_cast<char*>(constants.text), textNode.text.c_str(), textNode.text.size());
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+      DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET, DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+    void* fragPart = reinterpret_cast<char*>(&constants) + DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET;
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+      DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET, DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
+  }
 
   if (node.type == RenderNodeType::InstancedModel) {
     assert(node.mesh.features.flags.test(MeshFeatures::IsInstanced));
@@ -735,6 +782,10 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 
     if (meshFeatures.flags.test(MeshFeatures::IsSprite)) {
       vertShader = "main_sprite";
+      fragShader = "main_sprite";
+    }
+    else if (meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
+      vertShader = "main_dynamic_text";
       fragShader = "main_sprite";
     }
 

@@ -60,7 +60,8 @@ class GameImpl : public Game
     InputState m_inputState;
     Vec2f m_leftStickDelta;
     Timer m_timer;
-    size_t m_currentTick = 0;
+    Tick m_currentTick = 0;
+    Tick m_timeSinceStart = 0;
     double m_measuredTickRate = 0;
     Scene m_scene;
     GameState m_gameState;
@@ -174,6 +175,7 @@ void GameImpl::startGame()
 {
   m_scene = m_sceneBuilder->buildScene();
   m_gameState = GameState::Playing;
+  m_timeSinceStart = 0;
 }
 
 void GameImpl::onPlayerDeath()
@@ -354,6 +356,17 @@ bool GameImpl::update()
   measureTickRate();
   processKeyboardInput();
   processMouseInput();
+
+  if (m_gameState == GameState::Playing) {
+    ++m_timeSinceStart;
+    if (m_timeSinceStart % TICKS_PER_SECOND == 0) {
+      const uint32_t gameDuration = 100; // TODO
+      uint32_t secondsElapsed = static_cast<float>(m_timeSinceStart) / TICKS_PER_SECOND;
+      uint32_t timeRemaining = gameDuration - secondsElapsed;
+
+      m_eventSystem->queueEvent(std::make_unique<ETimerTick>(timeRemaining));
+    }
+  }
 
   m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();

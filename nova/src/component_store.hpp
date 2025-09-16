@@ -161,7 +161,7 @@ class ComponentArrayGroup
     {
       auto i = m_componentData.find(T::TypeId);
       if (i == m_componentData.end()) {
-        throw std::runtime_error("Group does not have components of given type");
+        return std::span<const T>{};
       }
 
       auto& array = i->second;

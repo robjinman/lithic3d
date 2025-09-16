@@ -8,5 +8,6 @@ enum ComponentTypeId : ComponentType
   CGlobalTransformTypeId  = 1u << 1,
   CSpatialFlagsTypeId     = 1u << 2,
   CSpriteTypeId           = 1u << 3,
-  CUiTypeId               = 1u << 4
+  CDynamicTextTypeId      = 1u << 4,
+  CUiTypeId               = 1u << 5
 };

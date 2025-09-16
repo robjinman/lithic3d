@@ -17,7 +17,8 @@ enum class RenderNodeType
   DefaultModel,
   InstancedModel,
   Skybox,
-  Sprite
+  Sprite,
+  DynamicText
 };
 
 struct RenderNode
@@ -75,6 +76,17 @@ struct SpriteNode : public RenderNode
 
   Mat4x4f modelMatrix;
   std::array<Vec2f, 4> uvCoords;
+  Vec4f colour;
+};
+
+struct DynamicTextNode : public RenderNode
+{
+  DynamicTextNode()
+    : RenderNode(RenderNodeType::DynamicText)
+  {}
+
+  Mat4x4f modelMatrix;
+  std::string text;
   Vec4f colour;
 };
 

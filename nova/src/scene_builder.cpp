@@ -15,6 +15,8 @@
 #include "systems.hpp"
 #include "events.hpp"
 #include <random>
+#include <iomanip>
+#include <cstring>
 
 namespace
 {
@@ -32,7 +34,8 @@ enum class ZIndex : uint32_t
   Player,
   Wanderer,
   Coin,
-  Stick
+  Stick,
+  Hud
 };
 
 // TODO: Move this
@@ -103,6 +106,10 @@ class SceneBuilderImpl : public SceneBuilder
     void constructWanderers();
     void constructSticks();
     void constructHud();
+    void constructCoinLabel();
+    void constructCoinCounter();
+    void constructTimeLabel();
+    void constructTimeCounter();
 };
 
 SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs)
@@ -1431,6 +1438,113 @@ void SceneBuilderImpl::constructSticks()
 }
 
 void SceneBuilderImpl::constructHud()
+{
+  constructCoinLabel();
+  constructCoinCounter();
+  constructTimeLabel();
+  constructTimeCounter();
+}
+
+void SceneBuilderImpl::constructTimeLabel()
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f size{ 0.05f, 0.05f };
+  Vec2f pos{ 0.01f, 0.94f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = Rectf{
+      .x = pxToUvX(960.f),
+      .y = pxToUvY(128.f, 32.f),
+      .w = pxToUvW(24.f),
+      .h = pxToUvH(32.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud)
+  };
+
+  sysRender.addEntity(id, render);
+}
+
+void SceneBuilderImpl::constructTimeCounter()
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CDynamicText
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f size{ 0.06f, 0.05f };
+  Vec2f pos{ 0.07f, 0.94f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f },
+    .text = "100", // TODO
+    .isDynamicText = true
+  };
+
+  sysRender.addEntity(id, render);
+
+  auto behaviour = createBGeneric(hashString("on_tick"), { g_strTimerTick },
+    [&, id](const Event& e) {
+
+    if (e.name == g_strTimerTick) {
+      auto& event = dynamic_cast<const ETimerTick&>(e);
+
+      std::stringstream ss;
+      ss << std::setw(3) << std::setfill('0') << event.timeRemaining;
+
+      // TODO: Write helper function for this?
+
+      char* buffer = m_ecs.componentStore().component<CDynamicText>(id).text;
+
+      memset(buffer, ' ', DYNAMIC_TEXT_MAX_LEN);
+      strncpy(buffer, ss.str().data(), 3);
+    }
+  });
+
+  sysBehaviour.addBehaviour(id, std::move(behaviour));
+}
+
+void SceneBuilderImpl::constructCoinLabel()
+{
+
+}
+
+void SceneBuilderImpl::constructCoinCounter()
 {
 
 }

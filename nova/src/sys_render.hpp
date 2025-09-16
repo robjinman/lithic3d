@@ -11,6 +11,7 @@ struct SpriteData
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
   std::string text;
+  bool isDynamicText = false; // TODO: Separate type for text components?
 };
 
 struct CSprite
@@ -18,10 +19,20 @@ struct CSprite
   Rectf textureRect;
   Vec4f colour;
   uint32_t zIndex = 0;
+  // TODO: Bitset for boolean flags?
   bool visible = true;
   bool isText = false;
 
   static constexpr ComponentType TypeId = ComponentTypeId::CSpriteTypeId;
+};
+
+const size_t DYNAMIC_TEXT_MAX_LEN = 31;
+
+struct CDynamicText
+{
+  char text[DYNAMIC_TEXT_MAX_LEN + 1];  // Null-terminated
+
+  static constexpr ComponentType TypeId = ComponentTypeId::CDynamicTextTypeId;
 };
 
 class Camera;

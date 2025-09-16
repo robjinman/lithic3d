@@ -59,12 +59,34 @@ struct SwapChainSupportDetails
   std::vector<VkPresentModeKHR> presentModes;
 };
 
+const HashedString strAddMesh = hashString("add_mesh");
+const HashedString strRemoveMesh = hashString("remove_mesh");
+
+struct AddMeshWorkItem : public WorkItem
+{
+  AddMeshWorkItem(MeshPtr mesh)
+    : WorkItem(strAddMesh)
+    , mesh(std::move(mesh)) {}
+
+  MeshPtr mesh;
+};
+
+struct RemoveMeshWorkItem : public WorkItem
+{
+  RemoveMeshWorkItem(RenderItemId meshId)
+    : WorkItem(strRemoveMesh)
+    , meshId(meshId) {}
+
+  RenderItemId meshId;
+};
+
 class RendererImpl : public Renderer
 {
   public:
     RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger);
 
     void start() override;
+    bool isStarted() const override;
     void onResize() override;
     double frameRate() const override;
     const ViewParams& getViewParams() const override;
@@ -87,6 +109,8 @@ class RendererImpl : public Renderer
     //
     MeshHandle addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
+    WorkItemResult addMeshAsync(MeshPtr mesh) override;
+    WorkItemResult removeMeshAsync(RenderItemId id) override;
 
     // Materials
     //
@@ -107,6 +131,8 @@ class RendererImpl : public Renderer
       const Vec4f& colour, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
+    void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
+      const Vec4f& colour, const Mat4x4f& transform) override;
     void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
     void endPass() override;
     void endFrame() override;
@@ -162,6 +188,7 @@ class RendererImpl : public Renderer
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
     void drawModelInternal(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
+    void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
 
     ViewParams m_viewParams;
     const FileSystem& m_fileSystem;
@@ -242,6 +269,7 @@ class RendererImpl : public Renderer
     mutable std::mutex m_errorMutex;
     bool m_hasError = false;
     std::string m_error;
+    WorkQueue m_workQueue;
 };
 
 RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window,
@@ -291,6 +319,11 @@ void RendererImpl::start()
   m_thread.run<void>([&]() {
     renderLoop();
   });
+}
+
+bool RendererImpl::isStarted() const
+{
+  return m_running;
 }
 
 void RendererImpl::checkError() const
@@ -499,6 +532,28 @@ void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, float_t specu
   light.zFar = zFar;
 }
 
+void RendererImpl::drawDynamicText(MeshHandle mesh, MaterialHandle material,
+  const std::string& text, const Vec4f& colour, const Mat4x4f& transform)
+{
+  //DBG_TRACE(m_logger);
+
+  FrameState& frameState = m_frameStates.getWritable();
+  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  RenderGraph& renderGraph = state.graph;
+
+  auto node = std::make_unique<DynamicTextNode>();
+  node->mesh = mesh;
+  node->material = material;
+  node->modelMatrix = transform;
+  node->text = text;
+  node->colour = colour;
+
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+
+  state.lookup.insert({ key, node.get() });
+  renderGraph.insert(key, std::move(node));
+}
+
 void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
 {
   //DBG_TRACE(m_logger);
@@ -545,10 +600,37 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
   renderPassState.viewMatrix = viewMatrix;
 }
 
+void RendererImpl::processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result)
+{
+  try {
+    if (item.name == strAddMesh) {
+      auto& data = dynamic_cast<AddMeshWorkItem&>(item);
+      result.set_value(std::make_unique<AddMeshResult>(m_resources->addMesh(std::move(data.mesh))));
+    }
+    else if (item.name == strRemoveMesh) {
+      auto& data = dynamic_cast<const RemoveMeshWorkItem&>(item);
+      m_resources->removeMesh(data.meshId);
+      result.set_value(std::make_unique<RemoveMeshResult>());
+    }
+    else {
+      throw std::runtime_error("Don't know how to handle work item");
+    }
+  }
+  catch (const std::exception&) {
+    result.set_exception(std::current_exception());
+  }
+}
+
 void RendererImpl::renderLoop()
 {
   try {
+    auto handler = [this](WorkItem& item, std::promise<WorkItemResultValuePtr>& result) {
+      processWorkItem(item, result);
+    };
+
     while (m_running) {
+      while (m_workQueue.processNext(handler)) {}
+
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
         "Error waiting for fence");
 
@@ -722,34 +804,6 @@ void RendererImpl::finishFrame()
   }
 
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void RendererImpl::removeMesh(RenderItemId)
-{
-  // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeMesh(id);
-}
-
-void RendererImpl::removeTexture(RenderItemId)
-{
-  // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeTexture(id);
-}
-
-void RendererImpl::removeCubeMap(RenderItemId)
-{
-  // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeCubeMap(id);
-}
-
-void RendererImpl::removeMaterial(RenderItemId)
-{
-  // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeMaterial(id);
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
@@ -1593,10 +1647,61 @@ MeshHandle RendererImpl::addMesh(MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started");
+  ASSERT(!m_running, "Renderer is already running");
+
   return m_thread.run<MeshHandle>([&, this]() {
     return m_resources->addMesh(std::move(mesh));
   }).get();
+}
+
+void RendererImpl::removeMesh(RenderItemId meshId)
+{
+  DBG_TRACE(m_logger);
+
+  ASSERT(!m_running, "Renderer is already running");
+
+  return m_thread.run<void>([&, this]() {
+    return m_resources->removeMesh(meshId);
+  }).get();
+}
+
+WorkItemResult RendererImpl::addMeshAsync(MeshPtr mesh)
+{
+  DBG_TRACE(m_logger);
+
+  auto item = std::make_unique<AddMeshWorkItem>(std::move(mesh));
+
+  return m_workQueue.addWorkItem(std::move(item));
+}
+
+WorkItemResult RendererImpl::removeMeshAsync(RenderItemId meshId)
+{
+  DBG_TRACE(m_logger);
+
+  auto item = std::make_unique<RemoveMeshWorkItem>(meshId);
+
+  return m_workQueue.addWorkItem(std::move(item));
+}
+
+void RendererImpl::removeTexture(RenderItemId)
+{
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeTexture(id);
+}
+
+void RendererImpl::removeCubeMap(RenderItemId)
+{
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeCubeMap(id);
+}
+
+void RendererImpl::removeMaterial(RenderItemId)
+{
+  // TODO
+  EXCEPTION("Not implemented");
+  //m_resources->removeMaterial(id);
 }
 
 void RendererImpl::createSyncObjects()

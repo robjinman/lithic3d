@@ -10,6 +10,7 @@
 #include <cassert>
 #include <functional>
 #include <map>
+#include <cstring>
 
 using render::Renderer;
 using render::Mesh;
@@ -86,7 +87,7 @@ MeshPtr quad()
   return mesh;
 }
 
-MeshPtr textItemMesh(const std::string& text, const Rectf& uvRect)
+MeshPtr textItemMesh(const std::string& text, const Rectf& uvRect, bool dynamic)
 {
   uint32_t glyphsPerRow = 12; // TODO: Don't hard-code
   char firstGlyph = ' ';
@@ -147,6 +148,7 @@ MeshPtr textItemMesh(const std::string& text, const Rectf& uvRect)
     },
     .flags{}
   });
+  mesh->featureSet.flags.set(MeshFeatures::IsDynamicText, dynamic);
   mesh->attributeBuffers = {
     Buffer{
       .usage = BufferUsage::AttrPosition,
@@ -209,21 +211,46 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
-  MeshFeatureSet meshFeatures{
-    .vertexLayout = {
-      BufferUsage::AttrPosition,
-      BufferUsage::AttrNormal,
-      BufferUsage::AttrTexCoord
-    },
-    .flags{}
-  };
   MaterialFeatureSet materialFeatures{};
   materialFeatures.flags.set(MaterialFeatures::HasTexture);
 
-  m_renderer.compileShader(meshFeatures, materialFeatures);
+  {
+    MeshFeatureSet meshFeatures{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{}
+    };
+    m_renderer.compileShader(meshFeatures, materialFeatures);
+  }
 
-  meshFeatures.flags.set(MeshFeatures::IsSprite);
-  m_renderer.compileShader(meshFeatures, materialFeatures);
+  {
+    MeshFeatureSet meshFeatures{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{}
+    };
+    meshFeatures.flags.set(MeshFeatures::IsSprite);
+    m_renderer.compileShader(meshFeatures, materialFeatures);
+  }
+
+  {
+    MeshFeatureSet meshFeatures{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{}
+    };
+    meshFeatures.flags.set(MeshFeatures::IsDynamicText);
+    m_renderer.compileShader(meshFeatures, materialFeatures);
+  }
 
   auto texture = render::loadTexture(m_fileSystem.readFile("textures/atlas.png"));
 
@@ -258,8 +285,28 @@ void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
   };
 
   if (!data.text.empty()) {
-    auto mesh = textItemMesh(data.text, data.textureRect);
-    m_textItems.insert({ entityId, m_renderer.addMesh(std::move(mesh)) });
+    if (data.isDynamicText) {
+      auto& c = m_componentStore.component<CDynamicText>(entityId);
+      size_t len = data.text.length();
+      ASSERT(len <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text length must not exceed "
+        << DYNAMIC_TEXT_MAX_LEN << " bytes");
+
+      memcpy(c.text, data.text.data(), len);
+      c.text[len] = '\0';
+    }
+
+    auto mesh = textItemMesh(data.text, data.textureRect, data.isDynamicText);
+
+    MeshHandle meshHandle;
+    if (m_renderer.isStarted()) {
+      // TODO: This blocks
+      meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
+    }
+    else {
+      meshHandle = m_renderer.addMesh(std::move(mesh));
+    }
+
+    m_textItems.insert({ entityId, meshHandle });
   }
 }
 
@@ -313,6 +360,7 @@ void SysRenderImpl::update(Tick, const InputState&)
       auto renderComps = group.components<CSprite>();
       auto globalTs = group.components<CGlobalTransform>();
       auto flags = group.components<CSpatialFlags>();
+      auto dynamicTextComps = group.components<CDynamicText>();
       auto& entityIds = group.entityIds();
 
       for (size_t i = 0; i < n; ++i) {
@@ -330,8 +378,15 @@ void SysRenderImpl::update(Tick, const InputState&)
         m_renderer.setOrderKey(item.zIndex);
 
         if (item.isText) {
-          const auto& mesh = m_textItems.at(entityIds[i]);
-          m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, item.colour);
+          if (!dynamicTextComps.empty()) {
+            const auto& mesh = m_textItems.at(entityIds[i]);
+            m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text, item.colour,
+              screenSpaceTransform);
+          }
+          else {
+            const auto& mesh = m_textItems.at(entityIds[i]);
+            m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, item.colour);
+          }
         }
         else {
           const Rectf& r = item.textureRect;

@@ -34,7 +34,7 @@ class Ecs
     virtual const System& system(SystemId id) const = 0;
     virtual void update(Tick tick, const InputState& inputState) = 0;
     virtual void processEvent(const Event& event) = 0;
-    // Warning: This will immediately delete the entity. Consider firing ERequestDeletion instead.
+    // Warning: This will immediately delete the entity. Consider raising ERequestDeletion instead.
     virtual void removeEntity(EntityId entityId) = 0;
     virtual ComponentStore& componentStore() = 0;
     virtual const ComponentStore& componentStore() const = 0;

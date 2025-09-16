@@ -90,7 +90,8 @@ enum Enum : uint64_t
   IsAnimated,
   HasTangents,
   CastsShadow,
-  IsSprite
+  IsSprite,
+  IsDynamicText
 };
 using Flags = std::bitset<32>;
 }

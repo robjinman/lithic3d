@@ -10,6 +10,7 @@ const HashedString g_strAnimationFinish = hashString("animation_finish");
 const HashedString g_strEntityExplode = hashString("entity_explode");
 const HashedString g_strPlayerMove = hashString("player_move");
 const HashedString g_strPlayerDeath = hashString("player_death");
+const HashedString g_strTimerTick = hashString("timer_tick");
 
 class EEntityStepOn : public Event
 {
@@ -138,4 +139,20 @@ class EPlayerMove : public Event
     }
 
     Vec2i pos;
+};
+
+class ETimerTick : public Event
+{
+  public:
+    ETimerTick(uint32_t timeRemaining)
+      : Event(g_strTimerTick)
+      , timeRemaining(timeRemaining) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "timeRemaining = " << timeRemaining << ")");
+    }
+
+    uint32_t timeRemaining;
 };

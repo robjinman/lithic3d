@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderables.hpp"
+#include "work_queue.hpp"
 
 namespace render
 {
@@ -22,10 +23,23 @@ enum class RenderPass
   Overlay
 };
 
+struct AddMeshResult : public WorkItemResultValue
+{
+  AddMeshResult(MeshHandle handle)
+    : handle(handle) {}
+
+  MeshHandle handle;
+};
+
+struct RemoveMeshResult : public WorkItemResultValue
+{
+};
+
 class Renderer
 {
   public:
     virtual void start() = 0;
+    virtual bool isStarted() const = 0;
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
     virtual const ViewParams& getViewParams() const = 0;
@@ -47,8 +61,10 @@ class Renderer
 
     // Meshes
     //
-    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
+    virtual MeshHandle addMesh(MeshPtr mesh) = 0; // TODO: Remove
     virtual void removeMesh(RenderItemId id) = 0;
+    virtual WorkItemResult addMeshAsync(MeshPtr mesh) = 0;
+    virtual WorkItemResult removeMeshAsync(RenderItemId id) = 0;
 
     // Materials
     //
@@ -70,7 +86,9 @@ class Renderer
     virtual void drawSprite(MeshHandle mesh, MaterialHandle material,
       const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
-      const Mat4x4f& transform) = 0;
+      const Mat4x4f& transform) = 0;  // TODO: Replace matrix with screen-space coords?
+    virtual void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
+      const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;
     virtual void endPass() = 0;
     virtual void endFrame() = 0;
