@@ -364,7 +364,13 @@ bool GameImpl::update()
       uint32_t secondsElapsed = static_cast<float>(m_timeSinceStart) / TICKS_PER_SECOND;
       uint32_t timeRemaining = gameDuration - secondsElapsed;
 
-      m_eventSystem->queueEvent(std::make_unique<ETimerTick>(timeRemaining));
+      if (secondsElapsed <= gameDuration) {
+        m_eventSystem->queueEvent(std::make_unique<ETimerTick>(timeRemaining));
+      }
+
+      if (secondsElapsed >= gameDuration) {
+        m_eventSystem->queueEvent(std::make_unique<EPlayerDeath>());
+      }
     }
   }
 

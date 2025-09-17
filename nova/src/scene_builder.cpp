@@ -1492,7 +1492,7 @@ void SceneBuilderImpl::constructTimeCounter()
 
   m_entities.insert(id);
 
-  Vec2f size{ 0.06f, 0.05f };
+  Vec2f size{ 0.035f, 0.035f };
   Vec2f pos{ 0.07f, 0.94f };
 
   SpatialData spatial{
@@ -1533,6 +1533,10 @@ void SceneBuilderImpl::constructTimeCounter()
 
       memset(buffer, ' ', DYNAMIC_TEXT_MAX_LEN);
       strncpy(buffer, ss.str().data(), 3);
+
+      if (event.timeRemaining <= 10) {
+        m_ecs.componentStore().component<CSprite>(id).colour = { 1.f, 0.f, 0.f, 1.f };
+      }
     }
   });
 
@@ -1541,12 +1545,136 @@ void SceneBuilderImpl::constructTimeCounter()
 
 void SceneBuilderImpl::constructCoinLabel()
 {
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f size{ 0.05f, 0.05f };
+  Vec2f pos{ 0.22f, 0.94f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = Rectf{
+      .x = pxToUvX(984.f),
+      .y = pxToUvY(128.f, 32.f),
+      .w = pxToUvW(24.f),
+      .h = pxToUvH(32.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud)
+  };
+
+  sysRender.addEntity(id, render);
 }
+
+class BCoinCounter : public BehaviourData
+{
+  public:
+    BCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventSystem, EntityId entityId)
+      : m_ecs(ecs)
+      , m_eventSystem(eventSystem)
+      , m_remaining(coinsRequired)
+      , m_entityId(entityId)
+    {
+    }
+
+    HashedString name() const override
+    {
+      static auto strName = hashString("coin_counter");
+      return strName;
+    }
+
+    const std::set<HashedString>& subscriptions() const override
+    {
+      static std::set<HashedString> subs{
+        g_strItemCollect
+      };
+      return subs;
+    }
+
+    void processEvent(const Event& event) override
+    {
+      if (event.name == g_strItemCollect) {
+        auto& e = dynamic_cast<const EItemCollect&>(event);
+
+        m_remaining = std::max(0, m_remaining - static_cast<int>(e.value));
+
+        std::stringstream ss;
+        ss << std::setw(2) << std::setfill('0') << m_remaining;
+
+        // TODO: Write helper function for this?
+
+        char* buffer = m_ecs.componentStore().component<CDynamicText>(m_entityId).text;
+
+        memset(buffer, ' ', DYNAMIC_TEXT_MAX_LEN);
+        strncpy(buffer, ss.str().data(), 2);
+
+        if (m_remaining == 0) {
+          // TODO
+        }
+      }
+    }
+
+  private:
+    Ecs& m_ecs;
+    EventSystem& m_eventSystem;
+    EntityId m_entityId;
+    int m_remaining;
+};
 
 void SceneBuilderImpl::constructCoinCounter()
 {
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CDynamicText
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f size{ 0.035f, 0.035f };
+  Vec2f pos{ 0.27f, 0.94f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  int coinsRequired = 12; // TODO
+
+  SpriteData render{
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f },
+    .text = "12",  // TODO
+    .isDynamicText = true
+  };
+
+  sysRender.addEntity(id, render);
+
+  auto behaviour = std::make_unique<BCoinCounter>(coinsRequired, m_ecs, m_eventSystem, id);
+  sysBehaviour.addBehaviour(id, std::move(behaviour));
 }
 
 } // namespace
