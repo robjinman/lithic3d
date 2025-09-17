@@ -5,13 +5,14 @@
 #include "sys_render.hpp"
 #include "sys_spatial.hpp"
 #include "ecs.hpp"
+#include "b_player.hpp"
 #include "b_collectable.hpp"
 #include "b_numeric_tile.hpp"
 #include "b_generic.hpp"
 #include "b_stick.hpp"
 #include "b_wanderer.hpp"
+#include "b_coin_counter.hpp"
 #include "game_events.hpp"
-#include "player.hpp"
 #include "systems.hpp"
 #include "events.hpp"
 #include <random>
@@ -93,6 +94,7 @@ class SceneBuilderImpl : public SceneBuilder
     EntityId m_playerId;
 
     EntityId constructWorldRoot();
+    EntityId constructPlayer();
     void constructSky();
     void constructClouds();
     void constructTrees();
@@ -128,7 +130,7 @@ Scene SceneBuilderImpl::buildScene()
   m_entities.clear();
 
   m_worldRoot = constructWorldRoot();
-  m_playerId = constructPlayer(m_eventSystem, m_ecs, m_worldRoot);
+  m_playerId = constructPlayer();
   constructSky();
   constructClouds();
   constructTrees();
@@ -163,6 +165,265 @@ EntityId SceneBuilderImpl::constructWorldRoot()
     .parent = sysSpatial.root(),
     .enabled = true
   });
+
+  return id;
+}
+
+EntityId SceneBuilderImpl::constructPlayer()
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+  >();
+
+  sysGrid.addEntity(id, 0, 0);
+
+  Vec2f size{ 0.0625f, 0.0625f };
+  Vec2f pos{ 0.f, 0.f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = Rectf{
+      .x = pxToUvX(384.f),
+      .y = pxToUvY(256.f, 48.f),
+      .w = pxToUvW(32.f),
+      .h = pxToUvH(48.f)
+    },
+    .zIndex = 2
+  };
+
+  sysRender.addEntity(id, render);
+
+  long animationDuration = 16;
+  float_t delta = 0.015625f;
+
+  auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_left"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 1.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 2.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 3.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 4.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveRight = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_right"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ delta * 1.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ delta * 2.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ delta * 3.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ delta * 4.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveUp = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_up"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 1.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 2.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 3.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 4.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveDown = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_down"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 1.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(384.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 2.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(416.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 3.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(448.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 4.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(480.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  sysAnimation.addEntity(id, AnimationData{
+    .animations = {
+      sysAnimation.addAnimation(std::move(animMoveLeft)),
+      sysAnimation.addAnimation(std::move(animMoveRight)),
+      sysAnimation.addAnimation(std::move(animMoveUp)),
+      sysAnimation.addAnimation(std::move(animMoveDown))
+    }
+  });
+
+  auto behaviour = createBPlayer(m_ecs, m_eventSystem, id);
+  sysBehaviour.addBehaviour(id, std::move(behaviour));
 
   return id;
 }
@@ -1578,61 +1839,6 @@ void SceneBuilderImpl::constructCoinLabel()
   sysRender.addEntity(id, render);
 }
 
-class BCoinCounter : public BehaviourData
-{
-  public:
-    BCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventSystem, EntityId entityId)
-      : m_ecs(ecs)
-      , m_eventSystem(eventSystem)
-      , m_remaining(coinsRequired)
-      , m_entityId(entityId)
-    {
-    }
-
-    HashedString name() const override
-    {
-      static auto strName = hashString("coin_counter");
-      return strName;
-    }
-
-    const std::set<HashedString>& subscriptions() const override
-    {
-      static std::set<HashedString> subs{
-        g_strItemCollect
-      };
-      return subs;
-    }
-
-    void processEvent(const Event& event) override
-    {
-      if (event.name == g_strItemCollect) {
-        auto& e = dynamic_cast<const EItemCollect&>(event);
-
-        m_remaining = std::max(0, m_remaining - static_cast<int>(e.value));
-
-        std::stringstream ss;
-        ss << std::setw(2) << std::setfill('0') << m_remaining;
-
-        // TODO: Write helper function for this?
-
-        char* buffer = m_ecs.componentStore().component<CDynamicText>(m_entityId).text;
-
-        memset(buffer, ' ', DYNAMIC_TEXT_MAX_LEN);
-        strncpy(buffer, ss.str().data(), 2);
-
-        if (m_remaining == 0) {
-          // TODO
-        }
-      }
-    }
-
-  private:
-    Ecs& m_ecs;
-    EventSystem& m_eventSystem;
-    EntityId m_entityId;
-    int m_remaining;
-};
-
 void SceneBuilderImpl::constructCoinCounter()
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
@@ -1673,7 +1879,7 @@ void SceneBuilderImpl::constructCoinCounter()
 
   sysRender.addEntity(id, render);
 
-  auto behaviour = std::make_unique<BCoinCounter>(coinsRequired, m_ecs, m_eventSystem, id);
+  auto behaviour = createBCoinCounter(coinsRequired, m_ecs, m_eventSystem, id);
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 }
 
