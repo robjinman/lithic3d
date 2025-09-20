@@ -11,6 +11,8 @@ const HashedString g_strEntityExplode = hashString("entity_explode");
 const HashedString g_strPlayerMove = hashString("player_move");
 const HashedString g_strPlayerDeath = hashString("player_death");
 const HashedString g_strTimerTick = hashString("timer_tick");
+const HashedString g_strGoldTargetAttained = hashString("gold_target_attained");
+const HashedString g_strAttack = hashString("attack");
 
 class EEntityStepOn : public Event
 {
@@ -155,4 +157,32 @@ class ETimerTick : public Event
     }
 
     uint32_t timeRemaining;
+};
+
+class EGoldTargetAttained : public Event
+{
+  public:
+    EGoldTargetAttained()
+      : Event(g_strGoldTargetAttained) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString());
+    }
+};
+
+class EAttack : public Event
+{
+  public:
+    EAttack(EntityId entityId, const EntityIdSet& targets)
+      : Event(g_strAttack, targets)
+      , entityId(entityId) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "entityId = " << entityId << ")");
+    }
+
+    EntityId entityId;
 };

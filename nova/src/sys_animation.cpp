@@ -96,6 +96,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
     Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
 
     localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
+    renderComp.colour = frame.colour;
 
     animState.isPlaying = false;
 
@@ -125,10 +126,12 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
   if (frame.textureRect.has_value()) {
     renderComp.textureRect = frame.textureRect.value();
   }
-  if (frame.colour.has_value()) {
-    // TODO: interpolate
-    renderComp.colour = frame.colour.value();
-  }
+
+  auto& prevColour = frameNumInt > 0 ? anim.frames[frameNumInt - 1].colour : animState.startColour;
+  auto& colour = frame.colour;
+
+  renderComp.colour = prevColour * (1.f - fractionOfFrameComplete)
+    + colour * fractionOfFrameComplete;
 
   return false;
 }

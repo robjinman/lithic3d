@@ -27,8 +27,8 @@ BCoinCounter::BCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventS
   EntityId entityId)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
-  , m_remaining(coinsRequired)
   , m_entityId(entityId)
+  , m_remaining(coinsRequired)
 {
 }
 
@@ -48,7 +48,7 @@ const std::set<HashedString>& BCoinCounter::subscriptions() const
 
 void BCoinCounter::processEvent(const Event& event)
 {
-  if (event.name == g_strItemCollect) {
+  if (event.name == g_strItemCollect && m_remaining > 0) {
     auto& e = dynamic_cast<const EItemCollect&>(event);
 
     m_remaining = std::max(0, m_remaining - static_cast<int>(e.value));
@@ -64,7 +64,7 @@ void BCoinCounter::processEvent(const Event& event)
     strncpy(buffer, ss.str().data(), 2);
 
     if (m_remaining == 0) {
-      // TODO
+      m_eventSystem.queueEvent(std::make_unique<EGoldTargetAttained>());
     }
   }
 }

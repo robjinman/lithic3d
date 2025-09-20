@@ -3,6 +3,7 @@
 #include "events.hpp"
 #include "systems.hpp"
 #include "sys_grid.hpp"
+#include "sys_animation.hpp"
 
 namespace
 {
@@ -20,6 +21,7 @@ class BPlayer : public BehaviourData
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     EntityId m_entityId;
+    bool m_alive = true;
 };
 
 BPlayer::BPlayer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId)
@@ -39,29 +41,49 @@ const std::set<HashedString>& BPlayer::subscriptions() const
 {
   static std::set<HashedString> subs{
     g_strEntityExplode,
-    g_strEntityStepOn
+    g_strEntityStepOn,
+    g_strAttack,
+    g_strAnimationFinish
   };
   return subs;
 }
 
 void BPlayer::processEvent(const Event& event)
 {
+  static HashedString strDie = hashString("die");
+
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
   if (event.name == g_strEntityExplode) {
     auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
 
     auto& e = dynamic_cast<const EEntityExplode&>(event);
     if (sysGrid.hasEntityAt(m_entityId, e.pos[0], e.pos[1])) {
       m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
-
-      // TODO: Play death animation and sound
       m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+
+      m_alive = false;
     }
   }
-  else if (event.name == g_strEntityStepOn) {
-    m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
+  else if (event.name == g_strEntityStepOn || event.name == g_strAttack) {
+    if (!sysAnimation.hasAnimationPlaying(m_entityId)) {
+      sysAnimation.playAnimation(m_entityId, strDie);
+    }
 
-    // TODO: Play death animation and sound
-    m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+    m_alive = false;
+    m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
+  }
+  else if (event.name == g_strAnimationFinish) {
+    auto& e = dynamic_cast<const EAnimationFinish&>(event);
+
+    if (e.entityId == m_entityId && !m_alive) {
+      if (e.animationName == strDie) {
+        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+      }
+      else {
+        sysAnimation.playAnimation(m_entityId, strDie);
+      }
+    }
   }
 }
 

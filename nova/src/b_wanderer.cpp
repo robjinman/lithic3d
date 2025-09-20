@@ -73,15 +73,17 @@ void BWanderer::processEvent(const Event& event)
   }
 
   if (m_active) {
-    if (!sysGrid.hasEntity(m_playerId)) {
-      m_active = false;
-    }
-    else if (event.name == g_strAnimationFinish) {
+    if (event.name == g_strAnimationFinish) {
       auto& e = dynamic_cast<const EAnimationFinish&>(event);
 
       if (e.animationName == strMoveLeft || e.animationName == strMoveRight ||
         e.animationName == strMoveUp || e.animationName == strMoveDown ||
         e.animationName == strFadeIn) {
+
+        if (!sysGrid.hasEntity(m_playerId)) {
+          m_active = false;
+          return;
+        }
 
         auto playerPos = sysGrid.entityPos(m_playerId);
         auto pos = sysGrid.entityPos(m_entityId);
@@ -112,6 +114,10 @@ void BWanderer::processEvent(const Event& event)
           }
         }
       }
+    }
+    else if (event.name == g_strEntityStepOn) {
+      auto& e = dynamic_cast<const EEntityStepOn&>(event);
+      m_eventSystem.queueEvent(std::make_unique<EAttack>(m_entityId, EntityIdSet{ e.entityId }));
     }
   }
   else {

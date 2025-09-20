@@ -39,6 +39,7 @@ class EventSystem
     virtual void listen(EventHandlerFn handler) = 0;
     virtual void listen(HashedString name, EventHandlerFn handler) = 0;
     virtual void queueEvent(EventPtr event) = 0;
+    virtual void scheduleEvent(Tick delay, EventPtr event) = 0;
     virtual void processEvents() = 0;
     virtual void dropEvents() = 0;
 };

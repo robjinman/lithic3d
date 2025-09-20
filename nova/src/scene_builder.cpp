@@ -28,6 +28,7 @@ enum class ZIndex : uint32_t
   Mine,
   Nugget,
   Soil,
+  Exit,
   Sky,
   Cloud,
   Trees,
@@ -107,6 +108,7 @@ class SceneBuilderImpl : public SceneBuilder
     void constructGoldNuggets(const std::set<std::pair<int, int>>& mines);
     void constructWanderers();
     void constructSticks();
+    void constructExit();
     void constructHud();
     void constructCoinLabel();
     void constructCoinCounter();
@@ -143,6 +145,7 @@ Scene SceneBuilderImpl::buildScene()
   constructGoldNuggets(mines);
   constructWanderers();
   constructSticks();
+  constructExit();
   constructHud();
 
   Scene scene;
@@ -201,7 +204,7 @@ EntityId SceneBuilderImpl::constructPlayer()
       .w = pxToUvW(32.f),
       .h = pxToUvH(48.f)
     },
-    .zIndex = 2
+    .zIndex = static_cast<uint32_t>(ZIndex::Player)
   };
 
   sysRender.addEntity(id, render);
@@ -209,7 +212,7 @@ EntityId SceneBuilderImpl::constructPlayer()
   long animationDuration = 16;
   float_t delta = 0.015625f;
 
-  auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty) {
+  auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty, const Vec4f& col) {
     return AnimationFrame{
       .pos = Vec2f{ x, y },
       .scale = Vec2f{ 1.f, 1.f },
@@ -219,18 +222,20 @@ EntityId SceneBuilderImpl::constructPlayer()
         .w = pxToUvW(32.f),
         .h = pxToUvH(48.f)
       },
-      .colour = std::nullopt
+      .colour = col
     };
   };
+
+  const Vec4f white{ 1.f, 1.f, 1.f, 1.f };
 
   auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(-delta * 1.f, 0.f, 384.f, 352.f),
-      makeFrame(-delta * 2.f, 0.f, 416.f, 352.f),
-      makeFrame(-delta * 3.f, 0.f, 448.f, 352.f),
-      makeFrame(-delta * 4.f, 0.f, 480.f, 352.f)
+      makeFrame(-delta * 1.f, 0.f, 384.f, 352.f, white),
+      makeFrame(-delta * 2.f, 0.f, 416.f, 352.f, white),
+      makeFrame(-delta * 3.f, 0.f, 448.f, 352.f, white),
+      makeFrame(-delta * 4.f, 0.f, 480.f, 352.f, white)
     }
   });
 
@@ -238,10 +243,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_right"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(delta * 1.f, 0.f, 384.f, 304.f),
-      makeFrame(delta * 2.f, 0.f, 416.f, 304.f),
-      makeFrame(delta * 3.f, 0.f, 448.f, 304.f),
-      makeFrame(delta * 4.f, 0.f, 480.f, 304.f)
+      makeFrame(delta * 1.f, 0.f, 384.f, 304.f, white),
+      makeFrame(delta * 2.f, 0.f, 416.f, 304.f, white),
+      makeFrame(delta * 3.f, 0.f, 448.f, 304.f, white),
+      makeFrame(delta * 4.f, 0.f, 480.f, 304.f, white)
     }
   });
 
@@ -249,10 +254,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_up"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(0.f, delta * 1.f, 384.f, 256.f),
-      makeFrame(0.f, delta * 2.f, 416.f, 256.f),
-      makeFrame(0.f, delta * 3.f, 448.f, 256.f),
-      makeFrame(0.f, delta * 4.f, 480.f, 256.f)
+      makeFrame(0.f, delta * 1.f, 384.f, 256.f, white),
+      makeFrame(0.f, delta * 2.f, 416.f, 256.f, white),
+      makeFrame(0.f, delta * 3.f, 448.f, 256.f, white),
+      makeFrame(0.f, delta * 4.f, 480.f, 256.f, white)
     }
   });
 
@@ -260,10 +265,19 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_down"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(0.f, -delta * 1.f, 384.f, 400.f),
-      makeFrame(0.f, -delta * 2.f, 416.f, 400.f),
-      makeFrame(0.f, -delta * 3.f, 448.f, 400.f),
-      makeFrame(0.f, -delta * 4.f, 480.f, 400.f)
+      makeFrame(0.f, -delta * 1.f, 384.f, 400.f, white),
+      makeFrame(0.f, -delta * 2.f, 416.f, 400.f, white),
+      makeFrame(0.f, -delta * 3.f, 448.f, 400.f, white),
+      makeFrame(0.f, -delta * 4.f, 480.f, 400.f, white)
+    }
+  });
+
+  auto animDie = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("die"),
+    .duration = 24,
+    .frames = {
+      makeFrame(0.f, 0.f, 384.f, 400.f, { 1.f, 1.f, 1.f, 1.f }),
+      makeFrame(0.f, 0.f, 384.f, 400.f, { 0.f, 1.f, 0.f, 0.f })
     }
   });
 
@@ -272,7 +286,8 @@ EntityId SceneBuilderImpl::constructPlayer()
       sysAnimation.addAnimation(std::move(animMoveLeft)),
       sysAnimation.addAnimation(std::move(animMoveRight)),
       sysAnimation.addAnimation(std::move(animMoveUp)),
-      sysAnimation.addAnimation(std::move(animMoveDown))
+      sysAnimation.addAnimation(std::move(animMoveDown)),
+      sysAnimation.addAnimation(std::move(animDie))
     }
   });
 
@@ -335,7 +350,7 @@ void SceneBuilderImpl::constructClouds()
         .pos = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
         .scale = Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
-        .colour = std::nullopt
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
       }
     }
   });
@@ -508,8 +523,6 @@ void SceneBuilderImpl::constructSoil()
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
-  long animationDuration = 16;
-
   auto makeFrame = [](float_t tx, float_t ty, float_t a) {
     return AnimationFrame{
       .pos = Vec2f{ 0.f, 0.f },
@@ -526,10 +539,10 @@ void SceneBuilderImpl::constructSoil()
 
   auto animCollect = std::unique_ptr<Animation>(new Animation{
     .name = hashString("collect"),
-    .duration = animationDuration,
+    .duration = 15,
     .frames = {
-      makeFrame(384.f, 0.f, 0.875f),
-      makeFrame(384.f, 0.f, 0.125f)
+      makeFrame(384.f, 0.f, 1.0),
+      makeFrame(384.f, 0.f, 0.f)
     }
   });
 
@@ -570,9 +583,9 @@ void SceneBuilderImpl::constructSoil()
           .w = pxToUvW(16.f),
           .h = pxToUvH(16.f)
         },
-      .zIndex = static_cast<uint32_t>(ZIndex::Soil),
-      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
-      .text = ""
+        .zIndex = static_cast<uint32_t>(ZIndex::Soil),
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
+        .text = ""
       };
 
       sysRender.addEntity(id, render);
@@ -581,8 +594,27 @@ void SceneBuilderImpl::constructSoil()
         .animations = { animCollectId }
       });
 
-      auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 0);
-      sysBehaviour.addBehaviour(id, std::move(behaviour));
+      auto collectBehaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 0);
+      sysBehaviour.addBehaviour(id, std::move(collectBehaviour));
+
+      auto dissolveBehaviour = createBGeneric(hashString("dissolve"),
+        { g_strEntityExplode, g_strAnimationFinish }, [&sysAnimation, this, id](const Event& e) {
+
+        if (e.name == g_strEntityExplode) {
+          if (sysAnimation.hasAnimationPlaying(id)) {
+            sysAnimation.finishAnimation(id);
+          }
+          sysAnimation.playAnimation(id, hashString("collect"));
+        }
+        else if (e.name == g_strAnimationFinish) {
+          auto& event = dynamic_cast<const EAnimationFinish&>(e);
+          if (event.entityId == id && event.animationName == hashString("collect")) {
+            m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
+          }
+        }
+      });
+
+      sysBehaviour.addBehaviour(id, std::move(dissolveBehaviour));
     }
   }
 }
@@ -609,7 +641,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         .w = pxToUvW(64.f),
         .h = pxToUvH(64.f)
       },
-      .colour = std::nullopt
+      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
     };
   };
 
@@ -676,7 +708,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
     sysRender.addEntity(id, render);
 
-    auto onStepOn = [&, this, id, x, y](const Event& e) {
+    auto onEvent = [&, this, id, x, y](const Event& e) {
       if (e.name == g_strEntityStepOn) {
         auto& event = dynamic_cast<const EEntityStepOn&>(e);
 
@@ -684,8 +716,14 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         if (event.toPos == pos) {
           EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
 
-          m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, pos, targets));
+          sysGrid.removeEntity(id);
+          m_eventSystem.scheduleEvent(15, std::make_unique<EEntityExplode>(id, pos, targets));
+        }
+      }
+      else if (e.name == g_strEntityExplode) {
+        auto& event = dynamic_cast<const EEntityExplode&>(e);
 
+        if (event.entityId == id) {
           sysAnimation.playAnimation(id, strExplode);
           sysRender.setZIndex(id, 100);
         }
@@ -699,8 +737,8 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       }
     };
 
-    auto explode = createBGeneric(strExplode, { g_strEntityStepOn }, onStepOn);
-    sysBehaviour.addBehaviour(id, std::move(explode));
+    auto behaviour = createBGeneric(strExplode, { g_strEntityStepOn, g_strEntityExplode }, onEvent);
+    sysBehaviour.addBehaviour(id, std::move(behaviour));
 
     sysAnimation.addEntity(id, AnimationData{
       .animations = { animExplodeId }
@@ -978,7 +1016,7 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
       makeFrame(960, 64, 1.f),
       makeFrame(960, 64, 1.f),
       makeFrame(960, 64, 1.f),
-      makeFrame(960, 6, 1.f)
+      makeFrame(960, 64, 1.f)
     }
   });
 
@@ -986,7 +1024,7 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
 
   auto animCollect = std::unique_ptr<Animation>(new Animation{
     .name = hashString("collect"),
-    .duration = 15,
+    .duration = 24,
     .frames = {
       makeFrame(960, 64, 1.f),
       makeFrame(960, 64, 0.f)
@@ -998,7 +1036,8 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
   auto coords = randomGridCoords();
   size_t numNuggets = 3; // TODO
 
-  for (size_t i = 0; i < numNuggets; ++i) {
+  size_t nuggetsConstructed = 0;
+  for (size_t i = 0; i < coords.size(); ++i) {
     int x = coords[i][0];
     int y = coords[i][1];
 
@@ -1029,9 +1068,9 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
     SpriteData render{
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
-        .y = pxToUvY(0.f, 16.f),
-        .w = pxToUvW(16.f),
-        .h = pxToUvH(16.f)
+        .y = pxToUvY(64.f, 32.f),
+        .w = pxToUvW(32.f),
+        .h = pxToUvH(32.f)
       },
       .zIndex = static_cast<uint32_t>(ZIndex::Nugget)
     };
@@ -1047,6 +1086,12 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
 
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 5);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
+
+    ++nuggetsConstructed;
+
+    if (nuggetsConstructed >= numNuggets) {
+      break;
+    }
   }
 }
 
@@ -1078,14 +1123,14 @@ void SceneBuilderImpl::constructWanderers()
     .name = hashString("fade_in"),
     .duration = 30,
     .frames = {
-      makeFrame(0.f, 0.f, 256.f, 256.f, 0.125f),
-      makeFrame(0.f, 0.f, 256.f, 256.f, 1.f)
+      makeFrame(0.f, 0.f, 256.f, 400.f, 0.f),
+      makeFrame(0.f, 0.f, 256.f, 400.f, 1.f)
     }
   });
 
   auto animFadeInId = sysAnimation.addAnimation(std::move(animFadeIn));
 
-  long animationDuration = 16;
+  long animationDuration = 32;
   float_t delta = 0.015625f;
 
   auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
@@ -1173,7 +1218,8 @@ void SceneBuilderImpl::constructWanderers()
       .w = pxToUvW(32.f),
       .h = pxToUvH(48.f)
       },
-      .zIndex = static_cast<uint32_t>(ZIndex::Wanderer)
+      .zIndex = static_cast<uint32_t>(ZIndex::Wanderer),
+      .colour = Vec4f{ 1.f, 1.f, 1.f, 0.f }
     };
 
     sysRender.addEntity(id, render);
@@ -1269,6 +1315,89 @@ void SceneBuilderImpl::constructSticks()
     auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
   }
+}
+
+void SceneBuilderImpl::constructExit()
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
+  auto makeFrame = [](float_t tx, float_t ty) {
+    return AnimationFrame{
+      .pos = Vec2f{ 0.f, 0.f },
+      .scale = Vec2f{ 1.f, 1.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 16.f),
+        .w = pxToUvW(16.f),
+        .h = pxToUvH(16.f)
+      },
+      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+    };
+  };
+
+  auto animIdle = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("idle"),
+    .duration = 32,
+    .frames = {
+      makeFrame(128.f, 432.f),
+      makeFrame(144.f, 432.f),
+      makeFrame(160.f, 432.f),
+      makeFrame(176.f, 432.f),
+      makeFrame(192.f, 432.f),
+      makeFrame(208.f, 432.f),
+      makeFrame(224.f, 432.f),
+      makeFrame(240.f, 432.f)
+    }
+  });
+
+  auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f size{ 0.0625f, 0.0625f };
+  Vec2f pos{ GRID_CELL_W * (GRID_W - 1), GRID_CELL_H * (GRID_H - 1) };
+
+  sysGrid.addEntity(id, (GRID_W - 1), (GRID_H - 1));
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = Rectf{
+      .x = pxToUvX(128.f),
+      .y = pxToUvY(416.f, 16.f),
+      .w = pxToUvW(16.f),
+      .h = pxToUvH(16.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::Exit)
+  };
+
+  sysRender.addEntity(id, render);
+
+  sysAnimation.addEntity(id, AnimationData{ .animations = { animIdleId } });
+
+  auto behaviour = createBGeneric(hashString("exit"), { g_strGoldTargetAttained },
+    [&sysAnimation, id](const Event& e) {
+
+    if (e.name == g_strGoldTargetAttained) {
+      sysAnimation.playAnimation(id, hashString("idle"), true);
+    }
+  });
+
+  sysBehaviour.addBehaviour(id, std::move(behaviour));
 }
 
 void SceneBuilderImpl::constructHud()

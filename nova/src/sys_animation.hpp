@@ -10,7 +10,7 @@ struct AnimationFrame
   Vec2f pos;
   Vec2f scale{ 1.f, 1.f };
   std::optional<Rectf> textureRect;
-  std::optional<Vec4f> colour;
+  Vec4f colour;
 };
 
 struct Animation

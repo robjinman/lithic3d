@@ -69,7 +69,7 @@ void BCollectable::processEvent(const Event& event)
   else if (event.name == g_strAnimationFinish) {
     auto& e = dynamic_cast<const EAnimationFinish&>(event);
 
-    if (e.animationName == strCollect) {
+    if (e.entityId == m_entityId && e.animationName == strCollect) {
       m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
     }
   }
