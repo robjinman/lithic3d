@@ -59,6 +59,9 @@ void BCollectable::processEvent(const Event& event)
     auto& e = dynamic_cast<const EEntityStepOn&>(event);
 
     if (e.entityId == m_playerId) {
+      if (sysAnimation.hasAnimationPlaying(m_entityId)) {
+        sysAnimation.finishAnimation(m_entityId);
+      }
       sysAnimation.playAnimation(m_entityId, strCollect);
       m_eventSystem.queueEvent(std::make_unique<EItemCollect>(m_entityId, m_value));
     }

@@ -1570,9 +1570,253 @@ void SceneBuilderImpl::constructWanderers()
     }
   });
 
-  auto animThrowId = sysAnimation.addAnimation(std::move(animDissolve));
+  auto animDissolveId = sysAnimation.addAnimation(std::move(animDissolve));
 
-  // TODO: Walk animations
+  auto animFadeIn = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("fade_in"),
+    .duration = 30,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.f }
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  auto animFadeInId = sysAnimation.addAnimation(std::move(animFadeIn));
+
+  long animationDuration = 16;
+  float_t delta = 0.015625f;
+
+  auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_left"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 1.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 2.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(288.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 3.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(320.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ -delta * 4.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(352.f),
+          .y = pxToUvY(352.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveLeftId = sysAnimation.addAnimation(std::move(animMoveLeft));
+
+  auto animMoveRight = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_right"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ delta * 1.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ delta * 2.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(288.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ delta * 3.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(320.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ delta * 4.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(352.f),
+          .y = pxToUvY(304.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveRightId = sysAnimation.addAnimation(std::move(animMoveRight));
+
+  auto animMoveUp = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_up"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 1.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 2.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(288.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 3.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(320.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, delta * 4.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(352.f),
+          .y = pxToUvY(256.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveUpId = sysAnimation.addAnimation(std::move(animMoveUp));
+
+  auto animMoveDown = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("move_down"),
+    .duration = animationDuration,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 1.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(256.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 2.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(288.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 3.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(320.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      },
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, -delta * 4.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = Rectf{
+          .x = pxToUvX(352.f),
+          .y = pxToUvY(400.f, 48.f),
+          .w = pxToUvW(32.f),
+          .h = pxToUvH(48.f)
+        },
+        .colour = std::nullopt
+      }
+    }
+  });
+
+  auto animMoveDownId = sysAnimation.addAnimation(std::move(animMoveDown));
 
   auto coords = randomGridCoords();
 
@@ -1611,9 +1855,17 @@ void SceneBuilderImpl::constructWanderers()
     };
 
     sysRender.addEntity(id, render);
+    sysRender.setVisible(id, false);
 
     sysAnimation.addEntity(id, AnimationData{
-      .animations = { animThrowId }
+      .animations = {
+        animDissolveId,
+        animFadeInId,
+        animMoveLeftId,
+        animMoveRightId,
+        animMoveUpId,
+        animMoveDownId
+      }
     });
 
     auto behaviour = createBWanderer(m_ecs, m_eventSystem, id, m_playerId);

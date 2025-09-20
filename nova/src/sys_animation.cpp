@@ -42,6 +42,7 @@ class SysAnimationImpl : public SysAnimation
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
     void seek(EntityId entityId, Tick tick) override;
     bool hasAnimationPlaying(EntityId entityId) const override;
+    void finishAnimation(EntityId entityId) override;
 
   private:
     Logger& m_logger;
@@ -52,6 +53,9 @@ class SysAnimationImpl : public SysAnimation
     std::map<AnimationId, AnimationPtr> m_animations;
 
     static AnimationId m_nextId;
+
+    bool updateAnimation(EntityId entityId, AnimationState& animState,
+      std::vector<std::tuple<EntityId, HashedString>>& toRepeat);
 };
 
 AnimationId SysAnimationImpl::m_nextId = 0;
@@ -62,6 +66,71 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& 
   , m_eventSystem(eventSystem)
   , m_componentStore(componentStore)
 {
+}
+
+// Returns true if animation is complete
+bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animState,
+  std::vector<std::tuple<EntityId, HashedString>>& toRepeat)
+{
+  assert(animState.isPlaying);
+
+  auto& anim = *m_animations.at(animState.id);
+  auto& renderComp = m_componentStore.component<CSprite>(entityId);
+  auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
+
+  size_t numFrames = anim.frames.size();
+  Tick elapsed = animState.tick;
+  float_t fractionComplete = static_cast<float_t>(elapsed) / anim.duration;
+  float_t frameNumFloat = fractionComplete * numFrames;
+  size_t frameNumInt = static_cast<size_t>(frameNumFloat);
+
+  ++animState.tick;
+
+  assert(numFrames > 0);
+  assert(frameNumInt <= numFrames);
+
+  if (frameNumInt == numFrames) {
+    auto& frame = anim.frames[frameNumInt - 1];
+
+    Vec3f pos{ frame.pos[0], frame.pos[1], 0.f };
+    Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
+
+    localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
+
+    animState.isPlaying = false;
+
+    auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
+    m_eventSystem.queueEvent(std::move(e));
+
+    if (animState.repeats) {
+      localTComp.transform = animState.initialT;
+      toRepeat.push_back({ entityId, anim.name });
+    }
+
+    return true;
+  }
+
+  float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
+  auto& frame = anim.frames[frameNumInt];
+
+  Vec2f prevPos = frameNumInt > 0 ? anim.frames[frameNumInt - 1].pos : anim.startPos;
+  Vec2f delta = frame.pos - prevPos;
+  Vec2f interp = prevPos + delta * fractionOfFrameComplete;
+
+  Vec3f pos{ interp[0], interp[1], 0.f };
+  Vec3f scale{ frame.scale[0], frame.scale[1], 1.f }; // TODO: interpolate?
+
+  localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
+
+  if (frame.textureRect.has_value()) {
+    renderComp.textureRect = frame.textureRect.value();
+  }
+  if (frame.colour.has_value()) {
+    // TODO: interpolate
+    renderComp.colour = frame.colour.value();
+  }
+
+  return false;
 }
 
 void SysAnimationImpl::update(Tick, const InputState&)
@@ -81,69 +150,35 @@ void SysAnimationImpl::update(Tick, const InputState&)
       continue;
     }
 
-    auto& anim = *m_animations.at(animState.id);
-    auto& renderComp = m_componentStore.component<CSprite>(entityId);
-    auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
-
-    size_t numFrames = anim.frames.size();
-    Tick elapsed = animState.tick;
-    float_t fractionComplete = static_cast<float_t>(elapsed) / anim.duration;
-    float_t frameNumFloat = fractionComplete * numFrames;
-    size_t frameNumInt = static_cast<size_t>(frameNumFloat);
-
-    ++animState.tick;
-
-    assert(numFrames > 0);
-    assert(frameNumInt <= numFrames);
-
-    if (frameNumInt == numFrames) {
-      auto& frame = anim.frames[frameNumInt - 1];
-
-      Vec3f pos{ frame.pos[0], frame.pos[1], 0.f };
-      Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
-
-      localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
-
-      animState.isPlaying = false;
-
-      auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
-      m_eventSystem.queueEvent(std::move(e));
-
-      if (animState.repeats) {
-        localTComp.transform = animState.initialT;
-        toRepeat.push_back({ entityId, anim.name });
-      }
-
-      i = m_activeAnimations.erase(i);
+    if (!updateAnimation(entityId, animState, toRepeat)) {
+      ++i;
     }
     else {
-      float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
-      auto& frame = anim.frames[frameNumInt];
-
-      Vec2f prevPos = frameNumInt > 0 ? anim.frames[frameNumInt - 1].pos : anim.startPos;
-      Vec2f delta = frame.pos - prevPos;
-      Vec2f interp = prevPos + delta * fractionOfFrameComplete;
-
-      Vec3f pos{ interp[0], interp[1], 0.f };
-      Vec3f scale{ frame.scale[0], frame.scale[1], 1.f }; // TODO: interpolate?
-
-      localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
-
-      if (frame.textureRect.has_value()) {
-        renderComp.textureRect = frame.textureRect.value();
-      }
-      if (frame.colour.has_value()) {
-        // TODO: interpolate
-        renderComp.colour = frame.colour.value();
-      }
-
-      ++i;
+      i = m_activeAnimations.erase(i);
     }
   }
 
   for (auto& anim : toRepeat) {
     playAnimation(std::get<0>(anim), std::get<1>(anim), true);
   }
+}
+
+void SysAnimationImpl::finishAnimation(EntityId entityId)
+{
+  auto i = m_activeAnimations.find(entityId);
+  if (i == m_activeAnimations.end()) {
+    EXCEPTION("Entity has no animations playing");
+  }
+
+  auto anim = *m_animations.at(i->second.id);
+  assert(anim.duration > 0);
+
+  seek(entityId, anim.duration);
+
+  std::vector<std::tuple<EntityId, HashedString>> toRepeat;
+  assert(updateAnimation(entityId, i->second, toRepeat));
+
+  m_activeAnimations.erase(i);
 }
 
 void SysAnimationImpl::addEntity(EntityId entityId, const AnimationData& comp)
@@ -173,6 +208,7 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
 {
   auto id = m_nextId++;
 
+  ASSERT(animation->duration > 0, "Animation must have duration > 0");
   m_animations.insert({ id, std::move(animation) });
 
   return id;
@@ -184,6 +220,8 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);
+
+  ASSERT(!m_activeAnimations.contains(entityId), "Entity already has animation playing");
 
   m_activeAnimations.erase(entityId);
   m_activeAnimations.insert({ entityId, AnimationState{
@@ -207,7 +245,7 @@ void SysAnimationImpl::seek(EntityId entityId, Tick tick)
   auto& animState = i->second;
   auto& anim = *m_animations.at(animState.id);
 
-  animState.tick = tick % anim.duration;
+  animState.tick = tick % (anim.duration + 1);
 }
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
