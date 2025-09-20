@@ -209,54 +209,28 @@ EntityId SceneBuilderImpl::constructPlayer()
   long animationDuration = 16;
   float_t delta = 0.015625f;
 
+  auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty) {
+    return AnimationFrame{
+      .pos = Vec2f{ x, y },
+      .scale = Vec2f{ 1.f, 1.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 48.f),
+        .w = pxToUvW(32.f),
+        .h = pxToUvH(48.f)
+      },
+      .colour = std::nullopt
+    };
+  };
+
   auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 1.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 2.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(416.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 3.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 4.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(480.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(-delta * 1.f, 0.f, 384.f, 352.f),
+      makeFrame(-delta * 2.f, 0.f, 416.f, 352.f),
+      makeFrame(-delta * 3.f, 0.f, 448.f, 352.f),
+      makeFrame(-delta * 4.f, 0.f, 480.f, 352.f)
     }
   });
 
@@ -264,50 +238,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_right"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ delta * 1.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ delta * 2.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(416.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ delta * 3.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ delta * 4.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(480.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(delta * 1.f, 0.f, 384.f, 304.f),
+      makeFrame(delta * 2.f, 0.f, 416.f, 304.f),
+      makeFrame(delta * 3.f, 0.f, 448.f, 304.f),
+      makeFrame(delta * 4.f, 0.f, 480.f, 304.f)
     }
   });
 
@@ -315,50 +249,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_up"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 1.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 2.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(416.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 3.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 4.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(480.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(0.f, delta * 1.f, 384.f, 256.f),
+      makeFrame(0.f, delta * 2.f, 416.f, 256.f),
+      makeFrame(0.f, delta * 3.f, 448.f, 256.f),
+      makeFrame(0.f, delta * 4.f, 480.f, 256.f)
     }
   });
 
@@ -366,50 +260,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_down"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 1.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 2.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(416.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 3.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 4.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(480.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(0.f, -delta * 1.f, 384.f, 400.f),
+      makeFrame(0.f, -delta * 2.f, 416.f, 400.f),
+      makeFrame(0.f, -delta * 3.f, 448.f, 400.f),
+      makeFrame(0.f, -delta * 4.f, 480.f, 400.f)
     }
   });
 
@@ -656,87 +510,26 @@ void SceneBuilderImpl::constructSoil()
 
   long animationDuration = 16;
 
+  auto makeFrame = [](float_t tx, float_t ty, float_t a) {
+    return AnimationFrame{
+      .pos = Vec2f{ 0.f, 0.f },
+      .scale = Vec2f{ 1.f, 1.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 16.f),
+        .w = pxToUvW(16.f),
+        .h = pxToUvH(16.f)
+      },
+      .colour = Vec4f{ 1.f, 1.f, 1.f, a }
+    };
+  };
+
   auto animCollect = std::unique_ptr<Animation>(new Animation{
     .name = hashString("collect"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.875f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.75f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.625f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.375f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.25f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(384.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.125f }
-      }
+      makeFrame(384.f, 0.f, 0.875f),
+      makeFrame(384.f, 0.f, 0.125f)
     }
   });
 
@@ -806,176 +599,40 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
   size_t numMines = 40; // TODO
 
+  auto makeFrame = [](float_t tx, float_t ty) {
+    return AnimationFrame{
+      .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
+      .scale = Vec2f{ 2.f, 2.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 64.f),
+        .w = pxToUvW(64.f),
+        .h = pxToUvH(64.f)
+      },
+      .colour = std::nullopt
+    };
+  };
+
   auto animExplode = std::unique_ptr<Animation>(new Animation{
     .name = hashString("explode"),
     .duration = 30,
     .startPos{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(0.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(512.f),
-          .y = pxToUvY(0.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(576.f),
-          .y = pxToUvY(0.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(640.f),
-          .y = pxToUvY(0.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(64.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(512.f),
-          .y = pxToUvY(64.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(576.f),
-          .y = pxToUvY(64.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(640.f),
-          .y = pxToUvY(64.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(128.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(512.f),
-          .y = pxToUvY(128.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(576.f),
-          .y = pxToUvY(128.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(640.f),
-          .y = pxToUvY(128.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(448.f),
-          .y = pxToUvY(192.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(512.f),
-          .y = pxToUvY(192.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
-        .scale = Vec2f{ 2.f, 2.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(576.f),
-          .y = pxToUvY(192.f, 64.f),
-          .w = pxToUvW(64.f),
-          .h = pxToUvH(64.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(448.f, 0.f),
+      makeFrame(512.f, 0.f),
+      makeFrame(576.f, 0.f),
+      makeFrame(640.f, 0.f),
+      makeFrame(448.f, 64.f),
+      makeFrame(512.f, 64.f),
+      makeFrame(576.f, 64.f),
+      makeFrame(640.f, 64.f),
+      makeFrame(448.f, 128.f),
+      makeFrame(512.f, 128.f),
+      makeFrame(576.f, 128.f),
+      makeFrame(640.f, 128.f),
+      makeFrame(448.f, 192.f),
+      makeFrame(512.f, 192.f),
+      makeFrame(576.f, 192.f)
     }
   });
 
@@ -1172,186 +829,40 @@ void SceneBuilderImpl::constructCoins()
 
   size_t numCoins = 10; // TODO
 
+  auto makeFrame = [](float_t tx, float_t ty, float_t a) {
+    return AnimationFrame{
+      .pos = Vec2f{ 0.f, 0.f },
+      .scale = Vec2f{ 1.f, 1.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 16.f),
+        .w = pxToUvW(16.f),
+        .h = pxToUvH(16.f)
+      },
+      .colour = Vec4f{ 1.f, 1.f, 1.f, a }
+    };
+  };
+
   auto animIdle = std::unique_ptr<Animation>(new Animation{
     .name = hashString("idle"),
     .duration = 60,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(1008.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(1008.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(1008.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(48.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(48.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(48.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(1008.f),
-          .y = pxToUvY(48.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      }
+      makeFrame(960.f, 0.f, 1.f),
+      makeFrame(976.f, 0.f, 1.f),
+      makeFrame(992.f, 0.f, 1.f),
+      makeFrame(1008.f, 0.f, 1.f),
+      makeFrame(960.f, 16.f, 1.f),
+      makeFrame(976.f, 16.f, 1.f),
+      makeFrame(992.f, 16.f, 1.f),
+      makeFrame(1008.f, 16.f, 1.f),
+      makeFrame(960.f, 32.f, 1.f),
+      makeFrame(976.f, 32.f, 1.f),
+      makeFrame(992.f, 32.f, 1.f),
+      makeFrame(1008.f, 32.f, 1.f),
+      makeFrame(960.f, 48.f, 1.f),
+      makeFrame(976.f, 48.f, 1.f),
+      makeFrame(992.f, 48.f, 1.f),
+      makeFrame(1008.f, 48.f, 1.f)
     }
   });
 
@@ -1361,127 +872,17 @@ void SceneBuilderImpl::constructCoins()
     .name = hashString("collect"),
     .duration = 12,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.9f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.8f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(1008.f),
-          .y = pxToUvY(0.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.7f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.6f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.5f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.4f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(1008.f),
-          .y = pxToUvY(16.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.3f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.2f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(976.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.1f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(992.f),
-          .y = pxToUvY(32.f, 16.f),
-          .w = pxToUvW(16.f),
-          .h = pxToUvH(16.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.0f }
-      }
+      makeFrame(960.f, 0.f, 1.f),
+      makeFrame(976.f, 0.f, 0.9f),
+      makeFrame(992.f, 0.f, 0.8f),
+      makeFrame(1008.f, 0.f, 0.7f),
+      makeFrame(960.f, 16.f, 0.6f),
+      makeFrame(976.f, 16.f, 0.5f),
+      makeFrame(992.f, 16.f, 0.4f),
+      makeFrame(1008.f, 16.f, 0.3f),
+      makeFrame(960.f, 32.f, 0.2f),
+      makeFrame(976.f, 32.f, 0.1f),
+      makeFrame(992.f, 32.f, 0.f)
     }
   });
 
@@ -1539,7 +940,114 @@ void SceneBuilderImpl::constructCoins()
 
 void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>& mines)
 {
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  auto makeFrame = [](float_t tx, float_t ty, float_t a) {
+    return AnimationFrame{
+      .pos = Vec2f{ 0.f, 0.f },
+      .scale = Vec2f{ 1.f, 1.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 32.f),
+        .w = pxToUvW(32.f),
+        .h = pxToUvH(32.f)
+      },
+      .colour = Vec4f{ 1.f, 1.f, 1.f, a }
+    };
+  };
+
+  auto animIdle = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("idle"),
+    .duration = 120,
+    .frames = {
+      makeFrame(992, 64, 1.f),
+      makeFrame(960, 96, 1.f),
+      makeFrame(992, 96, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 6, 1.f)
+    }
+  });
+
+  auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
+
+  auto animCollect = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("collect"),
+    .duration = 15,
+    .frames = {
+      makeFrame(960, 64, 1.f),
+      makeFrame(960, 64, 0.f)
+    }
+  });
+
+  auto animCollectId = sysAnimation.addAnimation(std::move(animCollect));
+
+  auto coords = randomGridCoords();
+  size_t numNuggets = 3; // TODO
+
+  for (size_t i = 0; i < numNuggets; ++i) {
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    if (mines.contains({ x, y })) {
+      continue;
+    }
+
+    auto id = m_ecs.componentStore().allocate<
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    >();
+
+    m_entities.insert(id);
+
+    sysGrid.addEntity(id, x, y);
+
+    Vec2f size{ 0.03f, 0.03f };
+    Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
+    Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
+
+    SpatialData spatial{
+      .transform = spriteTransform(pos, size),
+      .parent = m_worldRoot,
+      .enabled = true
+    };
+
+    sysSpatial.addEntity(id, spatial);
+
+    SpriteData render{
+      .textureRect = Rectf{
+        .x = pxToUvX(960.f),
+        .y = pxToUvY(0.f, 16.f),
+        .w = pxToUvW(16.f),
+        .h = pxToUvH(16.f)
+      },
+      .zIndex = static_cast<uint32_t>(ZIndex::Nugget)
+    };
+
+    sysRender.addEntity(id, render);
+
+    sysAnimation.addEntity(id, AnimationData{
+      .animations = { animIdleId, animCollectId }
+    });
+
+    sysAnimation.playAnimation(id, hashString("idle"), true);
+    sysAnimation.seek(id, randomInt());
+
+    auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 5);
+    sysBehaviour.addBehaviour(id, std::move(behaviour));
+  }
 }
 
 void SceneBuilderImpl::constructWanderers()
@@ -1552,52 +1060,26 @@ void SceneBuilderImpl::constructWanderers()
 
   size_t numWanderers = 5; // TODO
 
-  auto animDissolve = std::unique_ptr<Animation>(new Animation{
-    .name = hashString("dissolve"),
-    .duration = 30,
-    .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      }
-    }
-  });
-
-  auto animDissolveId = sysAnimation.addAnimation(std::move(animDissolve));
+  auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty, float_t a) {
+    return AnimationFrame{
+      .pos = Vec2f{ x, y },
+      .scale = Vec2f{ 1.f, 1.f },
+      .textureRect = Rectf{
+        .x = pxToUvX(tx),
+        .y = pxToUvY(ty, 48.f),
+        .w = pxToUvW(32.f),
+        .h = pxToUvH(48.f)
+      },
+      .colour = Vec4f{ 1.f, 1.f, 1.f, a }
+    };
+  };
 
   auto animFadeIn = std::unique_ptr<Animation>(new Animation{
     .name = hashString("fade_in"),
     .duration = 30,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.f }
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
-      }
+      makeFrame(0.f, 0.f, 256.f, 256.f, 0.125f),
+      makeFrame(0.f, 0.f, 256.f, 256.f, 1.f)
     }
   });
 
@@ -1610,50 +1092,10 @@ void SceneBuilderImpl::constructWanderers()
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 1.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 2.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(288.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 3.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(320.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ -delta * 4.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(352.f),
-          .y = pxToUvY(352.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(-delta * 1.f, 0.f, 256.f, 352.f, 1.f),
+      makeFrame(-delta * 2.f, 0.f, 288.f, 352.f, 1.f),
+      makeFrame(-delta * 3.f, 0.f, 320.f, 352.f, 1.f),
+      makeFrame(-delta * 4.f, 0.f, 352.f, 352.f, 1.f)
     }
   });
 
@@ -1663,50 +1105,10 @@ void SceneBuilderImpl::constructWanderers()
     .name = hashString("move_right"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ delta * 1.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ delta * 2.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(288.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ delta * 3.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(320.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ delta * 4.f, 0.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(352.f),
-          .y = pxToUvY(304.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(delta * 1.f, 0.f, 256.f, 304.f, 1.f),
+      makeFrame(delta * 2.f, 0.f, 288.f, 304.f, 1.f),
+      makeFrame(delta * 3.f, 0.f, 320.f, 304.f, 1.f),
+      makeFrame(delta * 4.f, 0.f, 352.f, 304.f, 1.f)
     }
   });
 
@@ -1716,50 +1118,10 @@ void SceneBuilderImpl::constructWanderers()
     .name = hashString("move_up"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 1.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 2.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(288.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 3.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(320.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, delta * 4.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(352.f),
-          .y = pxToUvY(256.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(0.f, delta * 1.f, 256.f, 256.f, 1.f),
+      makeFrame(0.f, delta * 2.f, 288.f, 256.f, 1.f),
+      makeFrame(0.f, delta * 3.f, 320.f, 256.f, 1.f),
+      makeFrame(0.f, delta * 4.f, 352.f, 256.f, 1.f)
     }
   });
 
@@ -1769,50 +1131,10 @@ void SceneBuilderImpl::constructWanderers()
     .name = hashString("move_down"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 1.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(256.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 2.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(288.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 3.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(320.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      },
-      AnimationFrame{
-        .pos = Vec2f{ 0.f, -delta * 4.f },
-        .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(352.f),
-          .y = pxToUvY(400.f, 48.f),
-          .w = pxToUvW(32.f),
-          .h = pxToUvH(48.f)
-        },
-        .colour = std::nullopt
-      }
+      makeFrame(0.f, -delta * 1.f, 256.f, 400.f, 1.f),
+      makeFrame(0.f, -delta * 2.f, 288.f, 400.f, 1.f),
+      makeFrame(0.f, -delta * 3.f, 320.f, 400.f, 1.f),
+      makeFrame(0.f, -delta * 4.f, 352.f, 400.f, 1.f)
     }
   });
 
@@ -1859,7 +1181,6 @@ void SceneBuilderImpl::constructWanderers()
 
     sysAnimation.addEntity(id, AnimationData{
       .animations = {
-        animDissolveId,
         animFadeInId,
         animMoveLeftId,
         animMoveRightId,

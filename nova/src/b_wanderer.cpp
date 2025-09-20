@@ -4,6 +4,7 @@
 #include "sys_grid.hpp"
 #include "sys_animation.hpp"
 #include "sys_render.hpp"
+#include "events.hpp"
 
 namespace
 {
@@ -19,6 +20,7 @@ class BWanderer : public BehaviourData
 
   private:
     Ecs& m_ecs;
+    EventSystem& m_eventSystem;
     EntityId m_entityId;
     EntityId m_playerId;
     bool m_active = false;
@@ -26,6 +28,7 @@ class BWanderer : public BehaviourData
 
 BWanderer::BWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId)
   : m_ecs(ecs)
+  , m_eventSystem(eventSystem)
   , m_entityId(entityId)
   , m_playerId(playerId)
 {
@@ -40,7 +43,8 @@ HashedString BWanderer::name() const
 const std::set<HashedString>& BWanderer::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strPlayerMove
+    g_strPlayerMove,
+    g_strEntityExplode
   };
   return subs;
 }
@@ -56,6 +60,17 @@ void BWanderer::processEvent(const Event& event)
   constexpr int sqActivationDist = 36;
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
+  if (event.name == g_strEntityExplode) {
+    auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+
+    auto& e = dynamic_cast<const EEntityExplode&>(event);
+    if (sysGrid.hasEntityAt(m_entityId, e.pos[0], e.pos[1])) {
+      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+    }
+
+    return;
+  }
 
   if (m_active) {
     if (!sysGrid.hasEntity(m_playerId)) {

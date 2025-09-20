@@ -38,7 +38,8 @@ HashedString BPlayer::name() const
 const std::set<HashedString>& BPlayer::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strEntityExplode
+    g_strEntityExplode,
+    g_strEntityStepOn
   };
   return subs;
 }
@@ -51,8 +52,16 @@ void BPlayer::processEvent(const Event& event)
     auto& e = dynamic_cast<const EEntityExplode&>(event);
     if (sysGrid.hasEntityAt(m_entityId, e.pos[0], e.pos[1])) {
       m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
+
+      // TODO: Play death animation and sound
       m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
     }
+  }
+  else if (event.name == g_strEntityStepOn) {
+    m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
+
+    // TODO: Play death animation and sound
+    m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
   }
 }
 
