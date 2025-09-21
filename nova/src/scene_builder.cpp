@@ -340,7 +340,7 @@ void SceneBuilderImpl::constructClouds()
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  long animationDuration = 7200;
+  long animationDuration = 15000;
 
   auto animIdle = std::unique_ptr<Animation>(new Animation{
     .name = hashString("idle"),

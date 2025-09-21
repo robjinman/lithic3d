@@ -94,8 +94,21 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
     Vec3f pos{ frame.pos[0], frame.pos[1], 0.f };
     Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
+    float_t rot = degreesToRadians(frame.rotation);
 
-    localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
+    Vec3f pivot{ frame.scale[0] * frame.pivot[0], frame.scale[1] * frame.pivot[1], 0.f };
+
+    localTComp.transform =
+      // Adjust position in world space
+      translationMatrix4x4(pos) *
+      // Move into world space
+      animState.initialT *
+      // Rotation and scale in model space
+      translationMatrix4x4(pivot) *
+      rotationMatrix4x4(Vec3f{ 0.f, 0.f, rot }) *
+      translationMatrix4x4(-pivot) *
+      scaleMatrix4x4(scale);
+
     renderComp.colour = frame.colour;
 
     animState.isPlaying = false;
@@ -121,7 +134,22 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
   Vec3f pos{ interp[0], interp[1], 0.f };
   Vec3f scale{ frame.scale[0], frame.scale[1], 1.f }; // TODO: interpolate?
 
-  localTComp.transform = translationMatrix4x4(pos) * animState.initialT * scaleMatrix4x4(scale);
+  float_t prevRot = frameNumInt > 0 ? anim.frames[frameNumInt - 1].rotation : 0.f;
+  float_t rotDelta = frame.rotation - prevRot;
+  float_t rot = degreesToRadians(prevRot + fractionOfFrameComplete * rotDelta);
+
+  Vec3f pivot{ frame.scale[0] * frame.pivot[0], frame.scale[1] * frame.pivot[1], 0.f };
+
+  localTComp.transform =
+    // Adjust position in world space
+    translationMatrix4x4(pos) *
+    // Move into world space
+    animState.initialT *
+    // Rotation and scale in model space
+    translationMatrix4x4(pivot) *
+    rotationMatrix4x4(Vec3f{ 0.f, 0.f, rot }) *
+    translationMatrix4x4(-pivot) *
+    scaleMatrix4x4(scale);
 
   if (frame.textureRect.has_value()) {
     renderComp.textureRect = frame.textureRect.value();

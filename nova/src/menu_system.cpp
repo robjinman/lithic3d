@@ -14,6 +14,13 @@
 namespace
 {
 
+enum class ZIndex : uint32_t
+{
+  Root,
+  Flare,
+  MenuItem
+};
+
 static const HashedString strIdle = hashString("idle");
 static const HashedString strIdleActive = hashString("idle_active");
 
@@ -219,7 +226,7 @@ void MenuSystemImpl::constructRoot()
       .w = pxToUvW(256.f),
       .h = pxToUvH(256.f)
     },
-    .zIndex = 100
+    .zIndex = static_cast<uint32_t>(ZIndex::Root)
   };
 
   sysRender.addEntity(m_root, render);
@@ -229,6 +236,22 @@ void MenuSystemImpl::constructFlare()
 {
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
+  auto animRotate = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("rotate"),
+    .duration = TICKS_PER_SECOND * 500,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .rotation = 360.f,
+        .pivot = Vec2f{ 0.5f, 0.5f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = std::nullopt,
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
@@ -252,12 +275,18 @@ void MenuSystemImpl::constructFlare()
       .w = pxToUvW(256.f),
       .h = pxToUvH(256.f)
     },
-    .zIndex = 101
+    .zIndex = static_cast<uint32_t>(ZIndex::Flare)
   };
 
   sysRender.addEntity(id, render);
 
-  // TODO: Animation
+  sysAnimation.addEntity(id, AnimationData{
+    .animations = {
+      sysAnimation.addAnimation(std::move(animRotate))
+    }
+  });
+
+  sysAnimation.playAnimation(id, hashString("rotate"), true);
 }
 
 EntityId MenuSystemImpl::constructMenuItem(EntityId parentId, const Vec2f& pos, const Vec2f& size,
@@ -282,7 +311,7 @@ EntityId MenuSystemImpl::constructMenuItem(EntityId parentId, const Vec2f& pos, 
 
   SpriteData render{
     .textureRect = texRect,
-    .zIndex = 102
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem)
   };
 
   sysRender.addEntity(id, render);
@@ -357,7 +386,7 @@ EntityId MenuSystemImpl::constructSettingsSubmenu(EntityId parent, EntityId prev
       .w = pxToUvW(32.f),
       .h = pxToUvH(64.f)
     },
-    .zIndex = 102
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem)
   };
 
   sysRender.addEntity(musicIcon, musicIconRender);
@@ -523,7 +552,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
       .w = pxToUvW(192.f),
       .h = pxToUvH(192.f)
     },
-    .zIndex = 102,
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
     .colour = colour,
     .text = text
   };

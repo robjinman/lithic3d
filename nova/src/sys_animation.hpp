@@ -7,17 +7,19 @@
 
 struct AnimationFrame
 {
-  Vec2f pos;
+  Vec2f pos{ 0.f, 0.f };
+  float_t rotation = 0.f;
+  Vec2f pivot{ 0.f, 0.f };  // In model space, which for sprites ranges from 0.0 to 1.0 on both axis
   Vec2f scale{ 1.f, 1.f };
   std::optional<Rectf> textureRect;
-  Vec4f colour;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
 struct Animation
 {
-  HashedString name;
+  HashedString name = 0;
   Tick duration = 1;
-  Vec2f startPos;
+  Vec2f startPos{ 0.f, 0.f };
   std::vector<AnimationFrame> frames;
 };
 

@@ -70,7 +70,7 @@ bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)
 {
   ASSERT(hasEntity(entityId), "Grid doesn't contain entity " << entityId);
 
-  const Vec2i& coords = m_entities.at(entityId);
+  Vec2i coords = m_entities.at(entityId);
   Vec2i dest = coords + Vec2i{ dx, dy };
 
   if (!isInRange(dest[0], dest[1])) {
