@@ -5,24 +5,22 @@
 #include "utils.hpp"
 
 const HashedString g_strEntityStepOn = hashString("entity_step_on");
+const HashedString g_strEntityLandOn = hashString("entity_land_on");
 const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strAnimationFinish = hashString("animation_finish");
 const HashedString g_strEntityExplode = hashString("entity_explode");
 const HashedString g_strPlayerMove = hashString("player_move");
 const HashedString g_strPlayerDeath = hashString("player_death");
 const HashedString g_strTimerTick = hashString("timer_tick");
+const HashedString g_strTimeout = hashString("timeout");
 const HashedString g_strGoldTargetAttained = hashString("gold_target_attained");
 const HashedString g_strAttack = hashString("attack");
+const HashedString g_strToggleThrowingMode = hashString("toggle_throwing_mode");
+const HashedString g_strThrow = hashString("throw");
 
 class EEntityStepOn : public Event
 {
   public:
-    EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos)
-      : Event(g_strEntityStepOn)
-      , entityId(entityId)
-      , fromPos(fromPos)
-      , toPos(toPos) {}
-
     EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos,
       const EntityIdSet& targets)
       : Event(g_strEntityStepOn, targets)
@@ -41,6 +39,25 @@ class EEntityStepOn : public Event
     EntityId entityId;
     Vec2i fromPos;
     Vec2i toPos;
+};
+
+class EEntityLandOn : public Event
+{
+  public:
+    EEntityLandOn(EntityId entityId, const Vec2i& pos, const EntityIdSet& targets)
+      : Event(g_strEntityLandOn, targets)
+      , entityId(entityId)
+      , pos(pos) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "entityId = " << entityId << ", "
+        << "pos = " << pos << ")");
+    }
+
+    EntityId entityId;
+    Vec2i pos;
 };
 
 class EItemCollect : public Event
@@ -159,6 +176,18 @@ class ETimerTick : public Event
     uint32_t timeRemaining;
 };
 
+class ETimeout : public Event
+{
+  public:
+    ETimeout()
+      : Event(g_strTimeout) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString());
+    }
+};
+
 class EGoldTargetAttained : public Event
 {
   public:
@@ -185,4 +214,42 @@ class EAttack : public Event
     }
 
     EntityId entityId;
+};
+
+class EToggleThrowingMode : public Event
+{
+  public:
+    EToggleThrowingMode(EntityId stickId)
+      : Event(g_strToggleThrowingMode)
+      , stickId(stickId) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "stickId = " << stickId << ")");
+    }
+
+    EntityId stickId;
+};
+
+class EThrow : public Event
+{
+  public:
+    EThrow(EntityId stickId, int x, int y)
+      : Event(g_strThrow)
+      , stickId(stickId)
+      , x(x)
+      , y(y) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "stickId = " << stickId << ", "
+        << "x = " << x << ", "
+        << "y = " << y << ")");
+    }
+
+    EntityId stickId;
+    int x;
+    int y;
 };

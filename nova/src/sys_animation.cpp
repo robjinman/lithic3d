@@ -39,7 +39,9 @@ class SysAnimationImpl : public SysAnimation
 
     void addEntity(EntityId entityId, const AnimationData& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;
+    void replaceAnimation(AnimationId animationId, AnimationPtr animation) override;
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
+    void stopAnimation(EntityId entityId) override;
     void seek(EntityId entityId, Tick tick) override;
     bool hasAnimationPlaying(EntityId entityId) const override;
     void finishAnimation(EntityId entityId) override;
@@ -194,6 +196,16 @@ void SysAnimationImpl::update(Tick, const InputState&)
   }
 }
 
+void SysAnimationImpl::stopAnimation(EntityId entityId)
+{
+  auto i = m_activeAnimations.find(entityId);
+  if (i == m_activeAnimations.end()) {
+    return;
+  }
+
+  m_activeAnimations.erase(i);
+}
+
 void SysAnimationImpl::finishAnimation(EntityId entityId)
 {
   auto i = m_activeAnimations.find(entityId);
@@ -245,6 +257,13 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
   return id;
 }
 
+void SysAnimationImpl::replaceAnimation(AnimationId animationId, AnimationPtr animation)
+{
+  ASSERT(animation->duration > 0, "Animation must have duration > 0");
+  m_animations.erase(animationId);
+  m_animations.insert({ animationId, std::move(animation) });
+}
+
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
   auto& renderComp = m_componentStore.component<CSprite>(entityId);
@@ -254,7 +273,6 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
 
   ASSERT(!m_activeAnimations.contains(entityId), "Entity already has animation playing");
 
-  m_activeAnimations.erase(entityId);
   m_activeAnimations.insert({ entityId, AnimationState{
     .id = animId,
     .name = name,

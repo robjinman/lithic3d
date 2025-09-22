@@ -17,6 +17,7 @@
 #include "ecs.hpp"
 #include "systems.hpp"
 #include "input_state.hpp"
+#include "events.hpp"
 #undef max
 #undef min
 
@@ -66,6 +67,8 @@ class GameImpl : public Game
     Scene m_scene;
     GameState m_gameState;
     bool m_shouldExit = false;
+    bool m_throwingMode = false;
+    EntityId m_stickId = NULL_ENTITY;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -76,6 +79,9 @@ class GameImpl : public Game
     void startGame();
     void handleEvent(const Event& event);
     void handleUiEvent(const Event& event);
+    void checkTimeout();
+    void toggleThrowingMode(bool on, EntityId stickId = NULL_ENTITY);
+    void throwStick(float_t x, float_t y);
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
@@ -143,6 +149,13 @@ void GameImpl::handleUiEvent(const Event& event)
   }
 }
 
+void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
+{
+  m_throwingMode = on;
+  m_ecs->componentStore().component<CSprite>(m_scene.throwingModeIndicator).visible = on;
+  m_stickId = stickId;
+}
+
 void GameImpl::handleEvent(const Event& event)
 {
   playSoundForEvent(event);
@@ -154,6 +167,10 @@ void GameImpl::handleEvent(const Event& event)
   }
   else if (event.name == g_strUiItemActivate) {
     handleUiEvent(event);
+  }
+  else if (event.name == g_strToggleThrowingMode) {
+    auto& e = dynamic_cast<const EToggleThrowingMode&>(event);
+    toggleThrowingMode(true, e.stickId);
   }
 }
 
@@ -263,7 +280,7 @@ void GameImpl::onMouseButtonUp()
 void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
 {
   int W = 630;
-  int H = 480; // TODO
+  int H = 480; // TODO (remember fullscreen mode)
   float_t aspect = static_cast<float_t>(W) / H;
   m_inputState.mousePos[0] = pos[0] / H;
   m_inputState.mousePos[1] = 1.f - pos[1] / H;
@@ -323,6 +340,8 @@ void GameImpl::processKeyboardInput()
       if (moved) {
         auto event = std::make_unique<EPlayerMove>(sysGrid.entityPos(m_scene.player));
         m_eventSystem->queueEvent(std::move(event));
+
+        toggleThrowingMode(false);
       }
 
       break;
@@ -338,8 +357,36 @@ void GameImpl::processKeyboardInput()
   }
 }
 
+void GameImpl::throwStick(float_t x, float_t y)
+{
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs->system(GRID_SYSTEM));
+
+  Vec2i dest{ static_cast<int>(x / GRID_CELL_W), static_cast<int>(y / GRID_CELL_H) };
+  auto& pos = sysGrid.entityPos(m_stickId);
+
+  if (sysGrid.isInRange(dest[0], dest[1])) {
+    m_eventSystem->queueEvent(std::make_unique<EThrow>(m_stickId, dest[0], dest[1]));
+    toggleThrowingMode(false);
+  }
+}
+
 void GameImpl::processMouseInput()
 {
+  if (m_throwingMode) {
+    auto& t = m_ecs->componentStore().component<CLocalTransform>(m_scene.throwingModeIndicator);
+
+    float_t x = m_inputState.mousePos[0];
+    float_t y = m_inputState.mousePos[1];
+
+    t.transform.set(0, 3, x - 0.025f);
+    t.transform.set(1, 3, y - 0.025f);
+
+    auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(ANIMATION_SYSTEM));
+
+    if (m_inputState.mouseBtn && !sysAnimation.hasAnimationPlaying(m_stickId)) {
+      throwStick(x, y);
+    }
+  }
 }
 
 void GameImpl::measureTickRate()
@@ -351,12 +398,8 @@ void GameImpl::measureTickRate()
   }
 }
 
-bool GameImpl::update()
+void GameImpl::checkTimeout()
 {
-  measureTickRate();
-  processKeyboardInput();
-  processMouseInput();
-
   if (m_gameState == GameState::Playing) {
     ++m_timeSinceStart;
     if (m_timeSinceStart % TICKS_PER_SECOND == 0) {
@@ -369,10 +412,18 @@ bool GameImpl::update()
       }
 
       if (secondsElapsed >= gameDuration) {
-        m_eventSystem->queueEvent(std::make_unique<EPlayerDeath>());
+        m_eventSystem->queueEvent(std::make_unique<ETimeout>());
       }
     }
   }
+}
+
+bool GameImpl::update()
+{
+  measureTickRate();
+  processKeyboardInput();
+  processMouseInput();
+  checkTimeout();
 
   m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();

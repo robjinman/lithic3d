@@ -26,13 +26,13 @@ class SysGridImpl : public SysGrid
     bool hasEntityAt(EntityId entityId, int x, int y) const override;
     const Vec2i& entityPos(EntityId entityId) const override;
     bool tryMove(EntityId entityId, int dx, int dy) override;
+    bool goTo(EntityId entityId, int x, int y) override;
+    bool isInRange(int x, int y) const override;
 
   private:
     EventSystem& m_eventSystem;
     std::array<std::array<EntityIdSet, GRID_W>, GRID_H> m_cells;
     std::map<EntityId, Vec2i> m_entities;
-
-    bool isInRange(int x, int y) const;
 };
 
 bool SysGridImpl::isInRange(int x, int y) const
@@ -64,6 +64,26 @@ const Vec2i& SysGridImpl::entityPos(EntityId entityId) const
   catch (const std::exception& e) { // TODO: More specific type
     EXCEPTION(STR("Entity " << entityId << " not in grid"));
   }
+}
+
+bool SysGridImpl::goTo(EntityId entityId, int x, int y)
+{
+  ASSERT(hasEntity(entityId), "Grid doesn't contain entity " << entityId);
+
+  if (!isInRange(x, y)) {
+    return false;
+  }
+
+  auto entities = m_cells[y][x];
+
+  removeEntity(entityId);
+  addEntity(entityId, x, y);
+
+  if (!entities.empty()) {
+    m_eventSystem.queueEvent(std::make_unique<EEntityLandOn>(entityId, Vec2i{ x, y }, entities));
+  }
+
+  return true;
 }
 
 bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)

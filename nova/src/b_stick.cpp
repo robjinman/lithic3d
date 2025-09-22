@@ -1,15 +1,20 @@
-#include "b_wanderer.hpp"
+#include "b_stick.hpp"
 #include "game_events.hpp"
-#include "systems.hpp"
+#include "events.hpp"
 #include "sys_grid.hpp"
+#include "systems.hpp"
 
 namespace
 {
 
+static const auto strThrow = hashString("throw");
+static const auto strFade = hashString("fade");
+
 class BStick : public BehaviourData
 {
   public:
-    BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId);
+    BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
+      AnimationId throwAnimation);
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
@@ -17,40 +22,110 @@ class BStick : public BehaviourData
 
   private:
     Ecs& m_ecs;
+    EventSystem& m_eventSystem;
     EntityId m_entityId;
     EntityId m_playerId;
+    AnimationId m_throwAnimation;
+    int m_destX = -1;
+    int m_destY = -1;
+
+    void throwStick();
 };
 
-BStick::BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId)
+BStick::BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
+  AnimationId throwAnimation)
   : m_ecs(ecs)
+  , m_eventSystem(eventSystem)
   , m_entityId(entityId)
   , m_playerId(playerId)
+  , m_throwAnimation(throwAnimation)
 {
 }
 
 HashedString BStick::name() const
 {
-  static auto strStick = hashString("stick");
-  return strStick;
+  static auto strName = hashString("stick");
+  return strName;
 }
 
 const std::set<HashedString>& BStick::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strEntityStepOn
+    g_strEntityStepOn,
+    g_strAnimationFinish,
+    g_strThrow
   };
   return subs;
 }
 
+void BStick::throwStick()
+{
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
+  auto& pos = sysGrid.entityPos(m_entityId);
+
+  Vec2f delta{
+    static_cast<float_t>(m_destX - pos[0]) * GRID_CELL_W,
+    static_cast<float_t>(m_destY - pos[1]) * GRID_CELL_H
+  };
+
+  auto anim = std::unique_ptr<Animation>(new Animation{
+    .name = strThrow,
+    .duration = 30,
+    .frames = {
+      AnimationFrame{
+        .pos = delta,
+        .rotation = 360.f,
+        .pivot = Vec2f{ 0.f, 0.5f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = std::nullopt,
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+      }
+    }
+  });
+
+  sysAnimation.replaceAnimation(m_throwAnimation, std::move(anim));
+  sysAnimation.playAnimation(m_entityId, strThrow);
+}
+
 void BStick::processEvent(const Event& event)
 {
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  if (event.name == g_strEntityStepOn) {
+    auto& e = dynamic_cast<const EEntityStepOn&>(event);
+
+    if (e.entityId == m_playerId) {
+      m_eventSystem.queueEvent(std::make_unique<EToggleThrowingMode>(m_entityId));
+    }
+  }
+  else if (event.name == g_strThrow) {
+    auto& e = dynamic_cast<const EThrow&>(event);
+
+    m_destX = e.x;
+    m_destY = e.y;
+
+    throwStick();
+  }
+  else if (event.name == g_strAnimationFinish) {
+    auto& e = dynamic_cast<const EAnimationFinish&>(event);
+
+    if (e.animationName == strThrow) {
+      assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
+      sysAnimation.playAnimation(m_entityId, strFade);
+    }
+    else if (e.animationName == strFade) {
+      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+    }
+  }
 }
 
 } // namespace
 
 BehaviourDataPtr createBStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
-  EntityId playerId)
+  EntityId playerId, AnimationId throwAnimation)
 {
-  return std::make_unique<BStick>(ecs, eventSystem, entityId, playerId);
+  return std::make_unique<BStick>(ecs, eventSystem, entityId, playerId, throwAnimation);
 }

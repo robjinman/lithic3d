@@ -9,9 +9,9 @@
 #include "b_collectable.hpp"
 #include "b_numeric_tile.hpp"
 #include "b_generic.hpp"
-#include "b_stick.hpp"
 #include "b_wanderer.hpp"
 #include "b_coin_counter.hpp"
+#include "b_stick.hpp"
 #include "game_events.hpp"
 #include "systems.hpp"
 #include "events.hpp"
@@ -33,18 +33,25 @@ enum class ZIndex : uint32_t
   Cloud,
   Trees,
   Gradient,
+  Stick,
   Player,
   Wanderer,
   Coin,
-  Stick,
+  Explosion,
   Hud
 };
 
 // TODO: Move this
-Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size, float_t rotation = 0.f)
+Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size, float_t rotation = 0.f,
+  Vec2f pivot = Vec2f{})
 {
-  return translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+  Vec3f scaledPivot{ size[0] * pivot[0], size[1] * pivot[1], 0.f };
+
+  return
+    translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+    translationMatrix4x4(scaledPivot) *
     rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation }) *
+    translationMatrix4x4(-scaledPivot) *
     scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
 }
 
@@ -94,6 +101,8 @@ class SceneBuilderImpl : public SceneBuilder
     EntityId m_menuRoot;
     EntityId m_playerId;
 
+    EntityId constructStaticEntity(const Vec2f& pos, const Vec2f& size, const Rectf& texRect,
+      uint32_t zIndex);
     EntityId constructWorldRoot();
     EntityId constructPlayer();
     void constructSky();
@@ -109,11 +118,11 @@ class SceneBuilderImpl : public SceneBuilder
     void constructWanderers();
     void constructSticks();
     void constructExit();
-    void constructHud();
     void constructCoinLabel();
     void constructCoinCounter();
     void constructTimeLabel();
     void constructTimeCounter();
+    EntityId constructThrowingModeIndicator();
 };
 
 SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs)
@@ -131,6 +140,8 @@ Scene SceneBuilderImpl::buildScene()
 {
   m_entities.clear();
 
+  Scene scene;
+
   m_worldRoot = constructWorldRoot();
   m_playerId = constructPlayer();
   constructSky();
@@ -143,12 +154,15 @@ Scene SceneBuilderImpl::buildScene()
   constructGradient();
   constructCoins();
   constructGoldNuggets(mines);
-  constructWanderers();
+  //constructWanderers();
   constructSticks();
   constructExit();
-  constructHud();
+  constructCoinLabel();
+  constructCoinCounter();
+  constructTimeLabel();
+  constructTimeCounter();
+  scene.throwingModeIndicator = constructThrowingModeIndicator();
 
-  Scene scene;
   scene.player = m_playerId;
   scene.worldRoot = m_worldRoot;
 
@@ -708,16 +722,24 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
     sysRender.addEntity(id, render);
 
-    auto onEvent = [&, this, id, x, y](const Event& e) {
+    auto onEvent = [this, id, x, y, &sysGrid, &sysAnimation, &sysRender](const Event& e) {
       if (e.name == g_strEntityStepOn) {
         auto& event = dynamic_cast<const EEntityStepOn&>(e);
-
-        Vec2i pos{ x, y };
-        if (event.toPos == pos) {
+  
+        if (event.toPos == Vec2i{ x, y }) {
           EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
-
           sysGrid.removeEntity(id);
-          m_eventSystem.scheduleEvent(15, std::make_unique<EEntityExplode>(id, pos, targets));
+          m_eventSystem.scheduleEvent(15, std::make_unique<EEntityExplode>(id, event.toPos,
+            targets));
+        }
+      }
+      if (e.name == g_strEntityLandOn) {
+        auto& event = dynamic_cast<const EEntityLandOn&>(e);
+
+        if (event.pos == Vec2i{ x, y }) {
+          EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
+          sysGrid.removeEntity(id);
+          m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, event.pos, targets));
         }
       }
       else if (e.name == g_strEntityExplode) {
@@ -725,7 +747,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
 
         if (event.entityId == id) {
           sysAnimation.playAnimation(id, strExplode);
-          sysRender.setZIndex(id, 100);
+          sysRender.setZIndex(id, static_cast<uint32_t>(ZIndex::Explosion));
         }
       }
       else if (e.name == g_strAnimationFinish) {
@@ -1248,7 +1270,7 @@ void SceneBuilderImpl::constructSticks()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  size_t numSticks = 5; // TODO
+  size_t numSticks = 1; // TODO
 
   auto animThrow = std::unique_ptr<Animation>(new Animation{
     .name = hashString("throw"),
@@ -1257,18 +1279,28 @@ void SceneBuilderImpl::constructSticks()
       AnimationFrame{
         .pos = Vec2f{ 0.f, 0.f },
         .scale = Vec2f{ 1.f, 1.f },
-        .textureRect = Rectf{
-          .x = pxToUvX(960.f),
-          .y = pxToUvY(160.f, 32.f),
-          .w = pxToUvW(8.f),
-          .h = pxToUvH(32.f)
-        },
+        .textureRect = std::nullopt,
         .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
       }
     }
   });
 
   auto animThrowId = sysAnimation.addAnimation(std::move(animThrow));
+
+  auto animFade = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("fade"),
+    .duration = 30,
+    .frames = {
+      AnimationFrame{
+        .pos = Vec2f{ 0.f, 0.f },
+        .scale = Vec2f{ 1.f, 1.f },
+        .textureRect = std::nullopt,
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 0.f }
+      }
+    }
+  });
+
+  auto animFadeId = sysAnimation.addAnimation(std::move(animFade));
 
   auto coords = randomGridCoords();
 
@@ -1279,17 +1311,17 @@ void SceneBuilderImpl::constructSticks()
 
     m_entities.insert(id);
 
-    int x = coords[i][0];
-    int y = coords[i][1];
+    int x = 1;//coords[i][0];
+    int y = 1;//coords[i][1];
 
     sysGrid.addEntity(id, x, y);
 
-    Vec2f size{ 0.016f, 0.0625f };
-    Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
+    Vec2f size{ GRID_CELL_W, GRID_CELL_H };
+    Vec2f offset{ 0.5f * GRID_CELL_W, 0.f };
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
     SpatialData spatial{
-      .transform = spriteTransform(pos, size, PIf / 4.f),
+      .transform = spriteTransform(pos, size, PIf / 4.f, { 0.f, 0.5f }),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -1300,7 +1332,7 @@ void SceneBuilderImpl::constructSticks()
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
         .y = pxToUvY(160.f, 32.f),
-        .w = pxToUvW(8.f),
+        .w = pxToUvW(32.f),
         .h = pxToUvH(32.f)
       },
       .zIndex = static_cast<uint32_t>(ZIndex::Stick)
@@ -1309,10 +1341,10 @@ void SceneBuilderImpl::constructSticks()
     sysRender.addEntity(id, render);
 
     sysAnimation.addEntity(id, AnimationData{
-      .animations = { animThrowId }
+      .animations = { animThrowId, animFadeId }
     });
 
-    auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId);
+    auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId, animThrowId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
   }
 }
@@ -1400,47 +1432,14 @@ void SceneBuilderImpl::constructExit()
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 }
 
-void SceneBuilderImpl::constructHud()
-{
-  constructCoinLabel();
-  constructCoinCounter();
-  constructTimeLabel();
-  constructTimeCounter();
-}
-
 void SceneBuilderImpl::constructTimeLabel()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-
-  auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
-  >();
-
-  m_entities.insert(id);
-
-  Vec2f size{ 0.05f, 0.05f };
-  Vec2f pos{ 0.01f, 0.94f };
-
-  SpatialData spatial{
-    .transform = spriteTransform(pos, size),
-    .parent = m_worldRoot,
-    .enabled = true
-  };
-
-  sysSpatial.addEntity(id, spatial);
-
-  SpriteData render{
-    .textureRect = Rectf{
-      .x = pxToUvX(960.f),
-      .y = pxToUvY(128.f, 32.f),
-      .w = pxToUvW(24.f),
-      .h = pxToUvH(32.f)
-    },
-    .zIndex = static_cast<uint32_t>(ZIndex::Hud)
-  };
-
-  sysRender.addEntity(id, render);
+  constructStaticEntity({ 0.01f, 0.94f }, { 0.05f, 0.05f }, Rectf{
+    .x = pxToUvX(960.f),
+    .y = pxToUvY(128.f, 32.f),
+    .w = pxToUvW(24.f),
+    .h = pxToUvH(32.f)
+  }, static_cast<uint32_t>(ZIndex::Hud));
 }
 
 void SceneBuilderImpl::constructTimeCounter()
@@ -1508,37 +1507,12 @@ void SceneBuilderImpl::constructTimeCounter()
 
 void SceneBuilderImpl::constructCoinLabel()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-
-  auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
-  >();
-
-  m_entities.insert(id);
-
-  Vec2f size{ 0.05f, 0.05f };
-  Vec2f pos{ 0.22f, 0.94f };
-
-  SpatialData spatial{
-    .transform = spriteTransform(pos, size),
-    .parent = m_worldRoot,
-    .enabled = true
-  };
-
-  sysSpatial.addEntity(id, spatial);
-
-  SpriteData render{
-    .textureRect = Rectf{
-      .x = pxToUvX(984.f),
-      .y = pxToUvY(128.f, 32.f),
-      .w = pxToUvW(24.f),
-      .h = pxToUvH(32.f)
-    },
-    .zIndex = static_cast<uint32_t>(ZIndex::Hud)
-  };
-
-  sysRender.addEntity(id, render);
+  constructStaticEntity({ 0.22f, 0.94f }, { 0.05f, 0.05f }, Rectf{
+    .x = pxToUvX(984.f),
+    .y = pxToUvY(128.f, 32.f),
+    .w = pxToUvW(24.f),
+    .h = pxToUvH(32.f)
+  }, static_cast<uint32_t>(ZIndex::Hud));
 }
 
 void SceneBuilderImpl::constructCoinCounter()
@@ -1583,6 +1557,50 @@ void SceneBuilderImpl::constructCoinCounter()
 
   auto behaviour = createBCoinCounter(coinsRequired, m_ecs, m_eventSystem, id);
   sysBehaviour.addBehaviour(id, std::move(behaviour));
+}
+
+EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& size,
+  const Rectf& texRect, uint32_t zIndex)
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+  >();
+
+  m_entities.insert(id);
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  SpriteData render{
+    .textureRect = texRect,
+    .zIndex = zIndex
+  };
+
+  sysRender.addEntity(id, render);
+
+  return id;
+}
+
+EntityId SceneBuilderImpl::constructThrowingModeIndicator()
+{
+  auto id = constructStaticEntity({ 1.f, 0.94f }, { 0.05f, 0.05f }, Rectf{
+    .x = pxToUvX(992.f),
+    .y = pxToUvY(160.f, 32.f),
+    .w = pxToUvW(32.f),
+    .h = pxToUvH(32.f)
+  }, static_cast<uint32_t>(ZIndex::Hud));
+
+  m_ecs.componentStore().component<CSprite>(id).visible = false;
+
+  return id;
 }
 
 } // namespace

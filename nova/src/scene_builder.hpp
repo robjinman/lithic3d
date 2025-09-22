@@ -1,12 +1,14 @@
 #pragma once
 
 #include "ecs.hpp"
+#include "sys_animation.hpp"
 #include <memory>
 
 struct Scene
 {
   EntityId player = NULL_ENTITY;
   EntityId worldRoot = NULL_ENTITY;
+  EntityId throwingModeIndicator = NULL_ENTITY;
 };
 
 class SceneBuilder

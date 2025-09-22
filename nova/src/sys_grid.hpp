@@ -11,6 +11,8 @@ class SysGrid : public System
     virtual bool hasEntityAt(EntityId entityId, int x, int y) const = 0;
     virtual const Vec2i& entityPos(EntityId entityId) const = 0;
     virtual bool tryMove(EntityId entityId, int dx, int dy) = 0;
+    virtual bool goTo(EntityId entityId, int x, int y) = 0;
+    virtual bool isInRange(int x, int y) const = 0;
 };
 
 using SysGridPtr = std::unique_ptr<SysGrid>;

@@ -43,7 +43,8 @@ const std::set<HashedString>& BPlayer::subscriptions() const
     g_strEntityExplode,
     g_strEntityStepOn,
     g_strAttack,
-    g_strAnimationFinish
+    g_strAnimationFinish,
+    g_strTimeout
   };
   return subs;
 }
@@ -81,9 +82,17 @@ void BPlayer::processEvent(const Event& event)
         m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
       }
       else {
-        sysAnimation.playAnimation(m_entityId, strDie);
+        if (!sysAnimation.hasAnimationPlaying(m_entityId)) {
+          sysAnimation.playAnimation(m_entityId, strDie);
+        }
       }
     }
+  }
+  else if (event.name == g_strTimeout) {
+    sysAnimation.stopAnimation(m_entityId);
+    sysAnimation.playAnimation(m_entityId, strDie);
+    m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
+    m_alive = false;
   }
 }
 

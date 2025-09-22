@@ -90,14 +90,20 @@ void EventSystemImpl::processEvent(const Event& event)
 
 void EventSystemImpl::processScheduledEvents()
 {
+  std::vector<EventPtr> toProcess;
+
   for (auto i = m_scheduledEvents.begin(); i != m_scheduledEvents.end();) {
     if (--i->second == 0) {
-      processEvent(*i->first);
+      toProcess.push_back(std::move(i->first));
       i = m_scheduledEvents.erase(i);
     }
     else {
       ++i;
     }
+  }
+
+  for (auto& event : toProcess) {
+    processEvent(*event);
   }
 }
 

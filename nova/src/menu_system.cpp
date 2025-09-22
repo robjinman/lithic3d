@@ -240,7 +240,7 @@ void MenuSystemImpl::constructFlare()
 
   auto animRotate = std::unique_ptr<Animation>(new Animation{
     .name = hashString("rotate"),
-    .duration = TICKS_PER_SECOND * 500,
+    .duration = TICKS_PER_SECOND * 450,
     .frames = {
       AnimationFrame{
         .pos = Vec2f{ 0.f, 0.f },
