@@ -104,10 +104,12 @@ void BStick::processEvent(const Event& event)
   else if (event.name == g_strThrow) {
     auto& e = dynamic_cast<const EThrow&>(event);
 
-    m_destX = e.x;
-    m_destY = e.y;
+    if (e.stickId == m_entityId) {
+      m_destX = e.x;
+      m_destY = e.y;
 
-    throwStick();
+      throwStick();
+    }
   }
   else if (event.name == g_strAnimationFinish) {
     auto& e = dynamic_cast<const EAnimationFinish&>(event);

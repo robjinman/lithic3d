@@ -64,18 +64,20 @@ void SysBehaviourImpl::processEvent(const Event& event)
 {
   // TODO: Don't send events to inactive entities
 
+  // If the event isn't targeted, send to all subscribers
   if (event.targets.empty()) {
     auto i = m_subscriptions.find(event.name);
     if (i != m_subscriptions.end()) {
       for (auto id : i->second) {
         auto& behaviours = m_behaviours.at(id);
         for (auto& entry : behaviours) {
-
           entry.second->processEvent(event);
         }
       }
     }
   }
+  // If the event is targeted, send to all targets regardless of whether they subscribe
+  // TODO: Consider only sending to subscribers?
   else {
     for (auto id : event.targets) {
       auto i = m_behaviours.find(id);

@@ -8,6 +8,7 @@
 #include "audio_system.hpp"
 #include "renderer.hpp"
 #include "menu_system.hpp"
+#include "time_service.hpp"
 #include "sys_animation.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
@@ -55,6 +56,7 @@ class GameImpl : public Game
     AudioSystem& m_audioSystem;
     render::Renderer& m_renderer;
     EventSystemPtr m_eventSystem;
+    TimeServicePtr m_timeService;
     MenuSystemPtr m_menuSystem;
     EcsPtr m_ecs;
     SceneBuilderPtr m_sceneBuilder;
@@ -92,6 +94,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   , m_renderer(renderer)
 {
   m_eventSystem = createEventSystem(m_logger);
+  m_timeService = createTimeService();
   m_ecs = createEcs(m_logger);
 
   auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_eventSystem, m_logger);
@@ -109,7 +112,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
   m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, m_logger);
-  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs);
+  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_timeService);
 
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 
@@ -427,6 +430,7 @@ bool GameImpl::update()
 
   m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();
+  m_timeService->update();
 
   return !m_shouldExit;
 }

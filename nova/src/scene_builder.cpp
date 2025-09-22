@@ -88,7 +88,7 @@ int randomInt()
 class SceneBuilderImpl : public SceneBuilder
 {
   public:
-    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs);
+    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService);
 
     Scene buildScene() override;
     EntityIdSet entities() const override;
@@ -96,6 +96,7 @@ class SceneBuilderImpl : public SceneBuilder
   private:
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
+    TimeService& m_timeService;
     EntityIdSet m_entities;
     EntityId m_worldRoot;
     EntityId m_menuRoot;
@@ -125,9 +126,10 @@ class SceneBuilderImpl : public SceneBuilder
     EntityId constructThrowingModeIndicator();
 };
 
-SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs)
+SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService)
   : m_eventSystem(eventSystem)
   , m_ecs(ecs)
+  , m_timeService(timeService)
 {
 }
 
@@ -148,13 +150,13 @@ Scene SceneBuilderImpl::buildScene()
   constructClouds();
   constructTrees();
   constructFakeSoil();
-  constructSoil();
+  //constructSoil();
   auto mines = constructMines();
   constructNumericTiles(mines);
   constructGradient();
   constructCoins();
   constructGoldNuggets(mines);
-  //constructWanderers();
+  constructWanderers();
   constructSticks();
   constructExit();
   constructCoinLabel();
@@ -729,7 +731,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
         if (event.toPos == Vec2i{ x, y }) {
           EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
           sysGrid.removeEntity(id);
-          m_eventSystem.scheduleEvent(15, std::make_unique<EEntityExplode>(id, event.toPos,
+          m_eventSystem.scheduleEvent(30, std::make_unique<EEntityExplode>(id, event.toPos,
             targets));
         }
       }
@@ -837,7 +839,8 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       sysRender.addEntity(id, render);
       sysRender.setVisible(id, !mines.contains({ i, j }));
 
-      auto behaviour = createBNumericTile(m_ecs, m_eventSystem, id, Vec2i{ i, j }, value);
+      auto behaviour = createBNumericTile(m_ecs, m_eventSystem, m_timeService, id, Vec2i{ i, j },
+        value);
 
       sysBehaviour.addBehaviour(id, std::move(behaviour));
     }
@@ -1125,7 +1128,7 @@ void SceneBuilderImpl::constructWanderers()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  size_t numWanderers = 5; // TODO
+  size_t numWanderers = 3; // TODO
 
   auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty, float_t a) {
     return AnimationFrame{
@@ -1270,7 +1273,7 @@ void SceneBuilderImpl::constructSticks()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  size_t numSticks = 1; // TODO
+  size_t numSticks = 4; // TODO
 
   auto animThrow = std::unique_ptr<Animation>(new Animation{
     .name = hashString("throw"),
@@ -1311,8 +1314,8 @@ void SceneBuilderImpl::constructSticks()
 
     m_entities.insert(id);
 
-    int x = 1;//coords[i][0];
-    int y = 1;//coords[i][1];
+    int x = coords[i][0];
+    int y = coords[i][1];
 
     sysGrid.addEntity(id, x, y);
 
@@ -1605,7 +1608,7 @@ EntityId SceneBuilderImpl::constructThrowingModeIndicator()
 
 } // namespace
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs)
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService)
 {
-  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs);  
+  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs, timeService);  
 }

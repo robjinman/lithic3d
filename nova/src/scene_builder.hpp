@@ -23,5 +23,6 @@ class SceneBuilder
 using SceneBuilderPtr = std::unique_ptr<SceneBuilder>;
 
 class EventSystem;
+class TimeService;
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs);
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService);
