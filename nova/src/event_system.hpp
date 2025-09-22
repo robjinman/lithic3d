@@ -17,16 +17,19 @@ class Event
     virtual std::string toString() const
     {
       std::stringstream ss;
-      ss << getHashedString(name) << ", targets = [ ";
-      for (auto id : targets) {
-        ss << id << " ";
+      ss << getHashedString(name);
+      if (targets.has_value()) {
+        ss << ", targets = [ ";
+        for (auto id : targets.value()) {
+          ss << id << " ";
+        }
+        ss << "]";
       }
-      ss << "]";
       return ss.str();
     }
 
     HashedString name;
-    EntityIdSet targets;
+    std::optional<EntityIdSet> targets;
 };
 
 using EventPtr = std::unique_ptr<Event>;

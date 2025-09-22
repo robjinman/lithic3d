@@ -39,6 +39,8 @@ class SysAnimation : public System
     virtual AnimationId addAnimation(AnimationPtr animation) = 0;
     virtual void replaceAnimation(AnimationId animationId, AnimationPtr animation) = 0;
     virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
+    virtual void playAnimation(EntityId entityId, HashedString name,
+      const std::function<void()>& onFinish) = 0;
     virtual void stopAnimation(EntityId entityId) = 0;
     virtual void seek(EntityId entityId, Tick tick) = 0;
     virtual bool hasAnimationPlaying(EntityId entityId) const = 0;

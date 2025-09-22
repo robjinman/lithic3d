@@ -4,7 +4,7 @@
 #include "math.hpp"
 #include "utils.hpp"
 
-const HashedString g_strEntityStepOn = hashString("entity_step_on");
+const HashedString g_strEntityEnter = hashString("entity_enter");
 const HashedString g_strEntityLandOn = hashString("entity_land_on");
 const HashedString g_strItemCollect = hashString("item_collect");
 const HashedString g_strAnimationFinish = hashString("animation_finish");
@@ -18,27 +18,23 @@ const HashedString g_strAttack = hashString("attack");
 const HashedString g_strToggleThrowingMode = hashString("toggle_throwing_mode");
 const HashedString g_strThrow = hashString("throw");
 
-class EEntityStepOn : public Event
+class EEntityEnter : public Event
 {
   public:
-    EEntityStepOn(EntityId entityId, const Vec2i& fromPos, const Vec2i& toPos,
-      const EntityIdSet& targets)
-      : Event(g_strEntityStepOn, targets)
+    EEntityEnter(EntityId entityId, const Vec2i& pos, const EntityIdSet& targets)
+      : Event(g_strEntityEnter, targets)
       , entityId(entityId)
-      , fromPos(fromPos)
-      , toPos(toPos) {}
+      , pos(pos) {}
 
     std::string toString() const override
     {
       return STR(Event::toString() << " ("
         << "entityId = " << entityId << ", "
-        << "fromPos = " << fromPos << ", "
-        << "toPos = " << toPos << ")");
+        << "pos = " << pos << ")");
     }
 
     EntityId entityId;
-    Vec2i fromPos;
-    Vec2i toPos;
+    Vec2i pos;
 };
 
 class EEntityLandOn : public Event

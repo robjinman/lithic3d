@@ -11,6 +11,7 @@ class TimeService
   public:
     virtual void update() = 0;
     virtual void scheduleTask(Tick delay, const Task& task) = 0;
+    virtual void clear() = 0;
 
     virtual ~TimeService() = default;
 };

@@ -74,14 +74,8 @@ bool SysGridImpl::goTo(EntityId entityId, int x, int y)
     return false;
   }
 
-  auto entities = m_cells[y][x];
-
   removeEntity(entityId);
   addEntity(entityId, x, y);
-
-  if (!entities.empty()) {
-    m_eventSystem.queueEvent(std::make_unique<EEntityLandOn>(entityId, Vec2i{ x, y }, entities));
-  }
 
   return true;
 }
@@ -90,8 +84,7 @@ bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)
 {
   ASSERT(hasEntity(entityId), "Grid doesn't contain entity " << entityId);
 
-  Vec2i coords = m_entities.at(entityId);
-  Vec2i dest = coords + Vec2i{ dx, dy };
+  Vec2i dest = m_entities.at(entityId) + Vec2i{ dx, dy };
 
   if (!isInRange(dest[0], dest[1])) {
     return false;
@@ -103,7 +96,7 @@ bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)
   addEntity(entityId, dest[0], dest[1]);
 
   if (!entities.empty()) {
-    m_eventSystem.queueEvent(std::make_unique<EEntityStepOn>(entityId, coords, dest, entities));
+    m_eventSystem.queueEvent(std::make_unique<EEntityEnter>(entityId, dest, entities));
   }
 
   return true;

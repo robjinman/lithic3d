@@ -44,8 +44,7 @@ HashedString BCollectable::name() const
 const std::set<HashedString>& BCollectable::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strEntityStepOn,
-    g_strAnimationFinish
+    g_strEntityEnter
   };
   return subs;
 }
@@ -55,22 +54,17 @@ void BCollectable::processEvent(const Event& event)
   static HashedString strCollect = hashString("collect");
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  if (event.name == g_strEntityStepOn) {
-    auto& e = dynamic_cast<const EEntityStepOn&>(event);
+  if (event.name == g_strEntityEnter) {
+    auto& e = dynamic_cast<const EEntityEnter&>(event);
 
     if (e.entityId == m_playerId) {
       if (sysAnimation.hasAnimationPlaying(m_entityId)) {
         sysAnimation.finishAnimation(m_entityId);
       }
-      sysAnimation.playAnimation(m_entityId, strCollect);
+      sysAnimation.playAnimation(m_entityId, strCollect, [this]() {
+        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+      });
       m_eventSystem.queueEvent(std::make_unique<EItemCollect>(m_entityId, m_value));
-    }
-  }
-  else if (event.name == g_strAnimationFinish) {
-    auto& e = dynamic_cast<const EAnimationFinish&>(event);
-
-    if (e.entityId == m_entityId && e.animationName == strCollect) {
-      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
     }
   }
 }

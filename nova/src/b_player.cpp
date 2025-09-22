@@ -41,9 +41,8 @@ const std::set<HashedString>& BPlayer::subscriptions() const
 {
   static std::set<HashedString> subs{
     g_strEntityExplode,
-    g_strEntityStepOn,
+    g_strEntityLandOn,
     g_strAttack,
-    g_strAnimationFinish,
     g_strTimeout
   };
   return subs;
@@ -66,7 +65,7 @@ void BPlayer::processEvent(const Event& event)
       m_alive = false;
     }
   }
-  else if (event.name == g_strEntityStepOn || event.name == g_strAttack) {
+  else if (event.name == g_strEntityLandOn || event.name == g_strAttack) {
     if (!sysAnimation.hasAnimationPlaying(m_entityId)) {
       sysAnimation.playAnimation(m_entityId, strDie);
     }

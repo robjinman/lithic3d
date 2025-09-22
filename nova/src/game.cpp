@@ -179,6 +179,8 @@ void GameImpl::handleEvent(const Event& event)
 
 void GameImpl::destroyCurrentGame()
 {
+  m_timeService->clear();
+
   // Will delete entities pending deletion
   m_ecs->update(m_currentTick, m_inputState);
 
@@ -341,10 +343,25 @@ void GameImpl::processKeyboardInput()
       }
 
       if (moved) {
-        auto event = std::make_unique<EPlayerMove>(sysGrid.entityPos(m_scene.player));
-        m_eventSystem->queueEvent(std::move(event));
+        auto movedEvent = std::make_unique<EPlayerMove>(sysGrid.entityPos(m_scene.player));
+        m_eventSystem->queueEvent(std::move(movedEvent));
 
         toggleThrowingMode(false);
+
+        auto makeTask = [](EventSystem* eventSystem, SysGrid* sysGrid, EntityId id) {
+          return [eventSystem, sysGrid, id]() {
+            if (sysGrid->hasEntity(id)) {
+              auto pos = sysGrid->entityPos(id);
+              auto entities = sysGrid->getEntities(pos[0], pos[1]);
+              entities.erase(id);
+
+              auto event = std::make_unique<EEntityLandOn>(id, pos, entities);
+              eventSystem->queueEvent(std::move(event));
+            }
+          };
+        };
+
+        m_timeService->scheduleTask(15, makeTask(m_eventSystem.get(), &sysGrid, m_scene.player));
       }
 
       break;
@@ -365,7 +382,6 @@ void GameImpl::throwStick(float_t x, float_t y)
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs->system(GRID_SYSTEM));
 
   Vec2i dest{ static_cast<int>(x / GRID_CELL_W), static_cast<int>(y / GRID_CELL_H) };
-  auto& pos = sysGrid.entityPos(m_stickId);
 
   if (sysGrid.isInRange(dest[0], dest[1])) {
     m_eventSystem->queueEvent(std::make_unique<EThrow>(m_stickId, dest[0], dest[1]));

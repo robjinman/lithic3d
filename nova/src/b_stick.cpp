@@ -51,7 +51,7 @@ HashedString BStick::name() const
 const std::set<HashedString>& BStick::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strEntityStepOn,
+    g_strEntityLandOn,
     g_strAnimationFinish,
     g_strThrow
   };
@@ -94,8 +94,8 @@ void BStick::processEvent(const Event& event)
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  if (event.name == g_strEntityStepOn) {
-    auto& e = dynamic_cast<const EEntityStepOn&>(event);
+  if (event.name == g_strEntityLandOn) {
+    auto& e = dynamic_cast<const EEntityLandOn&>(event);
 
     if (e.entityId == m_playerId) {
       m_eventSystem.queueEvent(std::make_unique<EToggleThrowingMode>(m_entityId));
@@ -116,10 +116,17 @@ void BStick::processEvent(const Event& event)
 
     if (e.animationName == strThrow) {
       assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
-      sysAnimation.playAnimation(m_entityId, strFade);
-    }
-    else if (e.animationName == strFade) {
-      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+
+      auto entities = sysGrid.getEntities(m_destX, m_destY);
+      entities.erase(m_entityId);
+
+      auto landEvent = std::make_unique<EEntityLandOn>(m_entityId, Vec2i{ m_destX, m_destY },
+        entities);
+      m_eventSystem.queueEvent(std::move(landEvent));
+
+      sysAnimation.playAnimation(m_entityId, strFade, [this]() {
+        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+      });
     }
   }
 }

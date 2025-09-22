@@ -4,6 +4,7 @@
 
 class Ecs;
 class EventSystem;
+class TimeService;
 
-BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
-  EntityId playerId);
+BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, TimeService& timeService,
+  EntityId entityId, EntityId playerId);

@@ -18,6 +18,7 @@ struct AnimationState
   Mat4x4f initialT;
   Vec4f startColour;
   bool repeats = false;
+  std::optional<std::function<void()>> onFinish;
 };
 
 struct CAnimation
@@ -41,6 +42,8 @@ class SysAnimationImpl : public SysAnimation
     AnimationId addAnimation(AnimationPtr animation) override;
     void replaceAnimation(AnimationId animationId, AnimationPtr animation) override;
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
+    void playAnimation(EntityId entityId, HashedString name,
+      const std::function<void()>& onFinish) override;
     void stopAnimation(EntityId entityId) override;
     void seek(EntityId entityId, Tick tick) override;
     bool hasAnimationPlaying(EntityId entityId) const override;
@@ -58,6 +61,9 @@ class SysAnimationImpl : public SysAnimation
 
     bool updateAnimation(EntityId entityId, AnimationState& animState,
       std::vector<std::tuple<EntityId, HashedString>>& toRepeat);
+
+    void playAnimation(EntityId entityId, HashedString name, bool repeat,
+      const std::optional<std::function<void()>>& onFinish);
 };
 
 AnimationId SysAnimationImpl::m_nextId = 0;
@@ -117,6 +123,10 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
     auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
     m_eventSystem.queueEvent(std::move(e));
+
+    if (animState.onFinish.has_value()) {
+      animState.onFinish.value()();
+    }
 
     if (animState.repeats) {
       localTComp.transform = animState.initialT;
@@ -266,6 +276,18 @@ void SysAnimationImpl::replaceAnimation(AnimationId animationId, AnimationPtr an
 
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
+  playAnimation(entityId, name, repeat, std::nullopt);
+}
+
+void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name,
+  const std::function<void()>& onFinish)
+{
+  playAnimation(entityId, name, false, onFinish);
+}
+
+void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat,
+  const std::optional<std::function<void()>>& onFinish)
+{
   auto& renderComp = m_componentStore.component<CSprite>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
@@ -280,7 +302,8 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
     .tick = 0,
     .initialT = localTComp.transform,
     .startColour = renderComp.colour,
-    .repeats = repeat
+    .repeats = repeat,
+    .onFinish = onFinish
   }});
 }
 

@@ -34,9 +34,9 @@ enum class ZIndex : uint32_t
   Trees,
   Gradient,
   Stick,
+  Coin,
   Player,
   Wanderer,
-  Coin,
   Explosion,
   Hud
 };
@@ -150,7 +150,7 @@ Scene SceneBuilderImpl::buildScene()
   constructClouds();
   constructTrees();
   constructFakeSoil();
-  //constructSoil();
+  constructSoil();
   auto mines = constructMines();
   constructNumericTiles(mines);
   constructGradient();
@@ -725,16 +725,6 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
     sysRender.addEntity(id, render);
 
     auto onEvent = [this, id, x, y, &sysGrid, &sysAnimation, &sysRender](const Event& e) {
-      if (e.name == g_strEntityStepOn) {
-        auto& event = dynamic_cast<const EEntityStepOn&>(e);
-  
-        if (event.toPos == Vec2i{ x, y }) {
-          EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
-          sysGrid.removeEntity(id);
-          m_eventSystem.scheduleEvent(30, std::make_unique<EEntityExplode>(id, event.toPos,
-            targets));
-        }
-      }
       if (e.name == g_strEntityLandOn) {
         auto& event = dynamic_cast<const EEntityLandOn&>(e);
 
@@ -761,7 +751,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
       }
     };
 
-    auto behaviour = createBGeneric(strExplode, { g_strEntityStepOn, g_strEntityExplode }, onEvent);
+    auto behaviour = createBGeneric(strExplode, { g_strEntityLandOn, g_strEntityExplode }, onEvent);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
     sysAnimation.addEntity(id, AnimationData{
@@ -1049,7 +1039,7 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
 
   auto animCollect = std::unique_ptr<Animation>(new Animation{
     .name = hashString("collect"),
-    .duration = 24,
+    .duration = 12,
     .frames = {
       makeFrame(960, 64, 1.f),
       makeFrame(960, 64, 0.f)
@@ -1260,7 +1250,7 @@ void SceneBuilderImpl::constructWanderers()
       }
     });
 
-    auto behaviour = createBWanderer(m_ecs, m_eventSystem, id, m_playerId);
+    auto behaviour = createBWanderer(m_ecs, m_eventSystem, m_timeService, id, m_playerId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
   }
 }

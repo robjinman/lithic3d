@@ -10,27 +10,32 @@ class TimeServiceImpl : public TimeService
   public:
     void update() override;
     void scheduleTask(Tick delay, const Task& task) override;
+    void clear() override;
 
   private:
     std::list<std::pair<Tick, Task>> m_tasks;
 };
 
+void TimeServiceImpl::clear()
+{
+  m_tasks.clear();
+}
+
 void TimeServiceImpl::update()
 {
-  std::vector<Task*> toExecute;
+  // Decrement all first in case executing tasks causes to tasks to get added
+  for (auto& entry : m_tasks) {
+    --entry.first;
+  }
 
   for (auto i = m_tasks.begin(); i != m_tasks.end();) {
-    if (--i->first == 0) {
-      toExecute.push_back(&i->second);
+    if (i->first == 0) {
+      i->second();
       i = m_tasks.erase(i);
     }
     else {
       ++i;
     }
-  }
-
-  for (auto task : toExecute) {
-    (*task)();
   }
 }
 
