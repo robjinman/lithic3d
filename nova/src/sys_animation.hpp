@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "math.hpp"
 #include "component_types.hpp"
+#include <functional>
 
 struct AnimationFrame
 {
