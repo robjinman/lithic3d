@@ -126,20 +126,20 @@ void BWanderer::processEvent(const Event& event)
         }
 
         if (moved) {
-          auto makeTask = [](EventSystem* eventSystem, SysGrid* sysGrid, EntityId id) {
-            return [eventSystem, sysGrid, id]() {
-              if (sysGrid->hasEntity(id)) {
-                auto pos = sysGrid->entityPos(id);
-                auto entities = sysGrid->getEntities(pos[0], pos[1]);
+          auto makeTask = [&sysGrid](EventSystem& eventSystem, EntityId id) {
+            return [&eventSystem, &sysGrid, id]() {
+              if (sysGrid.hasEntity(id)) {
+                auto pos = sysGrid.entityPos(id);
+                auto entities = sysGrid.getEntities(pos[0], pos[1]);
                 entities.erase(id);
 
                 auto event = std::make_unique<EEntityLandOn>(id, pos, entities);
-                eventSystem->queueEvent(std::move(event));
+                eventSystem.queueEvent(std::move(event));
               }
             };
           };
 
-          m_timeService.scheduleTask(30, makeTask(&m_eventSystem, &sysGrid, m_entityId));
+          m_timeService.scheduleTask(30, makeTask(m_eventSystem, m_entityId));
         }
       }
     }

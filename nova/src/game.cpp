@@ -348,20 +348,20 @@ void GameImpl::processKeyboardInput()
 
         toggleThrowingMode(false);
 
-        auto makeTask = [](EventSystem* eventSystem, SysGrid* sysGrid, EntityId id) {
-          return [eventSystem, sysGrid, id]() {
-            if (sysGrid->hasEntity(id)) {
-              auto pos = sysGrid->entityPos(id);
-              auto entities = sysGrid->getEntities(pos[0], pos[1]);
+        auto makeTask = [&sysGrid](EventSystem& eventSystem, EntityId id) {
+          return [&eventSystem, &sysGrid, id]() {
+            if (sysGrid.hasEntity(id)) {
+              auto pos = sysGrid.entityPos(id);
+              auto entities = sysGrid.getEntities(pos[0], pos[1]);
               entities.erase(id);
 
               auto event = std::make_unique<EEntityLandOn>(id, pos, entities);
-              eventSystem->queueEvent(std::move(event));
+              eventSystem.queueEvent(std::move(event));
             }
           };
         };
 
-        m_timeService->scheduleTask(15, makeTask(m_eventSystem.get(), &sysGrid, m_scene.player));
+        m_timeService->scheduleTask(15, makeTask(*m_eventSystem, m_scene.player));
       }
 
       break;
