@@ -7,18 +7,20 @@
 #include "component_types.hpp"
 
 const HashedString g_strUiItemActivate = hashString("ui_item_activate");
-const HashedString g_strUiItemMouseEnter = hashString("ui_item_mouse_enter");
-const HashedString g_strUiItemMouseExit = hashString("ui_item_mouse_exit");
+const HashedString g_strUiItemPrime = hashString("ui_item_prime");
+const HashedString g_strUiItemGainFocus = hashString("ui_item_gain_focus");
+const HashedString g_strUiItemLoseFocus = hashString("ui_item_lose_focus");
+const HashedString g_strUiItemCancel = hashString("ui_item_cancel");
 
-class EUiItemActivate : public Event
+class EUiItemStateChange : public Event
 {
   public:
-    EUiItemActivate(EntityId entityId)
-      : Event(g_strUiItemActivate)
+    EUiItemStateChange(HashedString eventName, EntityId entityId)
+      : Event(eventName)
       , entityId(entityId) {}
 
-    EUiItemActivate(EntityId entityId, const EntityIdSet& targets)
-      : Event(g_strUiItemActivate, targets)
+    EUiItemStateChange(HashedString eventName, EntityId entityId, const EntityIdSet& targets)
+      : Event(eventName, targets)
       , entityId(entityId) {}
 
     std::string toString() const override
@@ -29,66 +31,54 @@ class EUiItemActivate : public Event
     EntityId entityId;
 };
 
-class EUiItemMouseEnter : public Event
-{
-  public:
-    EUiItemMouseEnter(EntityId entityId)
-      : Event(g_strUiItemMouseEnter)
-      , entityId(entityId) {}
+class UiData;
 
-    EUiItemMouseEnter(EntityId entityId, const EntityIdSet& targets)
-      : Event(g_strUiItemMouseEnter, targets)
-      , entityId(entityId) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString() << " (" << "entityId = " << entityId << ")");
-    }
-
-    EntityId entityId;
-};
-
-class EUiItemMouseExit : public Event
-{
-  public:
-    EUiItemMouseExit(EntityId entityId)
-      : Event(g_strUiItemMouseExit)
-      , entityId(entityId) {}
-
-    EUiItemMouseExit(EntityId entityId, const EntityIdSet& targets)
-      : Event(g_strUiItemMouseExit, targets)
-      , entityId(entityId) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString() << " (" << "entityId = " << entityId << ")");
-    }
-
-    EntityId entityId;
-};
-
-struct UiData
-{
-};
-
-struct CUi
-{
-  bool mouseOver = false;
-  bool mouseButtonDown = false;
-
-  static constexpr ComponentType TypeId = CUiTypeId;
-};
-
+// Requires components:
+//   CSpatialFlags
+//   CGlobalTransform
+//   CUi
 class SysUi : public System
 {
   public:
+    using GroupId = uint32_t;
+
     virtual void addEntity(EntityId id, const UiData& data) = 0;
+    virtual void setActiveGroup(GroupId id) = 0;
 
     virtual ~SysUi() = default;
+
+    static GroupId nextGroupId()
+    {
+      static GroupId nextId = 1;
+      return nextId++;
+    }
 };
 
 using SysUiPtr = std::unique_ptr<SysUi>;
 
+struct CUi
+{
+  bool mouseOver = false;
+
+  static constexpr ComponentType TypeId = CUiTypeId;
+};
+
+using UiItemCallback = std::function<void()>;
+
+struct UiData
+{
+  SysUi::GroupId group = 0;
+  EntityId topSlot = NULL_ENTITY;
+  EntityId rightSlot = NULL_ENTITY;
+  EntityId bottomSlot = NULL_ENTITY;
+  EntityId leftSlot = NULL_ENTITY;
+  UiItemCallback onGainFocus = []() {};
+  UiItemCallback onLoseFocus = []() {};
+  UiItemCallback onPrime = []() {};
+  UiItemCallback onActivate = []() {};
+  UiItemCallback onCancel = []() {};
+};
+
 class Logger;
 
-SysUiPtr createSysUi(ComponentStore& componentStore, EventSystem& eventSystem, Logger& logger);
+SysUiPtr createSysUi(Ecs& ecs, EventSystem& eventSystem, Logger& logger);

@@ -44,6 +44,7 @@ class SysAnimation : public System
       const std::function<void()>& onFinish) = 0;
     virtual void stopAnimation(EntityId entityId) = 0;
     virtual void seek(EntityId entityId, Tick tick) = 0;
+    virtual bool hasAnimation(EntityId entityId, HashedString name) const = 0;
     virtual bool hasAnimationPlaying(EntityId entityId) const = 0;
     virtual void finishAnimation(EntityId entityId) = 0;
 

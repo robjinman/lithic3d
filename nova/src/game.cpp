@@ -80,7 +80,7 @@ class GameImpl : public Game
     void destroyCurrentGame();
     void startGame();
     void handleEvent(const Event& event);
-    void handleUiEvent(const Event& event);
+    void handleMenuEvent(const Event& event);
     void checkTimeout();
     void toggleThrowingMode(bool on, EntityId stickId = NULL_ENTITY);
     void throwStick(float_t x, float_t y);
@@ -102,7 +102,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   auto sysGrid = createSysGrid(*m_eventSystem);
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
   auto sysSpatial = createSysSpatial(m_ecs->componentStore());
-  auto sysUi = createSysUi(m_ecs->componentStore(), *m_eventSystem, m_logger);
+  auto sysUi = createSysUi(*m_ecs, *m_eventSystem, m_logger);
 
   m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
@@ -124,12 +124,13 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_gameState = GameState::MainMenu;
 }
 
-void GameImpl::handleUiEvent(const Event& event)
+void GameImpl::handleMenuEvent(const Event& event)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
 
-  if (event.name == g_strUiItemActivate) {
-    auto& e = dynamic_cast<const EUiItemActivate&>(event);
+  if (event.name == g_strMenuItemActivate) {
+    auto& e = dynamic_cast<const EMenuItemActivate&>(event);
+
     if (e.entityId == m_menuSystem->quitGameBtn()) {
       m_shouldExit = true;
     }
@@ -168,8 +169,8 @@ void GameImpl::handleEvent(const Event& event)
   if (event.name == g_strPlayerDeath) {
     onPlayerDeath();
   }
-  else if (event.name == g_strUiItemActivate) {
-    handleUiEvent(event);
+  else if (event.name == g_strMenuItemActivate) {
+    handleMenuEvent(event);
   }
   else if (event.name == g_strToggleThrowingMode) {
     auto& e = dynamic_cast<const EToggleThrowingMode&>(event);

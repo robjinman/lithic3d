@@ -76,15 +76,6 @@ std::vector<Vec2i> randomGridCoords()
   return coords;
 }
 
-int randomInt()
-{
-  std::random_device device;
-  std::mt19937 generator(device());
-  std::uniform_int_distribution distribution;
-
-  return distribution(generator);
-}
-
 class SceneBuilderImpl : public SceneBuilder
 {
   public:

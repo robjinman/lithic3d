@@ -1,6 +1,27 @@
 #pragma once
 
-#include "component_store.hpp"
+#include "event_system.hpp"
+
+const HashedString g_strMenuItemActivate = hashString("menu_item_activate");
+
+class EMenuItemActivate : public Event
+{
+  public:
+    EMenuItemActivate(EntityId entityId)
+      : Event(g_strMenuItemActivate)
+      , entityId(entityId) {}
+
+    EMenuItemActivate(EntityId entityId, const EntityIdSet& targets)
+      : Event(g_strMenuItemActivate, targets)
+      , entityId(entityId) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " (" << "entityId = " << entityId << ")");
+    }
+
+    EntityId entityId;
+};
 
 class InputState;
 

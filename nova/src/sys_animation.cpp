@@ -46,6 +46,7 @@ class SysAnimationImpl : public SysAnimation
       const std::function<void()>& onFinish) override;
     void stopAnimation(EntityId entityId) override;
     void seek(EntityId entityId, Tick tick) override;
+    bool hasAnimation(EntityId entityId, HashedString name) const override;
     bool hasAnimationPlaying(EntityId entityId) const override;
     void finishAnimation(EntityId entityId) override;
 
@@ -318,6 +319,11 @@ void SysAnimationImpl::seek(EntityId entityId, Tick tick)
   auto& anim = *m_animations.at(animState.id);
 
   animState.tick = tick % (anim.duration + 1);
+}
+
+bool SysAnimationImpl::hasAnimation(EntityId entityId, HashedString name) const
+{
+  return m_components.at(entityId)->animations.contains(name);
 }
 
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const

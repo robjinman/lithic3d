@@ -130,9 +130,8 @@ Application::Application()
 
   m_instance = this;
 
-  std::string title = versionString();
-  m_window = glfwCreateWindow(WINDOWED_RESOLUTION_W, WINDOWED_RESOLUTION_H, title.c_str(),
-    nullptr, nullptr);
+  m_window = glfwCreateWindow(WINDOWED_RESOLUTION_W, WINDOWED_RESOLUTION_H, "Minefield", nullptr,
+    nullptr);
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
 

@@ -3,6 +3,7 @@
 #include "exception.hpp"
 #include <fstream>
 #include <map>
+#include <random>
 
 namespace
 {
@@ -57,4 +58,13 @@ HashedString hashString(const std::string& s)
 std::string getHashedString(HashedString hash)
 {
   return getHashTable().at(hash);
+}
+
+int randomInt()
+{
+  std::random_device device;
+  std::mt19937 generator(device());
+  std::uniform_int_distribution distribution;
+
+  return distribution(generator);
 }
