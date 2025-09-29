@@ -17,7 +17,6 @@
 #include "sys_ui.hpp"
 #include "ecs.hpp"
 #include "systems.hpp"
-#include "input_state.hpp"
 #include "events.hpp"
 #undef max
 #undef min
@@ -244,43 +243,35 @@ void GameImpl::onKeyDown(KeyboardKey key)
       }
       break;
     }
-    case KeyboardKey::Left: m_inputState.left = true; break;
-    case KeyboardKey::Right: m_inputState.right = true; break;
-    case KeyboardKey::Up: m_inputState.up = true; break;
-    case KeyboardKey::Down: m_inputState.down = true; break;
-    case KeyboardKey::Enter: m_inputState.enter = true; break;
     default: break;
   }
+
+  m_inputState.keysPressed.insert(key);
 }
 
 void GameImpl::onKeyUp(KeyboardKey key)
 {
-  switch (key) {
-    case KeyboardKey::Left: m_inputState.left = false; break;
-    case KeyboardKey::Right: m_inputState.right = false; break;
-    case KeyboardKey::Up: m_inputState.up = false; break;
-    case KeyboardKey::Down: m_inputState.down = false; break;
-    case KeyboardKey::Enter: m_inputState.enter = false; break;
-    default: break;
-  }
+  m_inputState.keysPressed.erase(key);
 }
 
 void GameImpl::onButtonDown(GamepadButton button)
 {
+  m_inputState.gamepadButtonsPressed.insert(button);
 }
 
 void GameImpl::onButtonUp(GamepadButton button)
 {
+  m_inputState.gamepadButtonsPressed.erase(button);
 }
 
 void GameImpl::onMouseButtonDown()
 {
-  m_inputState.mouseBtn = true;
+  m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
 }
 
 void GameImpl::onMouseButtonUp()
 {
-  m_inputState.mouseBtn = false;
+  m_inputState.mouseButtonsPressed.erase(MouseButton::Left);
 }
 
 void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
@@ -318,25 +309,25 @@ void GameImpl::processKeyboardInput()
       }
 
       bool moved = false;
-      if (m_inputState.left) {
+      if (m_inputState.keysPressed.contains(KeyboardKey::Left)) {
         if (sysGrid.tryMove(m_scene.player, -1, 0)) {
           sysAnimation.playAnimation(m_scene.player, strMoveLeft);
           moved = true;
         }
       }
-      else if (m_inputState.right) {
+      else if (m_inputState.keysPressed.contains(KeyboardKey::Right)) {
         if (sysGrid.tryMove(m_scene.player, 1, 0)) {
           sysAnimation.playAnimation(m_scene.player, strMoveRight);
           moved = true;
         }
       }
-      else if (m_inputState.up) {
+      else if (m_inputState.keysPressed.contains(KeyboardKey::Up)) {
         if (sysGrid.tryMove(m_scene.player, 0, 1)) {
           sysAnimation.playAnimation(m_scene.player, strMoveUp);
           moved = true;
         }
       }
-      else if (m_inputState.down) {
+      else if (m_inputState.keysPressed.contains(KeyboardKey::Down)) {
         if (sysGrid.tryMove(m_scene.player, 0, -1)) {
           sysAnimation.playAnimation(m_scene.player, strMoveDown);
           moved = true;
@@ -368,7 +359,7 @@ void GameImpl::processKeyboardInput()
       break;
     }
     case GameState::Dead: {
-      if (m_inputState.enter) {
+      if (m_inputState.keysPressed.contains(KeyboardKey::Enter)) {
         destroyCurrentGame();
         startGame();
       }
@@ -403,7 +394,9 @@ void GameImpl::processMouseInput()
 
     auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(ANIMATION_SYSTEM));
 
-    if (m_inputState.mouseBtn && !sysAnimation.hasAnimationPlaying(m_stickId)) {
+    if (m_inputState.mouseButtonsPressed.contains(MouseButton::Left) &&
+      !sysAnimation.hasAnimationPlaying(m_stickId)) {
+
       throwStick(x, y);
     }
   }

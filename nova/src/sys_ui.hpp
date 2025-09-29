@@ -2,7 +2,7 @@
 
 #include "ecs.hpp"
 #include "event_system.hpp"
-#include "math.hpp"
+#include "input.hpp"
 #include "utils.hpp"
 #include "component_types.hpp"
 
@@ -45,6 +45,12 @@ class SysUi : public System
     virtual void addEntity(EntityId id, const UiData& data) = 0;
     virtual void setActiveGroup(GroupId id) = 0;
 
+    virtual void sendInputEnd(EntityId id, UserInput input) = 0;
+    virtual void sendInputCancel(EntityId id) = 0;
+    virtual void sendInputBegin(EntityId id, UserInput input) = 0;
+    virtual void sendUnfocus(EntityId id) = 0;
+    virtual void sendFocus(EntityId id) = 0;
+
     virtual ~SysUi() = default;
 
     static GroupId nextGroupId()
@@ -63,8 +69,6 @@ struct CUi
   static constexpr ComponentType TypeId = CUiTypeId;
 };
 
-using UiItemCallback = std::function<void()>;
-
 struct UiData
 {
   SysUi::GroupId group = 0;
@@ -72,11 +76,12 @@ struct UiData
   EntityId rightSlot = NULL_ENTITY;
   EntityId bottomSlot = NULL_ENTITY;
   EntityId leftSlot = NULL_ENTITY;
-  UiItemCallback onGainFocus = []() {};
-  UiItemCallback onLoseFocus = []() {};
-  UiItemCallback onPrime = []() {};
-  UiItemCallback onActivate = []() {};
-  UiItemCallback onCancel = []() {};
+  std::set<UserInput> inputFilter{};
+  std::function<void()> onGainFocus = []() {};
+  std::function<void()> onLoseFocus = []() {};
+  std::function<void(const UserInput& input)> onInputBegin = [](const UserInput&) {};
+  std::function<void(const UserInput& input)> onInputEnd = [](const UserInput&) {};
+  std::function<void()> onInputCancel = []() {};
 };
 
 class Logger;

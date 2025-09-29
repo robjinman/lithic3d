@@ -1,8 +1,9 @@
 #include "sys_ui.hpp"
-#include "input_state.hpp"
+#include "input.hpp"
 #include "logger.hpp"
 #include "sys_spatial.hpp"
 #include <map>
+#include <algorithm>
 
 namespace
 {
@@ -16,25 +17,28 @@ struct ItemGroup
 struct ItemData
 {
   SysUi::GroupId group = 0;
-  UiItemCallback onGainFocus = []() {};
-  UiItemCallback onLoseFocus = []() {};
-  UiItemCallback onPrime = []() {};
-  UiItemCallback onActivate = []() {};
-  UiItemCallback onCancel = []() {};
-  std::array<EntityId, 4> slots;
+  std::set<UserInput> inputFilter{};
+  std::function<void()> onGainFocus = []() {};
+  std::function<void()> onLoseFocus = []() {};
+  std::function<void(const UserInput& input)> onInputBegin = [](const UserInput&) {};
+  std::function<void(const UserInput& input)> onInputEnd = [](const UserInput&) {};
+  std::function<void()> onInputCancel = []() {};
+  std::array<EntityId, 4> slots{};
   bool primed = false;
 };
 
-enum class KeyInput
+size_t keyToSlotIndex(KeyboardKey key)
 {
-  // Indices into ItemData::slots array
-  Left = 0,
-  Right,
-  Up,
-  Down,
-
-  Enter
-};
+  switch (key) {
+    case KeyboardKey::Left: return 0;
+    case KeyboardKey::Right: return 1;
+    case KeyboardKey::Up: return 2;
+    case KeyboardKey::Down: return 3;
+    default:
+      EXCEPTION("Expected direction key");
+      break;
+  }
+}
 
 class SysUiImpl : public SysUi
 {
@@ -49,6 +53,12 @@ class SysUiImpl : public SysUi
     void addEntity(EntityId id, const UiData& data) override;
     void setActiveGroup(GroupId id) override;
 
+    void sendInputEnd(EntityId id, UserInput input) override;
+    void sendInputCancel(EntityId id) override;
+    void sendInputBegin(EntityId id, UserInput input) override;
+    void sendUnfocus(EntityId id) override;
+    void sendFocus(EntityId id) override;
+
   private:
     Logger& m_logger;
     Ecs& m_ecs;
@@ -58,15 +68,10 @@ class SysUiImpl : public SysUi
     GroupId m_activeGroup = 0;
     InputState m_prevInputState;
 
-    void processMouseInput(const Vec2f& mousePos, bool mousePressed, bool mouseReleased);
-    void processKeyPress(KeyInput key);
-
-    // State transitions
-    void activateItem(EntityId id, ItemData& compData);
-    void cancelItem(EntityId id, ItemData& compData);
-    void primeItem(EntityId id, ItemData& compData);
-    void unfocusItem(EntityId id, ItemData& compData);
-    void focusItem(EntityId id, ItemData& compData);
+    void processMouseInput(const Vec2f& mousePos, std::optional<MouseButton> mousePressed,
+      std::optional<MouseButton> mouseReleased);
+    void processKeyPress(KeyboardKey key);
+    void processKeyRelease(KeyboardKey key);
 };
 
 SysUiImpl::SysUiImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -82,11 +87,12 @@ void SysUiImpl::addEntity(EntityId id, const UiData& data)
 
   m_componentData.insert({ id, ItemData{
     .group = data.group,
+    .inputFilter = data.inputFilter,
     .onGainFocus = data.onGainFocus,
     .onLoseFocus = data.onLoseFocus,
-    .onPrime = data.onPrime,
-    .onActivate = data.onActivate,
-    .onCancel = data.onCancel,
+    .onInputBegin = data.onInputBegin,
+    .onInputEnd = data.onInputEnd,
+    .onInputCancel = data.onInputCancel,
     .slots{
       data.leftSlot,
       data.rightSlot,
@@ -143,7 +149,7 @@ void SysUiImpl::setActiveGroup(GroupId id)
   if (m_activeGroup != 0) {
     auto& group = m_groups.at(m_activeGroup);
     if (group.focusedItem != NULL_ENTITY) {
-      unfocusItem(group.focusedItem, m_componentData.at(group.focusedItem));
+      sendUnfocus(group.focusedItem);
     }
   }
 
@@ -153,32 +159,44 @@ void SysUiImpl::setActiveGroup(GroupId id)
   assert(!group.items.empty());
 
   auto firstItem = *group.items.begin();
-  focusItem(firstItem, m_componentData.at(firstItem));
+  sendFocus(firstItem);
 }
 
-void SysUiImpl::activateItem(EntityId id, ItemData& compData)
+void SysUiImpl::sendInputEnd(EntityId id, UserInput input)
 {
-  compData.primed = false;
-  m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemActivate, id));
-  compData.onActivate();
+  auto& compData = m_componentData.at(id);
+
+  if (compData.inputFilter.contains(input)) {
+    compData.primed = false;
+    m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemActivate, id));
+    compData.onInputEnd(input);
+  }
 }
 
-void SysUiImpl::cancelItem(EntityId id, ItemData& compData)
+void SysUiImpl::sendInputCancel(EntityId id)
 {
+  auto& compData = m_componentData.at(id);
+
   compData.primed = false;
   m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemCancel, id));
-  compData.onCancel();
+  compData.onInputCancel();
 }
 
-void SysUiImpl::primeItem(EntityId id, ItemData& compData)
+void SysUiImpl::sendInputBegin(EntityId id, UserInput input)
 {
-  compData.primed = true;
-  m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemPrime, id));
-  compData.onPrime();
+  auto& compData = m_componentData.at(id);
+
+  if (compData.inputFilter.contains(input)) {
+    compData.primed = true;
+    m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemPrime, id));
+    compData.onInputBegin(input);
+  }
 }
 
-void SysUiImpl::unfocusItem(EntityId id, ItemData& compData)
+void SysUiImpl::sendUnfocus(EntityId id)
 {
+  auto& compData = m_componentData.at(id);
+
   if (compData.group != 0) {
     auto& group = m_groups.at(compData.group);
     if (group.focusedItem == id) {
@@ -190,8 +208,10 @@ void SysUiImpl::unfocusItem(EntityId id, ItemData& compData)
   compData.onLoseFocus();
 }
 
-void SysUiImpl::focusItem(EntityId id, ItemData& compData)
+void SysUiImpl::sendFocus(EntityId id)
 {
+  auto& compData = m_componentData.at(id);
+
   if (compData.group != m_activeGroup) {
     setActiveGroup(compData.group); // Null group ID is OK
   }
@@ -199,7 +219,7 @@ void SysUiImpl::focusItem(EntityId id, ItemData& compData)
   if (compData.group != 0) {
     auto& group = m_groups.at(compData.group);
     if (group.focusedItem != 0) {
-      unfocusItem(group.focusedItem, m_componentData.at(group.focusedItem));
+      sendUnfocus(group.focusedItem);
     }
     group.focusedItem = id;
   }
@@ -208,7 +228,8 @@ void SysUiImpl::focusItem(EntityId id, ItemData& compData)
   compData.onGainFocus();
 }
 
-void SysUiImpl::processMouseInput(const Vec2f& mousePos, bool mousePressed, bool mouseReleased)
+void SysUiImpl::processMouseInput(const Vec2f& mousePos, std::optional<MouseButton> mousePressed,
+  std::optional<MouseButton> mouseReleased)
 {
   auto groups = m_ecs.componentStore().components<CSpatialFlags, CGlobalTransform, CUi>();
 
@@ -236,15 +257,15 @@ void SysUiImpl::processMouseInput(const Vec2f& mousePos, bool mousePressed, bool
 
         auto& componentData = m_componentData.at(id);
 
-        if (componentData.primed && mouseReleased) {
-          activateItem(id, componentData);
+        if (componentData.primed && mouseReleased.has_value()) {
+          sendInputEnd(id, mouseReleased.value());
         }
-        else if (!componentData.primed && mousePressed) {
-          primeItem(id, componentData);
+        else if (!componentData.primed && mousePressed.has_value()) {
+          sendInputBegin(id, mousePressed.value());
         }
         else if (!uiComp.mouseOver) {
           uiComp.mouseOver = true;
-          focusItem(id, componentData);
+          sendFocus(id);
         }
       }
       else {
@@ -253,7 +274,7 @@ void SysUiImpl::processMouseInput(const Vec2f& mousePos, bool mousePressed, bool
           uiComp.mouseOver = false;
 
           if (componentData.primed) {
-            cancelItem(id, componentData);
+            sendInputCancel(id);
           }
         }
       }
@@ -261,7 +282,7 @@ void SysUiImpl::processMouseInput(const Vec2f& mousePos, bool mousePressed, bool
   }
 }
 
-void SysUiImpl::processKeyPress(KeyInput key)
+void SysUiImpl::processKeyPress(KeyboardKey key)
 {
   if (m_activeGroup == 0) {
     return;
@@ -270,23 +291,24 @@ void SysUiImpl::processKeyPress(KeyInput key)
   auto& group = m_groups.at(m_activeGroup);
 
   switch (key) {
-    case KeyInput::Left:
-    case KeyInput::Up:
-    case KeyInput::Right:
-    case KeyInput::Down: {
+    case KeyboardKey::Left:
+    case KeyboardKey::Up:
+    case KeyboardKey::Right:
+    case KeyboardKey::Down: {
       auto& currentItem = m_componentData.at(group.focusedItem);
-      auto nextItemId = currentItem.slots[static_cast<size_t>(key)];
+      auto nextItemId = currentItem.slots[keyToSlotIndex(key)];
 
       if (nextItemId != NULL_ENTITY) {
-        unfocusItem(group.focusedItem, currentItem);
-        focusItem(nextItemId, m_componentData.at(nextItemId));
+        sendUnfocus(group.focusedItem);
+        sendFocus(nextItemId);
+        break;
       }
 
-      break;
+      [[fallthrough]];
     }
-    case KeyInput::Enter: {
+    default: {
       if (group.focusedItem != NULL_ENTITY) {
-        activateItem(group.focusedItem, m_componentData.at(group.focusedItem));
+        sendInputBegin(group.focusedItem, key);
       }
 
       break;
@@ -294,41 +316,90 @@ void SysUiImpl::processKeyPress(KeyInput key)
   }
 }
 
-std::optional<KeyInput> getKeyPress(const InputState& prevState, const InputState& state)
+void SysUiImpl::processKeyRelease(KeyboardKey key)
 {
-  if (!prevState.left && state.left) {
-    return KeyInput::Left;
+  if (m_activeGroup == 0) {
+    return;
   }
-  else if (!prevState.right && state.right) {
-    return KeyInput::Right;
+
+  auto& group = m_groups.at(m_activeGroup);
+
+  if (group.focusedItem != NULL_ENTITY) {
+    sendInputEnd(group.focusedItem, key);
   }
-  else if (!prevState.up && state.up) {
-    return KeyInput::Up;
-  }
-  else if (!prevState.down && state.down) {
-    return KeyInput::Down;
-  }
-  else if (!prevState.enter && state.enter) {
-    return KeyInput::Enter;
+}
+
+template<typename T>
+std::optional<T> firstDifference(const std::set<T>& A, const std::set<T>& B)
+{
+  std::set<T> diffs;
+  std::set_difference(A.begin(), A.end(), B.begin(), B.end(), std::inserter(diffs, diffs.begin()));
+  if (!diffs.empty()) {
+    return *diffs.begin();
   }
   return std::nullopt;
 }
 
-void SysUiImpl::update(Tick tick, const InputState& inputState)
+std::optional<UserInput> getInput(const InputState& prevState, const InputState& state)
 {
-  bool mousePressed = !m_prevInputState.mouseBtn && inputState.mouseBtn;
-  bool mouseReleased = m_prevInputState.mouseBtn && !inputState.mouseBtn;
-  bool mouseMoved = m_prevInputState.mousePos != inputState.mousePos;
-  bool mouseStateChanged = mousePressed || mouseReleased || mouseMoved;
-
-  if (mouseStateChanged) {
-    processMouseInput(inputState.mousePos, mousePressed, mouseReleased);
+  auto mouseInput = firstDifference(state.mouseButtonsPressed, prevState.mouseButtonsPressed);
+  if (mouseInput.has_value()) {
+    return mouseInput.value();
   }
 
-  auto key = getKeyPress(m_prevInputState, inputState);
-
+  auto key = firstDifference(state.keysPressed, prevState.keysPressed);
   if (key.has_value()) {
-    processKeyPress(key.value());
+    return key.value();
+  }
+
+  auto btn = firstDifference(state.gamepadButtonsPressed, prevState.gamepadButtonsPressed);
+  if (btn.has_value()) {
+    return btn.value();
+  }
+
+  return std::nullopt;
+}
+
+void SysUiImpl::update(Tick, const InputState& inputState)
+{
+  auto inputBegin = getInput(m_prevInputState, inputState);
+  auto inputEnd = getInput(inputState, m_prevInputState);
+
+  std::optional<MouseButton> mouseButtonPressed = std::nullopt;
+  std::optional<MouseButton> mouseButtonReleased = std::nullopt;
+
+  if (inputBegin.has_value() && std::holds_alternative<MouseButton>(inputBegin.value())) {
+    mouseButtonPressed = std::get<MouseButton>(inputBegin.value());
+  }
+
+  if (inputEnd.has_value() && std::holds_alternative<MouseButton>(inputEnd.value())) {
+    mouseButtonReleased = std::get<MouseButton>(inputEnd.value());
+  }
+
+  bool mouseMoved = m_prevInputState.mousePos != inputState.mousePos;
+  bool mouseStateChanged =
+    mouseButtonPressed.has_value() || mouseButtonReleased.has_value() || mouseMoved;
+
+  if (mouseStateChanged) {
+    processMouseInput(inputState.mousePos, mouseButtonPressed, mouseButtonReleased);
+  }
+
+  std::optional<KeyboardKey> keyPress = std::nullopt;
+  std::optional<KeyboardKey> keyRelease = std::nullopt;
+
+  if (inputBegin.has_value() && std::holds_alternative<KeyboardKey>(inputBegin.value())) {
+    keyPress = std::get<KeyboardKey>(inputBegin.value());
+  }
+
+  if (inputEnd.has_value() && std::holds_alternative<KeyboardKey>(inputEnd.value())) {
+    keyRelease = std::get<KeyboardKey>(inputEnd.value());
+  }
+
+  if (keyRelease.has_value()) {
+    processKeyRelease(keyRelease.value());
+  }
+  else if (keyPress.has_value()) {
+    processKeyPress(keyPress.value());
   }
 
   m_prevInputState = inputState;
