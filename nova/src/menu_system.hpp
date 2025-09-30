@@ -33,6 +33,8 @@ class MenuSystem
     virtual void showMainMenu() = 0;
     virtual void showPauseMenu() = 0;
 
+    virtual void update() = 0;
+
     virtual EntityId startGameBtn() const = 0;
     virtual EntityId resumeBtn() const = 0;
     virtual EntityId quitToMainMenuBtn() const = 0;
