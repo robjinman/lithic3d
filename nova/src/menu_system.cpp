@@ -456,8 +456,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
     CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CUi
   >();
 
-  // TODO: Don't hard-code
-  constructMenuItemBase(leftBtn, parentId, { 0.4f, 0.21f }, { 0.075f, 0.05625f }, {
+  constructMenuItemBase(leftBtn, parentId, { 0.4f, pos[1] }, { 0.075f, 0.05625f }, {
     .x = pxToUvX(192.f),
     .y = pxToUvY(0.f, 32.f),
     .w = pxToUvW(32.f),
@@ -468,7 +467,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
     CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CUi
   >();
 
-  constructMenuItemBase(rightBtn, parentId, { 0.5f, 0.21f }, { 0.075f, 0.05625f }, {
+  constructMenuItemBase(rightBtn, parentId, { 0.5f, pos[1] }, { 0.075f, 0.05625f }, {
     .x = pxToUvX(224.f),
     .y = pxToUvY(0.f, 32.f),
     .w = pxToUvW(32.f),
@@ -574,8 +573,6 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
 
   auto musicVolume = newMenuItemId();
   auto sfxVolume = newMenuItemId();
-  auto sfxVolumeUp = newMenuItemId();
-  auto sfxVolumeDown = newMenuItemId();
   auto returnBtn = newMenuItemId();
 
   auto groupId = SysUi::nextGroupId();
@@ -587,26 +584,12 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
     .h = pxToUvH(32.f)
   }, NULL_ENTITY, sfxVolume);
 
-  constructMenuItem(sfxVolume, id, groupId, { 0.02f, 0.11f }, { 0.4, 0.05625f }, {
+  constructSelector(sfxVolume, id, groupId, { 0.02f, 0.11f }, { 0.4, 0.05625f }, {
     .x = pxToUvX(0.f),
     .y = pxToUvY(128.f, 32.f),
     .w = pxToUvW(256.f),
     .h = pxToUvH(32.f)
   }, musicVolume, returnBtn);
-
-  constructMenuItem(sfxVolumeUp, id, groupId, { 0.5f, 0.11f }, { 0.075f, 0.05625f }, {
-    .x = pxToUvX(224.f),
-    .y = pxToUvY(0.f, 32.f),
-    .w = pxToUvW(32.f),
-    .h = pxToUvH(32.f)
-  }, NULL_ENTITY, NULL_ENTITY);
-
-  constructMenuItem(sfxVolumeDown, id, groupId, { 0.4f, 0.11f }, { 0.075f, 0.05625f }, {
-    .x = pxToUvX(192.f),
-    .y = pxToUvY(0.f, 32.f),
-    .w = pxToUvW(32.f),
-    .h = pxToUvH(32.f)
-  }, NULL_ENTITY, NULL_ENTITY);
 
   auto musicIcon = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
