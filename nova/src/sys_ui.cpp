@@ -43,7 +43,7 @@ size_t keyToSlotIndex(KeyboardKey key)
 class SysUiImpl : public SysUi
 {
   public:
-    SysUiImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
+    SysUiImpl(Ecs& ecs, Logger& logger);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -62,7 +62,6 @@ class SysUiImpl : public SysUi
   private:
     Logger& m_logger;
     Ecs& m_ecs;
-    EventSystem& m_eventSystem;
     std::map<EntityId, ItemData> m_componentData;
     std::unordered_map<GroupId, ItemGroup> m_groups;
     GroupId m_activeGroup = 0;
@@ -74,10 +73,9 @@ class SysUiImpl : public SysUi
     void processKeyRelease(KeyboardKey key);
 };
 
-SysUiImpl::SysUiImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
+SysUiImpl::SysUiImpl(Ecs& ecs, Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
-  , m_eventSystem(eventSystem)
 {}
 
 void SysUiImpl::addEntity(EntityId id, const UiData& data)
@@ -168,7 +166,6 @@ void SysUiImpl::sendInputEnd(EntityId id, UserInput input)
 
   if (compData.inputFilter.contains(input)) {
     compData.primed = false;
-    m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemActivate, id));
     compData.onInputEnd(input);
   }
 }
@@ -178,7 +175,6 @@ void SysUiImpl::sendInputCancel(EntityId id)
   auto& compData = m_componentData.at(id);
 
   compData.primed = false;
-  m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemCancel, id));
   compData.onInputCancel();
 }
 
@@ -188,7 +184,6 @@ void SysUiImpl::sendInputBegin(EntityId id, UserInput input)
 
   if (compData.inputFilter.contains(input)) {
     compData.primed = true;
-    m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemPrime, id));
     compData.onInputBegin(input);
   }
 }
@@ -204,7 +199,6 @@ void SysUiImpl::sendUnfocus(EntityId id)
     }
   }
 
-  m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemLoseFocus, id));
   compData.onLoseFocus();
 }
 
@@ -224,7 +218,6 @@ void SysUiImpl::sendFocus(EntityId id)
     group.focusedItem = id;
   }
 
-  m_eventSystem.queueEvent(std::make_unique<EUiItemStateChange>(g_strUiItemGainFocus, id));
   compData.onGainFocus();
 }
 
@@ -407,7 +400,7 @@ void SysUiImpl::update(Tick, const InputState& inputState)
 
 } // namespace
 
-SysUiPtr createSysUi(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
+SysUiPtr createSysUi(Ecs& ecs, Logger& logger)
 {
-  return std::make_unique<SysUiImpl>(ecs, eventSystem, logger);
+  return std::make_unique<SysUiImpl>(ecs, logger);
 }

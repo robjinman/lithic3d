@@ -101,7 +101,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   auto sysGrid = createSysGrid(*m_eventSystem);
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
   auto sysSpatial = createSysSpatial(m_ecs->componentStore());
-  auto sysUi = createSysUi(*m_ecs, *m_eventSystem, m_logger);
+  auto sysUi = createSysUi(*m_ecs, m_logger);
 
   m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));

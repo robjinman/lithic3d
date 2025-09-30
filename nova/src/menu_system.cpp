@@ -787,7 +787,6 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
 Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
 
@@ -840,7 +839,6 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
 

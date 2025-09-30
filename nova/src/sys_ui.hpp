@@ -1,35 +1,9 @@
 #pragma once
 
 #include "ecs.hpp"
-#include "event_system.hpp"
 #include "input.hpp"
 #include "utils.hpp"
 #include "component_types.hpp"
-
-const HashedString g_strUiItemActivate = hashString("ui_item_activate");
-const HashedString g_strUiItemPrime = hashString("ui_item_prime");
-const HashedString g_strUiItemGainFocus = hashString("ui_item_gain_focus");
-const HashedString g_strUiItemLoseFocus = hashString("ui_item_lose_focus");
-const HashedString g_strUiItemCancel = hashString("ui_item_cancel");
-
-class EUiItemStateChange : public Event
-{
-  public:
-    EUiItemStateChange(HashedString eventName, EntityId entityId)
-      : Event(eventName)
-      , entityId(entityId) {}
-
-    EUiItemStateChange(HashedString eventName, EntityId entityId, const EntityIdSet& targets)
-      : Event(eventName, targets)
-      , entityId(entityId) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString() << " (" << "entityId = " << entityId << ")");
-    }
-
-    EntityId entityId;
-};
 
 class UiData;
 
@@ -86,4 +60,4 @@ struct UiData
 
 class Logger;
 
-SysUiPtr createSysUi(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
+SysUiPtr createSysUi(Ecs& ecs, Logger& logger);
