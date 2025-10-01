@@ -51,7 +51,7 @@ class SysUiImpl : public SysUi
     void processEvent(const Event&) override {}
 
     void addEntity(EntityId id, const UiData& data) override;
-    void setActiveGroup(GroupId id) override;
+    void setActiveGroup(GroupId id, EntityId focusedItem) override;
 
     void sendInputEnd(EntityId id, UserInput input) override;
     void sendInputCancel(EntityId id) override;
@@ -142,12 +142,14 @@ bool SysUiImpl::hasEntity(EntityId entityId) const
   return m_ecs.componentStore().hasComponentForEntity<CUi>(entityId);
 }
 
-void SysUiImpl::setActiveGroup(GroupId id)
+void SysUiImpl::setActiveGroup(GroupId id, EntityId focusedItem)
 {
   if (m_activeGroup != 0) {
     auto& group = m_groups.at(m_activeGroup);
     if (group.focusedItem != NULL_ENTITY) {
+      auto focused = group.focusedItem;
       sendUnfocus(group.focusedItem);
+      group.focusedItem = focused;
     }
   }
 
@@ -156,8 +158,15 @@ void SysUiImpl::setActiveGroup(GroupId id)
   auto& group = m_groups.at(m_activeGroup);
   assert(!group.items.empty());
 
-  auto firstItem = *group.items.begin();
-  sendFocus(firstItem);
+  if (focusedItem != NULL_ENTITY) {
+    sendFocus(focusedItem);
+  }
+  else if (group.focusedItem != NULL_ENTITY) {
+    sendFocus(group.focusedItem);
+  }
+  else {
+    sendFocus(*group.items.begin());
+  }
 }
 
 void SysUiImpl::sendInputEnd(EntityId id, UserInput input)
@@ -206,8 +215,12 @@ void SysUiImpl::sendFocus(EntityId id)
 {
   auto& compData = m_componentData.at(id);
 
+  if (compData.group == 0) {
+    EXCEPTION("Entity must be part of a group to receive focus");
+  }
+
   if (compData.group != m_activeGroup) {
-    setActiveGroup(compData.group); // Null group ID is OK
+    setActiveGroup(compData.group, id);
   }
 
   if (compData.group != 0) {

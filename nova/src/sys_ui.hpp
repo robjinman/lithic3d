@@ -17,7 +17,7 @@ class SysUi : public System
     using GroupId = uint32_t;
 
     virtual void addEntity(EntityId id, const UiData& data) = 0;
-    virtual void setActiveGroup(GroupId id) = 0;
+    virtual void setActiveGroup(GroupId id, EntityId focusedItem = NULL_ENTITY) = 0;
 
     virtual void sendInputEnd(EntityId id, UserInput input) = 0;
     virtual void sendInputCancel(EntityId id) = 0;

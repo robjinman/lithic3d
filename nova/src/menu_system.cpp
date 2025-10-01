@@ -36,8 +36,9 @@ Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
 
 struct Menu
 {
-  EntityId entityId;
-  SysUi::GroupId itemGroupId;
+  EntityId entityId = NULL_ENTITY;
+  SysUi::GroupId itemGroupId = 0;
+  EntityId firstItemId = NULL_ENTITY;
 };
 
 struct SelectorFunctions
@@ -50,8 +51,8 @@ struct SelectorFunctions
 
 struct ItemSlots
 {
-  EntityId top;
-  EntityId bottom;
+  EntityId top = NULL_ENTITY;
+  EntityId bottom = NULL_ENTITY;
 };
 
 struct Sprite
@@ -238,9 +239,9 @@ void MenuSystemImpl::createAnimations()
 
   auto animActivate = std::unique_ptr<Animation>(new Animation{
     .name = strActivate,
-    .duration = 20,
+    .duration = 4,
     .frames = {
-      makeFrame({ 0.4f, 0.f, 0.f, 1.f }),
+      makeFrame({ 0.5f, 0.f, 0.f, 1.f }),
       makeFrame({ 1.f, 0.6f, 0.6f, 1.f })
     }
   });
@@ -263,7 +264,7 @@ void MenuSystemImpl::showPauseMenu()
   sysSpatial.setEnabled(m_pauseMenuMain.entityId, true);
   sysSpatial.setEnabled(m_pauseMenuSettingsId, false);
 
-  sysUi.setActiveGroup(m_pauseMenuMain.itemGroupId);
+  sysUi.setActiveGroup(m_pauseMenuMain.itemGroupId, m_pauseMenuMain.firstItemId);
 }
 
 void MenuSystemImpl::showMainMenu()
@@ -274,7 +275,7 @@ void MenuSystemImpl::showMainMenu()
   sysSpatial.setEnabled(m_pauseMenuId, false);
   sysSpatial.setEnabled(m_mainMenu.entityId, true);
 
-  sysUi.setActiveGroup(m_mainMenu.itemGroupId);
+  sysUi.setActiveGroup(m_mainMenu.itemGroupId, m_mainMenu.firstItemId);
 }
 
 void MenuSystemImpl::constructRoot()
@@ -595,7 +596,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
     .rightBtnUp = [this]() { m_musicVolumeDelta = 0.f; }
   };
 
-  constructSelector(musicVolumeId, id, groupId, musicVolumeSprite, { NULL_ENTITY, sfxVolumeId },
+  constructSelector(musicVolumeId, id, groupId, musicVolumeSprite, { returnId, sfxVolumeId },
     musicVolumeFunctions);
 
   Sprite sfxVolumeSprite{
@@ -654,7 +655,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
     }
   };
 
-  constructMenuItem(returnId, id, groupId, returnSprite, { sfxVolumeId, NULL_ENTITY });
+  constructMenuItem(returnId, id, groupId, returnSprite, { sfxVolumeId, musicVolumeId });
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
     [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
@@ -671,7 +672,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
 
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-  return { id, groupId };
+  return { id, groupId, musicVolumeId };
 }
 
 void MenuSystemImpl::constructMainMenu()
@@ -712,6 +713,8 @@ void MenuSystemImpl::constructMainMenu()
   auto creditsId = newMenuItemId();
   m_quitGameBtnId = newMenuItemId();
 
+  m_mainMenu.firstItemId = m_startGameBtnId;
+
   Sprite startSprite{
     .pos{ 0.02f, 0.41f },
     .size{ 0.3f, 0.05625f },
@@ -724,7 +727,7 @@ void MenuSystemImpl::constructMainMenu()
   };
 
   constructMenuItem(m_startGameBtnId, mainMenuMain, m_mainMenu.itemGroupId, startSprite,
-    { NULL_ENTITY, optionsId });
+    { m_quitGameBtnId, optionsId });
 
   Sprite optionsSprite{
     .pos{ 0.02f, 0.31f },
@@ -780,7 +783,7 @@ void MenuSystemImpl::constructMainMenu()
   };
 
   constructMenuItem(m_quitGameBtnId, mainMenuMain, m_mainMenu.itemGroupId, quitSprite,
-    { creditsId, NULL_ENTITY });
+    { creditsId, m_startGameBtnId });
 
   auto mainMenuSettings = constructSettingsSubmenu(m_mainMenu.entityId,
     { mainMenuMain, m_mainMenu.itemGroupId });
@@ -795,17 +798,17 @@ void MenuSystemImpl::constructMainMenu()
       if (event.entityId == settingsId) {
         sysSpatial.setEnabled(mainMenuMain, false);
         sysSpatial.setEnabled(mainMenuSettings.entityId, true);
-        sysUi.setActiveGroup(mainMenuSettings.itemGroupId);
+        sysUi.setActiveGroup(mainMenuSettings.itemGroupId, mainMenuSettings.firstItemId);
       }
       else if (event.entityId == optionsId) {
         sysSpatial.setEnabled(mainMenuMain, false);
         sysSpatial.setEnabled(mainMenuOptions.entityId, true);
-        sysUi.setActiveGroup(mainMenuOptions.itemGroupId);
+        sysUi.setActiveGroup(mainMenuOptions.itemGroupId, mainMenuOptions.firstItemId);
       }
       else if (event.entityId == creditsId) {
         sysSpatial.setEnabled(mainMenuMain, false);
         sysSpatial.setEnabled(mainMenuCredits.entityId, true);
-        sysUi.setActiveGroup(mainMenuCredits.itemGroupId);
+        sysUi.setActiveGroup(mainMenuCredits.itemGroupId, mainMenuCredits.firstItemId);
       }
     }
   });
@@ -903,7 +906,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-  return { id, groupId };
+  return { id, groupId, returnId };
 }
 
 Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
@@ -944,7 +947,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
   difficultyFunctions.leftBtnUp = [this]() { setDifficulty(m_difficultyLevel - 1); };
   difficultyFunctions.rightBtnUp = [this]() { setDifficulty(m_difficultyLevel + 1); };
 
-  constructSelector(difficultyId, id, groupId, difficultySprite, { NULL_ENTITY, returnId },
+  constructSelector(difficultyId, id, groupId, difficultySprite, { returnId, returnId },
     difficultyFunctions);
 
   Sprite returnSprite{
@@ -958,7 +961,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
     }
   };
 
-  constructMenuItem(returnId, id, groupId, returnSprite, { difficultyId, NULL_ENTITY });
+  constructMenuItem(returnId, id, groupId, returnSprite, { difficultyId, difficultyId });
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
     [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
@@ -975,7 +978,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-  return { id, groupId };
+  return { id, groupId, difficultyId };
 }
 
 void MenuSystemImpl::constructPauseMenu()
@@ -1014,6 +1017,8 @@ void MenuSystemImpl::constructPauseMenu()
   auto settingsId = newMenuItemId();
   m_quitToMainBtnId = newMenuItemId();
 
+  m_pauseMenuMain.firstItemId = m_resumeBtnId;
+
   Sprite resumeSprite{
     .pos{ 0.02f, 0.21f },
     .size{ 0.4f, 0.05625f },
@@ -1026,7 +1031,7 @@ void MenuSystemImpl::constructPauseMenu()
   };
 
   constructMenuItem(m_resumeBtnId, m_pauseMenuMain.entityId, m_pauseMenuMain.itemGroupId,
-    resumeSprite, { NULL_ENTITY, settingsId });
+    resumeSprite, { m_quitToMainBtnId, settingsId });
 
   Sprite settingsSprite{
     .pos{ 0.02f, 0.11f },
@@ -1054,21 +1059,21 @@ void MenuSystemImpl::constructPauseMenu()
   };
 
   constructMenuItem(m_quitToMainBtnId, m_pauseMenuMain.entityId, m_pauseMenuMain.itemGroupId,
-    quitSprite, { settingsId, NULL_ENTITY });
+    quitSprite, { settingsId, m_resumeBtnId });
 
   auto pauseMenuSettings = constructSettingsSubmenu(m_pauseMenuId,
     { m_pauseMenuMain.entityId, m_pauseMenuMain.itemGroupId });
   m_pauseMenuSettingsId = pauseMenuSettings.entityId;
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
-    [=, this, &sysSpatial, &sysUi](const Event& e) {
+    [this, &sysSpatial, &sysUi, settingsId, pauseMenuSettings](const Event& e) {
 
     if (e.name == g_strMenuItemActivate) {
       auto& event = dynamic_cast<const EMenuItemActivate&>(e);
       if (event.entityId == settingsId) {
         sysSpatial.setEnabled(m_pauseMenuMain.entityId, false);
         sysSpatial.setEnabled(m_pauseMenuSettingsId, true);
-        sysUi.setActiveGroup(pauseMenuSettings.itemGroupId);
+        sysUi.setActiveGroup(pauseMenuSettings.itemGroupId, pauseMenuSettings.firstItemId);
       }
     }
   });
