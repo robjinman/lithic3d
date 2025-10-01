@@ -183,7 +183,10 @@ class SysRenderImpl : public SysRender
     Camera& camera() override;
     const Camera& camera() const override;
 
-    void addEntity(EntityId entityId, const SpriteData& component) override;
+    void addEntity(EntityId entityId, const SpriteData& data) override;
+    void addEntity(EntityId entityId, const TextData& data) override;
+    void addEntity(EntityId entityId, const PolygonData& data) override;
+
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
     void setVisible(EntityId entityId, bool visible) override;
@@ -274,45 +277,80 @@ double SysRenderImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
+void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
 {
-  m_componentStore.component<CSprite>(entityId) = CSprite{
-    .textureRect = data.textureRect,
-    .colour = data.colour,
-    .zIndex = data.zIndex,
-    .visible = true,
-    .isText = !data.text.empty()
+  ASSERT(!data.text.empty(), "Text must not be empty");
+
+  assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
+  assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
+  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CSprite>(m_componentStore, entityId);
+
+  m_componentStore.component<CRender>(entityId) = CRender{
+    .colour = data.spriteData.colour,
+    .zIndex = data.spriteData.zIndex,
+    .visible = true
   };
 
-  if (!data.text.empty()) {
-    if (data.isDynamicText) {
-      auto& c = m_componentStore.component<CDynamicText>(entityId);
-      size_t len = data.text.length();
-      ASSERT(len <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text length must not exceed "
-        << DYNAMIC_TEXT_MAX_LEN << " bytes");
+  m_componentStore.component<CSprite>(entityId) = CSprite{
+    .textureRect = data.spriteData.textureRect,
+    .isText = true
+  };
 
-      memcpy(c.text, data.text.data(), len);
-      c.text[len] = '\0';
-    }
+  bool isDynamic = m_componentStore.hasComponentForEntity<CDynamicText>(entityId);
 
-    auto mesh = textItemMesh(data.text, data.textureRect, data.isDynamicText);
+  if (isDynamic) {
+    auto& c = m_componentStore.component<CDynamicText>(entityId);
+    size_t len = data.text.length();
+    ASSERT(len <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text length must not exceed "
+      << DYNAMIC_TEXT_MAX_LEN << " bytes");
 
-    MeshHandle meshHandle;
-    if (m_renderer.isStarted()) {
-      // TODO: This blocks
-      meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
-    }
-    else {
-      meshHandle = m_renderer.addMesh(std::move(mesh));
-    }
-
-    m_textItems.insert({ entityId, meshHandle });
+    memcpy(c.text, data.text.data(), len);
+    c.text[len] = '\0';
   }
+
+  auto mesh = textItemMesh(data.text, data.spriteData.textureRect, isDynamic);
+
+  MeshHandle meshHandle;
+  if (m_renderer.isStarted()) {
+    // TODO: This blocks
+    meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
+  }
+  else {
+    meshHandle = m_renderer.addMesh(std::move(mesh));
+  }
+
+  m_textItems.insert({ entityId, meshHandle });
+}
+
+void SysRenderImpl::addEntity(EntityId entityId, const PolygonData& data)
+{
+  // TODO
+  assert(false);
+}
+
+void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
+{
+  assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
+  assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
+  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CSprite>(m_componentStore, entityId);
+
+  m_componentStore.component<CRender>(entityId) = CRender{
+    .colour = data.colour,
+    .zIndex = data.zIndex,
+    .visible = true
+  };
+
+  m_componentStore.component<CSprite>(entityId) = CSprite{
+    .textureRect = data.textureRect,
+    .isText = false
+  };
 }
 
 void SysRenderImpl::setZIndex(EntityId entityId, uint32_t zIndex)
 {
-  auto& renderComp = m_componentStore.component<CSprite>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.zIndex = zIndex;
 }
 
@@ -324,7 +362,7 @@ void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
 
 void SysRenderImpl::setVisible(EntityId entityId, bool visible)
 {
-  auto& renderComp = m_componentStore.component<CSprite>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.visible = visible;
 }
 
@@ -357,15 +395,17 @@ void SysRenderImpl::update(Tick, const InputState&)
 
     for (auto& group : m_componentStore.components<CSprite>()) {
       size_t n = group.numEntities();
-      auto renderComps = group.components<CSprite>();
+      auto renderComps = group.components<CRender>();
+      auto spriteComps = group.components<CSprite>();
       auto globalTs = group.components<CGlobalTransform>();
       auto flags = group.components<CSpatialFlags>();
       auto dynamicTextComps = group.components<CDynamicText>();
       auto& entityIds = group.entityIds();
 
       for (size_t i = 0; i < n; ++i) {
-        auto& item = renderComps[i];
-        if (!item.visible) {
+        auto& renderComp = renderComps[i];
+
+        if (!renderComp.visible) {
           continue;
         }
         if (!(flags[i].enabled && flags[i].parentEnabled)) {
@@ -375,21 +415,23 @@ void SysRenderImpl::update(Tick, const InputState&)
         auto& t = globalTs[i].transform;
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
-        m_renderer.setOrderKey(item.zIndex);
+        m_renderer.setOrderKey(renderComp.zIndex);
 
-        if (item.isText) {
+        auto& spriteComp = spriteComps[i];
+
+        if (spriteComp.isText) {
           if (!dynamicTextComps.empty()) {
             const auto& mesh = m_textItems.at(entityIds[i]);
-            m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text, item.colour,
-              screenSpaceTransform);
+            m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text,
+              renderComp.colour, screenSpaceTransform);
           }
           else {
             const auto& mesh = m_textItems.at(entityIds[i]);
-            m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, item.colour);
+            m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, renderComp.colour);
           }
         }
         else {
-          const Rectf& r = item.textureRect;
+          const Rectf& r = spriteComp.textureRect;
 
           std::array<Vec2f, 4> uvCoords{
             Vec2f{ r.x, r.y + r.h },
@@ -398,7 +440,7 @@ void SysRenderImpl::update(Tick, const InputState&)
             Vec2f{ r.x, r.y }
           };
 
-          m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, item.colour,
+          m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, renderComp.colour,
             screenSpaceTransform);
         }
       }

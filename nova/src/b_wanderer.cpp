@@ -158,7 +158,7 @@ void BWanderer::processEvent(const Event& event)
 
       if (sqDist <= sqActivationDist) {
         m_active = true;
-        m_ecs.componentStore().component<CSprite>(m_entityId).visible = true;
+        m_ecs.componentStore().component<CRender>(m_entityId).visible = true;
         sysAnimation.playAnimation(m_entityId, strFadeIn);
       }
     }

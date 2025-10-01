@@ -44,6 +44,13 @@ class Ecs
 
 using EcsPtr = std::unique_ptr<Ecs>;
 
+template<typename T>
+inline void assertHasComponent(const ComponentStore& store, EntityId id)
+{
+  ASSERT(store.hasComponentForEntity<T>(id),
+    typeid(T).name() << " component missing for entity " << id);
+}
+
 class Logger;
 
 EcsPtr createEcs(Logger& logger);

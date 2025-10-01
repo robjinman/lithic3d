@@ -284,7 +284,7 @@ void MenuSystemImpl::constructRoot()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   m_root = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   Vec2f size{ GRID_CELL_W * GRID_W, (5.f + GRID_H) * GRID_CELL_H };
@@ -333,7 +333,7 @@ void MenuSystemImpl::constructFlare()
   });
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   Vec2f size{ 1.3f, 1.5f };
@@ -371,7 +371,7 @@ void MenuSystemImpl::constructFlare()
 EntityId MenuSystemImpl::newMenuItemId()
 {
   return m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CUi
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CUi
   >();
 }
 
@@ -621,7 +621,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
     sfxVolumeFunctions);
 
   auto musicIcon = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   SpatialData musicIconSpatial{
@@ -823,7 +823,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   SpatialData spatial{
@@ -834,15 +834,17 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
-    .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
+  TextData render{
+    .spriteData{
+      .textureRect = {
+        .x = pxToUvX(256.f),
+        .y = pxToUvY(64.f, 192.f),
+        .w = pxToUvW(192.f),
+        .h = pxToUvH(192.f)
+      },
+      .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
+      .colour = colour
     },
-    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
-    .colour = colour,
     .text = text
   };
 

@@ -371,6 +371,8 @@ void SysUiImpl::update(Tick, const InputState& inputState)
   auto inputBegin = getInput(m_prevInputState, inputState);
   auto inputEnd = getInput(inputState, m_prevInputState);
 
+  // TODO: Gamepad input
+
   std::optional<MouseButton> mouseButtonPressed = std::nullopt;
   std::optional<MouseButton> mouseButtonReleased = std::nullopt;
 

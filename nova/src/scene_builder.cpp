@@ -188,7 +188,7 @@ EntityId SceneBuilderImpl::constructPlayer()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   sysGrid.addEntity(id, 0, 0);
@@ -310,7 +310,7 @@ void SceneBuilderImpl::constructSky()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   m_entities.insert(id);
@@ -366,7 +366,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -407,7 +407,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -452,7 +452,7 @@ void SceneBuilderImpl::constructTrees()
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
   
   m_entities.insert(id);
@@ -488,7 +488,7 @@ void SceneBuilderImpl::constructFakeSoil()
 
   for (size_t i = 0; i < GRID_W; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
     
     m_entities.insert(id);
@@ -514,8 +514,7 @@ void SceneBuilderImpl::constructFakeSoil()
         .h = pxToUvH(16.f)
       },
       .zIndex = static_cast<uint32_t>(ZIndex::Soil),
-      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
-      .text = ""
+      .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
     };
 
     sysRender.addEntity(id, render);
@@ -562,7 +561,7 @@ void SceneBuilderImpl::constructSoil()
       }
 
       auto id = m_ecs.componentStore().allocate<
-        CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
       >();
       
       m_entities.insert(id);
@@ -591,8 +590,7 @@ void SceneBuilderImpl::constructSoil()
           .h = pxToUvH(16.f)
         },
         .zIndex = static_cast<uint32_t>(ZIndex::Soil),
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f },
-        .text = ""
+        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
       };
 
       sysRender.addEntity(id, render);
@@ -682,7 +680,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -789,7 +787,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       }
 
       auto id = m_ecs.componentStore().allocate<
-        CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
       >();
 
       m_entities.insert(id);
@@ -834,7 +832,7 @@ void SceneBuilderImpl::constructGradient()
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   m_entities.insert(id);
@@ -936,7 +934,7 @@ void SceneBuilderImpl::constructCoins()
 
   for (size_t i = 0; i < numCoins; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -1052,7 +1050,7 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
     }
 
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -1195,7 +1193,7 @@ void SceneBuilderImpl::constructWanderers()
 
   for (size_t i = 0; i < numWanderers; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -1290,7 +1288,7 @@ void SceneBuilderImpl::constructSticks()
 
   for (size_t i = 0; i < numSticks; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
@@ -1373,7 +1371,7 @@ void SceneBuilderImpl::constructExit()
   auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   m_entities.insert(id);
@@ -1433,7 +1431,7 @@ void SceneBuilderImpl::constructTimeCounter()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CDynamicText
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
   >();
 
   m_entities.insert(id);
@@ -1449,17 +1447,18 @@ void SceneBuilderImpl::constructTimeCounter()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
-    .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
+  TextData render{
+    .spriteData{
+      .textureRect = {
+        .x = pxToUvX(256.f),
+        .y = pxToUvY(64.f, 192.f),
+        .w = pxToUvW(192.f),
+        .h = pxToUvH(192.f)
+      },
+      .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+      .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
     },
-    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
-    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f },
-    .text = "100", // TODO
-    .isDynamicText = true
+    .text = "100"   // TODO
   };
 
   sysRender.addEntity(id, render);
@@ -1481,7 +1480,7 @@ void SceneBuilderImpl::constructTimeCounter()
       strncpy(buffer, ss.str().data(), 3);
 
       if (event.timeRemaining <= 10) {
-        m_ecs.componentStore().component<CSprite>(id).colour = { 1.f, 0.f, 0.f, 1.f };
+        m_ecs.componentStore().component<CRender>(id).colour = { 1.f, 0.f, 0.f, 1.f };
       }
     }
   });
@@ -1506,7 +1505,7 @@ void SceneBuilderImpl::constructCoinCounter()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite, CDynamicText
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
   >();
 
   m_entities.insert(id);
@@ -1524,17 +1523,18 @@ void SceneBuilderImpl::constructCoinCounter()
 
   int coinsRequired = 12; // TODO
 
-  SpriteData render{
-    .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
+  TextData render{
+    .spriteData{
+      .textureRect = {
+        .x = pxToUvX(256.f),
+        .y = pxToUvY(64.f, 192.f),
+        .w = pxToUvW(192.f),
+        .h = pxToUvH(192.f)
+      },
+      .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+      .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
     },
-    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
-    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f },
-    .text = "12",  // TODO
-    .isDynamicText = true
+    .text = "12"    // TODO
   };
 
   sysRender.addEntity(id, render);
@@ -1550,7 +1550,7 @@ EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& 
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
   m_entities.insert(id);
@@ -1582,7 +1582,7 @@ EntityId SceneBuilderImpl::constructThrowingModeIndicator()
     .h = pxToUvH(32.f)
   }, static_cast<uint32_t>(ZIndex::Hud));
 
-  m_ecs.componentStore().component<CSprite>(id).visible = false;
+  m_ecs.componentStore().component<CRender>(id).visible = false;
 
   return id;
 }

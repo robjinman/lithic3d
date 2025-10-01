@@ -36,7 +36,7 @@ class SysAnimationImpl : public SysAnimation
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
-    void processEvent(const Event& event) override {}
+    void processEvent(const Event&) override {}
 
     void addEntity(EntityId entityId, const AnimationData& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;
@@ -84,7 +84,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
   assert(animState.isPlaying);
 
   auto& anim = *m_animations.at(animState.id);
-  auto& renderComp = m_componentStore.component<CSprite>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
 
   size_t numFrames = anim.frames.size();
@@ -165,7 +165,8 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
     scaleMatrix4x4(scale);
 
   if (frame.textureRect.has_value()) {
-    renderComp.textureRect = frame.textureRect.value();
+    auto& spriteComp = m_componentStore.component<CSprite>(entityId);
+    spriteComp.textureRect = frame.textureRect.value();
   }
 
   auto& prevColour = frameNumInt > 0 ? anim.frames[frameNumInt - 1].colour : animState.startColour;
@@ -289,7 +290,7 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name,
 void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat,
   const std::optional<std::function<void()>>& onFinish)
 {
-  auto& renderComp = m_componentStore.component<CSprite>(entityId);
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);

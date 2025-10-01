@@ -384,3 +384,14 @@ TEST_F(EcsTest, cannot_modify_const_componentStore)
   tryModify(componentStore);
 }
 
+
+TEST_F(EcsTest, hasComponentForEntity)
+{
+  ComponentStore componentStore;
+
+  auto entityId = componentStore.allocate<ComponentA>();
+
+  EXPECT_TRUE(componentStore.hasComponentForEntity<ComponentA>(entityId));
+  EXPECT_FALSE(componentStore.hasComponentForEntity<ComponentB>(entityId));
+}
+

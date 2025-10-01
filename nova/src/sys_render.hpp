@@ -5,23 +5,62 @@
 #include "math.hpp"
 #include "component_types.hpp"
 
+// Requires components:
+//   CGlobalTransform
+//   CSpatialFlags
+//   CRender
+//   CSprite
 struct SpriteData
 {
   Rectf textureRect;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+};
+
+// Requires components:
+//   CGlobalTransform
+//   CSpatialFlags
+//   CRender
+//   CSprite
+//   CDynamicText (if dynamic)
+struct TextData
+{
+  SpriteData spriteData;
   std::string text;
-  bool isDynamicText = false; // TODO: Separate type for text components?
+};
+
+const size_t POLYGON_MAX_VERTICES = 8;
+
+// Requires components:
+//   CGlobalTransform
+//   CSpatialFlags
+//   CRender
+//   CPolygon
+struct PolygonData
+{
+  std::array<Vec2f, POLYGON_MAX_VERTICES> vertices;
+};
+
+struct CRender
+{
+  Vec4f colour;
+  uint32_t zIndex = 0;
+  bool visible = true;
+
+  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
+};
+
+struct CPolygon
+{
+  Vec2f vertices[POLYGON_MAX_VERTICES];
+
+  static constexpr ComponentType TypeId = ComponentTypeId::CPolygonTypeId;
 };
 
 struct CSprite
 {
   Rectf textureRect;
-  Vec4f colour;
-  uint32_t zIndex = 0;
-  // TODO: Bitset for boolean flags?
-  bool visible = true;
-  bool isText = false;
+  bool isText = false; // TODO: Remove?
 
   static constexpr ComponentType TypeId = ComponentTypeId::CSpriteTypeId;
 };
@@ -47,6 +86,9 @@ class SysRender : public System
     virtual const Camera& camera() const = 0;
 
     virtual void addEntity(EntityId entityId, const SpriteData& data) = 0;
+    virtual void addEntity(EntityId entityId, const TextData& data) = 0;
+    virtual void addEntity(EntityId entityId, const PolygonData& data) = 0;
+
     virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;
     virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
     virtual void setVisible(EntityId entityId, bool visible) = 0;

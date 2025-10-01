@@ -155,7 +155,7 @@ void GameImpl::handleMenuEvent(const Event& event)
 void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
 {
   m_throwingMode = on;
-  m_ecs->componentStore().component<CSprite>(m_scene.throwingModeIndicator).visible = on;
+  m_ecs->componentStore().component<CRender>(m_scene.throwingModeIndicator).visible = on;
   m_stickId = stickId;
 }
 

@@ -365,7 +365,7 @@ class ComponentStore
       if (i == m_archetypes.end()) {
         return false;
       }
-      return m_groups.at(i->second).hasEntity(entityId);
+      return i->second & T::TypeId;
     }
 
     void remove(EntityId entityId)
