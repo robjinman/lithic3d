@@ -168,6 +168,8 @@ EntityId SceneBuilderImpl::constructWorldRoot()
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
+  //m_entities.insert(id);
+
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   sysSpatial.addEntity(id, SpatialData{
@@ -190,6 +192,8 @@ EntityId SceneBuilderImpl::constructPlayer()
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
+
+  m_entities.insert(id);
 
   sysGrid.addEntity(id, 0, 0);
 

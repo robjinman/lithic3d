@@ -50,7 +50,8 @@ const std::set<HashedString>& BWanderer::subscriptions() const
   static std::set<HashedString> subs{
     g_strPlayerMove,
     g_strEntityExplode,
-    g_strEntityLandOn
+    g_strEntityLandOn,
+    g_strAnimationFinish
   };
   return subs;
 }
