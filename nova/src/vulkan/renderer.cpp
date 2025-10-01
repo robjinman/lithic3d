@@ -129,6 +129,7 @@ class RendererImpl : public Renderer
       const Vec4f& colour, const std::vector<Mat4x4f>& jointTransforms) override;
     void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
       const Vec4f& colour, const Mat4x4f& transform) override;
+    void drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
       const Mat4x4f& transform) override;
     void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
@@ -475,6 +476,25 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   node->colour = colour;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+
+  state.lookup.insert({ key, node.get() });
+  renderGraph.insert(key, std::move(node));
+}
+
+void RendererImpl::drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform)
+{
+  //DBG_TRACE(m_logger);
+
+  FrameState& frameState = m_frameStates.getWritable();
+  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  RenderGraph& renderGraph = state.graph;
+
+  auto node = std::make_unique<QuadNode>();
+  node->mesh = mesh;
+  node->modelMatrix = transform;
+  node->colour = colour;
+
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, node->material);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));

@@ -620,7 +620,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
   constructSelector(sfxVolumeId, id, groupId, sfxVolumeSprite, { musicVolumeId, returnId },
     sfxVolumeFunctions);
 
-  auto musicIcon = m_ecs.componentStore().allocate<
+  auto musicIconId = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
@@ -630,7 +630,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
     .enabled = true
   };
 
-  sysSpatial.addEntity(musicIcon, musicIconSpatial);
+  sysSpatial.addEntity(musicIconId, musicIconSpatial);
 
   SpriteData musicIconRender{
     .textureRect = Rectf{
@@ -642,7 +642,26 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
     .zIndex = static_cast<uint32_t>(ZIndex::MenuItem)
   };
 
-  sysRender.addEntity(musicIcon, musicIconRender);
+  sysRender.addEntity(musicIconId, musicIconRender);
+
+  auto musicVolumeBarId = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+  >();
+
+  SpatialData musicVolumeBarSpatial{
+    .transform = spriteTransform({ 0.6f, 0.4f }, { 0.1f, 0.4f }),
+    .parent = id,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(musicVolumeBarId, musicVolumeBarSpatial);
+
+  QuadData musicVolumeBarRender{
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
+    .colour{ 0.f, 0.f, 0.f, 0.6f }
+  };
+
+  sysRender.addEntity(musicVolumeBarId, musicVolumeBarRender);
 
   Sprite returnSprite{
     .pos{ 0.02f, 0.01f },
@@ -693,7 +712,7 @@ void MenuSystemImpl::constructMainMenu()
 
   sysSpatial.addEntity(m_mainMenu.entityId, mainMenuRootSpatial);
 
-  auto mainMenuMain = m_ecs.componentStore().allocate<
+  auto mainMenuMainId = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
@@ -703,7 +722,7 @@ void MenuSystemImpl::constructMainMenu()
     .enabled = true
   };
 
-  sysSpatial.addEntity(mainMenuMain, mainMenuMainSpatial);
+  sysSpatial.addEntity(mainMenuMainId, mainMenuMainSpatial);
 
   m_mainMenu.itemGroupId = SysUi::nextGroupId();
 
@@ -726,7 +745,7 @@ void MenuSystemImpl::constructMainMenu()
     }
   };
 
-  constructMenuItem(m_startGameBtnId, mainMenuMain, m_mainMenu.itemGroupId, startSprite,
+  constructMenuItem(m_startGameBtnId, mainMenuMainId, m_mainMenu.itemGroupId, startSprite,
     { m_quitGameBtnId, optionsId });
 
   Sprite optionsSprite{
@@ -740,7 +759,7 @@ void MenuSystemImpl::constructMainMenu()
     }
   };
 
-  constructMenuItem(optionsId, mainMenuMain, m_mainMenu.itemGroupId, optionsSprite,
+  constructMenuItem(optionsId, mainMenuMainId, m_mainMenu.itemGroupId, optionsSprite,
     { m_startGameBtnId, settingsId });
 
   Sprite settingsSprite{
@@ -754,7 +773,7 @@ void MenuSystemImpl::constructMainMenu()
     }
   };
 
-  constructMenuItem(settingsId, mainMenuMain, m_mainMenu.itemGroupId, settingsSprite,
+  constructMenuItem(settingsId, mainMenuMainId, m_mainMenu.itemGroupId, settingsSprite,
     { optionsId, creditsId });
 
   Sprite creditsSprite{
@@ -768,7 +787,7 @@ void MenuSystemImpl::constructMainMenu()
     }
   };
 
-  constructMenuItem(creditsId, mainMenuMain, m_mainMenu.itemGroupId, creditsSprite,
+  constructMenuItem(creditsId, mainMenuMainId, m_mainMenu.itemGroupId, creditsSprite,
     { settingsId, m_quitGameBtnId });
 
   Sprite quitSprite{
@@ -782,13 +801,13 @@ void MenuSystemImpl::constructMainMenu()
     }
   };
 
-  constructMenuItem(m_quitGameBtnId, mainMenuMain, m_mainMenu.itemGroupId, quitSprite,
+  constructMenuItem(m_quitGameBtnId, mainMenuMainId, m_mainMenu.itemGroupId, quitSprite,
     { creditsId, m_startGameBtnId });
 
   auto mainMenuSettings = constructSettingsSubmenu(m_mainMenu.entityId,
-    { mainMenuMain, m_mainMenu.itemGroupId });
-  auto mainMenuOptions = constructGameOptionsSubmenu({ mainMenuMain, m_mainMenu.itemGroupId });
-  auto mainMenuCredits = constructCreditsSubmenu({ mainMenuMain, m_mainMenu.itemGroupId });
+    { mainMenuMainId, m_mainMenu.itemGroupId });
+  auto mainMenuOptions = constructGameOptionsSubmenu({ mainMenuMainId, m_mainMenu.itemGroupId });
+  auto mainMenuCredits = constructCreditsSubmenu({ mainMenuMainId, m_mainMenu.itemGroupId });
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
     [=, &sysSpatial, &sysUi](const Event& e) {
@@ -796,17 +815,17 @@ void MenuSystemImpl::constructMainMenu()
     if (e.name == g_strMenuItemActivate) {
       auto& event = dynamic_cast<const EMenuItemActivate&>(e);
       if (event.entityId == settingsId) {
-        sysSpatial.setEnabled(mainMenuMain, false);
+        sysSpatial.setEnabled(mainMenuMainId, false);
         sysSpatial.setEnabled(mainMenuSettings.entityId, true);
         sysUi.setActiveGroup(mainMenuSettings.itemGroupId, mainMenuSettings.firstItemId);
       }
       else if (event.entityId == optionsId) {
-        sysSpatial.setEnabled(mainMenuMain, false);
+        sysSpatial.setEnabled(mainMenuMainId, false);
         sysSpatial.setEnabled(mainMenuOptions.entityId, true);
         sysUi.setActiveGroup(mainMenuOptions.itemGroupId, mainMenuOptions.firstItemId);
       }
       else if (event.entityId == creditsId) {
-        sysSpatial.setEnabled(mainMenuMain, false);
+        sysSpatial.setEnabled(mainMenuMainId, false);
         sysSpatial.setEnabled(mainMenuCredits.entityId, true);
         sysUi.setActiveGroup(mainMenuCredits.itemGroupId, mainMenuCredits.firstItemId);
       }
@@ -835,17 +854,15 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
   sysSpatial.addEntity(id, spatial);
 
   TextData render{
-    .spriteData{
-      .textureRect = {
-        .x = pxToUvX(256.f),
-        .y = pxToUvY(64.f, 192.f),
-        .w = pxToUvW(192.f),
-        .h = pxToUvH(192.f)
-      },
-      .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
-      .colour = colour
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
     },
-    .text = text
+    .text = text,
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
+    .colour = colour
   };
 
   sysRender.addEntity(id, render);

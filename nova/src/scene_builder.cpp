@@ -1448,17 +1448,15 @@ void SceneBuilderImpl::constructTimeCounter()
   sysSpatial.addEntity(id, spatial);
 
   TextData render{
-    .spriteData{
-      .textureRect = {
-        .x = pxToUvX(256.f),
-        .y = pxToUvY(64.f, 192.f),
-        .w = pxToUvW(192.f),
-        .h = pxToUvH(192.f)
-      },
-      .zIndex = static_cast<uint32_t>(ZIndex::Hud),
-      .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
     },
-    .text = "100"   // TODO
+    .text = "100",   // TODO
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
   };
 
   sysRender.addEntity(id, render);
@@ -1524,17 +1522,15 @@ void SceneBuilderImpl::constructCoinCounter()
   int coinsRequired = 12; // TODO
 
   TextData render{
-    .spriteData{
-      .textureRect = {
-        .x = pxToUvX(256.f),
-        .y = pxToUvY(64.f, 192.f),
-        .w = pxToUvW(192.f),
-        .h = pxToUvH(192.f)
-      },
-      .zIndex = static_cast<uint32_t>(ZIndex::Hud),
-      .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
     },
-    .text = "12"    // TODO
+    .text = "12",    // TODO
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
   };
 
   sysRender.addEntity(id, render);

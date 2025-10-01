@@ -21,25 +21,27 @@ struct SpriteData
 //   CGlobalTransform
 //   CSpatialFlags
 //   CRender
-//   CSprite
-//   CDynamicText (if dynamic)
-struct TextData
+struct QuadData
 {
-  SpriteData spriteData;
-  std::string text;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
-
-const size_t POLYGON_MAX_VERTICES = 8;
 
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags
 //   CRender
-//   CPolygon
-struct PolygonData
+//   CSprite
+//   CDynamicText (if dynamic)
+struct TextData
 {
-  std::array<Vec2f, POLYGON_MAX_VERTICES> vertices;
+  Rectf textureRect;
+  std::string text;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
+
+const size_t POLYGON_MAX_VERTICES = 8;
 
 struct CRender
 {
@@ -48,13 +50,6 @@ struct CRender
   bool visible = true;
 
   static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
-};
-
-struct CPolygon
-{
-  Vec2f vertices[POLYGON_MAX_VERTICES];
-
-  static constexpr ComponentType TypeId = ComponentTypeId::CPolygonTypeId;
 };
 
 struct CSprite
@@ -87,7 +82,7 @@ class SysRender : public System
 
     virtual void addEntity(EntityId entityId, const SpriteData& data) = 0;
     virtual void addEntity(EntityId entityId, const TextData& data) = 0;
-    virtual void addEntity(EntityId entityId, const PolygonData& data) = 0;
+    virtual void addEntity(EntityId entityId, const QuadData& data) = 0;
 
     virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;
     virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;

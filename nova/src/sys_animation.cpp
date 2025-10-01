@@ -122,8 +122,8 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
     animState.isPlaying = false;
 
-    auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
-    m_eventSystem.queueEvent(std::move(e));
+    //auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
+    //m_eventSystem.queueEvent(std::move(e));
 
     if (animState.onFinish.has_value()) {
       animState.onFinish.value()();

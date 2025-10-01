@@ -24,6 +24,15 @@ struct DefaultPushConstants
   Vec4f colour;               // 16 bytes
 };
 
+struct QuadPushConstants
+{
+  // Vert shader
+  Mat4x4f modelMatrix;        // 64 bytes
+
+  // Frag shader
+  Vec4f colour;               // 16 bytes
+};
+
 struct SpritePushConstants
 {
   // Vert shader
@@ -46,18 +55,23 @@ struct DynamicTextPushConstants
 #pragma pack(pop)
 
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_OFFSET = 0;
-constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET = 64;
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_SIZE = 64;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET = 64;
 constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
 constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_OFFSET = 0;
-constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_SIZE = 96;
+constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
+constexpr size_t QUAD_PUSH_CONSTANTS_VERT_OFFSET = 0;
+constexpr size_t QUAD_PUSH_CONSTANTS_VERT_SIZE = 64;
+constexpr size_t QUAD_PUSH_CONSTANTS_FRAG_OFFSET = 64;
+constexpr size_t QUAD_PUSH_CONSTANTS_FRAG_SIZE = 16;
+
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET = 0;
-constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE = 96;
+constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
@@ -487,19 +501,35 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (meshFeatures.flags.test(MeshFeatures::IsSprite)) {
-    m_pushConstantRanges = {
-      VkPushConstantRange{
-        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-        .offset = SPRITE_PUSH_CONSTANTS_VERT_OFFSET,
-        .size = SPRITE_PUSH_CONSTANTS_VERT_SIZE
-      },
-      VkPushConstantRange{
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .offset = SPRITE_PUSH_CONSTANTS_FRAG_OFFSET,
-        .size = SPRITE_PUSH_CONSTANTS_FRAG_SIZE
-      }
-    };
+  if (meshFeatures.flags.test(MeshFeatures::IsQuad)) {
+    if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
+      m_pushConstantRanges = {
+        VkPushConstantRange{
+          .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+          .offset = SPRITE_PUSH_CONSTANTS_VERT_OFFSET,
+          .size = SPRITE_PUSH_CONSTANTS_VERT_SIZE
+        },
+        VkPushConstantRange{
+          .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+          .offset = SPRITE_PUSH_CONSTANTS_FRAG_OFFSET,
+          .size = SPRITE_PUSH_CONSTANTS_FRAG_SIZE
+        }
+      };
+    }
+    else {
+      m_pushConstantRanges = {
+        VkPushConstantRange{
+          .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+          .offset = QUAD_PUSH_CONSTANTS_VERT_OFFSET,
+          .size = QUAD_PUSH_CONSTANTS_VERT_SIZE
+        },
+        VkPushConstantRange{
+          .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+          .offset = QUAD_PUSH_CONSTANTS_FRAG_OFFSET,
+          .size = QUAD_PUSH_CONSTANTS_FRAG_SIZE
+        }
+      };
+    }
   }
   else if (meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
     m_pushConstantRanges = {
@@ -622,6 +652,7 @@ void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
   constructPipeline(swapchainExtent);
 }
 
+// TODO: Refactor
 void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame)
 {
@@ -647,9 +678,11 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
 
   std::vector<VkDescriptorSet> descriptorSets{
     globalDescriptorSet,
-    renderPassDescriptorSet,
-    materialDescriptorSet
+    renderPassDescriptorSet
   };
+  if (materialDescriptorSet != VK_NULL_HANDLE) {
+    descriptorSets.push_back(materialDescriptorSet);
+  }
   if (objectDescriptorSet != VK_NULL_HANDLE) {
     descriptorSets.push_back(objectDescriptorSet);
   }
@@ -704,6 +737,22 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
       SPRITE_PUSH_CONSTANTS_FRAG_OFFSET, SPRITE_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
+  }
+  else if (node.type == RenderNodeType::Quad) {
+    auto& quadNode = dynamic_cast<const QuadNode&>(node);
+
+    QuadPushConstants constants{
+      .modelMatrix = quadNode.modelMatrix,
+      .colour = quadNode.colour
+    };
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+      QUAD_PUSH_CONSTANTS_VERT_OFFSET, QUAD_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+    void* fragPart = reinterpret_cast<char*>(&constants) + QUAD_PUSH_CONSTANTS_FRAG_OFFSET;
+
+    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+      QUAD_PUSH_CONSTANTS_FRAG_OFFSET, QUAD_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
   }
   else if (node.type == RenderNodeType::DynamicText) {
     auto& textNode = dynamic_cast<const DynamicTextNode&>(node);
@@ -780,9 +829,15 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
       }
     }
 
-    if (meshFeatures.flags.test(MeshFeatures::IsSprite)) {
-      vertShader = "main_sprite";
-      fragShader = "main_sprite";
+    if (meshFeatures.flags.test(MeshFeatures::IsQuad)) {
+      if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
+        vertShader = "main_sprite";
+        fragShader = "main_sprite";
+      }
+      else {
+        vertShader = "main_quad";
+        fragShader = "main_quad";
+      }
     }
     else if (meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
       vertShader = "main_dynamic_text";

@@ -623,7 +623,7 @@ void RenderResourcesImpl::removeMaterial(RenderItemId id)
 
 VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(RenderItemId id) const
 {
-  return m_materials.at(id)->descriptorSet;
+  return id == NULL_ID ? VK_NULL_HANDLE : m_materials.at(id)->descriptorSet;
 }
 
 VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(RenderItemId id,

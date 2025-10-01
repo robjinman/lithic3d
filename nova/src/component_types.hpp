@@ -9,7 +9,6 @@ enum ComponentTypeId : ComponentType
   CSpatialFlagsTypeId     = 1u << 2,
   CRenderTypeId           = 1u << 3,
   CSpriteTypeId           = 1u << 4,
-  CPolygonTypeId          = 1u << 5,
-  CDynamicTextTypeId      = 1u << 6,
-  CUiTypeId               = 1u << 7
+  CDynamicTextTypeId      = 1u << 5,
+  CUiTypeId               = 1u << 6
 };

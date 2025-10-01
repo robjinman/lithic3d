@@ -47,7 +47,7 @@ MeshPtr quad()
     },
     .flags{}
   });
-  mesh->featureSet.flags.set(MeshFeatures::IsSprite);
+  mesh->featureSet.flags.set(MeshFeatures::IsQuad);
   mesh->attributeBuffers = {
     Buffer{
       .usage = BufferUsage::AttrPosition,
@@ -185,7 +185,7 @@ class SysRenderImpl : public SysRender
 
     void addEntity(EntityId entityId, const SpriteData& data) override;
     void addEntity(EntityId entityId, const TextData& data) override;
-    void addEntity(EntityId entityId, const PolygonData& data) override;
+    void addEntity(EntityId entityId, const QuadData& data) override;
 
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
@@ -214,9 +214,7 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
-  MaterialFeatureSet materialFeatures{};
-  materialFeatures.flags.set(MaterialFeatures::HasTexture);
-
+  // TODO: What's this shader for?
   {
     MeshFeatureSet meshFeatures{
       .vertexLayout = {
@@ -226,9 +224,12 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
       },
       .flags{}
     };
+    MaterialFeatureSet materialFeatures{};
+    materialFeatures.flags.set(MaterialFeatures::HasTexture);
     m_renderer.compileShader(meshFeatures, materialFeatures);
   }
 
+  // Sprites
   {
     MeshFeatureSet meshFeatures{
       .vertexLayout = {
@@ -238,10 +239,28 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
       },
       .flags{}
     };
-    meshFeatures.flags.set(MeshFeatures::IsSprite);
+    meshFeatures.flags.set(MeshFeatures::IsQuad);
+    MaterialFeatureSet materialFeatures{};
+    materialFeatures.flags.set(MaterialFeatures::HasTexture);
     m_renderer.compileShader(meshFeatures, materialFeatures);
   }
 
+  // Quads
+  {
+    MeshFeatureSet meshFeatures{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{}
+    };
+    meshFeatures.flags.set(MeshFeatures::IsQuad);
+    MaterialFeatureSet materialFeatures{};
+    m_renderer.compileShader(meshFeatures, materialFeatures);
+  }
+
+  // Dynamic text
   {
     MeshFeatureSet meshFeatures{
       .vertexLayout = {
@@ -252,15 +271,20 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
       .flags{}
     };
     meshFeatures.flags.set(MeshFeatures::IsDynamicText);
+    MaterialFeatureSet materialFeatures{};
+    materialFeatures.flags.set(MaterialFeatures::HasTexture);
     m_renderer.compileShader(meshFeatures, materialFeatures);
   }
 
-  auto texture = render::loadTexture(m_fileSystem.readFile("textures/atlas.png"));
+  auto atlas = render::loadTexture(m_fileSystem.readFile("textures/atlas.png"));
 
-  auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.id = m_renderer.addTexture(std::move(texture));
+  MaterialFeatureSet atlasFeatures{};
+  atlasFeatures.flags.set(MaterialFeatures::HasTexture);
 
-  m_textureAtlas = m_renderer.addMaterial(std::move(material));
+  auto atlasMaterial = std::make_unique<Material>(atlasFeatures);
+  atlasMaterial->texture.id = m_renderer.addTexture(std::move(atlas));
+
+  m_textureAtlas = m_renderer.addMaterial(std::move(atlasMaterial));
 
   m_mesh = m_renderer.addMesh(quad());
 
@@ -287,13 +311,13 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
   assertHasComponent<CSprite>(m_componentStore, entityId);
 
   m_componentStore.component<CRender>(entityId) = CRender{
-    .colour = data.spriteData.colour,
-    .zIndex = data.spriteData.zIndex,
+    .colour = data.colour,
+    .zIndex = data.zIndex,
     .visible = true
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
-    .textureRect = data.spriteData.textureRect,
+    .textureRect = data.textureRect,
     .isText = true
   };
 
@@ -309,7 +333,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
     c.text[len] = '\0';
   }
 
-  auto mesh = textItemMesh(data.text, data.spriteData.textureRect, isDynamic);
+  auto mesh = textItemMesh(data.text, data.textureRect, isDynamic);
 
   MeshHandle meshHandle;
   if (m_renderer.isStarted()) {
@@ -323,10 +347,17 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
   m_textItems.insert({ entityId, meshHandle });
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const PolygonData& data)
+void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
 {
-  // TODO
-  assert(false);
+  assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
+  assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
+  assertHasComponent<CRender>(m_componentStore, entityId);
+
+  m_componentStore.component<CRender>(entityId) = CRender{
+    .colour = data.colour,
+    .zIndex = data.zIndex,
+    .visible = true
+  };
 }
 
 void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
@@ -369,6 +400,7 @@ void SysRenderImpl::setVisible(EntityId entityId, bool visible)
 void SysRenderImpl::removeEntity(EntityId entityId)
 {
   m_textItems.erase(entityId);
+
   // TODO: Delete meshes from renderer
 }
 
@@ -393,7 +425,7 @@ void SysRenderImpl::update(Tick, const InputState&)
     m_renderer.beginFrame({ 0.f, 0.f, 0.f, 1.f });
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-    for (auto& group : m_componentStore.components<CSprite>()) {
+    for (auto& group : m_componentStore.components<CRender>()) {
       size_t n = group.numEntities();
       auto renderComps = group.components<CRender>();
       auto spriteComps = group.components<CSprite>();
@@ -417,31 +449,36 @@ void SysRenderImpl::update(Tick, const InputState&)
 
         m_renderer.setOrderKey(renderComp.zIndex);
 
-        auto& spriteComp = spriteComps[i];
+        if (!spriteComps.empty()) {
+          auto& spriteComp = spriteComps[i];
 
-        if (spriteComp.isText) {
-          if (!dynamicTextComps.empty()) {
-            const auto& mesh = m_textItems.at(entityIds[i]);
-            m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text,
-              renderComp.colour, screenSpaceTransform);
+          if (spriteComp.isText) {
+            if (!dynamicTextComps.empty()) {
+              auto& mesh = m_textItems.at(entityIds[i]);
+              m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text,
+                renderComp.colour, screenSpaceTransform);
+            }
+            else {
+              auto& mesh = m_textItems.at(entityIds[i]);
+              m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, renderComp.colour);
+            }
           }
           else {
-            const auto& mesh = m_textItems.at(entityIds[i]);
-            m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, renderComp.colour);
+            Rectf& r = spriteComp.textureRect;
+
+            std::array<Vec2f, 4> uvCoords{
+              Vec2f{ r.x, r.y + r.h },
+              Vec2f{ r.x + r.w, r.y + r.h },
+              Vec2f{ r.x + r.w, r.y },
+              Vec2f{ r.x, r.y }
+            };
+
+            m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, renderComp.colour,
+              screenSpaceTransform);
           }
         }
         else {
-          const Rectf& r = spriteComp.textureRect;
-
-          std::array<Vec2f, 4> uvCoords{
-            Vec2f{ r.x, r.y + r.h },
-            Vec2f{ r.x + r.w, r.y + r.h },
-            Vec2f{ r.x + r.w, r.y },
-            Vec2f{ r.x, r.y }
-          };
-
-          m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, renderComp.colour,
-            screenSpaceTransform);
+          m_renderer.drawQuad(m_mesh, renderComp.colour, screenSpaceTransform);
         }
       }
     }

@@ -18,6 +18,7 @@ enum class RenderNodeType
   InstancedModel,
   Skybox,
   Sprite,
+  Quad,
   DynamicText
 };
 
@@ -76,7 +77,17 @@ struct SpriteNode : public RenderNode
 
   Mat4x4f modelMatrix;
   std::array<Vec2f, 4> uvCoords;
-  Vec4f colour;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+};
+
+struct QuadNode : public RenderNode
+{
+  QuadNode()
+    : RenderNode(RenderNodeType::Quad)
+  {}
+
+  Mat4x4f modelMatrix;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
 struct DynamicTextNode : public RenderNode
@@ -87,7 +98,7 @@ struct DynamicTextNode : public RenderNode
 
   Mat4x4f modelMatrix;
   std::string text;
-  Vec4f colour;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
 struct SkyboxNode : public RenderNode
