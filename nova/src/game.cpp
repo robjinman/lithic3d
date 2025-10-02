@@ -441,6 +441,7 @@ bool GameImpl::update()
   m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();
   m_timeService->update();
+  m_menuSystem->update();
 
   return !m_shouldExit;
 }

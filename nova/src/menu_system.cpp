@@ -16,7 +16,7 @@ namespace
 
 enum class ZIndex : uint32_t
 {
-  Root,
+  Backdrop,
   Flare,
   MenuItem
 };
@@ -39,6 +39,12 @@ struct Menu
   EntityId entityId = NULL_ENTITY;
   SysUi::GroupId itemGroupId = 0;
   EntityId firstItemId = NULL_ENTITY;
+};
+
+struct ProgressBar
+{
+  EntityId entityId = NULL_ENTITY;
+  float_t height;
 };
 
 struct SelectorFunctions
@@ -100,34 +106,37 @@ class MenuSystemImpl : public MenuSystem
     AnimationId m_animIdleFocused;
     AnimationId m_animPrime;
     AnimationId m_animActivate;
+    ProgressBar m_musicVolumeBar;
+    ProgressBar m_sfxVolumeBar;
 
-    float m_sfxVolume = 0.5f;
-    float m_musicVolume = 0.5f;
+    float m_sfxVolume = 0.75f;
+    float m_musicVolume = 0.75f;
     int m_difficultyLevel = 0;
     float m_musicVolumeDelta = 0.f;
     float m_sfxVolumeDelta = 0.f;
 
     void constructRoot();
+    void constructBackdrop();
     void constructFlare();
     void constructPauseMenu();
     void constructMainMenu();
-    Menu constructSettingsSubmenu(EntityId parent, const Menu& prevMenu);
+    Menu constructSettingsSubmenu(EntityId parentId, const Menu& prevMenu);
     Menu constructCreditsSubmenu(const Menu& prevMenu);
     Menu constructGameOptionsSubmenu(const Menu& prevMenu);
     void createAnimations();
     EntityId newMenuItemId();
     void setDifficulty(int level);
-  
+    ProgressBar constructProgressBar(EntityId parentId, const Vec2f& pos, float_t initialValue);
+    EntityId constructQuad(EntityId parentId, const Vec2f& pos, const Vec2f& size,
+      const Vec4f& colour);
     void constructMenuItemBase(EntityId id, EntityId parentId, const Sprite& sprite);
-
-    void constructMenuItem(EntityId id, EntityId parent, SysUi::GroupId groupId,
+    void constructMenuItem(EntityId id, EntityId parentId, SysUi::GroupId groupId,
       const Sprite& sprite, const ItemSlots& slots);
-
-    void constructSelector(EntityId id, EntityId parent, SysUi::GroupId groupId,
+    void constructSelector(EntityId id, EntityId parentId, SysUi::GroupId groupId,
       const Sprite& sprite, const ItemSlots& slots, const SelectorFunctions& functions);
-
-    EntityId constructTextItem(EntityId parent, const Vec2f& pos, const Vec2f& charSize,
+    EntityId constructTextItem(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
       const std::string& text, const Vec4f& colour);
+    void updateProgressBar(const ProgressBar& bar, float_t value);
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -138,6 +147,7 @@ MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logge
   createAnimations();
 
   constructRoot();
+  constructBackdrop();
   constructFlare();
   constructPauseMenu();
   constructMainMenu();
@@ -183,9 +193,23 @@ void MenuSystemImpl::setDifficulty(int level)
   // TODO
 }
 
+void MenuSystemImpl::updateProgressBar(const ProgressBar& bar, float_t value)
+{
+  auto& t = m_ecs.componentStore().component<CLocalTransform>(bar.entityId);
+  t.transform.set(1, 1, value * bar.height);
+}
+
 void MenuSystemImpl::update()
 {
-  // TODO
+  if (m_musicVolumeDelta != 0.f) {
+    m_musicVolume = clip(m_musicVolume + m_musicVolumeDelta, 0.f, 1.f);
+    updateProgressBar(m_musicVolumeBar, m_musicVolume);
+  }
+
+  if (m_sfxVolumeDelta != 0.f) {
+    m_sfxVolume = clip(m_sfxVolume + m_sfxVolumeDelta, 0.f, 1.f);
+    updateProgressBar(m_sfxVolumeBar, m_sfxVolume);
+  }
 }
 
 void MenuSystemImpl::createAnimations()
@@ -280,10 +304,27 @@ void MenuSystemImpl::showMainMenu()
 
 void MenuSystemImpl::constructRoot()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   m_root = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags
+  >();
+
+  SpatialData spatial{
+    .transform = identityMatrix<float_t, 4>(),
+    .parent = sysSpatial.root(),
+    .enabled = false
+  };
+
+  sysSpatial.addEntity(m_root, spatial);
+}
+
+void MenuSystemImpl::constructBackdrop()
+{
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
@@ -292,11 +333,11 @@ void MenuSystemImpl::constructRoot()
 
   SpatialData spatial{
     .transform = spriteTransform(pos, size),
-    .parent = sysSpatial.root(),
-    .enabled = false
+    .parent = m_root,
+    .enabled = true
   };
 
-  sysSpatial.addEntity(m_root, spatial);
+  sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
     .textureRect = Rectf{
@@ -305,10 +346,10 @@ void MenuSystemImpl::constructRoot()
       .w = pxToUvW(256.f),
       .h = pxToUvH(256.f)
     },
-    .zIndex = static_cast<uint32_t>(ZIndex::Root)
+    .zIndex = static_cast<uint32_t>(ZIndex::Backdrop)
   };
 
-  sysRender.addEntity(m_root, render);
+  sysRender.addEntity(id, render);
 }
 
 void MenuSystemImpl::constructFlare()
@@ -336,8 +377,8 @@ void MenuSystemImpl::constructFlare()
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
-  Vec2f size{ 1.3f, 1.5f };
-  Vec2f pos{ 0.04f, -0.05f };
+  Vec2f size{ 1.5f, 1.5f };
+  Vec2f pos{ 0.145f, -0.05f };
 
   SpatialData spatial{
     .transform = spriteTransform(pos, size),
@@ -553,7 +594,68 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
   makeBtnUiComp(rightBtnId, functions.rightBtnDown, functions.rightBtnUp);
 }
 
-Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevMenu)
+EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, const Vec2f& size,
+  const Vec4f& colour)
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+  >();
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = parentId,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  QuadData render{
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
+    .colour = colour
+  };
+
+  sysRender.addEntity(id, render);
+
+  return id;
+}
+
+ProgressBar MenuSystemImpl::constructProgressBar(EntityId parentId, const Vec2f& pos,
+  float_t initialValue)
+{
+  const float_t gap = 0.005f;
+  const Vec2f size{ 0.03f, 0.3f };
+  const Vec2f barSize = size - Vec2f{ gap, gap } * 2.f;
+  const Vec4f colour{ 0.f, 0.f, 0.f, 0.7f };
+  const float_t lineThickness = 0.002f;
+
+  // Bar
+  auto id = constructQuad(parentId, pos + Vec2f{ gap, gap },
+    { barSize[0], barSize[1] * initialValue }, colour);
+
+  // Bottom line
+  constructQuad(parentId, pos, { size[0], lineThickness }, colour);
+
+  // Top line
+  constructQuad(parentId, { pos[0], pos[1] + size[1] - lineThickness }, { size[0], lineThickness },
+    colour);
+
+  // Left line
+  constructQuad(parentId, pos, { lineThickness, size[1] }, colour);
+
+  // Right line
+  constructQuad(parentId, { pos[0] + size[0] - lineThickness, pos[1] }, { lineThickness, size[1] },
+    colour);
+
+  return ProgressBar{
+    .entityId = id,
+    .height = barSize[1]
+  };
+}
+
+Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& prevMenu)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -566,7 +668,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
 
   SpatialData spatial{
     .transform = identityMatrix<float_t, 4>(),
-    .parent = parent,
+    .parent = parentId,
     .enabled = false
   };
 
@@ -590,9 +692,9 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
   };
 
   SelectorFunctions musicVolumeFunctions{
-    .leftBtnDown = [this]() { m_musicVolumeDelta = -0.1f; },
+    .leftBtnDown = [this]() { m_musicVolumeDelta = -0.01f; },
     .leftBtnUp = [this]() { m_musicVolumeDelta = 0.f; },
-    .rightBtnDown = [this]() { m_musicVolumeDelta = 0.1f; },
+    .rightBtnDown = [this]() { m_musicVolumeDelta = 0.01f; },
     .rightBtnUp = [this]() { m_musicVolumeDelta = 0.f; }
   };
 
@@ -611,9 +713,9 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
   };
 
   SelectorFunctions sfxVolumeFunctions{
-    .leftBtnDown = [this]() { m_sfxVolumeDelta = -0.1f; },
+    .leftBtnDown = [this]() { m_sfxVolumeDelta = -0.01f; },
     .leftBtnUp = [this]() { m_sfxVolumeDelta = 0.f; },
-    .rightBtnDown = [this]() { m_sfxVolumeDelta = 0.1f; },
+    .rightBtnDown = [this]() { m_sfxVolumeDelta = 0.01f; },
     .rightBtnUp = [this]() { m_sfxVolumeDelta = 0.f; }
   };
 
@@ -644,24 +746,32 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parent, const Menu& prevM
 
   sysRender.addEntity(musicIconId, musicIconRender);
 
-  auto musicVolumeBarId = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+  auto sfxIconId = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
-  SpatialData musicVolumeBarSpatial{
-    .transform = spriteTransform({ 0.6f, 0.4f }, { 0.1f, 0.4f }),
+  SpatialData sfxIconSpatial{
+    .transform = spriteTransform({ 0.975f, 0.55f }, { 0.1f, 0.066f }),
     .parent = id,
     .enabled = true
   };
 
-  sysSpatial.addEntity(musicVolumeBarId, musicVolumeBarSpatial);
+  sysSpatial.addEntity(sfxIconId, sfxIconSpatial);
 
-  QuadData musicVolumeBarRender{
-    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
-    .colour{ 0.f, 0.f, 0.f, 0.6f }
+  SpriteData sfxIconRender{
+    .textureRect = Rectf{
+      .x = pxToUvX(0.f),
+      .y = pxToUvY(448.f, 64.f),
+      .w = pxToUvW(96.f),
+      .h = pxToUvH(64.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem)
   };
 
-  sysRender.addEntity(musicVolumeBarId, musicVolumeBarRender);
+  sysRender.addEntity(sfxIconId, sfxIconRender);
+
+  m_musicVolumeBar = constructProgressBar(id, { 0.85f, 0.55f }, m_musicVolume);
+  m_sfxVolumeBar = constructProgressBar(id, { 0.91f, 0.55f }, m_sfxVolume);
 
   Sprite returnSprite{
     .pos{ 0.02f, 0.01f },
@@ -736,7 +846,7 @@ void MenuSystemImpl::constructMainMenu()
 
   Sprite startSprite{
     .pos{ 0.02f, 0.41f },
-    .size{ 0.3f, 0.05625f },
+    .size{ 0.225f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
       .y = pxToUvY(0.f, 32.f),
@@ -835,7 +945,7 @@ void MenuSystemImpl::constructMainMenu()
   sysBehaviour.addBehaviour(m_mainMenu.entityId, std::move(behaviour));
 }
 
-EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, const Vec2f& charSize,
+EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
   const std::string& text, const Vec4f& colour)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
@@ -847,7 +957,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parent, const Vec2f& pos, co
 
   SpatialData spatial{
     .transform = spriteTransform(pos, charSize),
-    .parent = parent,
+    .parent = parentId,
     .enabled = true
   };
 
