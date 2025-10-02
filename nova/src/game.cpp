@@ -98,7 +98,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_ecs = createEcs(m_logger);
 
   auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_eventSystem, m_logger);
-  auto sysBehaviour = createSysBehaviour();
+  auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysGrid = createSysGrid(*m_eventSystem);
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
   auto sysSpatial = createSysSpatial(m_ecs->componentStore());
@@ -233,13 +233,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
           sysSpatial.setEnabled(m_scene.worldRoot, false);
           m_menuSystem->showPauseMenu();
           m_gameState = GameState::Paused;
-          break;
-        }
-        case GameState::Paused: {
-          sysSpatial.setEnabled(m_menuSystem->root(), false);
-          sysSpatial.setEnabled(m_scene.worldRoot, true);
-          m_gameState = GameState::Playing;
-          break;
+          return;
         }
       }
       break;

@@ -504,12 +504,22 @@ void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::Gr
   ui.group = groupId;
   ui.topSlot = slots.top;
   ui.bottomSlot = slots.bottom;
-  ui.inputFilter = { MouseButton::Left, KeyboardKey::Enter, KeyboardKey::Space };
-  ui.onInputEnd = [this, &sysAnimation, id](const UserInput&) {
-    sysAnimation.stopAnimation(id);
-    sysAnimation.playAnimation(id, strActivate, [this, id]() {
-      m_eventSystem.queueEvent(std::make_unique<EMenuItemActivate>(id));
-    });
+  ui.inputFilter = {
+    MouseButton::Left, KeyboardKey::Enter, KeyboardKey::Space, KeyboardKey::Escape
+  };
+  ui.onInputEnd = [this, &sysAnimation, id](const UserInput& input) {
+    bool escape = std::holds_alternative<KeyboardKey>(input) &&
+      std::get<KeyboardKey>(input) == KeyboardKey::Escape;
+
+    if (!escape) {
+      sysAnimation.stopAnimation(id);
+      sysAnimation.playAnimation(id, strActivate, [this, id]() {
+        m_eventSystem.queueEvent(std::make_unique<EMenuItemActivate>(id));
+      });
+    }
+    else {
+      m_eventSystem.queueEvent(std::make_unique<ESubmenuExit>());
+    }
   };
   ui.onGainFocus = [&sysAnimation, id]() {
     sysAnimation.stopAnimation(id);
@@ -519,9 +529,14 @@ void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::Gr
     sysAnimation.stopAnimation(id);
     sysAnimation.playAnimation(id, strIdle, true);
   };
-  ui.onInputBegin = [&sysAnimation, id](const UserInput&) {
-    sysAnimation.stopAnimation(id);
-    sysAnimation.playAnimation(id, strPrime);
+  ui.onInputBegin = [&sysAnimation, id](const UserInput& input) {
+    bool escape = std::holds_alternative<KeyboardKey>(input) &&
+      std::get<KeyboardKey>(input) == KeyboardKey::Escape;
+
+    if (!escape) {
+      sysAnimation.stopAnimation(id);
+      sysAnimation.playAnimation(id, strPrime);
+    }
   };
 
   sysUi.addEntity(id, ui);
@@ -564,7 +579,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
 
   constructMenuItemBase(rightBtnId, parentId, rightBtnSprite);
 
-  auto focusAll = [&sysAnimation, id, leftBtnId, rightBtnId]() {
+  auto focusAll = [&sysAnimation, &sysUi, id, leftBtnId, rightBtnId]() {
     sysAnimation.stopAnimation(id);
     sysAnimation.stopAnimation(leftBtnId);
     sysAnimation.stopAnimation(rightBtnId);
@@ -583,7 +598,8 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
   };
 
   std::set<UserInput> filter{
-    MouseButton::Left, KeyboardKey::Enter, KeyboardKey::Space, KeyboardKey::Left, KeyboardKey::Right
+    MouseButton::Left, KeyboardKey::Enter, KeyboardKey::Space, KeyboardKey::Left,
+    KeyboardKey::Right, KeyboardKey::Escape
   };
 
   UiData ui{};
@@ -603,7 +619,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
       }
     }
   };
-  ui.onInputEnd = [&sysUi, leftBtnId, rightBtnId](const UserInput& input) {
+  ui.onInputEnd = [this, &sysUi, leftBtnId, rightBtnId](const UserInput& input) {
     if (std::holds_alternative<KeyboardKey>(input)) {
       if (std::get<KeyboardKey>(input) == KeyboardKey::Left) {
         sysUi.sendInputEnd(leftBtnId, input);
@@ -611,31 +627,36 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
       else if (std::get<KeyboardKey>(input) == KeyboardKey::Right) {
         sysUi.sendInputEnd(rightBtnId, input);
       }
+      else if (std::get<KeyboardKey>(input) == KeyboardKey::Escape) {
+        m_eventSystem.queueEvent(std::make_unique<ESubmenuExit>());
+      }
     }
   };
 
   sysUi.addEntity(id, ui);
 
   auto makeBtnUiComp =
-    [this, &sysAnimation, &sysUi, &filter, groupId, focusAll, unfocusAll]
-    (EntityId id, const std::function<void()>& onBtnDown, const std::function<void()>& onBtnUp) {
+    [this, &sysAnimation, &sysUi, &filter, id, groupId, focusAll, unfocusAll]
+    (EntityId btnId, const std::function<void()>& onBtnDown, const std::function<void()>& onBtnUp) {
 
     UiData btnUi{};
     btnUi.group = groupId;
     btnUi.inputFilter = filter;
-    btnUi.onGainFocus = focusAll;
+    btnUi.onGainFocus = [&sysUi, id]() {
+      sysUi.sendFocus(id);
+    };
     btnUi.onLoseFocus = unfocusAll;
-    btnUi.onInputBegin = [&sysAnimation, id, onBtnDown](const UserInput&) {
-      sysAnimation.stopAnimation(id);
-      sysAnimation.playAnimation(id, strPrime);
+    btnUi.onInputBegin = [&sysAnimation, btnId, onBtnDown](const UserInput&) {
+      sysAnimation.stopAnimation(btnId);
+      sysAnimation.playAnimation(btnId, strPrime);
       onBtnDown();
     };
-    btnUi.onInputEnd = [&sysAnimation, id, onBtnUp](const UserInput&) {
-      sysAnimation.stopAnimation(id);
-      sysAnimation.playAnimation(id, strActivate, onBtnUp);
+    btnUi.onInputEnd = [&sysAnimation, btnId, onBtnUp](const UserInput&) {
+      sysAnimation.stopAnimation(btnId);
+      sysAnimation.playAnimation(btnId, strActivate, onBtnUp);
     };
 
-    sysUi.addEntity(id, btnUi);
+    sysUi.addEntity(btnId, btnUi);
   };
 
   makeBtnUiComp(leftBtnId, functions.leftBtnDown, functions.leftBtnUp);
@@ -840,16 +861,17 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
   constructMenuItem(returnId, id, groupId, returnSprite, { sfxVolumeId, musicVolumeId });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
+  auto behaviour = createBGeneric(hashString("menu_behaviour"),
+    { g_strMenuItemActivate, g_strSubmenuExit },
     [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
-    if (e.name == g_strMenuItemActivate) {
-      auto& event = dynamic_cast<const EMenuItemActivate&>(e);
-      if (event.entityId == returnId) {
-        sysSpatial.setEnabled(id, false);
-        sysSpatial.setEnabled(prevMenu.entityId, true);
-        sysUi.setActiveGroup(prevMenu.itemGroupId);
-      }
+    if ((e.name == g_strMenuItemActivate
+      && dynamic_cast<const EMenuItemActivate&>(e).entityId == returnId) ||
+      e.name == g_strSubmenuExit) {
+
+      sysSpatial.setEnabled(id, false);
+      sysSpatial.setEnabled(prevMenu.entityId, true);
+      sysUi.setActiveGroup(prevMenu.itemGroupId);
     }
   });
 
@@ -1074,16 +1096,17 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   constructMenuItem(returnId, id, groupId, returnSprite, { NULL_ENTITY, NULL_ENTITY });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
+  auto behaviour = createBGeneric(hashString("menu_behaviour"),
+    { g_strMenuItemActivate, g_strSubmenuExit },
     [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
-    if (e.name == g_strMenuItemActivate) {
-      auto& event = dynamic_cast<const EMenuItemActivate&>(e);
-      if (event.entityId == returnId) {
-        sysSpatial.setEnabled(id, false);
-        sysSpatial.setEnabled(prevMenu.entityId, true);
-        sysUi.setActiveGroup(prevMenu.itemGroupId);
-      }
+    if ((e.name == g_strMenuItemActivate &&
+      dynamic_cast<const EMenuItemActivate&>(e).entityId == returnId) ||
+      e.name == g_strSubmenuExit) {
+
+      sysSpatial.setEnabled(id, false);
+      sysSpatial.setEnabled(prevMenu.entityId, true);
+      sysUi.setActiveGroup(prevMenu.itemGroupId);
     }
   });
 
@@ -1215,16 +1238,17 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 
   constructMenuItem(returnId, id, groupId, returnSprite, { difficultyId, difficultyId });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
+  auto behaviour = createBGeneric(hashString("menu_behaviour"),
+    { g_strMenuItemActivate, g_strSubmenuExit },
     [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
-    if (e.name == g_strMenuItemActivate) {
-      auto& event = dynamic_cast<const EMenuItemActivate&>(e);
-      if (event.entityId == returnId) {
-        sysSpatial.setEnabled(id, false);
-        sysSpatial.setEnabled(prevMenu.entityId, true);
-        sysUi.setActiveGroup(prevMenu.itemGroupId);
-      }
+    if ((e.name == g_strMenuItemActivate &&
+      dynamic_cast<const EMenuItemActivate&>(e).entityId == returnId) ||
+      e.name == g_strSubmenuExit) {
+
+      sysSpatial.setEnabled(id, false);
+      sysSpatial.setEnabled(prevMenu.entityId, true);
+      sysUi.setActiveGroup(prevMenu.itemGroupId);
     }
   });
 

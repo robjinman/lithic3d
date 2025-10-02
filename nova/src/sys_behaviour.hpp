@@ -24,4 +24,6 @@ class SysBehaviour : public System
 
 using SysBehaviourPtr = std::unique_ptr<SysBehaviour>;
 
-SysBehaviourPtr createSysBehaviour();
+class ComponentStore;
+
+SysBehaviourPtr createSysBehaviour(ComponentStore& componentStore);

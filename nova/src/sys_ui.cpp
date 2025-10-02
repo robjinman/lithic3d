@@ -173,7 +173,7 @@ void SysUiImpl::sendInputEnd(EntityId id, UserInput input)
 {
   auto& compData = m_componentData.at(id);
 
-  if (compData.inputFilter.contains(input)) {
+  if (compData.primed && compData.inputFilter.contains(input)) {
     compData.primed = false;
     compData.onInputEnd(input);
   }
@@ -295,6 +295,14 @@ void SysUiImpl::processKeyPress(KeyboardKey key)
   }
 
   auto& group = m_groups.at(m_activeGroup);
+  if (group.focusedItem == NULL_ENTITY) {
+    return;
+  }
+
+  auto flags = m_ecs.componentStore().component<CSpatialFlags>(group.focusedItem);
+  if (!(flags.enabled && flags.parentEnabled)) {
+    return;
+  }
 
   switch (key) {
     case KeyboardKey::Left:
