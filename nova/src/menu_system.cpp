@@ -106,8 +106,12 @@ class MenuSystemImpl : public MenuSystem
     AnimationId m_animIdleFocused;
     AnimationId m_animPrime;
     AnimationId m_animActivate;
-    ProgressBar m_musicVolumeBar;
-    ProgressBar m_sfxVolumeBar;
+
+    // Because settings menu is duplicated
+    ProgressBar m_musicVolumeBar1;
+    ProgressBar m_sfxVolumeBar1;
+    ProgressBar m_musicVolumeBar2;
+    ProgressBar m_sfxVolumeBar2;
 
     float m_sfxVolume = 0.75f;
     float m_musicVolume = 0.75f;
@@ -203,12 +207,14 @@ void MenuSystemImpl::update()
 {
   if (m_musicVolumeDelta != 0.f) {
     m_musicVolume = clip(m_musicVolume + m_musicVolumeDelta, 0.f, 1.f);
-    updateProgressBar(m_musicVolumeBar, m_musicVolume);
+    updateProgressBar(m_musicVolumeBar1, m_musicVolume);
+    updateProgressBar(m_musicVolumeBar2, m_musicVolume);
   }
 
   if (m_sfxVolumeDelta != 0.f) {
     m_sfxVolume = clip(m_sfxVolume + m_sfxVolumeDelta, 0.f, 1.f);
-    updateProgressBar(m_sfxVolumeBar, m_sfxVolume);
+    updateProgressBar(m_sfxVolumeBar1, m_sfxVolume);
+    updateProgressBar(m_sfxVolumeBar2, m_sfxVolume);
   }
 }
 
@@ -770,8 +776,14 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
   sysRender.addEntity(sfxIconId, sfxIconRender);
 
-  m_musicVolumeBar = constructProgressBar(id, { 0.85f, 0.55f }, m_musicVolume);
-  m_sfxVolumeBar = constructProgressBar(id, { 0.91f, 0.55f }, m_sfxVolume);
+  if (parentId == m_mainMenu.entityId) {
+    m_musicVolumeBar1 = constructProgressBar(id, { 0.85f, 0.55f }, m_musicVolume);
+    m_sfxVolumeBar1 = constructProgressBar(id, { 0.91f, 0.55f }, m_sfxVolume);
+  }
+  else {
+    m_musicVolumeBar2 = constructProgressBar(id, { 0.85f, 0.55f }, m_musicVolume);
+    m_sfxVolumeBar2 = constructProgressBar(id, { 0.91f, 0.55f }, m_sfxVolume);
+  }
 
   Sprite returnSprite{
     .pos{ 0.02f, 0.01f },
@@ -846,7 +858,7 @@ void MenuSystemImpl::constructMainMenu()
 
   Sprite startSprite{
     .pos{ 0.02f, 0.41f },
-    .size{ 0.225f, 0.05625f },
+    .size{ 0.3f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
       .y = pxToUvY(0.f, 32.f),
@@ -860,7 +872,7 @@ void MenuSystemImpl::constructMainMenu()
 
   Sprite optionsSprite{
     .pos{ 0.02f, 0.31f },
-    .size{ 0.3f, 0.05625f },
+    .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
       .y = pxToUvY(320.f, 32.f),
@@ -874,7 +886,7 @@ void MenuSystemImpl::constructMainMenu()
 
   Sprite settingsSprite{
     .pos{ 0.02f, 0.21f },
-    .size{ 0.3f, 0.05625f },
+    .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
       .y = pxToUvY(32.f, 32.f),
@@ -888,7 +900,7 @@ void MenuSystemImpl::constructMainMenu()
 
   Sprite creditsSprite{
     .pos{ 0.02f, 0.11f },
-    .size{ 0.3f, 0.05625f },
+    .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
       .y = pxToUvY(64.f, 32.f),
@@ -902,7 +914,7 @@ void MenuSystemImpl::constructMainMenu()
 
   Sprite quitSprite{
     .pos{ 0.02f, 0.01f },
-    .size{ 0.3f, 0.05625f },
+    .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
       .y = pxToUvY(192.f, 32.f),
