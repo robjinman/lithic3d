@@ -14,7 +14,7 @@ struct Scene
 class SceneBuilder
 {
   public:
-    virtual Scene buildScene() = 0;
+    virtual Scene buildScene(uint32_t level) = 0;
     virtual EntityIdSet entities() const = 0;
 
     virtual ~SceneBuilder() = default;

@@ -15,6 +15,7 @@
 #include "game_events.hpp"
 #include "systems.hpp"
 #include "events.hpp"
+#include "game_options.hpp"
 #include <random>
 #include <iomanip>
 #include <cstring>
@@ -81,7 +82,7 @@ class SceneBuilderImpl : public SceneBuilder
   public:
     SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService);
 
-    Scene buildScene() override;
+    Scene buildScene(uint32_t level) override;
     EntityIdSet entities() const override;
 
   private:
@@ -102,18 +103,18 @@ class SceneBuilderImpl : public SceneBuilder
     void constructTrees();
     void constructFakeSoil();
     void constructSoil();
-    std::set<std::pair<int, int>> constructMines();
+    std::set<std::pair<int, int>> constructMines(uint32_t numMines);
     void constructNumericTiles(const std::set<std::pair<int, int>>& mines);
     void constructGradient();
-    void constructCoins();
-    void constructGoldNuggets(const std::set<std::pair<int, int>>& mines);
-    void constructWanderers();
-    void constructSticks();
+    void constructCoins(uint32_t numCoins);
+    void constructGoldNuggets(uint32_t numNuggets, const std::set<std::pair<int, int>>& mines);
+    void constructWanderers(uint32_t numWanderers);
+    void constructSticks(uint32_t numSticks, const std::set<std::pair<int, int>>& mines);
     void constructExit();
     void constructCoinLabel();
-    void constructCoinCounter();
+    void constructCoinCounter(uint32_t goldRequired);
     void constructTimeLabel();
-    void constructTimeCounter();
+    void constructTimeCounter(uint32_t timeAvailable);
     EntityId constructThrowingModeIndicator();
 };
 
@@ -129,11 +130,13 @@ EntityIdSet SceneBuilderImpl::entities() const
   return m_entities;
 }
 
-Scene SceneBuilderImpl::buildScene()
+Scene SceneBuilderImpl::buildScene(uint32_t level)
 {
   m_entities.clear();
 
   Scene scene;
+
+  GameOptions options = getOptionsForLevel(level);
 
   m_worldRoot = constructWorldRoot();
   m_playerId = constructPlayer();
@@ -142,18 +145,18 @@ Scene SceneBuilderImpl::buildScene()
   constructTrees();
   constructFakeSoil();
   constructSoil();
-  auto mines = constructMines();
+  auto mines = constructMines(options.mines);
   constructNumericTiles(mines);
   constructGradient();
-  constructCoins();
-  constructGoldNuggets(mines);
-  constructWanderers();
-  constructSticks();
+  constructCoins(options.coins);
+  constructGoldNuggets(options.nuggets, mines);
+  constructWanderers(options.wanderers);
+  constructSticks(options.sticks, mines);
   constructExit();
   constructCoinLabel();
-  constructCoinCounter();
+  constructCoinCounter(options.goldRequired);
   constructTimeLabel();
-  constructTimeCounter();
+  constructTimeCounter(options.timeAvailable);
   scene.throwingModeIndicator = constructThrowingModeIndicator();
 
   scene.player = m_playerId;
@@ -628,7 +631,7 @@ void SceneBuilderImpl::constructSoil()
   }
 }
 
-std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
+std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines)
 {
   static auto strExplode = hashString("explode");
 
@@ -637,8 +640,6 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines()
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-
-  size_t numMines = 40; // TODO
 
   auto makeFrame = [](float_t tx, float_t ty) {
     return AnimationFrame{
@@ -865,15 +866,13 @@ void SceneBuilderImpl::constructGradient()
   sysRender.addEntity(id, render);
 }
 
-void SceneBuilderImpl::constructCoins()
+void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-
-  size_t numCoins = 10; // TODO
 
   auto makeFrame = [](float_t tx, float_t ty, float_t a) {
     return AnimationFrame{
@@ -984,7 +983,8 @@ void SceneBuilderImpl::constructCoins()
   }
 }
 
-void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>& mines)
+void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
+  const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -1042,7 +1042,6 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
   auto animCollectId = sysAnimation.addAnimation(std::move(animCollect));
 
   auto coords = randomGridCoords();
-  size_t numNuggets = 3; // TODO
 
   size_t nuggetsConstructed = 0;
   for (size_t i = 0; i < coords.size(); ++i) {
@@ -1095,23 +1094,19 @@ void SceneBuilderImpl::constructGoldNuggets(const std::set<std::pair<int, int>>&
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 5);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    ++nuggetsConstructed;
-
-    if (nuggetsConstructed >= numNuggets) {
+    if (++nuggetsConstructed >= numNuggets) {
       break;
     }
   }
 }
 
-void SceneBuilderImpl::constructWanderers()
+void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-
-  size_t numWanderers = 3; // TODO
 
   auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty, float_t a) {
     return AnimationFrame{
@@ -1195,15 +1190,20 @@ void SceneBuilderImpl::constructWanderers()
 
   auto coords = randomGridCoords();
 
-  for (size_t i = 0; i < numWanderers; ++i) {
+  size_t wanderersConstructed = 0;
+  for (size_t i = 0; i < coords.size(); ++i) {
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    if (x < 6 && y < 6) {
+      continue;
+    }
+
     auto id = m_ecs.componentStore().allocate<
       CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
-
-    int x = coords[i][0];
-    int y = coords[i][1];
 
     sysGrid.addEntity(id, x, y);
 
@@ -1245,18 +1245,21 @@ void SceneBuilderImpl::constructWanderers()
 
     auto behaviour = createBWanderer(m_ecs, m_eventSystem, m_timeService, id, m_playerId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
+
+    if (++wanderersConstructed >= numWanderers) {
+      break;
+    }
   }
 }
 
-void SceneBuilderImpl::constructSticks()
+void SceneBuilderImpl::constructSticks(uint32_t numSticks,
+  const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-
-  size_t numSticks = 4; // TODO
 
   auto animThrow = std::unique_ptr<Animation>(new Animation{
     .name = hashString("throw"),
@@ -1290,15 +1293,20 @@ void SceneBuilderImpl::constructSticks()
 
   auto coords = randomGridCoords();
 
-  for (size_t i = 0; i < numSticks; ++i) {
+  size_t sticksConstructed = 0;
+  for (size_t i = 0; i < coords.size(); ++i) {
+    int x = coords[i][0];
+    int y = coords[i][1];
+
+    if (mines.contains({ x, y })) {
+      continue;
+    }
+
     auto id = m_ecs.componentStore().allocate<
       CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
 
     m_entities.insert(id);
-
-    int x = coords[i][0];
-    int y = coords[i][1];
 
     sysGrid.addEntity(id, x, y);
 
@@ -1332,6 +1340,10 @@ void SceneBuilderImpl::constructSticks()
 
     auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId, animThrowId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
+
+    if (++sticksConstructed >= numSticks) {
+      break;
+    }
   }
 }
 
@@ -1428,7 +1440,7 @@ void SceneBuilderImpl::constructTimeLabel()
   }, static_cast<uint32_t>(ZIndex::Hud));
 }
 
-void SceneBuilderImpl::constructTimeCounter()
+void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -1451,14 +1463,15 @@ void SceneBuilderImpl::constructTimeCounter()
 
   sysSpatial.addEntity(id, spatial);
 
-  TextData render{
+  DynamicTextData render{
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
       .w = pxToUvW(192.f),
       .h = pxToUvH(192.f)
     },
-    .text = "100",   // TODO
+    .text = std::to_string(timeAvailable),
+    .maxLength = 3,
     .zIndex = static_cast<uint32_t>(ZIndex::Hud),
     .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
   };
@@ -1500,7 +1513,7 @@ void SceneBuilderImpl::constructCoinLabel()
   }, static_cast<uint32_t>(ZIndex::Hud));
 }
 
-void SceneBuilderImpl::constructCoinCounter()
+void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -1523,23 +1536,22 @@ void SceneBuilderImpl::constructCoinCounter()
 
   sysSpatial.addEntity(id, spatial);
 
-  int coinsRequired = 12; // TODO
-
-  TextData render{
+  DynamicTextData render{
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
       .w = pxToUvW(192.f),
       .h = pxToUvH(192.f)
     },
-    .text = "12",    // TODO
+    .text = std::to_string(goldRequired),
+    .maxLength = 3,
     .zIndex = static_cast<uint32_t>(ZIndex::Hud),
     .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
   };
 
   sysRender.addEntity(id, render);
 
-  auto behaviour = createBCoinCounter(coinsRequired, m_ecs, m_eventSystem, id);
+  auto behaviour = createBCoinCounter(goldRequired, m_ecs, m_eventSystem, id);
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 }
 

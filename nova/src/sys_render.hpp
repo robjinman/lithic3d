@@ -5,6 +5,8 @@
 #include "math.hpp"
 #include "component_types.hpp"
 
+const size_t DYNAMIC_TEXT_MAX_LEN = 31;
+
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags
@@ -32,11 +34,25 @@ struct QuadData
 //   CSpatialFlags
 //   CRender
 //   CSprite
-//   CDynamicText (if dynamic)
 struct TextData
 {
   Rectf textureRect;
   std::string text;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+};
+
+// Requires components:
+//   CGlobalTransform
+//   CSpatialFlags
+//   CRender
+//   CSprite
+//   CDynamicText
+struct DynamicTextData
+{
+  Rectf textureRect;
+  std::string text;
+  size_t maxLength = DYNAMIC_TEXT_MAX_LEN;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
@@ -60,8 +76,6 @@ struct CSprite
   static constexpr ComponentType TypeId = ComponentTypeId::CSpriteTypeId;
 };
 
-const size_t DYNAMIC_TEXT_MAX_LEN = 31;
-
 struct CDynamicText
 {
   char text[DYNAMIC_TEXT_MAX_LEN + 1];  // Null-terminated
@@ -82,6 +96,7 @@ class SysRender : public System
 
     virtual void addEntity(EntityId entityId, const SpriteData& data) = 0;
     virtual void addEntity(EntityId entityId, const TextData& data) = 0;
+    virtual void addEntity(EntityId entityId, const DynamicTextData& data) = 0;
     virtual void addEntity(EntityId entityId, const QuadData& data) = 0;
 
     virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;

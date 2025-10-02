@@ -10,9 +10,13 @@
 #include "systems.hpp"
 #include "b_generic.hpp"
 #include "input.hpp"
+#include "game_options.hpp"
+#include <cstring>
 
 namespace
 {
+
+const uint32_t MAX_DIFFICULTY_LEVEL = 4;
 
 enum class ZIndex : uint32_t
 {
@@ -41,7 +45,18 @@ struct Menu
   EntityId firstItemId = NULL_ENTITY;
 };
 
-struct ProgressBar
+struct GameOptionCounters
+{
+  EntityId minesId = NULL_ENTITY;
+  EntityId totalGoldId = NULL_ENTITY;
+  EntityId sticksId = NULL_ENTITY;
+  EntityId wanderersId = NULL_ENTITY;
+  EntityId goldRequiredId = NULL_ENTITY;
+  EntityId timeAvailableId = NULL_ENTITY;
+  EntityId bestTimeId = NULL_ENTITY;
+};
+
+struct Slider
 {
   EntityId entityId = NULL_ENTITY;
   float_t height;
@@ -82,7 +97,7 @@ class MenuSystemImpl : public MenuSystem
 
     float sfxVolume() const override;
     float musicVolume() const override;
-    int difficultyLevel() const override;
+    uint32_t difficultyLevel() const override;
 
     void showPauseMenu() override;
     void showMainMenu() override;
@@ -108,14 +123,18 @@ class MenuSystemImpl : public MenuSystem
     AnimationId m_animActivate;
 
     // Because settings menu is duplicated
-    ProgressBar m_musicVolumeBar1;
-    ProgressBar m_sfxVolumeBar1;
-    ProgressBar m_musicVolumeBar2;
-    ProgressBar m_sfxVolumeBar2;
+    Slider m_musicVolumeSlider1;
+    Slider m_sfxVolumeSlider1;
+    Slider m_musicVolumeSlider2;
+    Slider m_sfxVolumeSlider2;
+
+    Slider m_gameDifficultySlider;
+
+    GameOptionCounters m_gameOptionCounters;
 
     float m_sfxVolume = 0.75f;
     float m_musicVolume = 0.75f;
-    int m_difficultyLevel = 0;
+    uint32_t m_difficultyLevel = 0;
     float m_musicVolumeDelta = 0.f;
     float m_sfxVolumeDelta = 0.f;
 
@@ -130,7 +149,7 @@ class MenuSystemImpl : public MenuSystem
     void createAnimations();
     EntityId newMenuItemId();
     void setDifficulty(int level);
-    ProgressBar constructProgressBar(EntityId parentId, const Vec2f& pos, float_t initialValue);
+    Slider constructSlider(EntityId parentId, const Vec2f& pos, float_t initialValue);
     EntityId constructQuad(EntityId parentId, const Vec2f& pos, const Vec2f& size,
       const Vec4f& colour);
     void constructMenuItemBase(EntityId id, EntityId parentId, const Sprite& sprite);
@@ -138,9 +157,11 @@ class MenuSystemImpl : public MenuSystem
       const Sprite& sprite, const ItemSlots& slots);
     void constructSelector(EntityId id, EntityId parentId, SysUi::GroupId groupId,
       const Sprite& sprite, const ItemSlots& slots, const SelectorFunctions& functions);
+    EntityId constructGameOptionCounter(EntityId parentId, const Vec2f& pos,
+      const std::string& text, uint32_t value);
     EntityId constructTextItem(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
       const std::string& text, const Vec4f& colour);
-    void updateProgressBar(const ProgressBar& bar, float_t value);
+    void updateSlider(const Slider& slider, float_t value);
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -187,34 +208,55 @@ float MenuSystemImpl::musicVolume() const
   return m_musicVolume;
 }
 
-int MenuSystemImpl::difficultyLevel() const
+uint32_t MenuSystemImpl::difficultyLevel() const
 {
   return m_difficultyLevel;
 }
 
 void MenuSystemImpl::setDifficulty(int level)
 {
-  // TODO
+  m_difficultyLevel = level;
+
+  float_t value = static_cast<float_t>(level) / MAX_DIFFICULTY_LEVEL;
+  updateSlider(m_gameDifficultySlider, value);
+
+  auto updateCounter = [this](EntityId entityId, const std::string& value) {
+    char* buffer = m_ecs.componentStore().component<CDynamicText>(entityId).text;
+    memset(buffer, '\0', DYNAMIC_TEXT_MAX_LEN);
+    memcpy(buffer, value.data(), value.size());
+  };
+
+  GameOptions options = getOptionsForLevel(level);
+
+  uint32_t totalGold = options.coins + 5 * options.nuggets;
+
+  updateCounter(m_gameOptionCounters.minesId, std::to_string(options.mines));
+  updateCounter(m_gameOptionCounters.totalGoldId, std::to_string(totalGold));
+  updateCounter(m_gameOptionCounters.sticksId, std::to_string(options.sticks));
+  updateCounter(m_gameOptionCounters.wanderersId, std::to_string(options.wanderers));
+  updateCounter(m_gameOptionCounters.goldRequiredId, std::to_string(options.goldRequired));
+  updateCounter(m_gameOptionCounters.timeAvailableId, std::to_string(options.timeAvailable));
+  updateCounter(m_gameOptionCounters.bestTimeId, "---"); // TODO
 }
 
-void MenuSystemImpl::updateProgressBar(const ProgressBar& bar, float_t value)
+void MenuSystemImpl::updateSlider(const Slider& slider, float_t value)
 {
-  auto& t = m_ecs.componentStore().component<CLocalTransform>(bar.entityId);
-  t.transform.set(1, 1, value * bar.height);
+  auto& t = m_ecs.componentStore().component<CLocalTransform>(slider.entityId);
+  t.transform.set(1, 1, value * slider.height);
 }
 
 void MenuSystemImpl::update()
 {
   if (m_musicVolumeDelta != 0.f) {
     m_musicVolume = clip(m_musicVolume + m_musicVolumeDelta, 0.f, 1.f);
-    updateProgressBar(m_musicVolumeBar1, m_musicVolume);
-    updateProgressBar(m_musicVolumeBar2, m_musicVolume);
+    updateSlider(m_musicVolumeSlider1, m_musicVolume);
+    updateSlider(m_musicVolumeSlider2, m_musicVolume);
   }
 
   if (m_sfxVolumeDelta != 0.f) {
     m_sfxVolume = clip(m_sfxVolume + m_sfxVolumeDelta, 0.f, 1.f);
-    updateProgressBar(m_sfxVolumeBar1, m_sfxVolume);
-    updateProgressBar(m_sfxVolumeBar2, m_sfxVolume);
+    updateSlider(m_sfxVolumeSlider1, m_sfxVolume);
+    updateSlider(m_sfxVolumeSlider2, m_sfxVolume);
   }
 }
 
@@ -628,18 +670,18 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
   return id;
 }
 
-ProgressBar MenuSystemImpl::constructProgressBar(EntityId parentId, const Vec2f& pos,
+Slider MenuSystemImpl::constructSlider(EntityId parentId, const Vec2f& pos,
   float_t initialValue)
 {
   const float_t gap = 0.005f;
   const Vec2f size{ 0.03f, 0.3f };
-  const Vec2f barSize = size - Vec2f{ gap, gap } * 2.f;
+  const Vec2f sliderSize = size - Vec2f{ gap, gap } * 2.f;
   const Vec4f colour{ 0.f, 0.f, 0.f, 0.7f };
   const float_t lineThickness = 0.002f;
 
-  // Bar
+  // Slider
   auto id = constructQuad(parentId, pos + Vec2f{ gap, gap },
-    { barSize[0], barSize[1] * initialValue }, colour);
+    { sliderSize[0], sliderSize[1] * initialValue }, colour);
 
   // Bottom line
   constructQuad(parentId, pos, { size[0], lineThickness }, colour);
@@ -655,9 +697,9 @@ ProgressBar MenuSystemImpl::constructProgressBar(EntityId parentId, const Vec2f&
   constructQuad(parentId, { pos[0] + size[0] - lineThickness, pos[1] }, { lineThickness, size[1] },
     colour);
 
-  return ProgressBar{
+  return Slider{
     .entityId = id,
-    .height = barSize[1]
+    .height = sliderSize[1]
   };
 }
 
@@ -777,12 +819,12 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   sysRender.addEntity(sfxIconId, sfxIconRender);
 
   if (parentId == m_mainMenu.entityId) {
-    m_musicVolumeBar1 = constructProgressBar(id, { 0.85f, 0.55f }, m_musicVolume);
-    m_sfxVolumeBar1 = constructProgressBar(id, { 0.91f, 0.55f }, m_sfxVolume);
+    m_musicVolumeSlider1 = constructSlider(id, { 0.85f, 0.55f }, m_musicVolume);
+    m_sfxVolumeSlider1 = constructSlider(id, { 0.91f, 0.55f }, m_sfxVolume);
   }
   else {
-    m_musicVolumeBar2 = constructProgressBar(id, { 0.85f, 0.55f }, m_musicVolume);
-    m_sfxVolumeBar2 = constructProgressBar(id, { 0.91f, 0.55f }, m_sfxVolume);
+    m_musicVolumeSlider2 = constructSlider(id, { 0.85f, 0.55f }, m_musicVolume);
+    m_sfxVolumeSlider2 = constructSlider(id, { 0.91f, 0.55f }, m_sfxVolume);
   }
 
   Sprite returnSprite{
@@ -957,8 +999,8 @@ void MenuSystemImpl::constructMainMenu()
   sysBehaviour.addBehaviour(m_mainMenu.entityId, std::move(behaviour));
 }
 
-EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
-  const std::string& text, const Vec4f& colour)
+EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
+  const Vec2f& charSize, const std::string& text, const Vec4f& colour)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -1050,6 +1092,49 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   return { id, groupId, returnId };
 }
 
+EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec2f& pos,
+  const std::string& text, uint32_t value)
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
+  Vec2f charSize{ 0.022f, 0.044f };
+  Vec4f colour{ 0.f, 0.f, 0.f, 1.f };
+
+  constructTextItem(parentId, pos, charSize, text, colour);
+
+  auto counterId = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
+  >();
+
+  float_t margin = 0.35f;
+
+  SpatialData spatial{
+    .transform = spriteTransform(Vec2f{ pos[0] + margin, pos[1] }, charSize),
+    .parent = parentId,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(counterId, spatial);
+
+  DynamicTextData render{
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .text = value == 0 ? "---" : std::to_string(value),
+    .maxLength = 6,
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
+    .colour = Vec4f{ 0.f, 0.f, 0.f, 1.f }
+  };
+
+  sysRender.addEntity(counterId, render);
+
+  return counterId;
+}
+
 Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
@@ -1085,11 +1170,37 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
   };
 
   SelectorFunctions difficultyFunctions;
-  difficultyFunctions.leftBtnUp = [this]() { setDifficulty(m_difficultyLevel - 1); };
-  difficultyFunctions.rightBtnUp = [this]() { setDifficulty(m_difficultyLevel + 1); };
+  difficultyFunctions.leftBtnUp = [this]() {
+    if (m_difficultyLevel > 0) {
+      setDifficulty(m_difficultyLevel - 1);
+    }
+  };
+  difficultyFunctions.rightBtnUp = [this]() {
+    if (m_difficultyLevel + 1 <= MAX_DIFFICULTY_LEVEL) {
+      setDifficulty(m_difficultyLevel + 1);
+    }
+  };
 
   constructSelector(difficultyId, id, groupId, difficultySprite, { returnId, returnId },
     difficultyFunctions);
+
+  float_t value = static_cast<float_t>(m_difficultyLevel) / MAX_DIFFICULTY_LEVEL;
+  m_gameDifficultySlider = constructSlider(id, { 0.65f, 0.55f }, value);
+
+  GameOptions options = getOptionsForLevel(0);
+  uint32_t totalGold = options.coins + 5 * options.nuggets;
+  m_gameOptionCounters = {
+    .minesId = constructGameOptionCounter(id, { 0.75f, 0.85f }, "Land mines:", options.mines),
+    .totalGoldId = constructGameOptionCounter(id, { 0.75f, 0.80f }, "Total gold:", totalGold),
+    .sticksId = constructGameOptionCounter(id, { 0.75f, 0.75f }, "Sticks:", options.sticks),
+    .wanderersId = constructGameOptionCounter(id, { 0.75f, 0.70f }, "Wanderers:",
+      options.wanderers),
+    .goldRequiredId = constructGameOptionCounter(id, { 0.75f, 0.65f }, "Gold required:",
+      options.goldRequired),
+    .timeAvailableId = constructGameOptionCounter(id, { 0.75f, 0.60f }, "Time available:",
+      options.timeAvailable),
+    .bestTimeId = constructGameOptionCounter(id, { 0.75f, 0.50f }, "Best time:", 0)
+  };
 
   Sprite returnSprite{
     .pos{ 0.02f, 0.01f },

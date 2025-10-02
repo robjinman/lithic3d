@@ -75,6 +75,10 @@ vec2 uvForVertex(int vertexId)
   uint n = vertexId / 4;
   uint codePoint = nthChar(n);
 
+  if (codePoint == 0) {
+    codePoint = 32; // Space
+  }
+
   // 0: Bottom-left
   // 1: Bottom-right
   // 2: Top-right

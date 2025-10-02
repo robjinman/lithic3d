@@ -18,6 +18,7 @@
 #include "ecs.hpp"
 #include "systems.hpp"
 #include "events.hpp"
+#include "game_options.hpp"
 #undef max
 #undef min
 
@@ -195,7 +196,7 @@ void GameImpl::destroyCurrentGame()
 
 void GameImpl::startGame()
 {
-  m_scene = m_sceneBuilder->buildScene();
+  m_scene = m_sceneBuilder->buildScene(m_menuSystem->difficultyLevel());
   m_gameState = GameState::Playing;
   m_timeSinceStart = 0;
 }
@@ -416,7 +417,9 @@ void GameImpl::checkTimeout()
   if (m_gameState == GameState::Playing) {
     ++m_timeSinceStart;
     if (m_timeSinceStart % TICKS_PER_SECOND == 0) {
-      const uint32_t gameDuration = 100; // TODO
+      GameOptions options = getOptionsForLevel(m_menuSystem->difficultyLevel());
+
+      const uint32_t gameDuration = options.timeAvailable;
       uint32_t secondsElapsed = static_cast<float>(m_timeSinceStart) / TICKS_PER_SECOND;
       uint32_t timeRemaining = gameDuration - secondsElapsed;
 

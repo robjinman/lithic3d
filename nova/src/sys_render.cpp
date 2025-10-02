@@ -87,7 +87,7 @@ MeshPtr quad()
   return mesh;
 }
 
-MeshPtr textItemMesh(const std::string& text, const Rectf& uvRect, bool dynamic)
+MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect, bool dynamic)
 {
   uint32_t glyphsPerRow = 12; // TODO: Don't hard-code
   char firstGlyph = ' ';
@@ -103,7 +103,7 @@ MeshPtr textItemMesh(const std::string& text, const Rectf& uvRect, bool dynamic)
   std::vector<Vec2f> uVs;
   std::vector<uint16_t> indices;
 
-  for (int i = 0; i < text.size(); ++i) {
+  for (int i = 0; i < length; ++i) {
     float_t a = i;
     float_t b = i + 1;
 
@@ -185,6 +185,7 @@ class SysRenderImpl : public SysRender
 
     void addEntity(EntityId entityId, const SpriteData& data) override;
     void addEntity(EntityId entityId, const TextData& data) override;
+    void addEntity(EntityId entityId, const DynamicTextData& data) override;
     void addEntity(EntityId entityId, const QuadData& data) override;
 
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
@@ -321,19 +322,50 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
     .isText = true
   };
 
-  bool isDynamic = m_componentStore.hasComponentForEntity<CDynamicText>(entityId);
+  auto mesh = textItemMesh(data.text, data.text.size(), data.textureRect, false);
 
-  if (isDynamic) {
-    auto& c = m_componentStore.component<CDynamicText>(entityId);
-    size_t len = data.text.length();
-    ASSERT(len <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text length must not exceed "
-      << DYNAMIC_TEXT_MAX_LEN << " bytes");
-
-    memcpy(c.text, data.text.data(), len);
-    c.text[len] = '\0';
+  MeshHandle meshHandle;
+  if (m_renderer.isStarted()) {
+    // TODO: This blocks
+    meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
+  }
+  else {
+    meshHandle = m_renderer.addMesh(std::move(mesh));
   }
 
-  auto mesh = textItemMesh(data.text, data.textureRect, isDynamic);
+  m_textItems.insert({ entityId, meshHandle });
+}
+
+void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
+{
+  ASSERT(!data.text.empty(), "Text must not be empty");
+
+  assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
+  assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
+  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CSprite>(m_componentStore, entityId);
+  assertHasComponent<CDynamicText>(m_componentStore, entityId);
+
+  m_componentStore.component<CRender>(entityId) = CRender{
+    .colour = data.colour,
+    .zIndex = data.zIndex,
+    .visible = true
+  };
+
+  m_componentStore.component<CSprite>(entityId) = CSprite{
+    .textureRect = data.textureRect,
+    .isText = true
+  };
+
+  auto& c = m_componentStore.component<CDynamicText>(entityId);
+  size_t len = data.text.length();
+  ASSERT(len <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text length must not exceed "
+    << DYNAMIC_TEXT_MAX_LEN << " bytes");
+
+  memcpy(c.text, data.text.data(), len);
+  c.text[len] = '\0';
+
+  auto mesh = textItemMesh(data.text, data.maxLength, data.textureRect, true);
 
   MeshHandle meshHandle;
   if (m_renderer.isStarted()) {

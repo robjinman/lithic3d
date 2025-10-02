@@ -42,7 +42,7 @@ class MenuSystem
 
     virtual float sfxVolume() const = 0;
     virtual float musicVolume() const = 0;
-    virtual int difficultyLevel() const = 0;
+    virtual uint32_t difficultyLevel() const = 0;
 
     virtual ~MenuSystem() = default;
 };
