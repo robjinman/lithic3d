@@ -30,7 +30,8 @@ enum class GameState
   Playing,
   Paused,
   MainMenu,
-  Dead
+  Dead,
+  DeadPaused
 };
 
 class GameImpl : public Game
@@ -139,12 +140,17 @@ void GameImpl::handleMenuEvent(const Event& event)
       startGame();
       sysSpatial.setEnabled(m_menuSystem->root(), false);
       sysSpatial.setEnabled(m_scene.worldRoot, true);
-      m_gameState = GameState::Playing;
     }
     else if (e.entityId == m_menuSystem->resumeBtn()) {
       sysSpatial.setEnabled(m_menuSystem->root(), false);
       sysSpatial.setEnabled(m_scene.worldRoot, true);
-      m_gameState = GameState::Playing;
+      if (m_gameState == GameState::DeadPaused) {
+        m_gameState = GameState::Dead;
+      }
+      else {
+        assert(m_gameState == GameState::Paused);
+        m_gameState = GameState::Playing;
+      }
     }
     else if (e.entityId == m_menuSystem->quitToMainMenuBtn()) {
       destroyCurrentGame();
@@ -243,14 +249,17 @@ void GameImpl::onKeyDown(KeyboardKey key)
     case KeyboardKey::Escape: {
       auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
 
-      switch (m_gameState) {
-        case GameState::Playing: {
-          sysSpatial.setEnabled(m_menuSystem->root(), true);
-          sysSpatial.setEnabled(m_scene.worldRoot, false);
-          m_menuSystem->showPauseMenu();
-          m_gameState = GameState::Paused;
-          return;
+      if (m_gameState == GameState::Dead || m_gameState == GameState::Playing) {
+        sysSpatial.setEnabled(m_menuSystem->root(), true);
+        sysSpatial.setEnabled(m_scene.worldRoot, false);
+        m_menuSystem->showPauseMenu();
+        if (m_gameState == GameState::Dead) {
+          m_gameState = GameState::DeadPaused;
         }
+        else {
+          m_gameState = GameState::Paused;
+        }
+        return;
       }
       break;
     }
