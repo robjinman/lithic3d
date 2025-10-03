@@ -30,6 +30,7 @@ class BStick : public BehaviourData
     int m_destY = -1;
 
     void throwStick();
+    void onLand();
 };
 
 BStick::BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
@@ -52,10 +53,28 @@ const std::set<HashedString>& BStick::subscriptions() const
 {
   static std::set<HashedString> subs{
     g_strEntityLandOn,
-    g_strAnimationFinish,
     g_strThrow
   };
   return subs;
+}
+
+void BStick::onLand()
+{
+  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
+  assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
+
+  auto entities = sysGrid.getEntities(m_destX, m_destY);
+  entities.erase(m_entityId);
+
+  auto landEvent = std::make_unique<EEntityLandOn>(m_entityId, Vec2i{ m_destX, m_destY },
+    entities);
+  m_eventSystem.queueEvent(std::move(landEvent));
+
+  sysAnimation.playAnimation(m_entityId, strFade, [this]() {
+    m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+  });
 }
 
 void BStick::throwStick()
@@ -86,14 +105,11 @@ void BStick::throwStick()
   });
 
   sysAnimation.replaceAnimation(m_throwAnimation, std::move(anim));
-  sysAnimation.playAnimation(m_entityId, strThrow);
+  sysAnimation.playAnimation(m_entityId, strThrow, [this]() { onLand(); });
 }
 
 void BStick::processEvent(const Event& event)
 {
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-
   if (event.name == g_strEntityLandOn) {
     auto& e = dynamic_cast<const EEntityLandOn&>(event);
 
@@ -109,24 +125,6 @@ void BStick::processEvent(const Event& event)
       m_destY = e.y;
 
       throwStick();
-    }
-  }
-  else if (event.name == g_strAnimationFinish) {
-    auto& e = dynamic_cast<const EAnimationFinish&>(event);
-
-    if (e.animationName == strThrow) {
-      assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
-
-      auto entities = sysGrid.getEntities(m_destX, m_destY);
-      entities.erase(m_entityId);
-
-      auto landEvent = std::make_unique<EEntityLandOn>(m_entityId, Vec2i{ m_destX, m_destY },
-        entities);
-      m_eventSystem.queueEvent(std::move(landEvent));
-
-      sysAnimation.playAnimation(m_entityId, strFade, [this]() {
-        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
-      });
     }
   }
 }

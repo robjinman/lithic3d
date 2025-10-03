@@ -191,6 +191,7 @@ class SysRenderImpl : public SysRender
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
     void setVisible(EntityId entityId, bool visible) override;
+    void updateDynamicText(EntityId entityId, const std::string& text) override;
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -427,6 +428,15 @@ void SysRenderImpl::setVisible(EntityId entityId, bool visible)
 {
   auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.visible = visible;
+}
+
+void SysRenderImpl::updateDynamicText(EntityId entityId, const std::string& text)
+{
+  ASSERT(text.size() <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text exceeds maximum");
+
+  char* buffer = m_componentStore.component<CDynamicText>(entityId).text;
+  memset(buffer, '\0', DYNAMIC_TEXT_MAX_LEN);
+  memcpy(buffer, text.data(), text.size());
 }
 
 void SysRenderImpl::removeEntity(EntityId entityId)

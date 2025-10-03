@@ -1,7 +1,6 @@
 #include "sys_animation.hpp"
 #include "sys_render.hpp"
 #include "sys_spatial.hpp"
-#include "game_events.hpp"
 #include <chrono>
 #include <map>
 #include <cassert>
@@ -20,7 +19,6 @@ struct AnimationState
 {
   AnimationId id = 0;
   HashedString name = 0;
-  bool isPlaying = false; // TODO: Remove?
   Tick tick = 0;
   Mat4x4f initialT;
   Vec4f startColour;
@@ -39,7 +37,7 @@ using CAnimationPtr = std::unique_ptr<CAnimation>;
 class SysAnimationImpl : public SysAnimation
 {
   public:
-    SysAnimationImpl(ComponentStore& componentStore, EventSystem& eventSystem, Logger& logger);
+    SysAnimationImpl(ComponentStore& componentStore, Logger& logger);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -66,7 +64,6 @@ class SysAnimationImpl : public SysAnimation
 
   private:
     Logger& m_logger;
-    EventSystem& m_eventSystem;
     ComponentStore& m_componentStore;
     std::map<EntityId, CAnimationPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimations;
@@ -88,10 +85,8 @@ class SysAnimationImpl : public SysAnimation
 
 AnimationId SysAnimationImpl::m_nextId = 0;
 
-SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& eventSystem,
-  Logger& logger)
+SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logger)
   : m_logger(logger)
-  , m_eventSystem(eventSystem)
   , m_componentStore(componentStore)
 {
 }
@@ -100,8 +95,6 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& 
 bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animState,
   std::vector<std::tuple<EntityId, QueuedAnimation>>& toRepeat)
 {
-  assert(animState.isPlaying);
-
   auto& anim = *m_animations.at(animState.id);
   auto& renderComp = m_componentStore.component<CRender>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
@@ -138,15 +131,6 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
       scaleMatrix4x4(scale);
 
     renderComp.colour = frame.colour;
-
-    animState.isPlaying = false;
-
-    auto e = std::make_unique<EAnimationFinish>(entityId, anim.name, EntityIdSet{ entityId });
-    m_eventSystem.queueEvent(std::move(e));
-
-    if (animState.onFinish.has_value()) {
-      animState.onFinish.value()();
-    }
 
     if (animState.repeats && !animState.next.has_value()) {
       localTComp.transform = animState.initialT;
@@ -217,8 +201,6 @@ void SysAnimationImpl::update(Tick, const InputState&)
     auto entityId = i->first;
     auto& animState = i->second;
 
-    assert(animState.isPlaying);
-
     auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
     if (!(flags.enabled && flags.parentEnabled)) {
       ++i;
@@ -229,7 +211,13 @@ void SysAnimationImpl::update(Tick, const InputState&)
       ++i;
     }
     else {
+      auto onFinish = animState.onFinish;
       i = m_activeAnimations.erase(i);
+
+      // TODO: Consider executing this on next frame
+      if (onFinish.has_value()) {
+        onFinish.value()();
+      }
     }
   }
 
@@ -280,8 +268,13 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
   bool hasQueuedAnimation = i->second.next.has_value();
 
   std::vector<std::tuple<EntityId, QueuedAnimation>> toRepeat;
+  auto onFinish = i->second.onFinish;
   assert(updateAnimation(entityId, i->second, toRepeat));
   m_activeAnimations.erase(entityId);
+
+  if (onFinish.has_value()) {
+    onFinish.value()();
+  }
 
   // Only play queued animations, not repeating animations
   if (hasQueuedAnimation) {
@@ -355,7 +348,6 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
   m_activeAnimations.insert({ entityId, AnimationState{
     .id = animId,
     .name = name,
-    .isPlaying = true,
     .tick = 0,
     .initialT = localTComp.transform,
     .startColour = renderComp.colour,
@@ -414,13 +406,12 @@ bool SysAnimationImpl::hasAnimation(EntityId entityId, HashedString name) const
 bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
 {
   auto i = m_activeAnimations.find(entityId);
-  return i != m_activeAnimations.end() && i->second.isPlaying;
+  return i != m_activeAnimations.end();
 }
 
 } // namespace
 
-SysAnimationPtr createSysAnimation(ComponentStore& componentStore, EventSystem& eventSystem,
-  Logger& logger)
+SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger)
 {
-  return std::make_unique<SysAnimationImpl>(componentStore, eventSystem, logger);
+  return std::make_unique<SysAnimationImpl>(componentStore, logger);
 }

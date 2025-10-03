@@ -21,7 +21,6 @@ class BPlayer : public BehaviourData
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     EntityId m_entityId;
-    bool m_alive = true;
 };
 
 BPlayer::BPlayer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId)
@@ -62,36 +61,26 @@ void BPlayer::processEvent(const Event& event)
       m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
       m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
 
-      m_alive = false;
+      sysAnimation.queueAnimation(m_entityId, strDie, [this]() {
+        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+      });
     }
   }
   else if (event.name == g_strEntityLandOn || event.name == g_strAttack) {
     if (!sysAnimation.hasAnimationPlaying(m_entityId)) {
-      sysAnimation.playAnimation(m_entityId, strDie);
-    }
-
-    m_alive = false;
-    m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
-  }
-  else if (event.name == g_strAnimationFinish) {
-    auto& e = dynamic_cast<const EAnimationFinish&>(event);
-
-    if (e.entityId == m_entityId && !m_alive) {
-      if (e.animationName == strDie) {
+      sysAnimation.playAnimation(m_entityId, strDie, [this]() {
         m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
-      }
-      else {
-        if (!sysAnimation.hasAnimationPlaying(m_entityId)) {
-          sysAnimation.playAnimation(m_entityId, strDie);
-        }
-      }
+      });
     }
+
+    m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
   }
   else if (event.name == g_strTimeout) {
     sysAnimation.stopAnimation(m_entityId);
-    sysAnimation.playAnimation(m_entityId, strDie);
+    sysAnimation.playAnimation(m_entityId, strDie, [this]() {
+      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+    });
     m_eventSystem.queueEvent(std::make_unique<EPlayerDeath>());
-    m_alive = false;
   }
 }
 

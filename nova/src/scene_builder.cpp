@@ -117,6 +117,7 @@ class SceneBuilderImpl : public SceneBuilder
     void constructTimeLabel();
     void constructTimeCounter(uint32_t timeAvailable);
     EntityId constructThrowingModeIndicator();
+    EntityId constructRestartGamePrompt();
 };
 
 SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService)
@@ -159,6 +160,7 @@ Scene SceneBuilderImpl::buildScene(uint32_t level)
   constructTimeLabel();
   constructTimeCounter(options.timeAvailable);
   scene.throwingModeIndicator = constructThrowingModeIndicator();
+  scene.restartGamePrompt = constructRestartGamePrompt();
 
   scene.player = m_playerId;
   scene.worldRoot = m_worldRoot;
@@ -311,15 +313,15 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("enter_portal"),
     .duration = 20,
     .frames = {
-      makeFrame(calcOffset(0.9f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.9f),
-      makeFrame(calcOffset(0.8f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.8f),
-      makeFrame(calcOffset(0.7f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.7f),
-      makeFrame(calcOffset(0.6f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.6f),
-      makeFrame(calcOffset(0.5f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.5f),
-      makeFrame(calcOffset(0.4f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.4f),
-      makeFrame(calcOffset(0.3f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.3f),
-      makeFrame(calcOffset(0.2f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.2f),
-      makeFrame(calcOffset(0.1f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.1f)
+      makeFrame(calcOffset(0.9f), 384.f, 256.f, white, 0.9f),
+      makeFrame(calcOffset(0.8f), 384.f, 256.f, white, 0.8f),
+      makeFrame(calcOffset(0.7f), 384.f, 256.f, white, 0.7f),
+      makeFrame(calcOffset(0.6f), 384.f, 256.f, white, 0.6f),
+      makeFrame(calcOffset(0.5f), 384.f, 256.f, white, 0.5f),
+      makeFrame(calcOffset(0.4f), 384.f, 256.f, white, 0.4f),
+      makeFrame(calcOffset(0.3f), 384.f, 256.f, white, 0.3f),
+      makeFrame(calcOffset(0.2f), 384.f, 256.f, white, 0.2f),
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, white, 0.1f)
     }
   });
 
@@ -639,19 +641,15 @@ void SceneBuilderImpl::constructSoil()
       sysBehaviour.addBehaviour(id, std::move(collectBehaviour));
 
       auto dissolveBehaviour = createBGeneric(hashString("dissolve"),
-        { g_strEntityExplode, g_strAnimationFinish }, [&sysAnimation, this, id](const Event& e) {
+        { g_strEntityExplode }, [&sysAnimation, this, id](const Event& e) {
 
         if (e.name == g_strEntityExplode) {
           if (sysAnimation.hasAnimationPlaying(id)) {
             sysAnimation.finishAnimation(id);
           }
-          sysAnimation.playAnimation(id, hashString("collect"));
-        }
-        else if (e.name == g_strAnimationFinish) {
-          auto& event = dynamic_cast<const EAnimationFinish&>(e);
-          if (event.entityId == id && event.animationName == hashString("collect")) {
+          sysAnimation.playAnimation(id, hashString("collect"), [this, id]() {
             m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
-          }
+          });
         }
       });
 
@@ -761,15 +759,10 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
         auto& event = dynamic_cast<const EEntityExplode&>(e);
 
         if (event.entityId == id) {
-          sysAnimation.playAnimation(id, strExplode);
+          sysAnimation.playAnimation(id, strExplode, [this, id]() {
+            m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
+          });
           sysRender.setZIndex(id, static_cast<uint32_t>(ZIndex::Explosion));
-        }
-      }
-      else if (e.name == g_strAnimationFinish) {
-        auto& event = dynamic_cast<const EAnimationFinish&>(e);
-
-        if (event.entityId == id && event.animationName == strExplode) {
-          m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
         }
       }
     };
@@ -1505,7 +1498,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
   sysRender.addEntity(id, render);
 
   auto behaviour = createBGeneric(hashString("on_tick"), { g_strTimerTick },
-    [&, id](const Event& e) {
+    [this, &sysRender, id](const Event& e) {
 
     if (e.name == g_strTimerTick) {
       auto& event = dynamic_cast<const ETimerTick&>(e);
@@ -1513,12 +1506,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
       std::stringstream ss;
       ss << std::setw(3) << std::setfill('0') << event.timeRemaining;
 
-      // TODO: Write helper function for this?
-
-      char* buffer = m_ecs.componentStore().component<CDynamicText>(id).text;
-
-      memset(buffer, ' ', DYNAMIC_TEXT_MAX_LEN);
-      strncpy(buffer, ss.str().data(), 3);
+      sysRender.updateDynamicText(id, ss.str());
 
       if (event.timeRemaining <= 10) {
         m_ecs.componentStore().component<CRender>(id).colour = { 1.f, 0.f, 0.f, 1.f };
@@ -1612,6 +1600,20 @@ EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& 
 }
 
 EntityId SceneBuilderImpl::constructThrowingModeIndicator()
+{
+  auto id = constructStaticEntity({ 1.f, 0.94f }, { 0.05f, 0.05f }, Rectf{
+    .x = pxToUvX(992.f),
+    .y = pxToUvY(160.f, 32.f),
+    .w = pxToUvW(32.f),
+    .h = pxToUvH(32.f)
+  }, static_cast<uint32_t>(ZIndex::Hud));
+
+  m_ecs.componentStore().component<CRender>(id).visible = false;
+
+  return id;
+}
+
+EntityId SceneBuilderImpl::constructRestartGamePrompt()
 {
   auto id = constructStaticEntity({ 1.f, 0.94f }, { 0.05f, 0.05f }, Rectf{
     .x = pxToUvX(992.f),

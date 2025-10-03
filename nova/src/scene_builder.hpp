@@ -9,6 +9,7 @@ struct Scene
   EntityId player = NULL_ENTITY;
   EntityId worldRoot = NULL_ENTITY;
   EntityId throwingModeIndicator = NULL_ENTITY;
+  EntityId restartGamePrompt = NULL_ENTITY;
 };
 
 class SceneBuilder

@@ -98,7 +98,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_timeService = createTimeService();
   m_ecs = createEcs(m_logger);
 
-  auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_eventSystem, m_logger);
+  auto sysAnimation = createSysAnimation(m_ecs->componentStore(), m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysGrid = createSysGrid(*m_eventSystem);
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);

@@ -7,7 +7,6 @@
 const HashedString g_strEntityEnter = hashString("entity_enter");
 const HashedString g_strEntityLandOn = hashString("entity_land_on");
 const HashedString g_strItemCollect = hashString("item_collect");
-const HashedString g_strAnimationFinish = hashString("animation_finish");
 const HashedString g_strEntityExplode = hashString("entity_explode");
 const HashedString g_strPlayerMove = hashString("player_move");
 const HashedString g_strPlayerDeath = hashString("player_death");
@@ -79,30 +78,6 @@ class EItemCollect : public Event
 
     EntityId entityId;
     uint32_t value;
-};
-
-class EAnimationFinish : public Event
-{
-  public:
-    EAnimationFinish(EntityId entityId, HashedString name)
-      : Event(g_strAnimationFinish)
-      , entityId(entityId)
-      , animationName(name) {}
-
-    EAnimationFinish(EntityId entityId, HashedString name, const EntityIdSet& targets)
-      : Event(g_strAnimationFinish, targets)
-      , entityId(entityId)
-      , animationName(name) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString() << " ("
-        << "entityId = " << entityId << ", "
-        << "animationName = " << getHashedString(animationName) << ")");
-    }
-
-    EntityId entityId;
-    HashedString animationName;
 };
 
 class EEntityExplode : public Event

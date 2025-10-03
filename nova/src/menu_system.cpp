@@ -215,28 +215,25 @@ uint32_t MenuSystemImpl::difficultyLevel() const
 
 void MenuSystemImpl::setDifficulty(int level)
 {
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+
   m_difficultyLevel = level;
 
   float_t value = static_cast<float_t>(level) / MAX_DIFFICULTY_LEVEL;
   updateSlider(m_gameDifficultySlider, value);
 
-  auto updateCounter = [this](EntityId entityId, const std::string& value) {
-    char* buffer = m_ecs.componentStore().component<CDynamicText>(entityId).text;
-    memset(buffer, '\0', DYNAMIC_TEXT_MAX_LEN);
-    memcpy(buffer, value.data(), value.size());
-  };
-
   GameOptions options = getOptionsForLevel(level);
 
   uint32_t totalGold = options.coins + 5 * options.nuggets;
 
-  updateCounter(m_gameOptionCounters.minesId, std::to_string(options.mines));
-  updateCounter(m_gameOptionCounters.totalGoldId, std::to_string(totalGold));
-  updateCounter(m_gameOptionCounters.sticksId, std::to_string(options.sticks));
-  updateCounter(m_gameOptionCounters.wanderersId, std::to_string(options.wanderers));
-  updateCounter(m_gameOptionCounters.goldRequiredId, std::to_string(options.goldRequired));
-  updateCounter(m_gameOptionCounters.timeAvailableId, std::to_string(options.timeAvailable));
-  updateCounter(m_gameOptionCounters.bestTimeId, "---"); // TODO
+  const auto& counters = m_gameOptionCounters;
+  sysRender.updateDynamicText(counters.minesId, std::to_string(options.mines));
+  sysRender.updateDynamicText(counters.totalGoldId, std::to_string(totalGold));
+  sysRender.updateDynamicText(counters.sticksId, std::to_string(options.sticks));
+  sysRender.updateDynamicText(counters.wanderersId, std::to_string(options.wanderers));
+  sysRender.updateDynamicText(counters.goldRequiredId, std::to_string(options.goldRequired));
+  sysRender.updateDynamicText(counters.timeAvailableId, std::to_string(options.timeAvailable));
+  sysRender.updateDynamicText(counters.bestTimeId, "---"); // TODO
 }
 
 void MenuSystemImpl::updateSlider(const Slider& slider, float_t value)

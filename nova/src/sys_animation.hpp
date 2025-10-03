@@ -67,7 +67,5 @@ class SysAnimation : public System
 using SysAnimationPtr = std::unique_ptr<SysAnimation>;
 
 class Logger;
-class EventSystem;
 
-SysAnimationPtr createSysAnimation(ComponentStore& componentStore, EventSystem& eventSystem,
-  Logger& logger);
+SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger);
