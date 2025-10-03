@@ -77,6 +77,7 @@ class GameImpl : public Game
     void processMouseInput();
     void playSoundForEvent(const Event& event);
     void onPlayerDeath();
+    void onPlayerVictorious();
     void destroyCurrentGame();
     void startGame();
     void handleEvent(const Event& event);
@@ -169,6 +170,9 @@ void GameImpl::handleEvent(const Event& event)
   if (event.name == g_strPlayerDeath) {
     onPlayerDeath();
   }
+  else if (event.name == g_strPlayerVictorious) {
+    onPlayerVictorious();
+  }
   else if (event.name == g_strMenuItemActivate) {
     handleMenuEvent(event);
   }
@@ -206,6 +210,17 @@ void GameImpl::onPlayerDeath()
   m_gameState = GameState::Dead;
 
   // TODO: Display text
+}
+
+void GameImpl::onPlayerVictorious()
+{
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+
+  destroyCurrentGame();
+  sysSpatial.setEnabled(m_scene.worldRoot, false);
+  sysSpatial.setEnabled(m_menuSystem->root(), true);
+  m_menuSystem->showMainMenu();
+  m_gameState = GameState::MainMenu;
 }
 
 void GameImpl::playSoundForEvent(const Event& event)

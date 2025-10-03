@@ -39,13 +39,26 @@ class SysAnimation : public System
     virtual void addEntity(EntityId entityId, const AnimationData& data) = 0;
     virtual AnimationId addAnimation(AnimationPtr animation) = 0;
     virtual void replaceAnimation(AnimationId animationId, AnimationPtr animation) = 0;
+
+    // Throws exception if an animation is already playing
     virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
     virtual void playAnimation(EntityId entityId, HashedString name,
       const std::function<void()>& onFinish) = 0;
+
+    // Queue an animation to play immediately following the current animation or play immediately
+    // if there's none playing. Replaces any currently queued animation.
+    virtual void queueAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
+    virtual void queueAnimation(EntityId entityId, HashedString name,
+      const std::function<void()>& onFinish) = 0;
+
+    // Stops the current animation and starts any queued animation
     virtual void stopAnimation(EntityId entityId) = 0;
+
     virtual void seek(EntityId entityId, Tick tick) = 0;
     virtual bool hasAnimation(EntityId entityId, HashedString name) const = 0;
     virtual bool hasAnimationPlaying(EntityId entityId) const = 0;
+
+    // Finishes the current animation and starts any queued animation
     virtual void finishAnimation(EntityId entityId) = 0;
 
     virtual ~SysAnimation() = default;

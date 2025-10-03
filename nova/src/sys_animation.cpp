@@ -9,16 +9,24 @@
 namespace
 {
 
+struct QueuedAnimation
+{
+  HashedString name = 0;
+  bool repeats = false;
+  std::optional<std::function<void()>> onFinish;
+};
+
 struct AnimationState
 {
-  AnimationId id;
-  HashedString name;
-  bool isPlaying = false;
+  AnimationId id = 0;
+  HashedString name = 0;
+  bool isPlaying = false; // TODO: Remove?
   Tick tick = 0;
   Mat4x4f initialT;
   Vec4f startColour;
   bool repeats = false;
   std::optional<std::function<void()>> onFinish;
+  std::optional<QueuedAnimation> next;
 };
 
 struct CAnimation
@@ -41,9 +49,15 @@ class SysAnimationImpl : public SysAnimation
     void addEntity(EntityId entityId, const AnimationData& data) override;
     AnimationId addAnimation(AnimationPtr animation) override;
     void replaceAnimation(AnimationId animationId, AnimationPtr animation) override;
+
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
     void playAnimation(EntityId entityId, HashedString name,
       const std::function<void()>& onFinish) override;
+
+    void queueAnimation(EntityId entityId, HashedString name, bool repeat) override;
+    void queueAnimation(EntityId entityId, HashedString name,
+      const std::function<void()>& onFinish) override;
+
     void stopAnimation(EntityId entityId) override;
     void seek(EntityId entityId, Tick tick) override;
     bool hasAnimation(EntityId entityId, HashedString name) const override;
@@ -61,10 +75,15 @@ class SysAnimationImpl : public SysAnimation
     static AnimationId m_nextId;
 
     bool updateAnimation(EntityId entityId, AnimationState& animState,
-      std::vector<std::tuple<EntityId, HashedString>>& toRepeat);
+      std::vector<std::tuple<EntityId, QueuedAnimation>>& toRepeat);
 
     void playAnimation(EntityId entityId, HashedString name, bool repeat,
       const std::optional<std::function<void()>>& onFinish);
+
+    void queueAnimation(EntityId entityId, HashedString name, bool repeat,
+      const std::optional<std::function<void()>>& onFinish);
+
+    void playQueuedAnimation(EntityId entityId, const QueuedAnimation& anim);
 };
 
 AnimationId SysAnimationImpl::m_nextId = 0;
@@ -77,9 +96,9 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, EventSystem& 
 {
 }
 
-// Returns true if animation is complete
+// Returns true if animation is complete. Does not erase from m_activeAnimations.
 bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animState,
-  std::vector<std::tuple<EntityId, HashedString>>& toRepeat)
+  std::vector<std::tuple<EntityId, QueuedAnimation>>& toRepeat)
 {
   assert(animState.isPlaying);
 
@@ -129,9 +148,21 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
       animState.onFinish.value()();
     }
 
-    if (animState.repeats) {
+    if (animState.repeats && !animState.next.has_value()) {
       localTComp.transform = animState.initialT;
-      toRepeat.push_back({ entityId, anim.name });
+      toRepeat.push_back({ entityId, QueuedAnimation{
+        .name = anim.name,
+        .repeats = true,
+        .onFinish = std::nullopt
+      }});
+    }
+    else if (animState.next.has_value()) {
+      auto& next = animState.next.value();
+      toRepeat.push_back({ entityId, QueuedAnimation{
+        .name = next.name,
+        .repeats = next.repeats,
+        .onFinish = next.onFinish
+      }});
     }
 
     return true;
@@ -180,8 +211,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
 void SysAnimationImpl::update(Tick, const InputState&)
 {
-  // Entity id, animation name, bring to front
-  std::vector<std::tuple<EntityId, HashedString>> toRepeat;
+  std::vector<std::tuple<EntityId, QueuedAnimation>> toRepeat;
 
   for (auto i = m_activeAnimations.begin(); i != m_activeAnimations.end();) {
     auto entityId = i->first;
@@ -204,7 +234,17 @@ void SysAnimationImpl::update(Tick, const InputState&)
   }
 
   for (auto& anim : toRepeat) {
-    playAnimation(std::get<0>(anim), std::get<1>(anim), true);
+    playQueuedAnimation(std::get<0>(anim), std::get<1>(anim));
+  }
+}
+
+void SysAnimationImpl::playQueuedAnimation(EntityId entityId, const QueuedAnimation& anim)
+{
+  if (anim.onFinish.has_value()) {
+    playAnimation(entityId, anim.name, anim.onFinish.value());
+  }
+  else {
+    playAnimation(entityId, anim.name, anim.repeats);
   }
 }
 
@@ -215,7 +255,14 @@ void SysAnimationImpl::stopAnimation(EntityId entityId)
     return;
   }
 
-  m_activeAnimations.erase(i);
+  if (i->second.next.has_value()) {
+    auto next = i->second.next.value();
+    m_activeAnimations.erase(i);
+    playQueuedAnimation(entityId, next);
+  }
+  else {
+    m_activeAnimations.erase(i);
+  }
 }
 
 void SysAnimationImpl::finishAnimation(EntityId entityId)
@@ -230,10 +277,18 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
 
   seek(entityId, anim.duration);
 
-  std::vector<std::tuple<EntityId, HashedString>> toRepeat;
-  assert(updateAnimation(entityId, i->second, toRepeat));
+  bool hasQueuedAnimation = i->second.next.has_value();
 
-  m_activeAnimations.erase(i);
+  std::vector<std::tuple<EntityId, QueuedAnimation>> toRepeat;
+  assert(updateAnimation(entityId, i->second, toRepeat));
+  m_activeAnimations.erase(entityId);
+
+  // Only play queued animations, not repeating animations
+  if (hasQueuedAnimation) {
+    for (auto& anim : toRepeat) {
+      playQueuedAnimation(std::get<0>(anim), std::get<1>(anim));
+    }
+  }
 }
 
 void SysAnimationImpl::addEntity(EntityId entityId, const AnimationData& comp)
@@ -305,8 +360,37 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
     .initialT = localTComp.transform,
     .startColour = renderComp.colour,
     .repeats = repeat,
-    .onFinish = onFinish
+    .onFinish = onFinish,
+    .next = std::nullopt
   }});
+}
+
+void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name, bool repeat)
+{
+  queueAnimation(entityId, name, repeat, std::nullopt);
+}
+
+void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name,
+  const std::function<void()>& onFinish)
+{
+  queueAnimation(entityId, name, false, onFinish);
+}
+
+void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name, bool repeat,
+  const std::optional<std::function<void()>>& onFinish)
+{
+  auto i = m_activeAnimations.find(entityId);
+
+  if (i == m_activeAnimations.end()) {
+    playAnimation(entityId, name, repeat, onFinish);
+    return;
+  }
+
+  i->second.next = QueuedAnimation{
+    .name = name,
+    .repeats = repeat,
+    .onFinish = onFinish
+  };
 }
 
 void SysAnimationImpl::seek(EntityId entityId, Tick tick)

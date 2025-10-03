@@ -12,6 +12,7 @@
 #include "b_wanderer.hpp"
 #include "b_coin_counter.hpp"
 #include "b_stick.hpp"
+#include "b_exit.hpp"
 #include "game_events.hpp"
 #include "systems.hpp"
 #include "events.hpp"
@@ -226,10 +227,12 @@ EntityId SceneBuilderImpl::constructPlayer()
   long animationDuration = 16;
   float_t delta = 0.015625f;
 
-  auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty, const Vec4f& col) {
+  auto makeFrame = [](const Vec2f& pos, float_t tx, float_t ty, const Vec4f& col,
+    float_t scale = 1.f) {
+
     return AnimationFrame{
-      .pos = Vec2f{ x, y },
-      .scale = Vec2f{ 1.f, 1.f },
+      .pos = pos,
+      .scale = { scale, scale },
       .textureRect = Rectf{
         .x = pxToUvX(tx),
         .y = pxToUvY(ty, 48.f),
@@ -246,10 +249,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(-delta * 1.f, 0.f, 384.f, 352.f, white),
-      makeFrame(-delta * 2.f, 0.f, 416.f, 352.f, white),
-      makeFrame(-delta * 3.f, 0.f, 448.f, 352.f, white),
-      makeFrame(-delta * 4.f, 0.f, 480.f, 352.f, white)
+      makeFrame({ -delta * 1.f, 0.f }, 384.f, 352.f, white),
+      makeFrame({ -delta * 2.f, 0.f }, 416.f, 352.f, white),
+      makeFrame({ -delta * 3.f, 0.f }, 448.f, 352.f, white),
+      makeFrame({ -delta * 4.f, 0.f }, 480.f, 352.f, white)
     }
   });
 
@@ -257,10 +260,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_right"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(delta * 1.f, 0.f, 384.f, 304.f, white),
-      makeFrame(delta * 2.f, 0.f, 416.f, 304.f, white),
-      makeFrame(delta * 3.f, 0.f, 448.f, 304.f, white),
-      makeFrame(delta * 4.f, 0.f, 480.f, 304.f, white)
+      makeFrame({ delta * 1.f, 0.f }, 384.f, 304.f, white),
+      makeFrame({ delta * 2.f, 0.f }, 416.f, 304.f, white),
+      makeFrame({ delta * 3.f, 0.f }, 448.f, 304.f, white),
+      makeFrame({ delta * 4.f, 0.f }, 480.f, 304.f, white)
     }
   });
 
@@ -268,10 +271,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_up"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(0.f, delta * 1.f, 384.f, 256.f, white),
-      makeFrame(0.f, delta * 2.f, 416.f, 256.f, white),
-      makeFrame(0.f, delta * 3.f, 448.f, 256.f, white),
-      makeFrame(0.f, delta * 4.f, 480.f, 256.f, white)
+      makeFrame({ 0.f, delta * 1.f }, 384.f, 256.f, white),
+      makeFrame({ 0.f, delta * 2.f }, 416.f, 256.f, white),
+      makeFrame({ 0.f, delta * 3.f }, 448.f, 256.f, white),
+      makeFrame({ 0.f, delta * 4.f }, 480.f, 256.f, white)
     }
   });
 
@@ -279,10 +282,10 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("move_down"),
     .duration = animationDuration,
     .frames = {
-      makeFrame(0.f, -delta * 1.f, 384.f, 400.f, white),
-      makeFrame(0.f, -delta * 2.f, 416.f, 400.f, white),
-      makeFrame(0.f, -delta * 3.f, 448.f, 400.f, white),
-      makeFrame(0.f, -delta * 4.f, 480.f, 400.f, white)
+      makeFrame({ 0.f, -delta * 1.f }, 384.f, 400.f, white),
+      makeFrame({ 0.f, -delta * 2.f }, 416.f, 400.f, white),
+      makeFrame({ 0.f, -delta * 3.f }, 448.f, 400.f, white),
+      makeFrame({ 0.f, -delta * 4.f }, 480.f, 400.f, white)
     }
   });
 
@@ -290,8 +293,33 @@ EntityId SceneBuilderImpl::constructPlayer()
     .name = hashString("die"),
     .duration = 24,
     .frames = {
-      makeFrame(0.f, 0.f, 384.f, 400.f, { 1.f, 1.f, 1.f, 1.f }),
-      makeFrame(0.f, 0.f, 384.f, 400.f, { 0.f, 1.f, 0.f, 0.f })
+      makeFrame({ 0.f, 0.f }, 384.f, 400.f, { 1.f, 1.f, 1.f, 1.f }),
+      makeFrame({ 0.f, 0.f }, 384.f, 400.f, { 0.f, 1.f, 0.f, 0.f })
+    }
+  });
+
+  auto calcOffset = [](float_t scale) {
+    float_t w = GRID_CELL_W;
+    float_t h = GRID_CELL_H;
+    float_t w_ = GRID_CELL_W * scale;
+    float_t h_ = GRID_CELL_H * scale;
+
+    return Vec2f{ w - w_, h - h_ } * 0.5f;
+  };
+
+  auto animEnterPortal = std::unique_ptr<Animation>(new Animation{
+    .name = hashString("enter_portal"),
+    .duration = 20,
+    .frames = {
+      makeFrame(calcOffset(0.9f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.9f),
+      makeFrame(calcOffset(0.8f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.8f),
+      makeFrame(calcOffset(0.7f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.7f),
+      makeFrame(calcOffset(0.6f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.6f),
+      makeFrame(calcOffset(0.5f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.5f),
+      makeFrame(calcOffset(0.4f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.4f),
+      makeFrame(calcOffset(0.3f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.3f),
+      makeFrame(calcOffset(0.2f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.2f),
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, { 1.f, 1.f, 1.f, 1.f }, 0.1f)
     }
   });
 
@@ -301,7 +329,8 @@ EntityId SceneBuilderImpl::constructPlayer()
       sysAnimation.addAnimation(std::move(animMoveRight)),
       sysAnimation.addAnimation(std::move(animMoveUp)),
       sysAnimation.addAnimation(std::move(animMoveDown)),
-      sysAnimation.addAnimation(std::move(animDie))
+      sysAnimation.addAnimation(std::move(animDie)),
+      sysAnimation.addAnimation(std::move(animEnterPortal))
     }
   });
 
@@ -1043,12 +1072,15 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
 
   auto coords = randomGridCoords();
 
-  size_t nuggetsConstructed = 0;
-  for (size_t i = 0; i < coords.size(); ++i) {
+  size_t i = 0;
+  for (size_t numConstructed = 0; numConstructed < numNuggets; ++numConstructed) {
+    assert(i < coords.size());
+
     int x = coords[i][0];
     int y = coords[i][1];
 
     if (mines.contains({ x, y })) {
+      ++i;
       continue;
     }
 
@@ -1094,9 +1126,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 5);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    if (++nuggetsConstructed >= numNuggets) {
-      break;
-    }
+    ++i;
   }
 }
 
@@ -1190,12 +1220,15 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
 
   auto coords = randomGridCoords();
 
-  size_t wanderersConstructed = 0;
-  for (size_t i = 0; i < coords.size(); ++i) {
+  size_t i = 0;
+  for (size_t numConstructed = 0; numConstructed < numWanderers; ++numConstructed) {
+    assert(i < coords.size());
+
     int x = coords[i][0];
     int y = coords[i][1];
 
     if (x < 6 && y < 6) {
+      ++i;
       continue;
     }
 
@@ -1246,9 +1279,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
     auto behaviour = createBWanderer(m_ecs, m_eventSystem, m_timeService, id, m_playerId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    if (++wanderersConstructed >= numWanderers) {
-      break;
-    }
+    ++i;
   }
 }
 
@@ -1293,12 +1324,15 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 
   auto coords = randomGridCoords();
 
-  size_t sticksConstructed = 0;
-  for (size_t i = 0; i < coords.size(); ++i) {
+  size_t i = 0;
+  for (size_t numConstructed = 0; numConstructed < numSticks; ++numConstructed) {
+    assert(i < coords.size());
+
     int x = coords[i][0];
     int y = coords[i][1];
 
     if (mines.contains({ x, y })) {
+      ++i;
       continue;
     }
 
@@ -1341,9 +1375,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId, animThrowId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    if (++sticksConstructed >= numSticks) {
-      break;
-    }
+    ++i;
   }
 }
 
@@ -1419,13 +1451,7 @@ void SceneBuilderImpl::constructExit()
 
   sysAnimation.addEntity(id, AnimationData{ .animations = { animIdleId } });
 
-  auto behaviour = createBGeneric(hashString("exit"), { g_strGoldTargetAttained },
-    [&sysAnimation, id](const Event& e) {
-
-    if (e.name == g_strGoldTargetAttained) {
-      sysAnimation.playAnimation(id, hashString("idle"), true);
-    }
-  });
+  auto behaviour = createBExit(m_ecs, m_eventSystem, id,  m_playerId);
 
   sysBehaviour.addBehaviour(id, std::move(behaviour));
 }

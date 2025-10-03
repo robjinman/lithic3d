@@ -7,12 +7,12 @@ GameOptions getOptionsForLevel(uint32_t level)
   switch (level) {
     case 0:
       return GameOptions{
-        .mines = 30,
+        .mines = 0,//30,
         .coins = 10,
         .nuggets = 0,
         .sticks = 2,
-        .wanderers = 3,
-        .goldRequired = 8,
+        .wanderers = 0,//3,
+        .goldRequired = 1,//8,
         .timeAvailable = 240
       };
     case 1:
