@@ -225,7 +225,6 @@ void GameImpl::onPlayerVictorious()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
 
   destroyCurrentGame();
-  sysSpatial.setEnabled(m_scene.worldRoot, false);
   sysSpatial.setEnabled(m_menuSystem->root(), true);
   m_menuSystem->showMainMenu();
   m_gameState = GameState::MainMenu;

@@ -528,6 +528,10 @@ void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::Gr
     sysAnimation.stopAnimation(id);
     sysAnimation.playAnimation(id, strIdle, true);
   };
+  ui.onInputCancel = [&sysAnimation, id]() {
+    sysAnimation.stopAnimation(id);
+    sysAnimation.playAnimation(id, strIdleFocused, true);
+  };
   ui.onInputBegin = [&sysAnimation, id](const UserInput& input) {
     bool escape = std::holds_alternative<KeyboardKey>(input) &&
       std::get<KeyboardKey>(input) == KeyboardKey::Escape;
@@ -608,6 +612,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
   ui.bottomSlot = slots.bottom;
   ui.onGainFocus = focusAll;
   ui.onLoseFocus = unfocusAll;
+  ui.onInputCancel = focusAll;
   ui.onInputBegin = [&sysUi, leftBtnId, rightBtnId](const UserInput& input) {
     if (std::holds_alternative<KeyboardKey>(input)) {
       if (std::get<KeyboardKey>(input) == KeyboardKey::Left) {
@@ -635,8 +640,13 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
   sysUi.addEntity(id, ui);
 
   auto makeBtnUiComp =
-    [this, &sysAnimation, &sysUi, &filter, id, groupId, focusAll, unfocusAll]
+    [this, &sysAnimation, &sysUi, &filter, id, groupId, unfocusAll]
     (EntityId btnId, const std::function<void()>& onBtnDown, const std::function<void()>& onBtnUp) {
+
+    auto onBtnUpWrap = [&sysUi, onBtnUp, id]() {
+      sysUi.sendFocus(id);
+      onBtnUp();
+    };
 
     UiData btnUi{};
     btnUi.group = groupId;
@@ -645,14 +655,15 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
       sysUi.sendFocus(id);
     };
     btnUi.onLoseFocus = unfocusAll;
+    btnUi.onInputCancel = onBtnUpWrap;
     btnUi.onInputBegin = [&sysAnimation, btnId, onBtnDown](const UserInput&) {
       sysAnimation.stopAnimation(btnId);
       sysAnimation.playAnimation(btnId, strPrime);
       onBtnDown();
     };
-    btnUi.onInputEnd = [&sysAnimation, btnId, onBtnUp](const UserInput&) {
+    btnUi.onInputEnd = [&sysAnimation, btnId, onBtnUpWrap](const UserInput&) {
       sysAnimation.stopAnimation(btnId);
-      sysAnimation.playAnimation(btnId, strActivate, onBtnUp);
+      sysAnimation.playAnimation(btnId, strActivate, onBtnUpWrap);
     };
 
     sysUi.addEntity(btnId, btnUi);
