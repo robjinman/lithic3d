@@ -4,6 +4,7 @@
 #include "input.hpp"
 #include "utils.hpp"
 #include "component_types.hpp"
+#include <functional>
 
 class UiData;
 

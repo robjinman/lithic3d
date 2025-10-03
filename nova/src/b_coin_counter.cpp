@@ -1,7 +1,7 @@
 #include "b_coin_counter.hpp"
 #include "sys_render.hpp"
 #include "game_events.hpp"
-#include <cstring>
+#include "systems.hpp"
 #include <iomanip>
 
 namespace
@@ -56,12 +56,8 @@ void BCoinCounter::processEvent(const Event& event)
     std::stringstream ss;
     ss << std::setw(2) << std::setfill('0') << m_remaining;
 
-    // TODO: Write helper function for this?
-
-    char* buffer = m_ecs.componentStore().component<CDynamicText>(m_entityId).text;
-
-    memset(buffer, ' ', DYNAMIC_TEXT_MAX_LEN);
-    strncpy(buffer, ss.str().data(), 2);
+    auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+    sysRender.updateDynamicText(m_entityId, ss.str());
 
     if (m_remaining == 0) {
       m_eventSystem.queueEvent(std::make_unique<EGoldTargetAttained>());

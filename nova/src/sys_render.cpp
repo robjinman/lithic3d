@@ -117,7 +117,8 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     normals.push_back({ 0, 0, 1 });
     normals.push_back({ 0, 0, 1 });
 
-    int c = text[i] - firstGlyph;
+    int codePoint = i < text.size() ? text[i] : ' ';
+    int c = codePoint - firstGlyph;
     int row = c / glyphsPerRow;
     int col = c % glyphsPerRow;
     float_t x0 = uvRect.x + glyphW * col;
