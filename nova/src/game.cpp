@@ -207,9 +207,10 @@ void GameImpl::startGame()
 
 void GameImpl::onPlayerDeath()
 {
-  m_gameState = GameState::Dead;
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
 
-  // TODO: Display text
+  m_gameState = GameState::Dead;
+  sysSpatial.setEnabled(m_scene.restartGamePrompt, true);
 }
 
 void GameImpl::onPlayerVictorious()

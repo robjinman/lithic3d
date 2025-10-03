@@ -1492,7 +1492,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
     .text = std::to_string(timeAvailable),
     .maxLength = 3,
     .zIndex = static_cast<uint32_t>(ZIndex::Hud),
-    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
+    .colour = Vec4f{ 0.3f, 0.7f, 0.3f, 1.f }
   };
 
   sysRender.addEntity(id, render);
@@ -1560,7 +1560,7 @@ void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
     .text = std::to_string(goldRequired),
     .maxLength = 3,
     .zIndex = static_cast<uint32_t>(ZIndex::Hud),
-    .colour = Vec4f{ 0.f, 1.f, 0.f, 1.f }
+    .colour = Vec4f{ 0.3f, 0.7f, 0.3f, 1.f }
   };
 
   sysRender.addEntity(id, render);
@@ -1615,14 +1615,39 @@ EntityId SceneBuilderImpl::constructThrowingModeIndicator()
 
 EntityId SceneBuilderImpl::constructRestartGamePrompt()
 {
-  auto id = constructStaticEntity({ 1.f, 0.94f }, { 0.05f, 0.05f }, Rectf{
-    .x = pxToUvX(992.f),
-    .y = pxToUvY(160.f, 32.f),
-    .w = pxToUvW(32.f),
-    .h = pxToUvH(32.f)
-  }, static_cast<uint32_t>(ZIndex::Hud));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
 
-  m_ecs.componentStore().component<CRender>(id).visible = false;
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f pos{ 0.75f, 0.01f };
+  Vec2f charSize{ 0.024f, 0.04f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, charSize),
+    .parent = m_worldRoot,
+    .enabled = false
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  TextData render{
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .text = "Press Enter to restart",
+    .zIndex = static_cast<uint32_t>(ZIndex::Hud),
+    .colour = { 0.3f, 0.7f, 0.3f, 1.f }
+  };
+
+  sysRender.addEntity(id, render);
 
   return id;
 }
