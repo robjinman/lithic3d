@@ -196,6 +196,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 void SysAnimationImpl::update(Tick, const InputState&)
 {
   std::vector<std::tuple<EntityId, QueuedAnimation>> toRepeat;
+  std::vector<std::function<void()>> onFinishFunctions;
 
   for (auto i = m_activeAnimations.begin(); i != m_activeAnimations.end();) {
     auto entityId = i->first;
@@ -216,9 +217,13 @@ void SysAnimationImpl::update(Tick, const InputState&)
 
       // TODO: Consider executing this on next frame
       if (onFinish.has_value()) {
-        onFinish.value()();
+        onFinishFunctions.push_back(onFinish.value());
       }
     }
+  }
+
+  for (auto& fn : onFinishFunctions) {
+    fn();
   }
 
   for (auto& anim : toRepeat) {
