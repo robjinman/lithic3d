@@ -189,13 +189,18 @@ class Vector
       return v;
     }
 
-    T magnitude() const
+    T squareMagnitude() const
     {
       T sqSum = 0;
       for (size_t i = 0; i < N; ++i) {
         sqSum += m_data[i] * m_data[i];
       }
-      return sqrt(sqSum);
+      return sqSum;
+    }
+
+    T magnitude() const
+    {
+      return sqrt(squareMagnitude());
     }
 
     Vector<T, N> normalise() const
@@ -225,6 +230,10 @@ class Vector
 
     bool operator!=(const Vector<T, N>& rhs) const {
       return !(*this == rhs);
+    }
+
+    bool operator<(const Vector<T, N>& rhs) const {
+      return squareMagnitude() < rhs.squareMagnitude();
     }
 
     T dot(const Vector<T, N>& rhs) const

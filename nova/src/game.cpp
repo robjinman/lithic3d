@@ -103,7 +103,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysGrid = createSysGrid(*m_eventSystem);
   auto sysRender = createSysRender(m_ecs->componentStore(), m_renderer, m_fileSystem, m_logger);
-  auto sysSpatial = createSysSpatial(m_ecs->componentStore());
+  auto sysSpatial = createSysSpatial(m_ecs->componentStore(), *m_eventSystem);
   auto sysUi = createSysUi(*m_ecs, m_logger);
 
   m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
@@ -200,6 +200,7 @@ void GameImpl::destroyCurrentGame()
   for (auto id : entities) {
     m_ecs->removeEntity(id);
   }
+  m_ecs->removeEntity(m_scene.worldRoot);
 
   m_eventSystem->dropEvents();
 }

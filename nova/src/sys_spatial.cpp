@@ -9,7 +9,7 @@ namespace
 class SysSpatialImpl : public SysSpatial
 {
   public:
-    SysSpatialImpl(ComponentStore& componentStore);
+    SysSpatialImpl(ComponentStore& componentStore, EventSystem& eventSystem);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -22,11 +22,13 @@ class SysSpatialImpl : public SysSpatial
 
   private:
     ComponentStore& m_componentStore;
+    EventSystem& m_eventSystem;
     GraphPtr<EntityId, NULL_ENTITY> m_sceneGraph;
 };
 
-SysSpatialImpl::SysSpatialImpl(ComponentStore& componentStore)
+SysSpatialImpl::SysSpatialImpl(ComponentStore& componentStore, EventSystem& eventSystem)
   : m_componentStore(componentStore)
+  , m_eventSystem(eventSystem)
 {
   EntityId root = m_componentStore.allocate<CLocalTransform, CGlobalTransform, CSpatialFlags>();
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY>>(root);
@@ -87,6 +89,11 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 {
   auto& node = *m_sceneGraph->nodes.at(entityId);
   auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
+
+  if (flags.enabled == enabled) {
+    return;
+  }
+
   flags.enabled = enabled;
 
   EntityId prevParentId = entityId;
@@ -106,11 +113,15 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
     auto& descendentFlags = m_componentStore.component<CSpatialFlags>(entityId);
     descendentFlags.parentEnabled = parentEnabled;
   }
+
+  if (enabled) {
+    m_eventSystem.queueEvent(std::make_unique<EEntityEnable>(entityId, EntityIdSet{ entityId }));
+  }
 }
 
 } // namespace
 
-SysSpatialPtr createSysSpatial(ComponentStore& componentStore)
+SysSpatialPtr createSysSpatial(ComponentStore& componentStore, EventSystem& eventSystem)
 {
-  return std::make_unique<SysSpatialImpl>(componentStore);
+  return std::make_unique<SysSpatialImpl>(componentStore, eventSystem);
 }

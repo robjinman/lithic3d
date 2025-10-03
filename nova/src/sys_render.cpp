@@ -191,6 +191,7 @@ class SysRenderImpl : public SysRender
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
     void setVisible(EntityId entityId, bool visible) override;
+    void setColour(EntityId entityId, const Vec4f& colour) override;
     void updateDynamicText(EntityId entityId, const std::string& text) override;
 
     void removeEntity(EntityId entityId) override;
@@ -428,6 +429,12 @@ void SysRenderImpl::setVisible(EntityId entityId, bool visible)
 {
   auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.visible = visible;
+}
+
+void SysRenderImpl::setColour(EntityId entityId, const Vec4f& colour)
+{
+  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  renderComp.colour = colour;
 }
 
 void SysRenderImpl::updateDynamicText(EntityId entityId, const std::string& text)

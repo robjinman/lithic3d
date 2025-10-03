@@ -2,6 +2,25 @@
 
 #include "ecs.hpp"
 #include "component_types.hpp"
+#include "event_system.hpp"
+
+const HashedString g_strEntityEnable = hashString("entity_enable");
+
+class EEntityEnable : public Event
+{
+  public:
+    EEntityEnable(EntityId entityId, const EntityIdSet& targets)
+      : Event(g_strEntityEnable, targets)
+      , entityId(entityId) {}
+
+    std::string toString() const override
+    {
+      return STR(Event::toString() << " ("
+        << "entityId = " << entityId << ")");
+    }
+
+    EntityId entityId;
+};
 
 struct SpatialData
 {
@@ -42,4 +61,4 @@ class SysSpatial : public System
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;
 
-SysSpatialPtr createSysSpatial(ComponentStore& componentStore);
+SysSpatialPtr createSysSpatial(ComponentStore& componentStore, EventSystem& eventSystem);

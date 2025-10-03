@@ -102,6 +102,7 @@ class SysRender : public System
     virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;
     virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
     virtual void setVisible(EntityId entityId, bool visible) = 0;
+    virtual void setColour(EntityId entityId, const Vec4f& colour) = 0;
     virtual void updateDynamicText(EntityId entityId, const std::string& text) = 0;
 
     virtual ~SysRender() {}
