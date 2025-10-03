@@ -215,7 +215,7 @@ void Application::onKeyboardInput(int code, int action)
 #else
       case KeyboardKey::F11:
 #endif
-        toggleFullScreen();
+        //toggleFullScreen();
         break;
       default: break;
     }
