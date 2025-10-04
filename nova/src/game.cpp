@@ -95,6 +95,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   , m_audioSystem(audioSystem)
   , m_renderer(renderer)
 {
+  m_audioSystem.addSound(hashString("bang"), "sounds/bang.wav");
+
   m_eventSystem = createEventSystem(m_logger);
   m_timeService = createTimeService();
   m_ecs = createEcs(m_logger);

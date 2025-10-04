@@ -4,7 +4,8 @@
     "glfw3",
     "tinyxml2",
     "stb",
-    "nlohmann-json"
+    "nlohmann-json",
+    "openal-soft"
   ],
   "overrides": [
     {
@@ -26,6 +27,10 @@
     {
       "name": "nlohmann-json",
       "version": "3.11.3"
+    },
+    {
+      "name": "openal-soft",
+      "version": "1.24.3#1"
     }
   ]
 }

@@ -142,7 +142,7 @@ Application::Application()
   m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_audioSystem = createAudioSystem();
+  m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);

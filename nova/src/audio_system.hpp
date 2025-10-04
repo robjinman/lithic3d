@@ -14,4 +14,6 @@ class AudioSystem
 
 using AudioSystemPtr = std::unique_ptr<AudioSystem>;
 
-AudioSystemPtr createAudioSystem();
+class FileSystem;
+
+AudioSystemPtr createAudioSystem(FileSystem& fileSystem);

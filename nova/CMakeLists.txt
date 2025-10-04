@@ -61,6 +61,8 @@ set(LIB_TARGET "${LIB_TARGET}" PARENT_SCOPE)
 
 find_package(tinyxml2 REQUIRED)
 find_package(Stb REQUIRED)
+find_package(OpenAL REQUIRED)
+find_package(fmt REQUIRED)  # For OpenAL
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/version_in.hpp"
@@ -80,7 +82,7 @@ if(PLATFORM_LINUX)
 
   find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
   set(COMPILE_FLAGS -Wextra -Wall)
-  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
+  set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g -D_GLIBCXX_DEBUG)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   if (CPU_PROFILE)
     set(RELEASE_COMPILE_FLAGS ${RELEASE_COMPILE_FLAGS} -g)
@@ -145,12 +147,15 @@ endif()
 target_include_directories(${LIB_TARGET} PUBLIC
   "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
   "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/include"
   "${Stb_INCLUDE_DIR}"
 )
 
 target_link_libraries(${LIB_TARGET} PUBLIC
   Vulkan::Vulkan
   tinyxml2::tinyxml2
+  OpenAL::OpenAL
+  fmt::fmt
 )
 
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
