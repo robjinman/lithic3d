@@ -93,7 +93,7 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logge
 }
 
 // Returns true if animation is complete. Does not erase from m_activeAnimations.
-// If the animation finishes during this frame, an animation may be added to the queue, if:
+// If the animation finishes during this frame, an animation may be added to the queue if:
 //   * The finishing animation repeats
 //   * The finishing animation has a queued animation - this takes precedence over a repeating
 //     animation
@@ -255,7 +255,7 @@ void SysAnimationImpl::stopAnimation(EntityId entityId)
     return;
   }
 
-  // Call callback on stop?
+  // Invoke callback on stop. Do we want this?
   if (i->second.onFinish.has_value()) {
     DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
     m_callbacks.insert({ entityId, i->second.onFinish.value() });
