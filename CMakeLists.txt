@@ -74,6 +74,7 @@ else()
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
+      "-framework OpenAL"
     )
   elseif(PLATFORM_IOS)
     set(LAUNCH_STORYBOARD ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/LaunchScreen.storyboard)

@@ -4,7 +4,6 @@
 #include <chrono>
 #include <map>
 #include <cassert>
-#include <queue>
 
 namespace
 {
@@ -69,7 +68,7 @@ class SysAnimationImpl : public SysAnimation
     std::map<EntityId, CAnimationPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimations;
     std::map<AnimationId, AnimationPtr> m_animations;
-    std::queue<std::function<void()>> m_callbacks;
+    std::map<EntityId, std::function<void()>> m_callbacks;
 
     static AnimationId m_nextId;
 
@@ -201,10 +200,12 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
 void SysAnimationImpl::update(Tick, const InputState&)
 {
-  while (!m_callbacks.empty()) {
-    m_callbacks.front()();
-    m_callbacks.pop();
+  for (auto entry : m_callbacks) {
+    if (hasEntity(entry.first)) {
+      entry.second();
+    }
   }
+  m_callbacks.clear();
 
   std::vector<std::tuple<EntityId, QueuedAnimation>> queue;
 
@@ -226,7 +227,8 @@ void SysAnimationImpl::update(Tick, const InputState&)
       i = m_activeAnimations.erase(i);
 
       if (onFinish.has_value()) {
-        m_callbacks.push(onFinish.value());
+        DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
+        m_callbacks.insert({ entityId, onFinish.value() });
       }
     }
   }
@@ -255,7 +257,8 @@ void SysAnimationImpl::stopAnimation(EntityId entityId)
 
   // Call callback on stop?
   if (i->second.onFinish.has_value()) {
-    m_callbacks.push(i->second.onFinish.value());
+    DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
+    m_callbacks.insert({ entityId, i->second.onFinish.value() });
   }
 
   m_activeAnimations.erase(i);
@@ -281,7 +284,8 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
   m_activeAnimations.erase(entityId);
 
   if (onFinish.has_value()) {
-    m_callbacks.push(onFinish.value());
+    DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
+    m_callbacks.insert({ entityId, onFinish.value() });
   }
 
   // Only play queued animations, not repeating animations
@@ -308,6 +312,8 @@ void SysAnimationImpl::removeEntity(EntityId entityId)
 {
   m_activeAnimations.erase(entityId);
   m_components.erase(entityId);
+
+  // No need to erase from m_callbacks. Update function will check entity exists before invoking.
 }
 
 bool SysAnimationImpl::hasEntity(EntityId entityId) const

@@ -28,7 +28,7 @@ class BWanderer : public BehaviourData
     EntityId m_playerId;
     bool m_active = false;
 
-    void makeMove();
+    void makeMove(EntityId entityId);
 };
 
 BWanderer::BWanderer(Ecs& ecs, EventSystem& eventSystem, TimeService& timeService,
@@ -57,7 +57,7 @@ const std::set<HashedString>& BWanderer::subscriptions() const
   return subs;
 }
 
-void BWanderer::makeMove()
+void BWanderer::makeMove(EntityId id)
 {
   const static HashedString strMoveLeft = hashString("move_left");
   const static HashedString strMoveRight = hashString("move_right");
@@ -67,8 +67,8 @@ void BWanderer::makeMove()
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  if (!sysGrid.hasEntity(m_entityId)) {
-    // We're dead
+  if (!sysGrid.hasEntity(id)) {
+    // We've been destroyed
     return;
   }
 
@@ -85,13 +85,13 @@ void BWanderer::makeMove()
   if (abs(diff[0]) > abs(diff[1])) {
     if (diff[0] > 0) {
       if (sysGrid.tryMove(m_entityId, -1, 0)) {
-        sysAnimation.playAnimation(m_entityId, strMoveLeft, [this]() { makeMove(); });
+        sysAnimation.playAnimation(m_entityId, strMoveLeft, [this, id]() { makeMove(id); });
         moved = true;
       }
     }
     else if (diff[0] < 0) {
       if (sysGrid.tryMove(m_entityId, 1, 0)) {
-        sysAnimation.playAnimation(m_entityId, strMoveRight, [this]() { makeMove(); });
+        sysAnimation.playAnimation(m_entityId, strMoveRight, [this, id]() { makeMove(id); });
         moved = true;
       }
     }
@@ -99,13 +99,13 @@ void BWanderer::makeMove()
   else {
     if (diff[1] > 0) {
       if (sysGrid.tryMove(m_entityId, 0, -1)) {
-        sysAnimation.playAnimation(m_entityId, strMoveDown, [this]() { makeMove(); });
+        sysAnimation.playAnimation(m_entityId, strMoveDown, [this, id]() { makeMove(id); });
         moved = true;
       }
     }
     else if (diff[1] < 0) {
       if (sysGrid.tryMove(m_entityId, 0, 1)) {
-        sysAnimation.playAnimation(m_entityId, strMoveUp, [this]() { makeMove(); });
+        sysAnimation.playAnimation(m_entityId, strMoveUp, [this, id]() { makeMove(id); });
         moved = true;
       }
     }
@@ -165,7 +165,8 @@ void BWanderer::processEvent(const Event& event)
       if (sqDist <= sqActivationDist) {
         m_active = true;
         m_ecs.componentStore().component<CRender>(m_entityId).visible = true;
-        sysAnimation.playAnimation(m_entityId, strFadeIn, [this]() { makeMove(); });
+        auto id = m_entityId;
+        sysAnimation.playAnimation(m_entityId, strFadeIn, [this, id]() { makeMove(id); });
       }
     }
   }
