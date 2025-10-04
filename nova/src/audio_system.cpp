@@ -19,6 +19,11 @@ class AudioSystemImpl : public AudioSystem
 
     void addSound(HashedString name, const std::string& path) override;
     void playSound(HashedString name) override;
+    void stopAllSounds() override;
+
+    void addMusic(const std::string& path) override;
+    void playMusic() override;
+    void stopMusic() override;
 
     ~AudioSystemImpl();
 
@@ -51,22 +56,6 @@ AudioSystemImpl::AudioSystemImpl(FileSystem& fileSystem)
     alSourcef(source, AL_GAIN, 1.0f);
     alSource3f(source, AL_POSITION, 0.f, 0.f, 0.f);
   }
-}
-
-AudioSystemImpl::~AudioSystemImpl()
-{
-  for (auto source : m_sources) {
-    alSourceStop(source);
-  }
-  alDeleteSources(m_sources.size(), m_sources.data());
-
-  for (auto entry : m_buffers) {
-    alDeleteBuffers(1, &entry.second);
-  }
-
-  alcMakeContextCurrent(nullptr);
-  alcDestroyContext(m_context);
-  alcCloseDevice(m_device);
 }
 
 ALuint AudioSystemImpl::getFreeSource() const
@@ -124,6 +113,42 @@ void AudioSystemImpl::playSound(HashedString name)
 
   alSourcei(source, AL_BUFFER, buffer);
   alSourcePlay(source);
+}
+
+void AudioSystemImpl::stopAllSounds()
+{
+  for (auto source : m_sources) {
+    alSourceStop(source);
+  }
+}
+
+void AudioSystemImpl::addMusic(const std::string& path)
+{
+
+}
+
+void AudioSystemImpl::playMusic()
+{
+
+}
+
+void AudioSystemImpl::stopMusic()
+{
+
+}
+
+AudioSystemImpl::~AudioSystemImpl()
+{
+  stopAllSounds();
+  alDeleteSources(m_sources.size(), m_sources.data());
+
+  for (auto entry : m_buffers) {
+    alDeleteBuffers(1, &entry.second);
+  }
+
+  alcMakeContextCurrent(nullptr);
+  alcDestroyContext(m_context);
+  alcCloseDevice(m_device);
 }
 
 } // namespace

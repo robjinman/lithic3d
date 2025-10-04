@@ -56,6 +56,8 @@ void BExit::processEvent(const Event& event)
   else if (event.name == g_strEntityEnter && m_open) {
     auto& e = dynamic_cast<const EEntityEnter&>(event);
     if (e.entityId == m_playerId) {
+      m_eventSystem.queueEvent(std::make_unique<EEnterPortal>());
+
       sysAnimation.queueAnimation(m_playerId, hashString("enter_portal"), [this]() {
         m_eventSystem.queueEvent(std::make_unique<EPlayerVictorious>());
       });

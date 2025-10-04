@@ -11,12 +11,23 @@ const HashedString g_strEntityExplode = hashString("entity_explode");
 const HashedString g_strPlayerMove = hashString("player_move");
 const HashedString g_strPlayerDeath = hashString("player_death");
 const HashedString g_strPlayerVictorious = hashString("player_victorious");
+const HashedString g_strEnterPortal = hashString("enter_portal");
 const HashedString g_strTimerTick = hashString("timer_tick");
 const HashedString g_strTimeout = hashString("timeout");
 const HashedString g_strGoldTargetAttained = hashString("gold_target_attained");
 const HashedString g_strAttack = hashString("attack");
 const HashedString g_strToggleThrowingMode = hashString("toggle_throwing_mode");
 const HashedString g_strThrow = hashString("throw");
+const HashedString g_strTenSecondsRemaining = hashString("ten_seconds_remaining");
+const HashedString g_strWandererAttack = hashString("wanderer_attack");
+
+SIMPLE_EVENT(EPlayerDeath, g_strPlayerDeath)
+SIMPLE_EVENT(EPlayerVictorious, g_strPlayerVictorious)
+SIMPLE_EVENT(ETimeout, g_strTimeout)
+SIMPLE_EVENT(EGoldTargetAttained, g_strGoldTargetAttained)
+SIMPLE_EVENT(EEnterPortal, g_strEnterPortal)
+SIMPLE_EVENT(ETenSecondsRemaining, g_strTenSecondsRemaining)
+SIMPLE_EVENT(EWandererAttack, g_strWandererAttack)
 
 class EEntityEnter : public Event
 {
@@ -104,18 +115,6 @@ class EEntityExplode : public Event
     Vec2i pos;
 };
 
-class EPlayerDeath : public Event
-{
-  public:
-    EPlayerDeath()
-      : Event(g_strPlayerDeath) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString());
-    }
-};
-
 class EPlayerMove : public Event
 {
   public:
@@ -132,18 +131,6 @@ class EPlayerMove : public Event
     Vec2i pos;
 };
 
-class EPlayerVictorious : public Event
-{
-  public:
-    EPlayerVictorious()
-      : Event(g_strPlayerVictorious) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString());
-    }
-};
-
 class ETimerTick : public Event
 {
   public:
@@ -158,30 +145,6 @@ class ETimerTick : public Event
     }
 
     uint32_t timeRemaining;
-};
-
-class ETimeout : public Event
-{
-  public:
-    ETimeout()
-      : Event(g_strTimeout) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString());
-    }
-};
-
-class EGoldTargetAttained : public Event
-{
-  public:
-    EGoldTargetAttained()
-      : Event(g_strGoldTargetAttained) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString());
-    }
 };
 
 class EAttack : public Event

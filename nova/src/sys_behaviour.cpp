@@ -87,9 +87,9 @@ void SysBehaviourImpl::processEvent(const Event& event)
   // TODO: Consider only sending to subscribers?
   else {
     for (auto id : event.targets.value()) {
-      if (m_componentStore.component<CSpatialFlags>(id).enabled) {
-        auto i = m_behaviours.find(id);
-        if (i != m_behaviours.end()) {
+      auto i = m_behaviours.find(id);
+      if (i != m_behaviours.end()) {
+        if (m_componentStore.component<CSpatialFlags>(id).enabled) {
           auto& behaviours = i->second;
           for (auto& entry : behaviours) {
             entry.second->processEvent(event);

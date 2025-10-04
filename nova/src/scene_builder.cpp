@@ -1508,8 +1508,9 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 
       sysRender.updateDynamicText(id, ss.str());
 
-      if (event.timeRemaining <= 10) {
+      if (event.timeRemaining == 10) {
         m_ecs.componentStore().component<CRender>(id).colour = { 1.f, 0.f, 0.f, 1.f };
+        m_eventSystem.queueEvent(std::make_unique<ETenSecondsRemaining>());
       }
     }
   });

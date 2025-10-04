@@ -34,6 +34,9 @@ class Event
 
 using EventPtr = std::unique_ptr<Event>;
 
+#define SIMPLE_EVENT(typeName, name) \
+  struct typeName : public Event {  typeName() : Event(name) {} };
+
 using EventHandlerFn = std::function<void(const Event&)>;
 
 class EventSystem

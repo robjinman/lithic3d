@@ -25,6 +25,13 @@
 namespace
 {
 
+const auto strBang = hashString("bang");
+const auto strCollect = hashString("collect");
+const auto strEnterPortal = hashString("enter_portal");
+const auto strScream = hashString("scream");
+const auto strThrow = hashString("throw");
+const auto strTick = hashString("tick");
+
 enum class GameState
 {
   Playing,
@@ -95,7 +102,12 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   , m_audioSystem(audioSystem)
   , m_renderer(renderer)
 {
-  m_audioSystem.addSound(hashString("bang"), "sounds/bang.wav");
+  m_audioSystem.addSound(strBang, "sounds/bang.wav");
+  m_audioSystem.addSound(strCollect, "sounds/collect.wav");
+  m_audioSystem.addSound(strEnterPortal, "sounds/enter_portal.wav");
+  m_audioSystem.addSound(strScream, "sounds/scream.wav");
+  m_audioSystem.addSound(strThrow, "sounds/throw.wav");
+  m_audioSystem.addSound(strTick, "sounds/tick.wav");
 
   m_eventSystem = createEventSystem(m_logger);
   m_timeService = createTimeService();
@@ -205,6 +217,8 @@ void GameImpl::destroyCurrentGame()
   m_ecs->removeEntity(m_scene.worldRoot);
 
   m_eventSystem->dropEvents();
+
+  m_audioSystem.stopAllSounds();
 }
 
 void GameImpl::startGame()
@@ -234,10 +248,26 @@ void GameImpl::onPlayerVictorious()
 
 void GameImpl::playSoundForEvent(const Event& event)
 {
-  static auto strBang = hashString("bang");
-
   if (event.name == g_strEntityExplode) {
     m_audioSystem.playSound(strBang);
+  }
+  else if (event.name == g_strEnterPortal) {
+    m_audioSystem.playSound(strEnterPortal);
+  }
+  else if (event.name == g_strTenSecondsRemaining) {
+    m_audioSystem.playSound(strTick);
+  }
+  else if (event.name == g_strThrow) {
+    m_audioSystem.playSound(strThrow);
+  }
+  else if (event.name == g_strTimeout || event.name == g_strWandererAttack) {
+    m_audioSystem.playSound(strScream);
+  }
+  else if (event.name == g_strItemCollect) {
+    auto& e = dynamic_cast<const EItemCollect&>(event);
+    if (e.value > 0) {
+      m_audioSystem.playSound(strCollect);
+    }
   }
 }
 

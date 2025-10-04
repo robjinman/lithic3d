@@ -68,6 +68,7 @@ void BPlayer::processEvent(const Event& event)
   }
   else if (event.name == g_strEntityLandOn || event.name == g_strAttack) {
     if (!sysAnimation.hasAnimationPlaying(m_entityId)) {
+      m_eventSystem.queueEvent(std::make_unique<EWandererAttack>());
       sysAnimation.playAnimation(m_entityId, strDie, [this]() {
         m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
       });
