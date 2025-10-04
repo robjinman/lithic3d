@@ -4,6 +4,7 @@
 #include <chrono>
 #include <map>
 #include <cassert>
+#include <queue>
 
 namespace
 {
@@ -68,11 +69,12 @@ class SysAnimationImpl : public SysAnimation
     std::map<EntityId, CAnimationPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimations;
     std::map<AnimationId, AnimationPtr> m_animations;
+    std::queue<std::function<void()>> m_callbacks;
 
     static AnimationId m_nextId;
 
     bool updateAnimation(EntityId entityId, AnimationState& animState,
-      std::vector<std::tuple<EntityId, QueuedAnimation>>& toRepeat);
+      std::vector<std::tuple<EntityId, QueuedAnimation>>& queue);
 
     void playAnimation(EntityId entityId, HashedString name, bool repeat,
       const std::optional<std::function<void()>>& onFinish);
@@ -92,8 +94,12 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logge
 }
 
 // Returns true if animation is complete. Does not erase from m_activeAnimations.
+// If the animation finishes during this frame, an animation may be added to the queue, if:
+//   * The finishing animation repeats
+//   * The finishing animation has a queued animation - this takes precedence over a repeating
+//     animation
 bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animState,
-  std::vector<std::tuple<EntityId, QueuedAnimation>>& toRepeat)
+  std::vector<std::tuple<EntityId, QueuedAnimation>>& queue)
 {
   auto& anim = *m_animations.at(animState.id);
   auto& renderComp = m_componentStore.component<CRender>(entityId);
@@ -134,7 +140,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
     if (animState.repeats && !animState.next.has_value()) {
       localTComp.transform = animState.initialT;
-      toRepeat.push_back({ entityId, QueuedAnimation{
+      queue.push_back({ entityId, QueuedAnimation{
         .name = anim.name,
         .repeats = true,
         .onFinish = std::nullopt
@@ -142,7 +148,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
     }
     else if (animState.next.has_value()) {
       auto& next = animState.next.value();
-      toRepeat.push_back({ entityId, QueuedAnimation{
+      queue.push_back({ entityId, QueuedAnimation{
         .name = next.name,
         .repeats = next.repeats,
         .onFinish = next.onFinish
@@ -195,8 +201,12 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
 void SysAnimationImpl::update(Tick, const InputState&)
 {
-  std::vector<std::tuple<EntityId, QueuedAnimation>> toRepeat;
-  std::vector<std::function<void()>> onFinishFunctions;
+  while (!m_callbacks.empty()) {
+    m_callbacks.front()();
+    m_callbacks.pop();
+  }
+
+  std::vector<std::tuple<EntityId, QueuedAnimation>> queue;
 
   for (auto i = m_activeAnimations.begin(); i != m_activeAnimations.end();) {
     auto entityId = i->first;
@@ -208,25 +218,20 @@ void SysAnimationImpl::update(Tick, const InputState&)
       continue;
     }
 
-    if (!updateAnimation(entityId, animState, toRepeat)) {
+    if (!updateAnimation(entityId, animState, queue)) {
       ++i;
     }
     else {
       auto onFinish = animState.onFinish;
       i = m_activeAnimations.erase(i);
 
-      // TODO: Consider executing this on next frame
       if (onFinish.has_value()) {
-        onFinishFunctions.push_back(onFinish.value());
+        m_callbacks.push(onFinish.value());
       }
     }
   }
 
-  for (auto& fn : onFinishFunctions) {
-    fn();
-  }
-
-  for (auto& anim : toRepeat) {
+  for (auto& anim : queue) {
     playQueuedAnimation(std::get<0>(anim), std::get<1>(anim));
   }
 }
@@ -248,14 +253,12 @@ void SysAnimationImpl::stopAnimation(EntityId entityId)
     return;
   }
 
-  if (i->second.next.has_value()) {
-    auto next = i->second.next.value();
-    m_activeAnimations.erase(i);
-    playQueuedAnimation(entityId, next);
+  // Call callback on stop?
+  if (i->second.onFinish.has_value()) {
+    m_callbacks.push(i->second.onFinish.value());
   }
-  else {
-    m_activeAnimations.erase(i);
-  }
+
+  m_activeAnimations.erase(i);
 }
 
 void SysAnimationImpl::finishAnimation(EntityId entityId)
@@ -278,7 +281,7 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
   m_activeAnimations.erase(entityId);
 
   if (onFinish.has_value()) {
-    onFinish.value()();
+    m_callbacks.push(onFinish.value());
   }
 
   // Only play queued animations, not repeating animations

@@ -1,6 +1,9 @@
 #include "audio_system.hpp"
 #include "exception.hpp"
 #include "file_system.hpp"
+extern "C" {
+  #include "stb_vorbis.c"
+}
 #include <AL/al.h>
 #include <AL/alc.h>
 #define DR_WAV_IMPLEMENTATION
@@ -12,6 +15,19 @@ namespace
 
 constexpr int NUM_SOURCES = 4;
 
+ALenum chooseFormat(ALuint channels)
+{
+  if (channels == 1) {
+    return AL_FORMAT_MONO16;
+  }
+  else if (channels == 2) {
+    return AL_FORMAT_STEREO16;
+  }
+  else {
+    EXCEPTION("Unsupported number of channels");
+  }
+}
+
 class AudioSystemImpl : public AudioSystem
 {
   public:
@@ -20,10 +36,12 @@ class AudioSystemImpl : public AudioSystem
     void addSound(HashedString name, const std::string& path) override;
     void playSound(HashedString name) override;
     void stopAllSounds() override;
+    void setSoundVolume(float volume) override;
 
     void addMusic(const std::string& path) override;
     void playMusic() override;
     void stopMusic() override;
+    void setMusicVolume(float volume) override;
 
     ~AudioSystemImpl();
 
@@ -33,6 +51,10 @@ class AudioSystemImpl : public AudioSystem
     ALCcontext* m_context;
     std::array<ALuint, NUM_SOURCES> m_sources;
     std::map<HashedString, ALuint> m_buffers;
+    ALuint m_musicBuffer = 0;
+    ALuint m_musicSource = 0;
+    float m_soundVolume = 0.75f;
+    float m_musicVolume = 0.75f;
 
     ALuint getFreeSource() const;
 };
@@ -53,9 +75,14 @@ AudioSystemImpl::AudioSystemImpl(FileSystem& fileSystem)
   alGenSources(m_sources.size(), m_sources.data());
 
   for (auto source : m_sources) {
-    alSourcef(source, AL_GAIN, 1.0f);
+    alSourcef(source, AL_GAIN, m_soundVolume);
     alSource3f(source, AL_POSITION, 0.f, 0.f, 0.f);
   }
+
+  alGenSources(1, &m_musicSource);
+  alSource3f(m_musicSource, AL_POSITION, 0.f, 0.f, 0.f);
+  alSourcef(m_musicSource, AL_GAIN, m_musicVolume);
+  alSourcei(m_musicSource, AL_LOOPING, AL_TRUE);
 }
 
 ALuint AudioSystemImpl::getFreeSource() const
@@ -81,16 +108,7 @@ void AudioSystemImpl::addSound(HashedString name, const std::string& path)
     EXCEPTION("Failed to open wav file");
   }
 
-  ALenum format = 0;
-  if (wav.channels == 1) {
-    format = AL_FORMAT_MONO16;
-  }
-  else if (wav.channels == 2) {
-    format = AL_FORMAT_STEREO16;
-  }
-  else {
-    EXCEPTION("Unsupported number of channels");
-  }
+  ALenum format = chooseFormat(wav.channels);
 
   std::vector<int16_t> pcmData;
   pcmData.resize(static_cast<size_t>(wav.totalPCMFrameCount) * wav.channels);
@@ -122,19 +140,66 @@ void AudioSystemImpl::stopAllSounds()
   }
 }
 
+void AudioSystemImpl::setSoundVolume(float volume)
+{
+  m_soundVolume = volume;
+
+  for (auto source : m_sources) {
+    alSourcef(source, AL_GAIN, m_soundVolume);
+  }
+}
+
+void AudioSystemImpl::setMusicVolume(float volume)
+{
+  m_musicVolume = volume;
+
+  alSourcef(m_musicSource, AL_GAIN, m_musicVolume);
+}
+
 void AudioSystemImpl::addMusic(const std::string& path)
 {
+  if (!m_musicBuffer != 0) {
+    stopMusic();
+    alDeleteBuffers(1, &m_musicBuffer);
+    m_musicBuffer = 0;
+  }
 
+  auto data = m_fileSystem.readFile(path);
+
+  int channels = 0;
+  int rate = 0;
+  int16_t* decoded = nullptr;
+
+  int frames = stb_vorbis_decode_memory(reinterpret_cast<const unsigned char*>(data.data()),
+    static_cast<int>(data.size()), &channels, &rate, &decoded);
+
+  if (frames < 0) {
+    EXCEPTION("Failed to load ogg file");
+  }
+
+  std::vector<int16_t> pcmData;
+  pcmData.assign(decoded, decoded + frames * channels);
+
+  free(decoded);
+
+  ALsizei sampleRate = static_cast<ALsizei>(rate);
+  ALenum format = chooseFormat(channels);
+
+  alGenBuffers(1, &m_musicBuffer);
+  alBufferData(m_musicBuffer, format, pcmData.data(),
+    static_cast<ALsizei>(pcmData.size() * sizeof(int16_t)), sampleRate);
+
+  alSourcei(m_musicSource, AL_BUFFER, m_musicBuffer);
 }
 
 void AudioSystemImpl::playMusic()
 {
-
+  alSourcePlay(m_musicSource);
 }
 
 void AudioSystemImpl::stopMusic()
 {
-
+  alSourceStop(m_musicSource);
 }
 
 AudioSystemImpl::~AudioSystemImpl()
@@ -145,6 +210,14 @@ AudioSystemImpl::~AudioSystemImpl()
   for (auto entry : m_buffers) {
     alDeleteBuffers(1, &entry.second);
   }
+
+  stopMusic();
+
+  alDeleteSources(1, &m_musicSource);
+  alDeleteBuffers(1, &m_musicBuffer);
+
+  m_musicBuffer = 0;
+  m_musicSource = 0;
 
   alcMakeContextCurrent(nullptr);
   alcDestroyContext(m_context);

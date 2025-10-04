@@ -79,6 +79,8 @@ class GameImpl : public Game
     bool m_shouldExit = false;
     bool m_throwingMode = false;
     EntityId m_stickId = NULL_ENTITY;
+    float m_sfxVolume = 0.75f;
+    float m_musicVolume = 0.75f;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -93,6 +95,7 @@ class GameImpl : public Game
     void checkTimeout();
     void toggleThrowingMode(bool on, EntityId stickId = NULL_ENTITY);
     void throwStick(float_t x, float_t y);
+    void adjustVolume();
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
@@ -102,6 +105,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   , m_audioSystem(audioSystem)
   , m_renderer(renderer)
 {
+  m_audioSystem.addMusic("sounds/music.ogg");
   m_audioSystem.addSound(strBang, "sounds/bang.wav");
   m_audioSystem.addSound(strCollect, "sounds/collect.wav");
   m_audioSystem.addSound(strEnterPortal, "sounds/enter_portal.wav");
@@ -138,6 +142,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_menuSystem->showMainMenu();
 
   m_gameState = GameState::MainMenu;
+
+  m_audioSystem.playMusic();
 }
 
 void GameImpl::handleMenuEvent(const Event& event)
@@ -485,6 +491,19 @@ void GameImpl::checkTimeout()
   }
 }
 
+void GameImpl::adjustVolume()
+{
+  if (m_menuSystem->musicVolume() != m_musicVolume) {
+    m_musicVolume = m_menuSystem->musicVolume();
+    m_audioSystem.setMusicVolume(m_musicVolume);
+  }
+
+  if (m_menuSystem->sfxVolume() != m_sfxVolume) {
+    m_sfxVolume = m_menuSystem->sfxVolume();
+    m_audioSystem.setSoundVolume(m_sfxVolume);
+  }
+}
+
 bool GameImpl::update()
 {
   measureTickRate();
@@ -496,6 +515,8 @@ bool GameImpl::update()
   m_eventSystem->processEvents();
   m_timeService->update();
   m_menuSystem->update();
+
+  adjustVolume();
 
   return !m_shouldExit;
 }

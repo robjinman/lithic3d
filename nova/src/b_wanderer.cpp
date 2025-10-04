@@ -67,6 +67,11 @@ void BWanderer::makeMove()
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  if (!sysGrid.hasEntity(m_entityId)) {
+    // We're dead
+    return;
+  }
+
   if (!sysGrid.hasEntity(m_playerId)) {
     m_active = false;
     return;

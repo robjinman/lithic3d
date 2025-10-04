@@ -612,7 +612,11 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
   ui.bottomSlot = slots.bottom;
   ui.onGainFocus = focusAll;
   ui.onLoseFocus = unfocusAll;
-  ui.onInputCancel = focusAll;
+  ui.onInputCancel = [&sysUi, focusAll, leftBtnId, rightBtnId]() {
+    sysUi.sendInputCancel(leftBtnId);
+    sysUi.sendInputCancel(rightBtnId);
+    focusAll();
+  };
   ui.onInputBegin = [&sysUi, leftBtnId, rightBtnId](const UserInput& input) {
     if (std::holds_alternative<KeyboardKey>(input)) {
       if (std::get<KeyboardKey>(input) == KeyboardKey::Left) {

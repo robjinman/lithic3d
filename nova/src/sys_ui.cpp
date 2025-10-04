@@ -313,7 +313,12 @@ void SysUiImpl::processKeyPress(KeyboardKey key)
       auto nextItemId = currentItem.slots[keyToSlotIndex(key)];
 
       if (nextItemId != NULL_ENTITY) {
-        sendUnfocus(group.focusedItem);
+        if (currentItem.primed) {
+          sendInputCancel(group.focusedItem);
+        }
+        else {
+          sendUnfocus(group.focusedItem);
+        }
         sendFocus(nextItemId);
         break;
       }
