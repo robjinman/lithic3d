@@ -1065,15 +1065,18 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
 
   auto coords = randomGridCoords();
 
-  size_t i = 0;
-  for (size_t numConstructed = 0; numConstructed < numNuggets; ++numConstructed) {
+  size_t numConstructed = 0;
+  for (size_t i = 0; i < coords.size(); ++i) {
     assert(i < coords.size());
+
+    if (numConstructed >= numNuggets) {
+      break;
+    }
 
     int x = coords[i][0];
     int y = coords[i][1];
 
     if (mines.contains({ x, y })) {
-      ++i;
       continue;
     }
 
@@ -1119,7 +1122,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 5);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    ++i;
+    ++numConstructed;
   }
 }
 
@@ -1213,15 +1216,18 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
 
   auto coords = randomGridCoords();
 
-  size_t i = 0;
-  for (size_t numConstructed = 0; numConstructed < numWanderers; ++numConstructed) {
+  size_t numConstructed = 0;
+  for (size_t i = 0; i < coords.size(); ++i) {
     assert(i < coords.size());
+
+    if (numConstructed >= numWanderers) {
+      break;
+    }
 
     int x = coords[i][0];
     int y = coords[i][1];
 
     if (x < 6 && y < 6) {
-      ++i;
       continue;
     }
 
@@ -1272,7 +1278,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
     auto behaviour = createBWanderer(m_ecs, m_eventSystem, m_timeService, id, m_playerId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    ++i;
+    ++numConstructed;
   }
 }
 
@@ -1317,15 +1323,18 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 
   auto coords = randomGridCoords();
 
-  size_t i = 0;
-  for (size_t numConstructed = 0; numConstructed < numSticks; ++numConstructed) {
+  size_t numConstructed = 0;
+  for (size_t i = 0; i < coords.size(); ++i) {
     assert(i < coords.size());
+
+    if (numConstructed >= numSticks) {
+      break;
+    }
 
     int x = coords[i][0];
     int y = coords[i][1];
 
     if (mines.contains({ x, y })) {
-      ++i;
       continue;
     }
 
@@ -1368,7 +1377,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     auto behaviour = createBStick(m_ecs, m_eventSystem, id, m_playerId, animThrowId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    ++i;
+    ++numConstructed;
   }
 }
 
