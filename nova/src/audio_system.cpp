@@ -1,9 +1,7 @@
 #include "audio_system.hpp"
 #include "exception.hpp"
 #include "file_system.hpp"
-extern "C" {
-  #include "stb_vorbis.c"
-}
+#include "stb_vorbis.hpp"
 #include <AL/al.h>
 #include <AL/alc.h>
 #define DR_WAV_IMPLEMENTATION
