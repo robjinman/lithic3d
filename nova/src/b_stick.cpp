@@ -68,12 +68,10 @@ void BStick::onLand()
   auto entities = sysGrid.getEntities(m_destX, m_destY);
   entities.erase(m_entityId);
 
-  auto landEvent = std::make_unique<EEntityLandOn>(m_entityId, Vec2i{ m_destX, m_destY },
-    entities);
-  m_eventSystem.queueEvent(std::move(landEvent));
+  m_eventSystem.raiseEvent(EEntityLandOn{m_entityId, Vec2i{ m_destX, m_destY }, entities});
 
   sysAnimation.playAnimation(m_entityId, strFade, [this]() {
-    m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+    m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
   });
 }
 
@@ -114,7 +112,7 @@ void BStick::processEvent(const Event& event)
     auto& e = dynamic_cast<const EEntityLandOn&>(event);
 
     if (e.entityId == m_playerId) {
-      m_eventSystem.queueEvent(std::make_unique<EToggleThrowingMode>(m_entityId));
+      m_eventSystem.raiseEvent(EToggleThrowingMode{m_entityId});
     }
   }
   else if (event.name == g_strThrow) {

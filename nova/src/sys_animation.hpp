@@ -51,7 +51,9 @@ class SysAnimation : public System
     virtual void queueAnimation(EntityId entityId, HashedString name,
       const std::function<void()>& onFinish) = 0;
 
-    // Stops the current animation and starts any queued animation
+    // Stops the current animation and starts any queued animation.
+    // WARNING: This triggers the onFinish callback, which could in turn start a new animation,
+    // so don't assume no animation is playing after calling this.
     virtual void stopAnimation(EntityId entityId) = 0;
 
     virtual void seek(EntityId entityId, Tick tick) = 0;

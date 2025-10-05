@@ -513,11 +513,11 @@ void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::Gr
     if (!escape) {
       sysAnimation.stopAnimation(id);
       sysAnimation.playAnimation(id, strActivate, [this, id]() {
-        m_eventSystem.queueEvent(std::make_unique<EMenuItemActivate>(id));
+        m_eventSystem.raiseEvent(EMenuItemActivate{id});
       });
     }
     else {
-      m_eventSystem.queueEvent(std::make_unique<ESubmenuExit>());
+      m_eventSystem.raiseEvent(ESubmenuExit{});
     }
   };
   ui.onGainFocus = [&sysAnimation, id]() {
@@ -586,18 +586,18 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
     sysAnimation.stopAnimation(id);
     sysAnimation.stopAnimation(leftBtnId);
     sysAnimation.stopAnimation(rightBtnId);
-    sysAnimation.playAnimation(id, strIdleFocused, true);
-    sysAnimation.playAnimation(leftBtnId, strIdleFocused, true);
-    sysAnimation.playAnimation(rightBtnId, strIdleFocused, true);
+    sysAnimation.queueAnimation(id, strIdleFocused, true);
+    sysAnimation.queueAnimation(leftBtnId, strIdleFocused, true);
+    sysAnimation.queueAnimation(rightBtnId, strIdleFocused, true);
   };
 
   auto unfocusAll = [&sysAnimation, id, leftBtnId, rightBtnId]() {
     sysAnimation.stopAnimation(id);
     sysAnimation.stopAnimation(leftBtnId);
     sysAnimation.stopAnimation(rightBtnId);
-    sysAnimation.playAnimation(id, strIdle, true);
-    sysAnimation.playAnimation(leftBtnId, strIdle, true);
-    sysAnimation.playAnimation(rightBtnId, strIdle, true);
+    sysAnimation.queueAnimation(id, strIdle, true);
+    sysAnimation.queueAnimation(leftBtnId, strIdle, true);
+    sysAnimation.queueAnimation(rightBtnId, strIdle, true);
   };
 
   std::set<UserInput> filter{
@@ -636,7 +636,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
         sysUi.sendInputEnd(rightBtnId, input);
       }
       else if (std::get<KeyboardKey>(input) == KeyboardKey::Escape) {
-        m_eventSystem.queueEvent(std::make_unique<ESubmenuExit>());
+        m_eventSystem.raiseEvent(ESubmenuExit{});
       }
     }
   };
@@ -662,7 +662,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
     btnUi.onInputCancel = onBtnUpWrap;
     btnUi.onInputBegin = [&sysAnimation, btnId, onBtnDown](const UserInput&) {
       sysAnimation.stopAnimation(btnId);
-      sysAnimation.playAnimation(btnId, strPrime);
+      sysAnimation.queueAnimation(btnId, strPrime);
       onBtnDown();
     };
     btnUi.onInputEnd = [&sysAnimation, btnId, onBtnUpWrap](const UserInput&) {

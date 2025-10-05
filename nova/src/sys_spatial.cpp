@@ -115,7 +115,7 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
   }
 
   if (enabled) {
-    m_eventSystem.queueEvent(std::make_unique<EEntityEnable>(entityId, EntityIdSet{ entityId }));
+    m_eventSystem.raiseEvent(EEntityEnable{entityId, EntityIdSet{ entityId }});
   }
 }
 

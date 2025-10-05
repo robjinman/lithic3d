@@ -8,7 +8,6 @@
 #include "audio_system.hpp"
 #include "renderer.hpp"
 #include "menu_system.hpp"
-#include "time_service.hpp"
 #include "sys_animation.hpp"
 #include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
@@ -19,6 +18,7 @@
 #include "systems.hpp"
 #include "events.hpp"
 #include "game_options.hpp"
+#include "b_player.hpp"
 #undef max
 #undef min
 
@@ -64,7 +64,6 @@ class GameImpl : public Game
     AudioSystem& m_audioSystem;
     render::Renderer& m_renderer;
     EventSystemPtr m_eventSystem;
-    TimeServicePtr m_timeService;
     MenuSystemPtr m_menuSystem;
     EcsPtr m_ecs;
     SceneBuilderPtr m_sceneBuilder;
@@ -114,7 +113,6 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_audioSystem.addSound(strTick, "sounds/tick.wav");
 
   m_eventSystem = createEventSystem(m_logger);
-  m_timeService = createTimeService();
   m_ecs = createEcs(m_logger);
 
   auto sysAnimation = createSysAnimation(m_ecs->componentStore(), m_logger);
@@ -132,7 +130,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
   m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, m_logger);
-  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_timeService);
+  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs);
 
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 
@@ -214,8 +212,6 @@ void GameImpl::handleEvent(const Event& event)
 
 void GameImpl::destroyCurrentGame()
 {
-  m_timeService->clear();
-
   // Will delete entities pending deletion
   m_ecs->update(m_currentTick, m_inputState);
 
@@ -340,7 +336,6 @@ void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
 {
   int W = 630;
   int H = 480; // TODO (remember fullscreen mode)
-  float_t aspect = static_cast<float_t>(W) / H;
   m_inputState.mousePos[0] = pos[0] / H;
   m_inputState.mousePos[1] = 1.f - pos[1] / H;
 }
@@ -356,66 +351,33 @@ void GameImpl::onRightStickMove(const Vec2f& delta)
 
 void GameImpl::processKeyboardInput()
 {
-  static auto strMoveLeft = hashString("move_left");
-  static auto strMoveRight = hashString("move_right");
-  static auto strMoveUp = hashString("move_up");
-  static auto strMoveDown = hashString("move_down");
+  static auto strPlayer = hashString("player");
 
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(ANIMATION_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs->system(GRID_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs->system(BEHAVIOUR_SYSTEM));
 
   switch (m_gameState) {
     case GameState::Playing: {
-      if (sysAnimation.hasAnimationPlaying(m_scene.player)) {
-        return;
-      }
+      auto& player = dynamic_cast<BPlayer&>(sysBehaviour.getBehaviour(m_scene.player, strPlayer));
 
-      bool moved = false;
       if (m_inputState.keysPressed.contains(KeyboardKey::Left)) {
-        if (sysGrid.tryMove(m_scene.player, -1, 0)) {
-          sysAnimation.playAnimation(m_scene.player, strMoveLeft);
-          moved = true;
+        if (player.moveLeft()) {
+          toggleThrowingMode(false);
         }
       }
       else if (m_inputState.keysPressed.contains(KeyboardKey::Right)) {
-        if (sysGrid.tryMove(m_scene.player, 1, 0)) {
-          sysAnimation.playAnimation(m_scene.player, strMoveRight);
-          moved = true;
+        if (player.moveRight()) {
+          toggleThrowingMode(false);
         }
       }
       else if (m_inputState.keysPressed.contains(KeyboardKey::Up)) {
-        if (sysGrid.tryMove(m_scene.player, 0, 1)) {
-          sysAnimation.playAnimation(m_scene.player, strMoveUp);
-          moved = true;
+        if (player.moveUp()) {
+          toggleThrowingMode(false);
         }
       }
       else if (m_inputState.keysPressed.contains(KeyboardKey::Down)) {
-        if (sysGrid.tryMove(m_scene.player, 0, -1)) {
-          sysAnimation.playAnimation(m_scene.player, strMoveDown);
-          moved = true;
+        if (player.moveDown()) {
+          toggleThrowingMode(false);
         }
-      }
-
-      if (moved) {
-        auto movedEvent = std::make_unique<EPlayerMove>(sysGrid.entityPos(m_scene.player));
-        m_eventSystem->queueEvent(std::move(movedEvent));
-
-        toggleThrowingMode(false);
-
-        auto makeTask = [&sysGrid](EventSystem& eventSystem, EntityId id) {
-          return [&eventSystem, &sysGrid, id]() {
-            if (sysGrid.hasEntity(id)) {
-              auto pos = sysGrid.entityPos(id);
-              auto entities = sysGrid.getEntities(pos[0], pos[1]);
-              entities.erase(id);
-
-              auto event = std::make_unique<EEntityLandOn>(id, pos, entities);
-              eventSystem.queueEvent(std::move(event));
-            }
-          };
-        };
-
-        m_timeService->scheduleTask(15, makeTask(*m_eventSystem, m_scene.player));
       }
 
       break;
@@ -438,7 +400,7 @@ void GameImpl::throwStick(float_t x, float_t y)
   Vec2i dest{ static_cast<int>(x / GRID_CELL_W), static_cast<int>(y / GRID_CELL_H) };
 
   if (sysGrid.isInRange(dest[0], dest[1])) {
-    m_eventSystem->queueEvent(std::make_unique<EThrow>(m_stickId, dest[0], dest[1]));
+    m_eventSystem->raiseEvent(EThrow{m_stickId, dest[0], dest[1]});
     toggleThrowingMode(false);
   }
 }
@@ -485,11 +447,11 @@ void GameImpl::checkTimeout()
       uint32_t timeRemaining = gameDuration - secondsElapsed;
 
       if (secondsElapsed <= gameDuration) {
-        m_eventSystem->queueEvent(std::make_unique<ETimerTick>(timeRemaining));
+        m_eventSystem->raiseEvent(ETimerTick{timeRemaining});
       }
 
       if (secondsElapsed >= gameDuration) {
-        m_eventSystem->queueEvent(std::make_unique<ETimeout>());
+        m_eventSystem->raiseEvent(ETimeout{});
       }
     }
   }
@@ -517,7 +479,6 @@ bool GameImpl::update()
 
   m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();
-  m_timeService->update();
   m_menuSystem->update();
 
   adjustVolume();

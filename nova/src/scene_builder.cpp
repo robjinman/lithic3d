@@ -81,7 +81,7 @@ std::vector<Vec2i> randomGridCoords()
 class SceneBuilderImpl : public SceneBuilder
 {
   public:
-    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService);
+    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs);
 
     Scene buildScene(uint32_t level) override;
     EntityIdSet entities() const override;
@@ -89,7 +89,6 @@ class SceneBuilderImpl : public SceneBuilder
   private:
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
-    TimeService& m_timeService;
     EntityIdSet m_entities;
     EntityId m_worldRoot;
     EntityId m_menuRoot;
@@ -109,7 +108,7 @@ class SceneBuilderImpl : public SceneBuilder
     void constructGradient();
     void constructCoins(uint32_t numCoins);
     void constructGoldNuggets(uint32_t numNuggets, const std::set<std::pair<int, int>>& mines);
-    void constructWanderers(uint32_t numWanderers);
+    void constructWanderers(uint32_t numWanderers, const std::set<std::pair<int, int>>& mines);
     void constructSticks(uint32_t numSticks, const std::set<std::pair<int, int>>& mines);
     void constructExit();
     void constructCoinLabel();
@@ -120,10 +119,9 @@ class SceneBuilderImpl : public SceneBuilder
     EntityId constructRestartGamePrompt();
 };
 
-SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService)
+SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs)
   : m_eventSystem(eventSystem)
   , m_ecs(ecs)
-  , m_timeService(timeService)
 {
 }
 
@@ -152,7 +150,7 @@ Scene SceneBuilderImpl::buildScene(uint32_t level)
   constructGradient();
   constructCoins(options.coins);
   constructGoldNuggets(options.nuggets, mines);
-  constructWanderers(options.wanderers);
+  constructWanderers(options.wanderers, mines);
   constructSticks(options.sticks, mines);
   constructExit();
   constructCoinLabel();
@@ -311,7 +309,7 @@ EntityId SceneBuilderImpl::constructPlayer()
 
   auto animEnterPortal = std::unique_ptr<Animation>(new Animation{
     .name = hashString("enter_portal"),
-    .duration = 20,
+    .duration = 30,
     .frames = {
       makeFrame(calcOffset(0.9f), 384.f, 256.f, white, 0.9f),
       makeFrame(calcOffset(0.8f), 384.f, 256.f, white, 0.8f),
@@ -321,7 +319,11 @@ EntityId SceneBuilderImpl::constructPlayer()
       makeFrame(calcOffset(0.4f), 384.f, 256.f, white, 0.4f),
       makeFrame(calcOffset(0.3f), 384.f, 256.f, white, 0.3f),
       makeFrame(calcOffset(0.2f), 384.f, 256.f, white, 0.2f),
-      makeFrame(calcOffset(0.1f), 384.f, 256.f, white, 0.1f)
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, white, 0.1f),
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, Vec4f{}, 0.1f),
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, Vec4f{}, 0.1f),
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, Vec4f{}, 0.1f),
+      makeFrame(calcOffset(0.1f), 384.f, 256.f, Vec4f{}, 0.1f)
     }
   });
 
@@ -640,15 +642,15 @@ void SceneBuilderImpl::constructSoil()
       auto collectBehaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 0);
       sysBehaviour.addBehaviour(id, std::move(collectBehaviour));
 
-      auto dissolveBehaviour = createBGeneric(hashString("dissolve"),
-        { g_strEntityExplode }, [&sysAnimation, this, id](const Event& e) {
+      auto dissolveBehaviour = createBGeneric(hashString("dissolve"), { g_strEntityExplode },
+        [&sysAnimation, this, id](const Event& e) {
 
         if (e.name == g_strEntityExplode) {
           if (sysAnimation.hasAnimationPlaying(id)) {
             sysAnimation.finishAnimation(id);
           }
           sysAnimation.playAnimation(id, hashString("collect"), [this, id]() {
-            m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
+            m_eventSystem.raiseEvent(ERequestDeletion{id});
           });
         }
       });
@@ -750,24 +752,20 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
         auto& event = dynamic_cast<const EEntityLandOn&>(e);
 
         if (event.pos == Vec2i{ x, y }) {
-          EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
           sysGrid.removeEntity(id);
-          m_eventSystem.queueEvent(std::make_unique<EEntityExplode>(id, event.pos, targets));
-        }
-      }
-      else if (e.name == g_strEntityExplode) {
-        auto& event = dynamic_cast<const EEntityExplode&>(e);
 
-        if (event.entityId == id) {
+          EntityIdSet targets = sysGrid.getEntities(x - 1, y - 1, x + 1, y + 1);
+          m_eventSystem.raiseEvent(EEntityExplode{id, event.pos, targets});
+
           sysAnimation.playAnimation(id, strExplode, [this, id]() {
-            m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(id));
+            m_eventSystem.raiseEvent(ERequestDeletion{id});
           });
           sysRender.setZIndex(id, static_cast<uint32_t>(ZIndex::Explosion));
         }
       }
     };
 
-    auto behaviour = createBGeneric(strExplode, { g_strEntityLandOn, g_strEntityExplode }, onEvent);
+    auto behaviour = createBGeneric(strExplode, { g_strEntityLandOn }, onEvent);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
     sysAnimation.addEntity(id, AnimationData{
@@ -845,8 +843,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       sysRender.addEntity(id, render);
       sysRender.setVisible(id, !mines.contains({ i, j }));
 
-      auto behaviour = createBNumericTile(m_ecs, m_eventSystem, m_timeService, id, Vec2i{ i, j },
-        value);
+      auto behaviour = createBNumericTile(m_ecs, m_eventSystem, id, Vec2i{ i, j }, value);
 
       sysBehaviour.addBehaviour(id, std::move(behaviour));
     }
@@ -1126,7 +1123,8 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
   }
 }
 
-void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
+void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
+  const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
@@ -1231,6 +1229,10 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
       continue;
     }
 
+    if (mines.contains({ x, y })) {
+      continue;
+    }
+
     auto id = m_ecs.componentStore().allocate<
       CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
     >();
@@ -1275,7 +1277,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers)
       }
     });
 
-    auto behaviour = createBWanderer(m_ecs, m_eventSystem, m_timeService, id, m_playerId);
+    auto behaviour = createBWanderer(m_ecs, m_eventSystem, id, m_playerId);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
     ++numConstructed;
@@ -1519,7 +1521,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 
       if (event.timeRemaining == 10) {
         m_ecs.componentStore().component<CRender>(id).colour = { 1.f, 0.f, 0.f, 1.f };
-        m_eventSystem.queueEvent(std::make_unique<ETenSecondsRemaining>());
+        m_eventSystem.raiseEvent(ETenSecondsRemaining{});
       }
     }
   });
@@ -1664,7 +1666,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
 
 } // namespace
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs, TimeService& timeService)
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs)
 {
-  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs, timeService);  
+  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs);  
 }

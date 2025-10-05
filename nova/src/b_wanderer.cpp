@@ -5,7 +5,6 @@
 #include "sys_animation.hpp"
 #include "sys_render.hpp"
 #include "events.hpp"
-#include "time_service.hpp"
 
 namespace
 {
@@ -13,8 +12,7 @@ namespace
 class BWanderer : public BehaviourData
 {
   public:
-    BWanderer(Ecs& ecs, EventSystem& eventSystem, TimeService& timeService, EntityId entityId,
-      EntityId playerId);
+    BWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId);
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
@@ -23,7 +21,6 @@ class BWanderer : public BehaviourData
   private:
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
-    TimeService& m_timeService;
     EntityId m_entityId;
     EntityId m_playerId;
     bool m_active = false;
@@ -31,11 +28,9 @@ class BWanderer : public BehaviourData
     void makeMove();
 };
 
-BWanderer::BWanderer(Ecs& ecs, EventSystem& eventSystem, TimeService& timeService,
-  EntityId entityId, EntityId playerId)
+BWanderer::BWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
-  , m_timeService(timeService)
   , m_entityId(entityId)
   , m_playerId(playerId)
 {
@@ -64,8 +59,17 @@ void BWanderer::makeMove()
   const static HashedString strMoveUp = hashString("move_up");
   const static HashedString strMoveDown = hashString("move_down");
 
+  if (!m_active) {
+    return;
+  }
+
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+
+  auto pos = sysGrid.entityPos(m_entityId);
+  auto entities = sysGrid.getEntities(pos[0], pos[1]);
+  entities.erase(m_entityId);
+  m_eventSystem.raiseEvent(EEntityLandOn{m_entityId, pos, entities});
 
   if (!sysGrid.hasEntity(m_playerId)) {
     m_active = false;
@@ -73,10 +77,9 @@ void BWanderer::makeMove()
   }
 
   auto playerPos = sysGrid.entityPos(m_playerId);
-  auto pos = sysGrid.entityPos(m_entityId);
 
-  auto diff = pos - playerPos;
   bool moved = false;
+  auto diff = pos - playerPos;
   if (abs(diff[0]) > abs(diff[1])) {
     if (diff[0] > 0) {
       if (sysGrid.tryMove(m_entityId, -1, 0)) {
@@ -106,21 +109,14 @@ void BWanderer::makeMove()
     }
   }
 
+  // tryMove will have triggered an event, which could wind up changing m_active
+  if (!m_active) {
+    return;
+  }
+
   if (moved) {
-    auto makeTask = [&sysGrid](EventSystem& eventSystem, EntityId id) {
-      return [&eventSystem, &sysGrid, id]() {
-        if (sysGrid.hasEntity(id)) {
-          auto pos = sysGrid.entityPos(id);
-          auto entities = sysGrid.getEntities(pos[0], pos[1]);
-          entities.erase(id);
-
-          auto event = std::make_unique<EEntityLandOn>(id, pos, entities);
-          eventSystem.queueEvent(std::move(event));
-        }
-      };
-    };
-
-    m_timeService.scheduleTask(30, makeTask(m_eventSystem, m_entityId));
+    auto newPos = sysGrid.entityPos(m_entityId);
+    m_eventSystem.raiseEvent(EAttack{m_entityId, sysGrid.getEntities(newPos[0], newPos[1])});
   }
 }
 
@@ -133,34 +129,40 @@ void BWanderer::processEvent(const Event& event)
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
   if (event.name == g_strEntityExplode) {
-    auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-
     auto& e = dynamic_cast<const EEntityExplode&>(event);
-    if (sysGrid.hasEntityAt(m_entityId, e.pos[0], e.pos[1])) {
-      m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
-    }
 
-    return;
+    if (e.pos == sysGrid.entityPos(m_entityId)) {
+      m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+      m_active = false;
+      return;
+    }
   }
 
   if (m_active) {
-    if (event.name == g_strEntityLandOn) {
-      auto& e = dynamic_cast<const EEntityLandOn&>(event);
-      m_eventSystem.queueEvent(std::make_unique<EAttack>(m_entityId, EntityIdSet{ e.entityId }));
+    if (event.name == g_strPlayerMove) {
+      if (sysGrid.hasEntity(m_playerId)) {
+        auto& playerPos = sysGrid.entityPos(m_playerId);
+        auto& pos = sysGrid.entityPos(m_entityId);
+        if (playerPos == pos) {
+          m_eventSystem.raiseEvent(EAttack{m_entityId, EntityIdSet{ m_playerId }});
+        }
+      }
     }
   }
   else {
     if (event.name == g_strPlayerMove) {
-      auto& e = dynamic_cast<const EPlayerMove&>(event);
-      auto& pos = sysGrid.entityPos(m_entityId);
+      if (sysGrid.hasEntity(m_playerId)) {
+        auto& e = dynamic_cast<const EPlayerMove&>(event);
+        auto& pos = sysGrid.entityPos(m_entityId);
 
-      auto diff = pos - e.pos;
-      int sqDist = diff[0] * diff[0] + diff[1] * diff[1];
+        auto diff = pos - e.pos;
+        int sqDist = diff[0] * diff[0] + diff[1] * diff[1];
 
-      if (sqDist <= sqActivationDist) {
-        m_active = true;
-        m_ecs.componentStore().component<CRender>(m_entityId).visible = true;
-        sysAnimation.playAnimation(m_entityId, strFadeIn, [this]() { makeMove(); });
+        if (sqDist <= sqActivationDist) {
+          m_active = true;
+          m_ecs.componentStore().component<CRender>(m_entityId).visible = true;
+          sysAnimation.playAnimation(m_entityId, strFadeIn, [this]() { makeMove(); });
+        }
       }
     }
   }
@@ -168,8 +170,8 @@ void BWanderer::processEvent(const Event& event)
 
 } // namespace
 
-BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, TimeService& timeService,
-  EntityId entityId, EntityId playerId)
+BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+  EntityId playerId)
 {
-  return std::make_unique<BWanderer>(ecs, eventSystem, timeService, entityId, playerId);
+  return std::make_unique<BWanderer>(ecs, eventSystem, entityId, playerId);
 }

@@ -96,7 +96,7 @@ bool SysGridImpl::tryMove(EntityId entityId, int dx, int dy)
   addEntity(entityId, dest[0], dest[1]);
 
   if (!entities.empty()) {
-    m_eventSystem.queueEvent(std::make_unique<EEntityEnter>(entityId, dest, entities));
+    m_eventSystem.raiseEvent(EEntityEnter{entityId, dest, entities});
   }
 
   return true;

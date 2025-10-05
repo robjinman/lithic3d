@@ -68,7 +68,6 @@ class SysAnimationImpl : public SysAnimation
     std::map<EntityId, CAnimationPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimations;
     std::map<AnimationId, AnimationPtr> m_animations;
-    std::map<EntityId, std::function<void()>> m_callbacks;
 
     static AnimationId m_nextId;
 
@@ -200,14 +199,8 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
 void SysAnimationImpl::update(Tick, const InputState&)
 {
-  for (auto entry : m_callbacks) {
-    if (hasEntity(entry.first)) {
-      entry.second();
-    }
-  }
-  m_callbacks.clear();
-
   std::vector<std::tuple<EntityId, QueuedAnimation>> queue;
+  std::vector<std::function<void()>> callbacks;
 
   for (auto i = m_activeAnimations.begin(); i != m_activeAnimations.end();) {
     auto entityId = i->first;
@@ -227,14 +220,17 @@ void SysAnimationImpl::update(Tick, const InputState&)
       i = m_activeAnimations.erase(i);
 
       if (onFinish.has_value()) {
-        DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
-        m_callbacks.insert({ entityId, onFinish.value() });
+        callbacks.push_back(onFinish.value());
       }
     }
   }
 
   for (auto& anim : queue) {
     playQueuedAnimation(std::get<0>(anim), std::get<1>(anim));
+  }
+
+  for (auto& callback : callbacks) {
+    callback();
   }
 }
 
@@ -255,13 +251,14 @@ void SysAnimationImpl::stopAnimation(EntityId entityId)
     return;
   }
 
-  // Invoke callback on stop. Do we want this?
-  if (i->second.onFinish.has_value()) {
-    DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
-    m_callbacks.insert({ entityId, i->second.onFinish.value() });
-  }
+  auto callback = i->second.onFinish;
 
   m_activeAnimations.erase(i);
+
+  // Invoke callback on stop. Do we want this?
+  if (callback.has_value()) {
+    callback.value()();
+  }
 }
 
 void SysAnimationImpl::finishAnimation(EntityId entityId)
@@ -283,16 +280,15 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
   assert(updateAnimation(entityId, i->second, toRepeat));
   m_activeAnimations.erase(entityId);
 
-  if (onFinish.has_value()) {
-    DBG_ASSERT(!m_callbacks.contains(entityId), "Entity already has callback pending");
-    m_callbacks.insert({ entityId, onFinish.value() });
-  }
-
   // Only play queued animations, not repeating animations
   if (hasQueuedAnimation) {
     for (auto& anim : toRepeat) {
       playQueuedAnimation(std::get<0>(anim), std::get<1>(anim));
     }
+  }
+
+  if (onFinish.has_value()) {
+    onFinish.value()();
   }
 }
 

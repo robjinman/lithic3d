@@ -60,7 +60,7 @@ void BCoinCounter::processEvent(const Event& event)
     sysRender.updateDynamicText(m_entityId, ss.str());
 
     if (m_remaining == 0) {
-      m_eventSystem.queueEvent(std::make_unique<EGoldTargetAttained>());
+      m_eventSystem.raiseEvent(EGoldTargetAttained{});
     }
   }
 }

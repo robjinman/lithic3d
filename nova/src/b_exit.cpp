@@ -40,7 +40,8 @@ HashedString BExit::name() const
 const std::set<HashedString>& BExit::subscriptions() const
 {
   static std::set<HashedString> subs{
-    g_strGoldTargetAttained
+    g_strGoldTargetAttained,
+    g_strEntityLandOn
   };
   return subs;
 }
@@ -53,13 +54,13 @@ void BExit::processEvent(const Event& event)
     sysAnimation.playAnimation(m_entityId, hashString("idle"), true);
     m_open = true;
   }
-  else if (event.name == g_strEntityEnter && m_open) {
-    auto& e = dynamic_cast<const EEntityEnter&>(event);
+  else if (event.name == g_strEntityLandOn && m_open) {
+    auto& e = dynamic_cast<const EEntityLandOn&>(event);
     if (e.entityId == m_playerId) {
-      m_eventSystem.queueEvent(std::make_unique<EEnterPortal>());
+      m_eventSystem.raiseEvent(EEnterPortal{});
 
       sysAnimation.queueAnimation(m_playerId, hashString("enter_portal"), [this]() {
-        m_eventSystem.queueEvent(std::make_unique<EPlayerVictorious>());
+        m_eventSystem.raiseEvent(EPlayerVictorious{});
       });
     }
   }

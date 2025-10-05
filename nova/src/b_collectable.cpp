@@ -62,9 +62,9 @@ void BCollectable::processEvent(const Event& event)
         sysAnimation.finishAnimation(m_entityId);
       }
       sysAnimation.playAnimation(m_entityId, strCollect, [this]() {
-        m_eventSystem.queueEvent(std::make_unique<ERequestDeletion>(m_entityId));
+        m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
       });
-      m_eventSystem.queueEvent(std::make_unique<EItemCollect>(m_entityId, m_value));
+      m_eventSystem.raiseEvent(EItemCollect{m_entityId, m_value});
     }
   }
 }
