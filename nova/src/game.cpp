@@ -184,6 +184,10 @@ void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
 {
   m_throwingMode = on;
   m_ecs->componentStore().component<CRender>(m_scene.throwingModeIndicator).visible = on;
+  m_inputState.mousePos = Vec2f{
+    GRID_W * GRID_CELL_W * 0.5f,
+    GRID_H * GRID_CELL_H * 0.5f
+  };
   m_stickId = stickId;
 }
 
