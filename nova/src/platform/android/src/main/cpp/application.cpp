@@ -1,19 +1,12 @@
-#include "scene.hpp"
 #include "logger.hpp"
 #include "game.hpp"
 #include "renderer.hpp"
-#include "render_system.hpp"
-#include "spatial_system.hpp"
-#include "collision_system.hpp"
-#include "map_parser.hpp"
-#include "model_loader.hpp"
-#include "entity_factory.hpp"
 #include "time.hpp"
 #include "utils.hpp"
 #include "units.hpp"
 #include "window_delegate.hpp"
 #include "file_system.hpp"
-#include "units.hpp"
+#include "audio_system.hpp"
 #include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <android/log.h>
@@ -73,13 +66,8 @@ class Application
     Logger& m_logger;
     WindowDelegatePtr m_windowDelegate;
     FileSystemPtr m_fileSystem;
+    AudioSystemPtr m_audioSystem;
     render::RendererPtr m_renderer;
-    SpatialSystemPtr m_spatialSystem;
-    RenderSystemPtr m_renderSystem;
-    CollisionSystemPtr m_collisionSystem;
-    MapParserPtr m_mapParser;
-    ModelLoaderPtr m_modelLoader;
-    EntityFactoryPtr m_entityFactory;
     GamePtr m_game;
     Vec2f m_leftStickDelta;
     Vec2f m_rightStickDelta;
@@ -92,20 +80,10 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   , m_windowDelegate(std::move(windowDelegate))
   , m_fileSystem(std::move(fileSystem))
 {
+  m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, m_logger);
-  m_spatialSystem = createSpatialSystem(m_logger);
-  m_renderSystem = createRenderSystem(*m_spatialSystem, *m_renderer, m_logger);
-  m_collisionSystem = createCollisionSystem(*m_spatialSystem, m_logger);
-  m_mapParser = createMapParser(*m_fileSystem, m_logger);
-  m_modelLoader = createModelLoader(*m_renderSystem, *m_fileSystem, *m_logger);
-  m_entityFactory = createEntityFactory(*m_modelLoader, *m_spatialSystem, *m_renderSystem,
-    *m_collisionSystem, *m_fileSystem, *m_logger);
 
-  auto player = createScene(*m_entityFactory, *m_spatialSystem, *m_renderSystem, *m_collisionSystem,
-    *m_mapParser, *m_fileSystem, m_logger);
-
-  m_renderSystem->start();
-  m_game = createGame(std::move(player), *m_renderSystem, *m_collisionSystem, m_logger);
+  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger);
 }
 
 void Application::update()
@@ -113,9 +91,6 @@ void Application::update()
   m_game->onLeftStickMove(m_leftStickDelta);
   m_game->onRightStickMove(m_rightStickDelta);
   m_game->update();
-  m_spatialSystem->update();
-  m_renderSystem->update();
-  m_collisionSystem->update();
 }
 
 void Application::onConfigChange()
@@ -268,7 +243,7 @@ bool EventHandler::isWindowInitialised() const
 
 bool waitForWindow(android_app& state, EventHandler& handler)
 {
-  FrameRateLimiter frameRateLimiter{TARGET_FRAME_RATE};
+  FrameRateLimiter frameRateLimiter{TICKS_PER_SECOND};
 
   while (!state.destroyRequested) {
     android_poll_source* source = nullptr;
@@ -303,7 +278,7 @@ int32_t handleInput(android_app* state, AInputEvent* event)
 void android_main(android_app* state)
 {
   auto logger = createAndroidLogger();
-  logger->info("Starting Nova");
+  logger->info("Starting Minefield");
 
   EventHandler handler{*logger};
 
@@ -318,7 +293,7 @@ void android_main(android_app* state)
   auto application = createApplication(*state, *logger);
   handler.setApplication(application.get());
 
-  FrameRateLimiter frameRateLimiter{TARGET_FRAME_RATE};
+  FrameRateLimiter frameRateLimiter{TICKS_PER_SECOND};
 
   while (!state->destroyRequested) {
     android_poll_source* source = nullptr;

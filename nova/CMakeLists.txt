@@ -61,7 +61,7 @@ set(LIB_TARGET "${LIB_TARGET}" PARENT_SCOPE)
 
 find_package(tinyxml2 REQUIRED)
 find_package(Stb REQUIRED)
-find_package(OpenAL REQUIRED)
+find_package(OpenAL CONFIG REQUIRED)
 find_package(fmt REQUIRED)  # For OpenAL
 
 configure_file(

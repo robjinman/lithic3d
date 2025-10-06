@@ -21,7 +21,7 @@ project(${PROJECT_NAME})
 
 if(PLATFORM_ANDROID)
   add_custom_target(android_bundle ALL
-    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "bundle${CMAKE_BUILD_TYPE}"
+    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
     COMMENT "Running Gradle build..."
