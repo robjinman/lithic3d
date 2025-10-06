@@ -44,6 +44,10 @@ GamepadButton buttonCode(int button)
     case GLFW_GAMEPAD_BUTTON_Y:             return GamepadButton::Y;
     case GLFW_GAMEPAD_BUTTON_LEFT_BUMPER:   return GamepadButton::L1;
     case GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER:  return GamepadButton::R1;
+    case GLFW_GAMEPAD_BUTTON_DPAD_LEFT:     return GamepadButton::Left;
+    case GLFW_GAMEPAD_BUTTON_DPAD_RIGHT:    return GamepadButton::Right;
+    case GLFW_GAMEPAD_BUTTON_DPAD_UP:       return GamepadButton::Up;
+    case GLFW_GAMEPAD_BUTTON_DPAD_DOWN:     return GamepadButton::Down;
     // ...
     default:                                return GamepadButton::Unknown;
   }
@@ -215,7 +219,7 @@ void Application::onKeyboardInput(int code, int action)
 #else
       case KeyboardKey::F11:
 #endif
-        //toggleFullScreen();
+        toggleFullScreen();
         break;
       default: break;
     }
@@ -293,7 +297,7 @@ void Application::processGamepadInput()
   GLFWgamepadstate state;
 
   if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
-    for (int i = 0; i < GLFW_GAMEPAD_BUTTON_LAST; ++i) {
+    for (int i = 0; i <= GLFW_GAMEPAD_BUTTON_LAST; ++i) {
       if (m_gamepadState.buttons[i] == GLFW_RELEASE && state.buttons[i] == GLFW_PRESS) {
         m_game->onButtonDown(buttonCode(i));
       }

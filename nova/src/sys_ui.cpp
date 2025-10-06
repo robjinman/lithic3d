@@ -371,10 +371,10 @@ std::optional<UserInput> getInput(const InputState& prevState, const InputState&
     return key.value();
   }
 
-  auto btn = firstDifference(state.gamepadButtonsPressed, prevState.gamepadButtonsPressed);
-  if (btn.has_value()) {
-    return btn.value();
-  }
+  //auto btn = firstDifference(state.gamepadButtonsPressed, prevState.gamepadButtonsPressed);
+  //if (btn.has_value()) {
+  //  return btn.value();
+  //}
 
   return std::nullopt;
 }

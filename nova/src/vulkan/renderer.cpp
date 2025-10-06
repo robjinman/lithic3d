@@ -90,6 +90,7 @@ class RendererImpl : public Renderer
     void onResize() override;
     double frameRate() const override;
     const ViewParams& getViewParams() const override;
+    Vec2i getViewportSize() const override;
     void checkError() const override;
 
     // Initialisation
@@ -392,6 +393,11 @@ void RendererImpl::onResize()
 const ViewParams& RendererImpl::getViewParams() const
 {
   return m_viewParams;
+}
+
+Vec2i RendererImpl::getViewportSize() const
+{
+  return { static_cast<int>(m_swapchainExtent.width), static_cast<int>(m_swapchainExtent.height) };
 }
 
 RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,

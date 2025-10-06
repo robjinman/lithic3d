@@ -180,6 +180,15 @@ class Vector
       return v;
     }
 
+    Vector<T, N> operator*(const Vector<T, N>& rhs) const
+    {
+      Vector<T, N> v;
+      for (size_t i = 0; i < N; ++i) {
+        v[i] = m_data[i] * rhs.m_data[i];
+      }
+      return v;
+    }
+
     Vector<T, N> operator/(const Vector<T, N>& rhs) const
     {
       Vector<T, N> v;

@@ -40,6 +40,10 @@ enum class GamepadButton
   L2,
   R1,
   R2,
+  Left,
+  Right,
+  Up,
+  Down,
   // ...
   Unknown
 };
@@ -55,7 +59,7 @@ using UserInput = std::variant<KeyboardKey, GamepadButton, MouseButton>;
 struct InputState
 {
   std::set<KeyboardKey> keysPressed;
-  std::set<GamepadButton> gamepadButtonsPressed;
+  //std::set<GamepadButton> gamepadButtonsPressed;
   std::set<MouseButton> mouseButtonsPressed;
 
   Vec2f mousePos;
