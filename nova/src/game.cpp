@@ -80,6 +80,7 @@ class GameImpl : public Game
     EntityId m_stickId = NULL_ENTITY;
     float m_sfxVolume = 0.75f;
     float m_musicVolume = 0.75f;
+    Vec2i m_viewportOffset;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -161,6 +162,8 @@ void GameImpl::setViewport(uint32_t w, uint32_t h)
     .h = static_cast<int>(h)
   };
   dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).addViewport(MAIN_VIEWPORT, viewport);
+
+  m_viewportOffset = { viewport.x, viewport.y };
 }
 
 void GameImpl::onWindowResize(uint32_t w, uint32_t h)
@@ -391,8 +394,8 @@ void GameImpl::onMouseButtonUp()
 void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
 {
   int H = m_renderer.getViewportSize()[1];
-  m_inputState.mousePos[0] = pos[0] / H;
-  m_inputState.mousePos[1] = 1.f - pos[1] / H;
+  m_inputState.mousePos[0] = (pos[0] - m_viewportOffset[0]) / H;
+  m_inputState.mousePos[1] = 1.f - (pos[1] - m_viewportOffset[1]) / H;
 }
 
 void GameImpl::onLeftStickMove(const Vec2f& delta)
@@ -481,14 +484,16 @@ void GameImpl::positionThrowingIndicator(const Vec2f& pos)
 
 void GameImpl::processMouseInput()
 {
-  if (m_throwingMode) {
-    float_t x = m_inputState.mousePos[0];
-    float_t y = m_inputState.mousePos[1];
+  if (m_gameState == GameState::Playing) {
+    if (m_throwingMode) {
+      float_t x = m_inputState.mousePos[0];
+      float_t y = m_inputState.mousePos[1];
 
-    positionThrowingIndicator({ x, y });
+      positionThrowingIndicator({ x, y });
 
-    if (m_inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
-      throwStick(x, y);
+      if (m_inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
+        throwStick(x, y);
+      }
     }
   }
 }

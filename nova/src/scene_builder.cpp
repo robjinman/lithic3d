@@ -389,6 +389,7 @@ void SceneBuilderImpl::constructClouds()
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
+  const Vec4f colour{ 1.f, 0.8f, 0.5f, 0.6f };
   long animationDuration = 15000;
 
   auto animIdle = std::unique_ptr<Animation>(new Animation{
@@ -399,7 +400,7 @@ void SceneBuilderImpl::constructClouds()
         .pos = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
         .scale = Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        .colour = colour
       }
     }
   });
@@ -433,7 +434,7 @@ void SceneBuilderImpl::constructClouds()
         .h = pxToUvH(32.f)
       },
       .zIndex = static_cast<uint32_t>(ZIndex::Cloud),
-      .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
+      .colour = colour
     };
 
     sysRender.addEntity(id, render);
@@ -475,7 +476,7 @@ void SceneBuilderImpl::constructClouds()
         .h = pxToUvH(32.f)
       },
       .zIndex = static_cast<uint32_t>(ZIndex::Cloud),
-      .colour = Vec4f{ 1.f, 0.8f, 0.5f, 0.6f }
+      .colour = colour
     };
 
     sysRender.addEntity(id, render);

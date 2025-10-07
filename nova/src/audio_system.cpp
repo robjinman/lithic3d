@@ -156,7 +156,7 @@ void AudioSystemImpl::setMusicVolume(float volume)
 
 void AudioSystemImpl::addMusic(const std::string& path)
 {
-  if (!m_musicBuffer != 0) {
+  if (m_musicBuffer != 0) {
     stopMusic();
     alDeleteBuffers(1, &m_musicBuffer);
     m_musicBuffer = 0;
