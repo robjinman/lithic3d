@@ -390,9 +390,9 @@ void MenuSystemImpl::constructBackdrop()
     .viewport = MAIN_VIEWPORT,
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
-      .y = pxToUvY(0.f, 256.f),
+      .y = pxToUvY(4.f, 252.f),
       .w = pxToUvW(256.f),
-      .h = pxToUvH(256.f)
+      .h = pxToUvH(252.f)
     },
     .zIndex = static_cast<uint32_t>(ZIndex::Backdrop)
   };
@@ -408,7 +408,7 @@ void MenuSystemImpl::constructFlare()
 
   auto animRotate = std::unique_ptr<Animation>(new Animation{
     .name = hashString("rotate"),
-    .duration = TICKS_PER_SECOND * 450,
+    .duration = TICKS_PER_SECOND * 650,
     .frames = {
       AnimationFrame{
         .pos = Vec2f{ 0.f, 0.f },
