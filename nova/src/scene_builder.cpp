@@ -30,10 +30,10 @@ enum class ZIndex : uint32_t
   Mine,
   Nugget,
   Soil,
-  Exit,
   Sky,
-  Cloud,
   Trees,
+  Exit,
+  Cloud,
   Gradient,
   Stick,
   Coin,
@@ -355,8 +355,8 @@ void SceneBuilderImpl::constructSky()
 
   m_entities.insert(id);
 
-  Vec2f size{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H };
-  Vec2f pos{ 0.f, 12.f * GRID_CELL_H };
+  Vec2f size{ GRID_CELL_W * GRID_W, 4.5f * GRID_CELL_H };
+  Vec2f pos{ 0.f, 11.5f * GRID_CELL_H };
 
   SpatialData spatial{
     .transform = spriteTransform(pos, size),
@@ -861,7 +861,7 @@ void SceneBuilderImpl::constructGradient()
 
   m_entities.insert(id);
 
-  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * (GRID_H + 1) };
+  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * static_cast<float_t>(GRID_H + 0.5f) };
   Vec2f pos{ 0.f, 0.f };
 
   SpatialData spatial{
