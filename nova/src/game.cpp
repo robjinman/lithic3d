@@ -56,6 +56,7 @@ class GameImpl : public Game
     void onMouseMove(const Vec2f& pos, const Vec2f& delta) override;
     void onLeftStickMove(const Vec2f& delta) override;
     void onRightStickMove(const Vec2f& delta) override;
+    void onWindowResize(uint32_t w, uint32_t h) override;
     bool update() override;
 
   private:
@@ -95,6 +96,7 @@ class GameImpl : public Game
     void positionThrowingIndicator(const Vec2f& pos);
     void throwStick(float_t x, float_t y);
     void adjustVolume();
+    void setViewport(uint32_t w, uint32_t h);
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
@@ -142,6 +144,28 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_gameState = GameState::MainMenu;
 
   m_audioSystem.playMusic();
+
+  auto viewport = m_renderer.getViewportSize();
+  setViewport(viewport[0], viewport[1]);
+}
+
+void GameImpl::setViewport(uint32_t w, uint32_t h)
+{
+  float_t aspect = 630.f / 480.f;
+  float gameAreaWidth = aspect * h;
+  int x = static_cast<int>(0.5f * (static_cast<float>(w) - gameAreaWidth));
+  Recti viewport{
+    .x = x,
+    .y = 0,
+    .w = static_cast<int>(gameAreaWidth),
+    .h = static_cast<int>(h)
+  };
+  dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).addViewport(MAIN_VIEWPORT, viewport);
+}
+
+void GameImpl::onWindowResize(uint32_t w, uint32_t h)
+{
+  setViewport(w, h);
 }
 
 void GameImpl::handleMenuEvent(const Event& event)

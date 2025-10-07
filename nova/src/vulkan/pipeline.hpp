@@ -30,6 +30,7 @@ struct RenderNode
   RenderNodeType type;
   MeshHandle mesh;
   MaterialHandle material;
+  uint32_t viewportId = 0;
 
   virtual ~RenderNode() = default;
 };
@@ -140,5 +141,14 @@ struct std::hash<render::PipelineKey>
   std::size_t operator()(const render::PipelineKey& key) const noexcept
   {
     return hashAll(key.renderPass, key.meshFeatures, key.materialFeatures);
+  }
+};
+
+template<>
+struct std::hash<Recti>
+{
+  std::size_t operator()(const Recti& rect) const noexcept
+  {
+    return hashAll(rect.x, rect.y, rect.w, rect.h);
   }
 };

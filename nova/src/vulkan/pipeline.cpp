@@ -74,6 +74,14 @@ constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
+bool operator==(const VkRect2D& A, const VkRect2D& B)
+{
+  return A.extent.width == B.extent.width &&
+    A.extent.height == B.extent.height &&
+    A.offset.x == B.offset.x &&
+    A.offset.y == B.offset.y;
+}
+
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
   VkShaderModuleCreateInfo createInfo{
@@ -377,7 +385,8 @@ class PipelineImpl : public Pipeline
     VkPipelineLayoutCreateInfo m_layoutInfo;
     VkPipelineInputAssemblyStateCreateInfo m_inputAssemblyStateInfo;
     VkViewport m_viewport;
-    VkRect2D m_scissor;
+    VkRect2D m_initialScissor;
+    VkExtent2D m_swapchainExtent;
     VkPipelineRasterizationStateCreateInfo m_rasterizationStateInfo;
     VkPipelineMultisampleStateCreateInfo m_multisampleStateInfo;
     VkPipelineColorBlendAttachmentState m_colourBlendAttachmentState;
@@ -605,6 +614,8 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
 {
   destroyPipeline();
 
+  m_swapchainExtent = swapchainExtent;
+
   VK_CHECK(vkCreatePipelineLayout(m_device, &m_layoutInfo, nullptr, &m_layout),
     "Failed to create default pipeline layout");
 
@@ -617,7 +628,17 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     m_fragShaderStageInfo
   };
 
-  auto viewportStateInfo = defaultViewportState(m_viewport, m_scissor, swapchainExtent);
+  auto viewportStateInfo = defaultViewportState(m_viewport, m_initialScissor, m_swapchainExtent);
+
+  std::vector<VkDynamicState> dynamicStates{ VK_DYNAMIC_STATE_SCISSOR };
+
+  VkPipelineDynamicStateCreateInfo dynamicState{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .dynamicStateCount = 1,
+    .pDynamicStates = dynamicStates.data()
+  };
 
   VkGraphicsPipelineCreateInfo pipelineInfo{
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -633,7 +654,7 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     .pMultisampleState = &m_multisampleStateInfo,
     .pDepthStencilState = &m_depthStencilStateInfo,
     .pColorBlendState = &m_colourBlendStateInfo,
-    .pDynamicState = nullptr,
+    .pDynamicState = &dynamicState,
     .layout = m_layout,
     .renderPass = nullptr,
     .subpass = 0,

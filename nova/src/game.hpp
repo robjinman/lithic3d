@@ -15,6 +15,7 @@ class Game
     virtual void onMouseMove(const Vec2f& pos, const Vec2f& delta) = 0;
     virtual void onLeftStickMove(const Vec2f& delta) = 0;
     virtual void onRightStickMove(const Vec2f& delta) = 0;
+    virtual void onWindowResize(uint32_t w, uint32_t h) = 0;
     virtual bool update() = 0;
 
     virtual ~Game() {}

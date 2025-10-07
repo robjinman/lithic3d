@@ -123,6 +123,7 @@ class RendererImpl : public Renderer
     void beginFrame(const Vec4f& clearColour) override;
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void setOrderKey(uint32_t order) override;
+    void setViewport(const Recti& viewport) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const Vec4f& colour) override;
@@ -184,7 +185,7 @@ class RendererImpl : public Renderer
     void renderLoop();
     void cleanUp();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
-      VkCommandBuffer commandBuffer);
+      const std::vector<VkRect2D>& viewports, VkCommandBuffer commandBuffer);
     RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
       MaterialHandle material) const;
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
@@ -256,6 +257,8 @@ class RendererImpl : public Renderer
       Vec4f clearColour;
       std::optional<RenderPass> currentRenderPass;
       uint32_t currentOrderKey = 0;
+      std::vector<VkRect2D> viewports;
+      uint32_t currentViewport = 0;
     };
 
     TripleBuffer<FrameState> m_frameStates;
@@ -423,7 +426,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHan
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(orderKey),
       static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
-      static_cast<RenderGraphKey>(pipelineHash)
+      static_cast<RenderGraphKey>(pipelineHash),
     };
   }
   else {
@@ -458,6 +461,7 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
     auto newNode = std::make_unique<InstancedModelNode>();
     newNode->mesh = mesh;
     newNode->material = material;
+    newNode->viewportId = frameState.currentViewport;
     node = newNode.get();
     renderGraph.insert(key, std::move(newNode));
     state.lookup.insert({ key, node });
@@ -480,6 +484,7 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->uvCoords = uvCoords;
   node->colour = colour;
+  node->viewportId = frameState.currentViewport;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -499,6 +504,7 @@ void RendererImpl::drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f&
   node->mesh = mesh;
   node->modelMatrix = transform;
   node->colour = colour;
+  node->viewportId = frameState.currentViewport;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, node->material);
 
@@ -536,6 +542,7 @@ void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->colour = colour;
   node->jointTransforms = jointTransforms;
+  node->viewportId = frameState.currentViewport;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -573,6 +580,7 @@ void RendererImpl::drawDynamicText(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->text = text;
   node->colour = colour;
+  node->viewportId = frameState.currentViewport;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -591,6 +599,7 @@ void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
   auto node = std::make_unique<SkyboxNode>();
   node->mesh = mesh;
   node->material = material;
+  node->viewportId = frameState.currentViewport;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -607,11 +616,31 @@ void RendererImpl::beginFrame(const Vec4f& clearColour)
   state.clearColour = clearColour;
   state.currentRenderPass = std::nullopt;
   state.renderPasses.clear();
+  state.viewports.clear();
+  state.viewports.push_back({ VkOffset2D{0, 0}, m_swapchainExtent });
+  state.currentViewport = 0;
 }
 
 void RendererImpl::setOrderKey(uint32_t order)
 {
   m_frameStates.getWritable().currentOrderKey = order;
+}
+
+void RendererImpl::setViewport(const Recti& viewport)
+{
+  auto& state = m_frameStates.getWritable();
+  uint32_t index = static_cast<uint32_t>(state.viewports.size());
+  state.viewports.push_back(VkRect2D{
+    .offset{
+      .x = viewport.x,
+      .y = viewport.y
+    },
+    .extent{
+      .width = static_cast<uint32_t>(viewport.w),
+      .height = static_cast<uint32_t>(viewport.h)
+    }
+  });
+  state.currentViewport = index;
 }
 
 void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix)
@@ -1294,9 +1323,12 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
 }
 
 void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
-  VkCommandBuffer commandBuffer)
+  const std::vector<VkRect2D>& viewports, VkCommandBuffer commandBuffer)
 {
+  uint32_t viewportId = std::numeric_limits<uint32_t>::max();
+  Pipeline* prevPipeline = nullptr;
   BindState bindState{};
+
   for (auto& node : renderGraph) {
     switch (node->type) {
       case RenderNodeType::DefaultModel: {
@@ -1315,6 +1347,13 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
     }
 
     auto& pipeline = choosePipeline(renderPass, *node);
+
+    if (node->viewportId != viewportId || &pipeline != prevPipeline) {
+      viewportId = node->viewportId;
+      vkCmdSetScissor(commandBuffer, 0, 1, &viewports[viewportId]);
+      prevPipeline = &pipeline;
+    }
+
     pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
   }
 }
@@ -1382,7 +1421,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Shadow, renderGraph, commandBuffer);
+  recordCommandBuffer(RenderPass::Shadow, renderGraph, frameState.viewports, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1490,7 +1529,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Main, renderGraph, commandBuffer);
+  recordCommandBuffer(RenderPass::Main, renderGraph, frameState.viewports, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1579,7 +1618,7 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Overlay);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Overlay, renderGraph, commandBuffer);
+  recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.viewports, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 

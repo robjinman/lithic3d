@@ -189,6 +189,8 @@ class SysRenderImpl : public SysRender
     void addEntity(EntityId entityId, const DynamicTextData& data) override;
     void addEntity(EntityId entityId, const QuadData& data) override;
 
+    void addViewport(ViewportId id, const Recti& viewport) override;
+
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
     void setVisible(EntityId entityId, bool visible) override;
@@ -209,6 +211,7 @@ class SysRenderImpl : public SysRender
     MaterialHandle m_textureAtlas;
     MeshHandle m_mesh;
     std::unordered_map<EntityId, MeshHandle> m_textItems;
+    std::unordered_map<ViewportId, Recti> m_viewports;
 };
 
 SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
@@ -305,9 +308,17 @@ double SysRenderImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
+void SysRenderImpl::addViewport(ViewportId id, const Recti& viewport)
+{
+  ASSERT(id != 0, "Viewport ID 0 is reserved; choose a different number");
+
+  m_viewports[id] = viewport;
+}
+
 void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
+  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -317,7 +328,8 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
   m_componentStore.component<CRender>(entityId) = CRender{
     .colour = data.colour,
     .zIndex = data.zIndex,
-    .visible = true
+    .visible = true,
+    .viewport = data.viewport
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
@@ -342,6 +354,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
 void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
+  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -352,7 +365,8 @@ void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
   m_componentStore.component<CRender>(entityId) = CRender{
     .colour = data.colour,
     .zIndex = data.zIndex,
-    .visible = true
+    .visible = true,
+    .viewport = data.viewport
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
@@ -384,6 +398,8 @@ void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
 
 void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
 {
+  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
+
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender>(m_componentStore, entityId);
@@ -391,12 +407,15 @@ void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
   m_componentStore.component<CRender>(entityId) = CRender{
     .colour = data.colour,
     .zIndex = data.zIndex,
-    .visible = true
+    .visible = true,
+    .viewport = data.viewport
   };
 }
 
 void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
 {
+  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
+
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender>(m_componentStore, entityId);
@@ -405,7 +424,8 @@ void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
   m_componentStore.component<CRender>(entityId) = CRender{
     .colour = data.colour,
     .zIndex = data.zIndex,
-    .visible = true
+    .visible = true,
+    .viewport = data.viewport
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
@@ -475,6 +495,7 @@ void SysRenderImpl::update(Tick, const InputState&)
     m_renderer.beginFrame({ 0.f, 0.f, 0.f, 1.f });
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
+    ViewportId viewport = 0;
     for (auto& group : m_componentStore.components<CRender>()) {
       size_t n = group.numEntities();
       auto renderComps = group.components<CRender>();
@@ -498,6 +519,11 @@ void SysRenderImpl::update(Tick, const InputState&)
         auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
         m_renderer.setOrderKey(renderComp.zIndex);
+
+        if (renderComp.viewport != viewport) {
+          viewport = renderComp.viewport;
+          m_renderer.setViewport(m_viewports.at(viewport));
+        }
 
         if (!spriteComps.empty()) {
           auto& spriteComp = spriteComps[i];

@@ -78,6 +78,7 @@ class Renderer
     virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
       const Mat4x4f& viewMatrix) = 0;
     virtual void setOrderKey(uint32_t order) = 0;
+    virtual void setViewport(const Recti& viewport) = 0;
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const Vec4f& colour) = 0;
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,

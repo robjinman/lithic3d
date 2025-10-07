@@ -236,6 +236,8 @@ void Application::toggleFullScreen()
       m_initialWindowState.width, m_initialWindowState.height, 0);
 
     m_renderer->onResize();
+    m_game->onWindowResize(m_initialWindowState.width, m_initialWindowState.height);
+
     m_fullscreen = false;
   }
   else {
@@ -249,6 +251,8 @@ void Application::toggleFullScreen()
       mode->refreshRate);
 
     m_renderer->onResize();
+    m_game->onWindowResize(FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H);
+
     m_fullscreen = true;
   }
 }
