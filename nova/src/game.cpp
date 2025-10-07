@@ -264,6 +264,8 @@ void GameImpl::onPlayerDeath()
 
   m_gameState = GameState::Dead;
   sysSpatial.setEnabled(m_scene.restartGamePrompt, true);
+
+  toggleThrowingMode(false);
 }
 
 void GameImpl::onPlayerVictorious()

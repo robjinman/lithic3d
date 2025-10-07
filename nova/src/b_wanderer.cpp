@@ -9,6 +9,13 @@
 namespace
 {
 
+enum class WandererState
+{
+  Dormant,
+  Active,
+  Inactive
+};
+
 class BWanderer : public BehaviourData
 {
   public:
@@ -23,7 +30,7 @@ class BWanderer : public BehaviourData
     EventSystem& m_eventSystem;
     EntityId m_entityId;
     EntityId m_playerId;
-    bool m_active = false;
+    WandererState m_state = WandererState::Dormant;
 
     void makeMove();
 };
@@ -59,7 +66,7 @@ void BWanderer::makeMove()
   const static HashedString strMoveUp = hashString("move_up");
   const static HashedString strMoveDown = hashString("move_down");
 
-  if (!m_active) {
+  if (m_state != WandererState::Active) {
     return;
   }
 
@@ -72,7 +79,7 @@ void BWanderer::makeMove()
   m_eventSystem.raiseEvent(EEntityLandOn{m_entityId, pos, entities});
 
   if (!sysGrid.hasEntity(m_playerId)) {
-    m_active = false;
+    m_state = WandererState::Inactive;
     return;
   }
 
@@ -110,12 +117,12 @@ void BWanderer::makeMove()
   }
 
   // tryMove will have triggered an event, which could wind up changing m_active
-  if (!m_active) {
+  if (m_state != WandererState::Active) {
     return;
   }
 
   if (moved) {
-    auto newPos = sysGrid.entityPos(m_entityId);
+    auto& newPos = sysGrid.entityPos(m_entityId);
     m_eventSystem.raiseEvent(EAttack{m_entityId, sysGrid.getEntities(newPos[0], newPos[1])});
   }
 }
@@ -128,17 +135,7 @@ void BWanderer::processEvent(const Event& event)
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  if (event.name == g_strEntityExplode) {
-    auto& e = dynamic_cast<const EEntityExplode&>(event);
-
-    if (e.pos == sysGrid.entityPos(m_entityId)) {
-      m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
-      m_active = false;
-      return;
-    }
-  }
-
-  if (m_active) {
+  if (m_state == WandererState::Active) {
     if (event.name == g_strPlayerMove) {
       if (sysGrid.hasEntity(m_playerId)) {
         auto& playerPos = sysGrid.entityPos(m_playerId);
@@ -148,8 +145,17 @@ void BWanderer::processEvent(const Event& event)
         }
       }
     }
+    else if (event.name == g_strEntityExplode) {
+      auto& e = dynamic_cast<const EEntityExplode&>(event);
+
+      if (e.pos == sysGrid.entityPos(m_entityId)) {
+        m_eventSystem.raiseEvent(ERequestDeletion{ m_entityId });
+        m_state = WandererState::Inactive;
+        return;
+      }
+    }
   }
-  else {
+  else if (m_state == WandererState::Dormant) {
     if (event.name == g_strPlayerMove) {
       if (sysGrid.hasEntity(m_playerId)) {
         auto& e = dynamic_cast<const EPlayerMove&>(event);
@@ -159,7 +165,7 @@ void BWanderer::processEvent(const Event& event)
         int sqDist = diff[0] * diff[0] + diff[1] * diff[1];
 
         if (sqDist <= sqActivationDist) {
-          m_active = true;
+          m_state = WandererState::Active;
           m_ecs.componentStore().component<CRender>(m_entityId).visible = true;
           sysAnimation.playAnimation(m_entityId, strFadeIn, [this]() { makeMove(); });
         }
