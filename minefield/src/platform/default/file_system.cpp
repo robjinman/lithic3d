@@ -6,8 +6,6 @@
 
 namespace fs = std::filesystem;
 
-PlatformPathsPtr createPlatformPaths();
-
 namespace
 {
 
@@ -106,7 +104,7 @@ Directory::Iterator DefaultDirectoryImpl::end() const
 class DefaultFileSystem : public FileSystem
 {
   public:
-    DefaultFileSystem();
+    DefaultFileSystem(const PlatformPaths& platformPaths);
 
     std::vector<char> readAppDataFile(const fs::path& path) const override;
     DirectoryPtr appDataDirectory(const fs::path& path) const override;
@@ -116,42 +114,42 @@ class DefaultFileSystem : public FileSystem
     void writeUserDataFile(const fs::path& path, const char* data, size_t size) override;
 
   private:
-    PlatformPathsPtr m_paths;
+    const PlatformPaths& m_paths;
 };
 
-DefaultFileSystem::DefaultFileSystem()
+DefaultFileSystem::DefaultFileSystem(const PlatformPaths& platformPaths)
+  : m_paths(platformPaths)
 {
-  m_paths = createPlatformPaths();
 }
 
 std::vector<char> DefaultFileSystem::readAppDataFile(const fs::path& path) const
 {
-  return readBinaryFile((m_paths->appData() / path).string());
+  return readBinaryFile((m_paths.appData() / path).string());
 }
 
 DirectoryPtr DefaultFileSystem::appDataDirectory(const fs::path& path) const
 {
-  return std::make_unique<DefaultDirectoryImpl>(m_paths->appData() / path);
+  return std::make_unique<DefaultDirectoryImpl>(m_paths.appData() / path);
 }
 
 bool DefaultFileSystem::userDataFileExists(const std::filesystem::path& path) const
 {
-  return std::filesystem::exists(m_paths->userData() / path);
+  return std::filesystem::exists(m_paths.userData() / path);
 }
 
 std::vector<char> DefaultFileSystem::readUserDataFile(const fs::path& path) const
 {
-  return readBinaryFile((m_paths->userData() / path).string());
+  return readBinaryFile((m_paths.userData() / path).string());
 }
 
 void DefaultFileSystem::writeUserDataFile(const fs::path& path, const char* data, size_t size)
 {
-  writeBinaryFile(m_paths->userData() / path, data, size);
+  writeBinaryFile(m_paths.userData() / path, data, size);
 }
 
 } // namespace
 
-FileSystemPtr createDefaultFileSystem()
+FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths)
 {
-  return std::make_unique<DefaultFileSystem>();
+  return std::make_unique<DefaultFileSystem>(platformPaths);
 }

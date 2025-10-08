@@ -6,6 +6,7 @@
 #include "units.hpp"
 #include "window_delegate.hpp"
 #include "file_system.hpp"
+#include "platform_paths.hpp"
 #include "audio_system.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
@@ -19,7 +20,8 @@ const int FULLSCREEN_RESOLUTION_W = 1920;
 const int FULLSCREEN_RESOLUTION_H = 1080;
 
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
-FileSystemPtr createDefaultFileSystem();
+PlatformPathsPtr createPlatformPaths();
+FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
 
 namespace
 {
@@ -77,6 +79,7 @@ class Application
     static void onJoystickEvent(int, int event);
 
     GLFWwindow* m_window;
+    PlatformPathsPtr m_platformPaths;
     FileSystemPtr m_fileSystem;
     WindowDelegatePtr m_windowDelegate;
     LoggerPtr m_logger;
@@ -146,7 +149,8 @@ Application::Application()
     ControlMode::Gamepad :
     ControlMode::KeyboardMouse;
 
-  m_fileSystem = createDefaultFileSystem();
+  m_platformPaths = createPlatformPaths();
+  m_fileSystem = createDefaultFileSystem(*m_platformPaths);
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_audioSystem = createAudioSystem(*m_fileSystem);

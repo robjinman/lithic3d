@@ -101,6 +101,7 @@ else()
       "${PROJECT_SOURCE_DIR}/minefield/src/platform/ios/wrapper.mm"
       "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/minefield/src/platform/ios/application.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/ios/platform_paths.cpp"
       "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${PROJECT_SOURCE_DIR}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"

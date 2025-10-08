@@ -3,16 +3,16 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>nova_exe</string>
+    <string>minefield</string>
 
     <key>CFBundleIdentifier</key>
-    <string>io.deadbeef.nova</string>
+    <string>com.freeholdapps.minefield</string>
 
     <key>CFBundleName</key>
-    <string>Nova</string>
+    <string>Minefield</string>
 
     <key>CFBundleDisplayName</key>
-    <string>Nova</string>
+    <string>Minefield</string>
 
     <key>CFBundlePackageType</key>
     <string>APPL</string>
