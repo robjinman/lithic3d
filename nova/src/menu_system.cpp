@@ -86,7 +86,8 @@ struct Sprite
 class MenuSystemImpl : public MenuSystem
 {
   public:
-    MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
+    MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, const GameOptionsManager& options,
+      Logger& logger);
 
     EntityId root() const override;
 
@@ -107,6 +108,7 @@ class MenuSystemImpl : public MenuSystem
   private:
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
+    const GameOptionsManager& m_options;
     Logger& m_logger;
     EntityId m_root;
     EntityId m_pauseMenuId;
@@ -166,9 +168,11 @@ class MenuSystemImpl : public MenuSystem
     void updateSlider(const Slider& slider, float_t value);
 };
 
-MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
+MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem,
+  const GameOptionsManager& options, Logger& logger)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
+  , m_options(options)
   , m_logger(logger)
 {
   createAnimations();
@@ -224,9 +228,12 @@ void MenuSystemImpl::setDifficulty(int level)
   float_t value = static_cast<float_t>(level) / MAX_DIFFICULTY_LEVEL;
   updateSlider(m_gameDifficultySlider, value);
 
-  GameOptions options = getOptionsForLevel(level);
+  GameOptions options = m_options.getOptionsForLevel(level);
 
   uint32_t totalGold = options.coins + 5 * options.nuggets;
+
+  std::string bestTimeString = options.bestTime == std::numeric_limits<uint32_t>::max() ?
+    "---" : std::to_string(options.bestTime);
 
   const auto& counters = m_gameOptionCounters;
   sysRender.updateDynamicText(counters.minesId, std::to_string(options.mines));
@@ -235,7 +242,7 @@ void MenuSystemImpl::setDifficulty(int level)
   sysRender.updateDynamicText(counters.wanderersId, std::to_string(options.wanderers));
   sysRender.updateDynamicText(counters.goldRequiredId, std::to_string(options.goldRequired));
   sysRender.updateDynamicText(counters.timeAvailableId, std::to_string(options.timeAvailable));
-  sysRender.updateDynamicText(counters.bestTimeId, "---"); // TODO
+  sysRender.updateDynamicText(counters.bestTimeId, bestTimeString);
 }
 
 void MenuSystemImpl::updateSlider(const Slider& slider, float_t value)
@@ -1029,6 +1036,7 @@ void MenuSystemImpl::constructMainMenu()
         sysSpatial.setEnabled(mainMenuMainId, false);
         sysSpatial.setEnabled(mainMenuOptions.entityId, true);
         sysUi.setActiveGroup(mainMenuOptions.itemGroupId, mainMenuOptions.firstItemId);
+        setDifficulty(m_difficultyLevel); // Refresh counters
       }
       else if (event.entityId == creditsId) {
         sysSpatial.setEnabled(mainMenuMainId, false);
@@ -1315,7 +1323,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
   float_t value = static_cast<float_t>(m_difficultyLevel) / MAX_DIFFICULTY_LEVEL;
   m_gameDifficultySlider = constructSlider(id, { 0.65f, 0.55f }, value);
 
-  GameOptions options = getOptionsForLevel(0);
+  GameOptions options = m_options.getOptionsForLevel(0);
   uint32_t totalGold = options.coins + 5 * options.nuggets;
   m_gameOptionCounters = {
     .minesId = constructGameOptionCounter(id, { 0.75f, 0.85f }, "Land mines:", options.mines),
@@ -1464,7 +1472,8 @@ void MenuSystemImpl::constructPauseMenu()
 
 }
 
-MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
+MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem,
+  const GameOptionsManager& options, Logger& logger)
 {
-  return std::make_unique<MenuSystemImpl>(ecs, eventSystem, logger);
+  return std::make_unique<MenuSystemImpl>(ecs, eventSystem, options, logger);
 }

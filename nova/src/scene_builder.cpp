@@ -81,7 +81,7 @@ std::vector<Vec2i> randomGridCoords()
 class SceneBuilderImpl : public SceneBuilder
 {
   public:
-    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs);
+    SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs, const GameOptionsManager& options);
 
     Scene buildScene(uint32_t level) override;
     EntityIdSet entities() const override;
@@ -89,6 +89,7 @@ class SceneBuilderImpl : public SceneBuilder
   private:
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
+    const GameOptionsManager& m_options;
     EntityIdSet m_entities;
     EntityId m_worldRoot;
     EntityId m_menuRoot;
@@ -119,9 +120,11 @@ class SceneBuilderImpl : public SceneBuilder
     EntityId constructRestartGamePrompt();
 };
 
-SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs)
+SceneBuilderImpl::SceneBuilderImpl(EventSystem& eventSystem, Ecs& ecs,
+  const GameOptionsManager& options)
   : m_eventSystem(eventSystem)
   , m_ecs(ecs)
+  , m_options(options)
 {
 }
 
@@ -136,7 +139,7 @@ Scene SceneBuilderImpl::buildScene(uint32_t level)
 
   Scene scene;
 
-  GameOptions options = getOptionsForLevel(level);
+  auto options = m_options.getOptionsForLevel(level);
 
   m_worldRoot = constructWorldRoot();
   m_playerId = constructPlayer();
@@ -1686,7 +1689,8 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
 
 } // namespace
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs)
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs,
+  const GameOptionsManager& options)
 {
-  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs);  
+  return std::make_unique<SceneBuilderImpl>(eventSystem, ecs, options);  
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 struct GameOptions
 {
@@ -11,8 +12,23 @@ struct GameOptions
   uint32_t wanderers = 0;
   uint32_t goldRequired = 0;
   uint32_t timeAvailable = 0;
+  uint32_t bestTime = 0;
 };
 
 const uint32_t NUM_DIFFICULTY_LEVELS = 5;
 
-GameOptions getOptionsForLevel(uint32_t level);
+class GameOptionsManager
+{
+  public:
+    virtual const GameOptions& getOptionsForLevel(uint32_t level) const = 0;
+    virtual void setBestTime(uint32_t level, uint32_t time) = 0;
+
+    ~GameOptionsManager() = default;
+};
+
+using GameOptionsManagerPtr = std::unique_ptr<GameOptionsManager>;
+
+class FileSystem;
+class Logger;
+
+GameOptionsManagerPtr createGameOptionsManager(FileSystem& fileSystem, Logger& logger);

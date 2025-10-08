@@ -16,7 +16,7 @@ const int FULLSCREEN_RESOLUTION_W = 1920;
 const int FULLSCREEN_RESOLUTION_H = 1080;
 
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
-FileSystemPtr createDefaultFileSystem(const std::filesystem::path& dataRootDir);
+FileSystemPtr createDefaultFileSystem();
 
 namespace
 {
@@ -143,7 +143,7 @@ Application::Application()
     ControlMode::Gamepad :
     ControlMode::KeyboardMouse;
 
-  m_fileSystem = createDefaultFileSystem(std::filesystem::current_path() / "data");
+  m_fileSystem = createDefaultFileSystem();
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_audioSystem = createAudioSystem(*m_fileSystem);
@@ -235,6 +235,8 @@ void Application::toggleFullScreen()
     glfwSetWindowMonitor(m_window, NULL, m_initialWindowState.posX, m_initialWindowState.posY,
       m_initialWindowState.width, m_initialWindowState.height, 0);
 
+    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
     m_renderer->onResize();
     m_game->onWindowResize(m_initialWindowState.width, m_initialWindowState.height);
 
@@ -249,6 +251,8 @@ void Application::toggleFullScreen()
 
     glfwSetWindowMonitor(m_window, monitor, 0, 0, FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H,
       mode->refreshRate);
+
+    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     m_renderer->onResize();
     m_game->onWindowResize(FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H);

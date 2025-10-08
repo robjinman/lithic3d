@@ -64,6 +64,8 @@ using MenuSystemPtr = std::unique_ptr<MenuSystem>;
 
 class Ecs;
 class EventSystem;
+class GameOptionsManager;
 class Logger;
 
-MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
+MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem, const GameOptionsManager& optons,
+  Logger& logger);

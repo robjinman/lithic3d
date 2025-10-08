@@ -305,7 +305,7 @@ shaderc_include_result* SourceIncluder::GetInclude(const char* requested_source,
     result->source_name = nameBuffer;
     result->source_name_length = sourceNameLength;
 
-    auto source = m_fileSystem.readFile(sourcePath);
+    auto source = m_fileSystem.readAppDataFile(sourcePath);
     size_t contentBufferLength = source.size();
     char* contentBuffer = new char[contentBufferLength];
     memcpy(contentBuffer, source.data(), source.size());
@@ -882,8 +882,10 @@ ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
 
   ShaderProgram program;
 
-  auto vertShaderSrc = m_fileSystem.readFile(STR("shaders/vertex/" << vertShader << ".glsl"));
-  auto fragShaderSrc = m_fileSystem.readFile(STR("shaders/fragment/" << fragShader << ".glsl"));
+  auto vertShaderSrc =
+    m_fileSystem.readAppDataFile(STR("shaders/vertex/" << vertShader << ".glsl"));
+  auto fragShaderSrc =
+    m_fileSystem.readAppDataFile(STR("shaders/fragment/" << fragShader << ".glsl"));
   program.vertexShaderCode = compileShader("vertex", vertShaderSrc, ShaderType::Vertex, defines);
   program.fragmentShaderCode = compileShader("fragment", fragShaderSrc, ShaderType::Fragment,
     defines);

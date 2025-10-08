@@ -28,5 +28,5 @@ class AudioSystem;
 class FileSystem;
 class Logger;
 
-GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem,
-  const FileSystem& fileSystem, Logger& logger);
+GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
+  Logger& logger);

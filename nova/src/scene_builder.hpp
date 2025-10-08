@@ -24,5 +24,7 @@ class SceneBuilder
 using SceneBuilderPtr = std::unique_ptr<SceneBuilder>;
 
 class EventSystem;
+class GameOptionsManager;
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs);
+SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs,
+  const GameOptionsManager& options);

@@ -44,7 +44,7 @@ enum class GameState
 class GameImpl : public Game
 {
   public:
-    GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, const FileSystem& fileSystem,
+    GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
       Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
@@ -61,9 +61,10 @@ class GameImpl : public Game
 
   private:
     Logger& m_logger;
-    const FileSystem& m_fileSystem;
+    FileSystem& m_fileSystem;
     AudioSystem& m_audioSystem;
     render::Renderer& m_renderer;
+    GameOptionsManagerPtr m_options;
     EventSystemPtr m_eventSystem;
     MenuSystemPtr m_menuSystem;
     EcsPtr m_ecs;
@@ -100,8 +101,8 @@ class GameImpl : public Game
     void setViewport(uint32_t w, uint32_t h);
 };
 
-GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
-  const FileSystem& fileSystem, Logger& logger)
+GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
+  Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_audioSystem(audioSystem)
@@ -114,6 +115,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_audioSystem.addSound(strScream, "sounds/scream.wav");
   m_audioSystem.addSound(strThrow, "sounds/throw.wav");
   m_audioSystem.addSound(strTick, "sounds/tick.wav");
+
+  m_options = createGameOptionsManager(m_fileSystem, m_logger);
 
   m_eventSystem = createEventSystem(m_logger);
   m_ecs = createEcs(m_logger);
@@ -132,8 +135,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem,
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
-  m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, m_logger);
-  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs);
+  m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger);
+  m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 
@@ -274,6 +277,13 @@ void GameImpl::onPlayerDeath()
 void GameImpl::onPlayerVictorious()
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+
+  auto level = m_menuSystem->difficultyLevel();
+  uint32_t seconds = static_cast<uint32_t>(m_timeSinceStart / TICKS_PER_SECOND);
+  uint32_t bestTime = m_options->getOptionsForLevel(level).bestTime;
+  if (seconds < bestTime) {
+    m_options->setBestTime(level, seconds);
+  }
 
   destroyCurrentGame();
   sysSpatial.setEnabled(m_menuSystem->root(), true);
@@ -512,7 +522,7 @@ void GameImpl::checkTimeout()
   if (m_gameState == GameState::Playing) {
     ++m_timeSinceStart;
     if (m_timeSinceStart % TICKS_PER_SECOND == 0) {
-      GameOptions options = getOptionsForLevel(m_menuSystem->difficultyLevel());
+      GameOptions options = m_options->getOptionsForLevel(m_menuSystem->difficultyLevel());
 
       const uint32_t gameDuration = options.timeAvailable;
       uint32_t secondsElapsed = static_cast<float>(m_timeSinceStart) / TICKS_PER_SECOND;
@@ -560,8 +570,8 @@ bool GameImpl::update()
 
 } // namespace
 
-GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem,
-  const FileSystem& fileSystem, Logger& logger)
+GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
+  Logger& logger)
 {
   return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger);
 }

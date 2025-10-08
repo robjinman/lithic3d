@@ -99,7 +99,7 @@ ALuint AudioSystemImpl::getFreeSource() const
 
 void AudioSystemImpl::addSound(HashedString name, const std::string& path)
 {
-  auto data = m_fileSystem.readFile(path);
+  auto data = m_fileSystem.readAppDataFile(path);
 
   drwav wav;
   if (!drwav_init_memory(&wav, data.data(), data.size(), nullptr)) {
@@ -162,7 +162,7 @@ void AudioSystemImpl::addMusic(const std::string& path)
     m_musicBuffer = 0;
   }
 
-  auto data = m_fileSystem.readFile(path);
+  auto data = m_fileSystem.readAppDataFile(path);
 
   int channels = 0;
   int rate = 0;

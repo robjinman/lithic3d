@@ -51,6 +51,7 @@ else()
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/nova//src/platform/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/nova//src/platform/windows/platform_paths.cpp"
       "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE

@@ -45,8 +45,13 @@ using DirectoryPtr = std::unique_ptr<Directory>;
 class FileSystem
 {
   public:
-    virtual std::vector<char> readFile(const std::filesystem::path& path) const = 0;
-    virtual DirectoryPtr directory(const std::filesystem::path& path) const = 0;
+    virtual std::vector<char> readAppDataFile(const std::filesystem::path& path) const = 0;
+    virtual DirectoryPtr appDataDirectory(const std::filesystem::path& path) const = 0;
+
+    virtual bool userDataFileExists(const std::filesystem::path& path) const = 0;
+    virtual std::vector<char> readUserDataFile(const std::filesystem::path& path) const = 0;
+    virtual void writeUserDataFile(const std::filesystem::path& path, const char* data,
+      size_t size) = 0;
 
     virtual ~FileSystem() {}
 };
