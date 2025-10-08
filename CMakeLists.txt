@@ -36,6 +36,7 @@ else()
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield//src/platform/linux/platform_paths.cpp"
       "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE

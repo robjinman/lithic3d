@@ -2,6 +2,7 @@
 #include "exception.hpp"
 #include "file_system.hpp"
 #include "utils.hpp"
+#include <cstring>
 
 namespace
 {

@@ -1023,7 +1023,8 @@ void MenuSystemImpl::constructMainMenu()
   auto mainMenuCredits = constructCreditsSubmenu({ mainMenuMainId, m_mainMenu.itemGroupId });
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
-    [=, &sysSpatial, &sysUi](const Event& e) {
+    [this, &sysSpatial, &sysUi, settingsId, mainMenuMainId, mainMenuSettings, optionsId,
+      mainMenuOptions, creditsId, mainMenuCredits](const Event& e) {
 
     if (e.name == g_strMenuItemActivate) {
       auto& event = dynamic_cast<const EMenuItemActivate&>(e);
