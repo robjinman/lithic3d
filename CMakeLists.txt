@@ -16,7 +16,7 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(PROJECT_NAME Nova)
+set(PROJECT_NAME Minefield)
 project(${PROJECT_NAME})
 
 if(PLATFORM_ANDROID)
@@ -27,16 +27,16 @@ if(PLATFORM_ANDROID)
     COMMENT "Running Gradle build..."
   )
 else()
-  add_subdirectory("nova" "libnova")
+  add_subdirectory("minefield" "libminefield")
 
-  set(EXE_TARGET "nova_exe")
+  set(EXE_TARGET "minefield")
 
   if(PLATFORM_LINUX)
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
@@ -48,11 +48,11 @@ else()
     endif()
   elseif(PLATFORM_WINDOWS)
     find_package(glfw3 REQUIRED)
-    add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/nova//src/platform/default/application.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/nova//src/platform/windows/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+    add_executable(${EXE_TARGET} WIN32
+      "${PROJECT_SOURCE_DIR}/minefield//src/platform/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield//src/platform/windows/platform_paths.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
@@ -61,17 +61,17 @@ else()
   elseif(PLATFORM_OSX)
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/application.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     set_target_properties(${EXE_TARGET} PROPERTIES
       MACOSX_BUNDLE TRUE
-      MACOSX_BUNDLE_GUI_IDENTIFIER "nova"
-      MACOSX_BUNDLE_BUNDLE_NAME "Nova"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "minefield"
+      MACOSX_BUNDLE_BUNDLE_NAME "Minefield"
       MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
       MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
-      MACOSX_BUNDLE_ICON_FILE "nova.icns"
+      MACOSX_BUNDLE_ICON_FILE "minefield.icns"
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
@@ -90,16 +90,16 @@ else()
     )
 
     list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/platform/ios/cmake")
-    set(MACOSX_BUNDLE_BUNDLE_NAME "Nova")
+    set(MACOSX_BUNDLE_BUNDLE_NAME "Minefield")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "0.1")
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER "io.deadbeef.nova")
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "io.deadbeef.minefield")
     set(MACOSX_BUNDLE_LONG_VERSION_STRING "0.1")
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1")
     add_executable(${EXE_TARGET} MACOSX_BUNDLE
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/wrapper.mm"
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/platform/ios/application.cpp"
-      "${PROJECT_SOURCE_DIR}/nova/src/vulkan/platform/ios/vulkan_window_delegate.mm"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/ios/wrapper.mm"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/platform/ios/application.cpp"
+      "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${PROJECT_SOURCE_DIR}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
@@ -133,8 +133,8 @@ else()
     set(CMAKE_XCODE_SCHEME_ENABLE_GPU_API_VALIDATION "FALSE")
     set(CMAKE_XCODE_SCHEME_ENABLE_GPU_FRAME_CAPTURE_MODE "DISABLED")
     set_target_properties(${EXE_TARGET} PROPERTIES
-      BUNDLE_IDENTIFIER "io.deadbeef.nova"
-      XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "io.deadbeef.nova"
+      BUNDLE_IDENTIFIER "io.deadbeef.minefield"
+      XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "io.deadbeef.minefield"
       XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
       XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES "YES"
       XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
@@ -173,7 +173,7 @@ else()
     )
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/data"
       DESTINATION "${EXE_TARGET}.app/Contents/Resources")
-    install(FILES "${PROJECT_SOURCE_DIR}/platform/osx/nova.icns"
+    install(FILES "${PROJECT_SOURCE_DIR}/platform/osx/minefield.icns"
       DESTINATION "${EXE_TARGET}.app/Contents/Resources")
     install(FILES "/usr/local/lib/libMoltenVK.dylib"
       DESTINATION "${EXE_TARGET}.app/Contents/Frameworks")
@@ -193,6 +193,9 @@ else()
 
   set(CPACK_PACKAGE_VENDOR "Rob Jinman")
   set(CPACK_PACKAGE_CONTACT "jinmanr@gmail.com")
+  set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
+  set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
+  set(CPACK_PACKAGE_VERSION_PATCH 0)
   include(CPack)
 
   if(PLATFORM_LINUX OR PLATFORM_OSX OR PLATFORM_WINDOWS)

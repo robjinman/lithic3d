@@ -1892,8 +1892,8 @@ void RendererImpl::createInstance()
   VkApplicationInfo appInfo{
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     .pNext = nullptr,
-    .pApplicationName = "Project Nova",
-    .applicationVersion = VK_MAKE_VERSION(Nova_VERSION_MAJOR, Nova_VERSION_MINOR, 0),
+    .pApplicationName = "Minefield",
+    .applicationVersion = VK_MAKE_VERSION(Minefield_VERSION_MAJOR, Minefield_VERSION_MINOR, 0),
     .pEngineName = "No Engine",
     .engineVersion = VK_MAKE_VERSION(1, 0, 0),
     .apiVersion = VK_API_VERSION_1_2

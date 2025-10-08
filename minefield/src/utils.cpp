@@ -18,7 +18,7 @@ std::map<HashedString, std::string>& getHashTable()
 
 std::string versionString()
 {
-  return STR("Nova " << Nova_VERSION_MAJOR << "." << Nova_VERSION_MINOR);
+  return STR("Minefield " << Minefield_VERSION_MAJOR << "." << Minefield_VERSION_MINOR);
 }
 
 HashedString hashString(const std::string& s)

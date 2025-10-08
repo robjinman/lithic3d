@@ -39,10 +39,10 @@ if(PLATFORM_ANDROID)
   set(ANDROID_ABI "arm64-v8a")
 endif()
 
-project("nova")
+project("minefield")
 
-set(VERSION_MAJOR 0)
-set(VERSION_MINOR 1)
+set(VERSION_MAJOR 2)
+set(VERSION_MINOR 0)
 set(VERSION_MAJOR "${VERSION_MAJOR}" PARENT_SCOPE)
 set(VERSION_MINOR "${VERSION_MINOR}" PARENT_SCOPE)
 
@@ -56,7 +56,7 @@ endif()
 message("System name is ${CMAKE_SYSTEM_NAME}")
 message("Building ${CMAKE_BUILD_TYPE} configuration...")
 
-set(LIB_TARGET "nova")
+set(LIB_TARGET "libminefield")
 set(LIB_TARGET "${LIB_TARGET}" PARENT_SCOPE)
 
 find_package(tinyxml2 REQUIRED)

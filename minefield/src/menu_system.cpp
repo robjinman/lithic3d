@@ -1168,7 +1168,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   std::string txt1 = "Design & Programming: Rob Jinman";
   std::string txt2 = "Music:                Jack Normal";
   std::string txt3 = "Sprites: http://untamed.wild-refuge.net";
-  std::string txt4 = "v2.0"; // TODO
+  std::string txt4 = versionString();
 
   std::array<EntityId, 4> textItems{
     constructFadeInText(id, { 0.54f, 0.7f }, { 0.022f, 0.044f }, txt1, { 0.f, 0.f, 0.f, 0.f }),

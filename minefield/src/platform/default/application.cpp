@@ -9,6 +9,9 @@
 #include "audio_system.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 const int WINDOWED_RESOLUTION_W = 630;
 const int WINDOWED_RESOLUTION_H = 480;
@@ -344,7 +347,11 @@ Application::~Application()
 
 } // namespace
 
+#ifdef _WIN32
+int WINAPI WinMain(HINSTANCE, HINSTANCE, PSTR, int)
+#else
 int main()
+#endif
 {
   try {
     Application app;
