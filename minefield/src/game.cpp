@@ -414,6 +414,23 @@ void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
 
 void GameImpl::onLeftStickMove(const Vec2f& delta)
 {
+  const float_t threshold = 0.5;
+
+  auto simulateKeypress = [this, threshold, delta](size_t dim, float_t neg, KeyboardKey key) {
+    if (neg * delta[dim] >= threshold) {
+      onKeyDown(key);
+    }
+    else {
+      if (m_inputState.keysPressed.contains(key)) {
+        onKeyUp(key);
+      }
+    }
+  };
+
+  simulateKeypress(0, 1.f, KeyboardKey::Right);
+  simulateKeypress(0, -1.f, KeyboardKey::Left);
+  simulateKeypress(1, 1.f, KeyboardKey::Down);
+  simulateKeypress(1, -1.f, KeyboardKey::Up);
 }
 
 void GameImpl::onRightStickMove(const Vec2f& delta)

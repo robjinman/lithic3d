@@ -166,7 +166,7 @@ class RendererImpl : public Renderer
     void createSwapChain();
     void createSwapChain(VkExtent2D extent);
     void recreateSwapChain();
-    void setOrthographicMatrix();
+    void setOrthographicMatrix(float_t rotation);
     void setPerspectiveMatrix(float_t rotation);
     void cleanupSwapChain();
     void createImageViews();
@@ -208,6 +208,8 @@ class RendererImpl : public Renderer
     VkSwapchainKHR m_swapchain;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
+    bool m_viewRotated = false;
+    Vec2i m_viewDimensions; // Equivalent to swapchain extent, with width/height swapped if rotated
     std::vector<VkImageView> m_swapchainImageViews;
     std::vector<VkImage> m_swapchainImages;
     VkImage m_depthImage;
@@ -400,7 +402,7 @@ const ViewParams& RendererImpl::getViewParams() const
 
 Vec2i RendererImpl::getViewportSize() const
 {
-  return { static_cast<int>(m_swapchainExtent.width), static_cast<int>(m_swapchainExtent.height) };
+  return m_viewDimensions;
 }
 
 RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
@@ -693,6 +695,7 @@ void RendererImpl::renderLoop()
         m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
 
       if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
+        m_logger.info("acqImgResult == VK_ERROR_OUT_OF_DATE_KHR");
         recreateSwapChain();
         return;
       }
@@ -851,6 +854,11 @@ void RendererImpl::finishFrame()
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
     || m_framebufferResized) {
 
+    m_logger.info("presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || m_framebufferResized");
+    m_logger.info(STR("presentResult == VK_ERROR_OUT_OF_DATE_KHR, " << (presentResult == VK_ERROR_OUT_OF_DATE_KHR)));
+    m_logger.info(STR("presentResult == VK_SUBOPTIMAL_KHR, " << (presentResult == VK_SUBOPTIMAL_KHR)));
+    m_logger.info(STR("m_framebufferResized, " << m_framebufferResized));
+
     m_framebufferResized = false;
     recreateSwapChain();
   }
@@ -937,6 +945,9 @@ void RendererImpl::createSwapChain()
 
 void RendererImpl::createSwapChain(VkExtent2D extent)
 {
+  m_logger.info(STR("Creating swapchain with extent "
+    << extent.width << ", " << extent.height));
+
   auto swapchainSupport = querySwapChainSupport(m_physicalDevice);
   auto surfaceFormat = chooseSwapChainSurfaceFormat(swapchainSupport.formats);
   auto presentMode = chooseSwapChainPresentMode(swapchainSupport.presentModes);
@@ -944,6 +955,18 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   uint32_t minImageCount = swapchainSupport.capabilities.minImageCount + 1;
   if (swapchainSupport.capabilities.maxImageCount != 0) {
     minImageCount = std::min(minImageCount, swapchainSupport.capabilities.maxImageCount);
+  }
+
+  m_viewDimensions = { static_cast<int>(extent.width), static_cast<int>(extent.height) };
+
+  float_t rotation = 0;
+  if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
+    rotation = degreesToRadians(90.f);
+    std::swap(extent.width, extent.height);
+    m_viewRotated = true;
+  }
+  else if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+    EXCEPTION("Unsupported surface transform");
   }
 
   VkSwapchainCreateInfoKHR createInfo{};
@@ -987,21 +1010,16 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   m_swapchainImageFormat = surfaceFormat.format;
   m_swapchainExtent = extent;
 
-  setOrthographicMatrix();
-
-  float_t rotation = 0;
-  if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
-    rotation = degreesToRadians(90.f);
-  }
+  setOrthographicMatrix(rotation);
   setPerspectiveMatrix(rotation);
 }
 
-void RendererImpl::setOrthographicMatrix()
+void RendererImpl::setOrthographicMatrix(float_t rotation)
 {
-  float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
+  float_t aspect = m_viewDimensions[0] / static_cast<float_t>(m_viewDimensions[1]);
 
   m_logger.info(STR("Creating orthographic matrix from viewport dimensions "
-    << m_swapchainExtent.width << ", " << m_swapchainExtent.height));
+    << m_viewDimensions[0] << ", " << m_viewDimensions[1]));
 
   // TODO: Move to math.cpp
 
@@ -1021,12 +1039,13 @@ void RendererImpl::setOrthographicMatrix()
   m.set(2, 3, -n / (f - n));
   m.set(3, 3, 1.f);
 
-  m_orthographicMatrix = m;
+  Mat4x4f rot = rotationMatrix4x4<float_t>(Vec3f{ 0.f, 0.f, rotation });
+  m_orthographicMatrix = rot * m;
 }
 
 void RendererImpl::setPerspectiveMatrix(float_t rotation)
 {
-  float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
+  float_t aspect = m_viewDimensions[0] / static_cast<float_t>(m_viewDimensions[1]);
 
   m_viewParams.aspectRatio = aspect;
   m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
@@ -1325,6 +1344,11 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   return *i->second;
 }
 
+void rotateRect(VkRect2D& rect) {
+  std::swap(rect.extent.width, rect.extent.height);
+  std::swap(rect.offset.x, rect.offset.y);
+}
+
 void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
   const std::vector<VkRect2D>& viewports, VkCommandBuffer commandBuffer)
 {
@@ -1354,7 +1378,11 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
 
     if (node->viewportId != viewportId || &pipeline != prevPipeline) {
       viewportId = node->viewportId;
-      vkCmdSetScissor(commandBuffer, 0, 1, &viewports[viewportId]);
+      auto rect = viewports[viewportId];
+      if (m_viewRotated) {
+        rotateRect(rect);
+      }
+      vkCmdSetScissor(commandBuffer, 0, 1, &rect);
       prevPipeline = &pipeline;
     }
 

@@ -20,6 +20,41 @@ FileSystemPtr createAndroidFileSystem(const std::filesystem::path& userDataPath,
 namespace
 {
 
+// From https://stackoverflow.com/a/50831255
+void autoHideNavBar(android_app* state)
+{
+  JNIEnv* env{};
+  state->activity->vm->AttachCurrentThread(&env, NULL);
+
+  jclass activityClass = env->FindClass("android/app/NativeActivity");
+  jmethodID getWindow = env->GetMethodID(activityClass, "getWindow", "()Landroid/view/Window;");
+
+  jclass windowClass = env->FindClass("android/view/Window");
+  jmethodID getDecorView = env->GetMethodID(windowClass, "getDecorView", "()Landroid/view/View;");
+
+  jclass viewClass = env->FindClass("android/view/View");
+  jmethodID setSystemUiVisibility = env->GetMethodID(viewClass, "setSystemUiVisibility", "(I)V");
+
+  jobject window = env->CallObjectMethod(state->activity->clazz, getWindow);
+
+  jobject decorView = env->CallObjectMethod(window, getDecorView);
+
+  jfieldID flagFullscreenID = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I");
+  jfieldID flagHideNavigationID = env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION",
+    "I");
+  jfieldID flagImmersiveStickyID = env->GetStaticFieldID(viewClass,
+    "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I");
+
+  const int flagFullscreen = env->GetStaticIntField(viewClass, flagFullscreenID);
+  const int flagHideNavigation = env->GetStaticIntField(viewClass, flagHideNavigationID);
+  const int flagImmersiveSticky = env->GetStaticIntField(viewClass, flagImmersiveStickyID);
+  const int flag = flagFullscreen | flagHideNavigation | flagImmersiveSticky;
+
+  env->CallVoidMethod(decorView, setSystemUiVisibility, flag);
+
+  state->activity->vm->DetachCurrentThread();
+}
+
 GamepadButton buttonCode(int32_t key)
 {
   switch (key) {
@@ -58,7 +93,7 @@ class Application
   public:
     Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem, Logger& logger);
 
-    void update();
+    bool update();
     void onConfigChange();
     void onLeftStickMove(float_t x, float_t y);
     void onRightStickMove(float_t x, float_t y);
@@ -76,6 +111,7 @@ class Application
     GamePtr m_game;
     Vec2f m_leftStickDelta;
     Vec2f m_rightStickDelta;
+    Vec2i m_viewportSize;
 };
 
 using ApplicationPtr = std::unique_ptr<Application>;
@@ -87,15 +123,22 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
 {
   m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, m_logger);
+  m_viewportSize = m_renderer->getViewportSize();
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger);
 }
 
-void Application::update()
+bool Application::update()
 {
+  auto viewportSize = m_renderer->getViewportSize();
+  if (viewportSize != m_viewportSize) {
+    m_game->onWindowResize(viewportSize[0], viewportSize[1]);
+    m_viewportSize = viewportSize;
+  }
+
   m_game->onLeftStickMove(m_leftStickDelta);
   m_game->onRightStickMove(m_rightStickDelta);
-  m_game->update();
+  return m_game->update();
 }
 
 void Application::onConfigChange()
@@ -225,11 +268,25 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
       return 1;
     }
     if (eventType == AINPUT_EVENT_TYPE_MOTION) {
-      if (AInputEvent_getSource(&event) == AINPUT_SOURCE_JOYSTICK) {
-        float x = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_X, 0);
-        float y = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_Y, 0);
+      auto src = AInputEvent_getSource(&event);
 
-        m_app->onLeftStickMove(x, y);
+      if (src == AINPUT_SOURCE_JOYSTICK || src == AINPUT_SOURCE_GAMEPAD
+        || src == AINPUT_SOURCE_DPAD) {
+
+        float threshold = 0.1f;
+
+        float hatX = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_HAT_X, 0);
+        float hatY = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_HAT_Y, 0);
+
+        if (fabs(hatX) >= threshold || fabs(hatY) >= threshold) {
+          m_app->onLeftStickMove(hatX, hatY);
+        }
+        else {
+          float x = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_X, 0);
+          float y = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_Y, 0);
+
+          m_app->onLeftStickMove(x, y);
+        }
 
         float z = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_Z, 0);
         float rz = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_RZ, 0);
@@ -285,6 +342,8 @@ int32_t handleInput(android_app* state, AInputEvent* event)
 
 void android_main(android_app* state)
 {
+  autoHideNavBar(state);
+
   auto logger = createAndroidLogger();
   logger->info("Starting Minefield");
 
@@ -311,7 +370,9 @@ void android_main(android_app* state)
       source->process(state, source);
     }
 
-    application->update();
+    if (!application->update()) {
+      ANativeActivity_finish(state->activity);
+    }
 
     frameRateLimiter.wait();
   }

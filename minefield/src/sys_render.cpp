@@ -295,7 +295,9 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
 
   m_mesh = m_renderer.addMesh(quad());
 
-  m_camera.setPosition(Vec3f{ 0.f, 0.f, 1.f });
+  auto screenAspect = m_renderer.getViewParams().aspectRatio;
+  float_t gameAspect = 630.f / 480.f;  // TODO
+  m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
 }
 
 void SysRenderImpl::start()
