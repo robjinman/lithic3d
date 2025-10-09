@@ -9,36 +9,6 @@ namespace fs = std::filesystem;
 namespace
 {
 
-std::vector<char> readBinaryFile(const fs::path& path)
-{
-  std::ifstream stream(path, std::ios::ate | std::ios::binary);
-
-  if (!stream.is_open()) {
-    EXCEPTION("Failed to open file " << path);
-  }
-
-  size_t fileSize = stream.tellg();
-  std::vector<char> bytes(fileSize);
-
-  stream.seekg(0);
-  stream.read(bytes.data(), fileSize);
-
-  return bytes;
-}
-
-void writeBinaryFile(const fs::path& path, const char* data, size_t size)
-{
-  fs::create_directories(path.parent_path());
-
-  std::ofstream stream(path, std::ios::binary);
-
-  if (!stream.is_open()) {
-    EXCEPTION("Failed to open file " << path);
-  }
-
-  stream.write(data, size);
-}
-
 class DefaultIteratorImpl : public Directory::IteratorImpl
 {
   public:

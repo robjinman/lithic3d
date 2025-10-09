@@ -1,7 +1,7 @@
-Nova
-====
+Minefield
+=========
 
-Nova (working title) is game developed in C++ and Vulkan for Windows, Linux, Mac, iOS, and Android.
+A remake of the 2013 game Minefield.
 
 Building from source
 --------------------
@@ -97,7 +97,7 @@ If Vulkan isn't found, source the setup-env.sh file before building for iOS
 To install on the device
 
 ```
-    xcrun devicectl device install app --device <id> ./build/ios/debug/Debug-iphoneos/nova_exe.app
+    xcrun devicectl device install app --device <id> ./build/ios/debug/Debug-iphoneos/minefield.app
 ```
 
 You can obtain the device ID with

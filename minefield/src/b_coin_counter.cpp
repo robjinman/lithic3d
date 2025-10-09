@@ -2,7 +2,6 @@
 #include "sys_render.hpp"
 #include "game_events.hpp"
 #include "systems.hpp"
-#include <iomanip>
 
 namespace
 {
@@ -53,11 +52,8 @@ void BCoinCounter::processEvent(const Event& event)
 
     m_remaining = std::max(0, m_remaining - static_cast<int>(e.value));
 
-    std::stringstream ss;
-    ss << std::setw(2) << std::setfill('0') << m_remaining;
-
     auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-    sysRender.updateDynamicText(m_entityId, ss.str());
+    sysRender.updateDynamicText(m_entityId, std::to_string(m_remaining));
 
     if (m_remaining == 0) {
       m_eventSystem.raiseEvent(EGoldTargetAttained{});

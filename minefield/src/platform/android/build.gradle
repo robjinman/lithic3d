@@ -5,11 +5,11 @@ plugins {
 layout.buildDirectory.set(file("$rootDir/../../build/android/gradle_output"))
 
 android {
-    namespace 'io.deadbeef.nova'
+    namespace 'com.freeholdapps.minefield'
     compileSdk 35
 
     defaultConfig {
-        applicationId "io.deadbeef.nova"
+        applicationId "com.freeholdapps.minefield"
         minSdk 24
         targetSdk 35
         versionCode 1
@@ -22,7 +22,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
-                    targets "nova"
+                    targets "libminefield"
                 }
             }
         }
@@ -30,7 +30,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
-                    targets "nova"
+                    targets "libminefield"
                 }
             }
         }

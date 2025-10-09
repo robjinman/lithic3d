@@ -18,7 +18,6 @@
 #include "events.hpp"
 #include "game_options.hpp"
 #include <random>
-#include <iomanip>
 #include <cstring>
 
 namespace
@@ -393,7 +392,7 @@ void SceneBuilderImpl::constructClouds()
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
   const Vec4f colour{ 1.f, 0.8f, 0.5f, 0.6f };
-  long animationDuration = 15000;
+  long animationDuration = 18000;
 
   auto animIdle = std::unique_ptr<Animation>(new Animation{
     .name = hashString("idle"),
@@ -1534,10 +1533,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
     if (e.name == g_strTimerTick) {
       auto& event = dynamic_cast<const ETimerTick&>(e);
 
-      std::stringstream ss;
-      ss << std::setw(3) << std::setfill('0') << event.timeRemaining;
-
-      sysRender.updateDynamicText(id, ss.str());
+      sysRender.updateDynamicText(id, std::to_string(event.timeRemaining));
 
       if (event.timeRemaining == 10) {
         m_ecs.componentStore().component<CRender>(id).colour = { 1.f, 0.f, 0.f, 1.f };

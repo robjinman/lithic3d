@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <concepts>
+#include <filesystem>
 
 #define STR(x) [&]() {\
   std::stringstream MAC_ss; \
@@ -49,3 +50,6 @@ HashedString hashString(const std::string& s);
 std::string getHashedString(HashedString hash);
 
 int randomInt();
+
+std::vector<char> readBinaryFile(const std::filesystem::path& path);
+void writeBinaryFile(const std::filesystem::path& path, const char* data, size_t size);

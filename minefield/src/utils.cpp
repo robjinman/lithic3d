@@ -51,3 +51,33 @@ int randomInt()
 
   return distribution(generator);
 }
+
+std::vector<char> readBinaryFile(const std::filesystem::path& path)
+{
+  std::ifstream stream(path, std::ios::ate | std::ios::binary);
+
+  if (!stream.is_open()) {
+    EXCEPTION("Failed to open file " << path);
+  }
+
+  size_t fileSize = stream.tellg();
+  std::vector<char> bytes(fileSize);
+
+  stream.seekg(0);
+  stream.read(bytes.data(), fileSize);
+
+  return bytes;
+}
+
+void writeBinaryFile(const std::filesystem::path& path, const char* data, size_t size)
+{
+  std::filesystem::create_directories(path.parent_path());
+
+  std::ofstream stream(path, std::ios::binary);
+
+  if (!stream.is_open()) {
+    EXCEPTION("Failed to open file " << path);
+  }
+
+  stream.write(data, size);
+}

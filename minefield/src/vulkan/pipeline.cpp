@@ -74,14 +74,6 @@ constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
-bool operator==(const VkRect2D& A, const VkRect2D& B)
-{
-  return A.extent.width == B.extent.width &&
-    A.extent.height == B.extent.height &&
-    A.offset.x == B.offset.x &&
-    A.offset.y == B.offset.y;
-}
-
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
   VkShaderModuleCreateInfo createInfo{
@@ -501,7 +493,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
-  m_depthStencilStateInfo = defaultDepthStencilState();
+  m_depthStencilStateInfo = disabledDepthStencilState();// defaultDepthStencilState();
 
   m_descriptorSetLayouts = {
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),
@@ -622,6 +614,8 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
   m_logger.info(STR("Pipeline layout: " << m_layout));
   m_logger.info(STR("Render pass overlay: " << (m_renderPass == RenderPass::Overlay)));
   m_logger.info(STR("Render pass main: " << (m_renderPass == RenderPass::Main)));
+  m_logger.info(STR("Swapchain extent: "
+    << m_swapchainExtent.width << ", " << m_swapchainExtent.height));
 
   VkPipelineShaderStageCreateInfo shaderStages[] = {
     m_vertShaderStageInfo,
@@ -778,11 +772,11 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   else if (node.type == RenderNodeType::DynamicText) {
     auto& textNode = dynamic_cast<const DynamicTextNode&>(node);
 
-    DynamicTextPushConstants constants{
-      .modelMatrix = textNode.modelMatrix,
-      .colour = textNode.colour
-    };
+    DynamicTextPushConstants constants;
+    constants.modelMatrix = textNode.modelMatrix;
+    constants.colour = textNode.colour;
 
+    memset(constants.text, '\0', sizeof(constants.text));
     strncpy(reinterpret_cast<char*>(constants.text), textNode.text.c_str(), textNode.text.size());
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,

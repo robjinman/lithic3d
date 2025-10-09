@@ -29,6 +29,7 @@ void main()
   mat4 modelMatrix = constants.modelMatrix;
 
   vec4 worldPos = computeVertexPosition(modelMatrix);
+
   gl_Position = camera.projMatrix * camera.viewMatrix * worldPos;
 
   outWorldPos = worldPos.xyz;

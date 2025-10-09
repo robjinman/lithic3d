@@ -14,7 +14,8 @@
 
 LoggerPtr createAndroidLogger();
 WindowDelegatePtr createWindowDelegate(ANativeWindow& window);
-FileSystemPtr createAndroidFileSystem(AAssetManager& assetManager);
+FileSystemPtr createAndroidFileSystem(const std::filesystem::path& userDataPath,
+  AAssetManager& assetManager);
 
 namespace
 {
@@ -30,6 +31,10 @@ GamepadButton buttonCode(int32_t key)
     case AKEYCODE_BUTTON_L2:  return GamepadButton::L2;
     case AKEYCODE_BUTTON_R1:  return GamepadButton::R1;
     case AKEYCODE_BUTTON_R2:  return GamepadButton::R2;
+    case AKEYCODE_DPAD_UP:    return GamepadButton::Up;
+    case AKEYCODE_DPAD_DOWN:  return GamepadButton::Down;
+    case AKEYCODE_DPAD_LEFT:  return GamepadButton::Left;
+    case AKEYCODE_DPAD_RIGHT: return GamepadButton::Right;
     default: return GamepadButton::Unknown;
   }
 }
@@ -137,7 +142,8 @@ ApplicationPtr createApplication(android_app& state, Logger& logger)
   ASSERT(state.window != nullptr, "Window is NULL");
 
   auto windowDelegate = createWindowDelegate(*state.window);
-  FileSystemPtr fileSystem = createAndroidFileSystem(*state.activity->assetManager);
+  FileSystemPtr fileSystem = createAndroidFileSystem(state.activity->internalDataPath,
+    *state.activity->assetManager);
   return std::make_unique<Application>(std::move(windowDelegate), std::move(fileSystem), logger);
 }
 
@@ -196,6 +202,8 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
       int32_t key = AKeyEvent_getKeyCode(&event);
 
       if (action == AKEY_EVENT_ACTION_DOWN) {
+        m_logger.info(STR("Key down, key = " << key));
+
         auto button = buttonCode(key);
         if (button != GamepadButton::Unknown) {
           m_app->onButtonDown(button);

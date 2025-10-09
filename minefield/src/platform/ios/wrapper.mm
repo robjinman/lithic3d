@@ -58,7 +58,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   const char* bundlePathCStr = [bundlePath UTF8String];
 
   _application = createApplication(bundlePathCStr, createWindowDelegate(metalLayer));
-  [self NOVA_onViewResize];
+  [self MINEFIELD_onViewResize];
 
   self.view.insetsLayoutMarginsFromSafeArea = NO;
   self.view.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
@@ -68,12 +68,12 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
 }
 
-- (void)NOVA_onViewResize
+- (void)MINEFIELD_onViewResize
 {
-  [self NOVA_onViewResize:self.view.bounds.size];
+  [self MINEFIELD_onViewResize:self.view.bounds.size];
 }
 
-- (void)NOVA_onViewResize:(CGSize)size
+- (void)MINEFIELD_onViewResize:(CGSize)size
 {
   CAMetalLayer* metalLayer = (CAMetalLayer*)self.view.layer;
 
@@ -90,7 +90,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 - (void)viewWillLayoutSubviews
 {
   [super viewWillLayoutSubviews];
-  [self NOVA_onViewResize:self.view.bounds.size];
+  [self MINEFIELD_onViewResize:self.view.bounds.size];
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
@@ -98,7 +98,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 
   [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-    [self NOVA_onViewResize:size];
+    [self MINEFIELD_onViewResize:size];
   } completion:nil];
 }
 

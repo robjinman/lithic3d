@@ -19,10 +19,10 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "nova"
+rootProject.name = "minefield"
 
 include ':app'
-project(':app').projectDir = new File('../../nova/src/platform/android')
+project(':app').projectDir = new File('../../minefield/src/platform/android')
 
 include ':data'
 project(':data').projectDir = new File('./data')

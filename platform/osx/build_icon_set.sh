@@ -6,8 +6,8 @@ if [ "$#" -ne 1 ]; then
 fi
 
 SOURCE_IMAGE=$1
-ICONSET_NAME="nova.iconset"
-ICNS_FILE="nova.icns"
+ICONSET_NAME="minefield.iconset"
+ICNS_FILE="minefield.icns"
 
 if [ ! -f "$SOURCE_IMAGE" ]; then
   echo "Error: Source image '$SOURCE_IMAGE' not found!"

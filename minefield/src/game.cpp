@@ -98,7 +98,7 @@ class GameImpl : public Game
     void positionThrowingIndicator(const Vec2f& pos);
     void throwStick(float_t x, float_t y);
     void adjustVolume();
-    void setViewport(uint32_t w, uint32_t h);
+    void setViewport(uint32_t screenW, uint32_t screenH);
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
@@ -153,18 +153,22 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   setViewport(viewport[0], viewport[1]);
 }
 
-void GameImpl::setViewport(uint32_t w, uint32_t h)
+void GameImpl::setViewport(uint32_t screenW, uint32_t screenH)
 {
   float_t aspect = 630.f / 480.f;
-  float gameAreaWidth = aspect * h;
-  int x = static_cast<int>(0.5f * (static_cast<float>(w) - gameAreaWidth));
+  float gameAreaWidth = aspect * screenH;
+  int x = static_cast<int>(0.5f * (static_cast<float>(screenW) - gameAreaWidth));
   Recti viewport{
     .x = x,
     .y = 0,
     .w = static_cast<int>(gameAreaWidth),
-    .h = static_cast<int>(h)
+    .h = static_cast<int>(screenH)
   };
   dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).addViewport(MAIN_VIEWPORT, viewport);
+
+  m_logger.info(STR("Resetting viewport: screen (w: " << screenW << ", h: " << screenH << "), "
+    << "viewport (x: " << viewport.x << ", y: " << viewport.y << ", w: " << viewport.w << ", h: "
+    << viewport.h << ")"));
 
   m_viewportOffset = { viewport.x, viewport.y };
 }

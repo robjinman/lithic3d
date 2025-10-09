@@ -1000,6 +1000,9 @@ void RendererImpl::setOrthographicMatrix()
 {
   float_t aspect = m_swapchainExtent.width / static_cast<float_t>(m_swapchainExtent.height);
 
+  m_logger.info(STR("Creating orthographic matrix from viewport dimensions "
+    << m_swapchainExtent.width << ", " << m_swapchainExtent.height));
+
   // TODO: Move to math.cpp
 
   Mat4x4f m;
@@ -1344,6 +1347,7 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
         m_resources->updateMeshInstances(instancedNode.mesh.id, instancedNode.instances);
         break;
       }
+      default: break;
     }
 
     auto& pipeline = choosePipeline(renderPass, *node);
