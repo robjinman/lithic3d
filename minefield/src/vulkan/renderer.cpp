@@ -959,6 +959,9 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
 
   m_viewDimensions = { static_cast<int>(extent.width), static_cast<int>(extent.height) };
 
+  m_logger.info(STR("Surface capabilities currentTransform = "
+    << swapchainSupport.capabilities.currentTransform));
+
   float_t rotation = 0;
   if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
     rotation = degreesToRadians(90.f);

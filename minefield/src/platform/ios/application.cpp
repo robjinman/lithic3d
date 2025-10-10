@@ -31,6 +31,7 @@ class ApplicationImpl : public Application
     AudioSystemPtr m_audioSystem;
     render::RendererPtr m_renderer;
     GamePtr m_game;
+    Vec2i m_viewportSize;
 };
 
 ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windowDelegate)
@@ -52,6 +53,12 @@ void ApplicationImpl::onViewResize()
 
 void ApplicationImpl::update()
 {
+  auto viewportSize = m_renderer->getViewportSize();
+  if (viewportSize != m_viewportSize) {
+    m_game->onWindowResize(viewportSize[0], viewportSize[1]);
+    m_viewportSize = viewportSize;
+  }
+
   m_game->update();
 }
 
