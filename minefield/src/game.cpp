@@ -83,6 +83,10 @@ class GameImpl : public Game
     float m_musicVolume = 0.75f;
     Vec2i m_viewportOffset;
 
+    // As we're simulating keyboard keypresses for both D-pad and left joystick, they interfere
+    // with each other unless we define two separate input modes and switch between them
+    bool m_usingDpad = false;
+
     void measureTickRate();
     void processKeyboardInput();
     void processMouseInput();
@@ -372,10 +376,10 @@ void GameImpl::onButtonDown(GamepadButton button)
   switch (button) {
     case GamepadButton::A: return onKeyDown(KeyboardKey::Enter);
     case GamepadButton::B: return onKeyDown(KeyboardKey::Escape);
-    case GamepadButton::Left: return onKeyDown(KeyboardKey::Left);
-    case GamepadButton::Right: return onKeyDown(KeyboardKey::Right);
-    case GamepadButton::Up: return onKeyDown(KeyboardKey::Up);
-    case GamepadButton::Down: return onKeyDown(KeyboardKey::Down);
+    case GamepadButton::Left: m_usingDpad = true; return onKeyDown(KeyboardKey::Left);
+    case GamepadButton::Right: m_usingDpad = true; return onKeyDown(KeyboardKey::Right);
+    case GamepadButton::Up: m_usingDpad = true; return onKeyDown(KeyboardKey::Up);
+    case GamepadButton::Down: m_usingDpad = true; return onKeyDown(KeyboardKey::Down);
     default: break;
   }
 }
@@ -418,9 +422,10 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
 
   auto simulateKeypress = [this, threshold, delta](size_t dim, float_t neg, KeyboardKey key) {
     if (neg * delta[dim] >= threshold) {
+      m_usingDpad = false;
       onKeyDown(key);
     }
-    else {
+    else if (!m_usingDpad) {
       if (m_inputState.keysPressed.contains(key)) {
         onKeyUp(key);
       }
