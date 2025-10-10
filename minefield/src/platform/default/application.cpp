@@ -10,7 +10,7 @@
 #include "audio_system.hpp"
 #include <iostream>
 #include <GLFW/glfw3.h>
-#ifdef _WIN32
+#if defined(_WIN32) && defined(NDEBUG)
 #include <windows.h>
 #endif
 
@@ -351,7 +351,7 @@ Application::~Application()
 
 } // namespace
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(NDEBUG)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, PSTR, int)
 #else
 int main()

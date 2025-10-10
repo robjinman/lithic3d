@@ -49,12 +49,13 @@ else()
     endif()
   elseif(PLATFORM_WINDOWS)
     find_package(glfw3 REQUIRED)
-    add_executable(${EXE_TARGET} WIN32
+    add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/minefield//src/platform/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/minefield/src/platform/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/minefield//src/platform/windows/platform_paths.cpp"
       "${PROJECT_SOURCE_DIR}/minefield/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
+    set_target_properties(${EXE_TARGET} PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
       winmm
