@@ -1654,7 +1654,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
 
   m_entities.insert(id);
 
-  Vec2f pos{ 0.75f, 0.01f };
+  Vec2f pos{ 0.15f, 0.01f };
   Vec2f charSize{ 0.024f, 0.04f };
 
   SpatialData spatial{
@@ -1673,7 +1673,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
       .w = pxToUvW(192.f),
       .h = pxToUvH(192.f)
     },
-    .text = "Press Enter to restart",
+    .text = "Tap screen or press any button to restart",
     .zIndex = static_cast<uint32_t>(ZIndex::Hud),
     .colour = { 0.3f, 0.7f, 0.3f, 1.f }
   };

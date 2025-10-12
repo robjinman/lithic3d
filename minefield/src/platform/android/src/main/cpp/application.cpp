@@ -281,8 +281,6 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
       int32_t key = AKeyEvent_getKeyCode(&event);
 
       if (action == AKEY_EVENT_ACTION_DOWN) {
-        m_logger.info(STR("Key down, key = " << key));
-
         auto button = buttonCode(key);
         if (button != GamepadButton::Unknown) {
           m_app->onButtonDown(button);

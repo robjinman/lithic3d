@@ -10,8 +10,6 @@ namespace
 
 const uint32_t zIndex = 199;
 
-// TODO: Support changes to game area on screen resize?
-
 class MobileControlsImpl : public MobileControls
 {
   public:
@@ -36,7 +34,7 @@ class MobileControlsImpl : public MobileControls
 
     EntityId constructRoot();
     EntityId constructButton(const std::function<void()>& onPress,
-      const std::function<void()>& onRelease);
+      const std::function<void()>& onRelease, const std::string& label);
     void positionButtons(const Rectf& gameArea);
 };
 
@@ -47,14 +45,15 @@ MobileControlsImpl::MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
   , m_callbacks(callbacks)
 {
   m_rootId = constructRoot();
-  m_leftBtnId = constructButton(m_callbacks.onLeftButtonPress, m_callbacks.onLeftButtonRelease);
-  m_rightBtnId = constructButton(m_callbacks.onRightButtonPress, m_callbacks.onRightButtonRelease);
-  m_upBtnId = constructButton(m_callbacks.onUpButtonPress, m_callbacks.onUpButtonRelease);
-  m_downBtnId = constructButton(m_callbacks.onDownButtonPress, m_callbacks.onDownButtonRelease);
+  m_leftBtnId = constructButton(m_callbacks.onLeftButtonPress, m_callbacks.onLeftButtonRelease, "");
+  m_rightBtnId = constructButton(m_callbacks.onRightButtonPress, m_callbacks.onRightButtonRelease,
+    "");
+  m_upBtnId = constructButton(m_callbacks.onUpButtonPress, m_callbacks.onUpButtonRelease, "");
+  m_downBtnId = constructButton(m_callbacks.onDownButtonPress, m_callbacks.onDownButtonRelease, "");
   m_actionBtnId = constructButton(m_callbacks.onActionButtonPress,
-    m_callbacks.onActionButtonRelease);
+    m_callbacks.onActionButtonRelease, "A");
   m_escapeBtnId = constructButton(m_callbacks.onEscapeButtonPress,
-    m_callbacks.onEscapeButtonRelease);
+    m_callbacks.onEscapeButtonRelease, "B");
 
   positionButtons(gameArea);
 }
@@ -73,13 +72,13 @@ void MobileControlsImpl::positionButtons(const Rectf& gameArea)
   Vec2f btnRightPos{ x0 + 2.f * btnW, y0 + 1.f * btnH };
   Vec2f btnUpPos{ x0 + 1.f * btnW, y0 + 2.f * btnH };
   Vec2f btnDownPos{ x0 + 1.f * btnW, y0 + 0.f * btnH };
-  Vec2f btnEscapePos{ gameArea.w + gap, 1.f - btnH - gap };
-  Vec2f btnActionPos{ gameArea.w + gap, y0 };
+  Vec2f btnActionPos{ gameArea.w + gap + 1.f * btnW, y0 };
+  Vec2f btnEscapePos{ gameArea.w + gap + 2.f * btnW, y0 + btnH };
 
   auto setTransform = [this](EntityId id, const Vec2f& pos, const Vec2f& size) {
     m_ecs.componentStore().component<CLocalTransform>(id).transform =
       translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
-      scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+      scaleMatrix4x4(Vec3f{ size[0], size[1], 1.f });
   };
 
   setTransform(m_leftBtnId, btnLeftPos, btnSz);
@@ -127,14 +126,14 @@ EntityId MobileControlsImpl::constructRoot()
 }
 
 EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPress,
-  const std::function<void()>& onRelease)
+  const std::function<void()>& onRelease, const std::string& label)
 {
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
 
-  const Vec4f colourPressed{ 0.15f, 0.1f, 0.1f, 1.f };
-  const Vec4f colourUnpressed{ 0.1f, 0.1f, 0.15f, 1.f };
+  const Vec4f colourPressed{ 0.25f, 0.f, 0.f, 1.f };
+  const Vec4f colourUnpressed{ 0.1f, 0.1f, 0.2f, 1.f };
 
   auto id = m_ecs.componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CUi
@@ -173,6 +172,36 @@ EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPres
   };
 
   sysUi.addEntity(id, ui);
+
+  if (!label.empty()) {
+    auto labelId = m_ecs.componentStore().allocate<
+      CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CSprite
+    >();
+
+    SpatialData spatial{
+      .transform = translationMatrix4x4(Vec3f{ 0.25f, 0.25f, 0.f })
+        * scaleMatrix4x4(Vec3f{ 0.5f, 0.5f, 1.f }),
+      .parent = id,
+      .enabled = true
+    };
+
+    sysSpatial.addEntity(labelId, spatial);
+
+    TextData render{
+      .viewport = MOBILE_CONTROLS_VIEWPORT,
+      .textureRect = {
+        .x = pxToUvX(256.f),
+        .y = pxToUvY(64.f, 192.f),
+        .w = pxToUvW(192.f),
+        .h = pxToUvH(192.f)
+      },
+      .text = label,
+      .zIndex = zIndex + 1,
+      .colour = { 0.2f, 0.9f, 0.2f, 1.f }
+    };
+
+    sysRender.addEntity(labelId, render);
+  }
 
   return id;
 }

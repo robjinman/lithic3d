@@ -323,9 +323,6 @@ void GameImpl::handleEvent(const Event& event)
 
 void GameImpl::destroyCurrentGame()
 {
-  // Will delete entities pending deletion
-  m_ecs->update(m_currentTick, m_inputState);
-
   // TODO: Delete children before parents
   auto entities = m_sceneBuilder->entities();
   for (auto id : entities) {
@@ -424,8 +421,14 @@ void GameImpl::onKeyDown(KeyboardKey key)
       break;
     }
     case KeyboardKey::M: {
-      m_mobileControls->show();
-      m_mobileControlsActive = true;
+      if (m_mobileControlsActive) {
+        m_mobileControls->hide();
+        m_mobileControlsActive = false;
+      }
+      else {
+        m_mobileControls->show();
+        m_mobileControlsActive = true;
+      }
       break;
     }
     case KeyboardKey::Escape: {
@@ -448,6 +451,12 @@ void GameImpl::onKeyDown(KeyboardKey key)
     default: break;
   }
 
+  if (m_gameState == GameState::Dead) {
+    destroyCurrentGame();
+    startGame();
+    return;
+  }
+
   m_inputState.keysPressed.insert(key);
 }
 
@@ -459,6 +468,12 @@ void GameImpl::onKeyUp(KeyboardKey key)
 void GameImpl::onButtonDown(GamepadButton button)
 {
   //m_inputState.gamepadButtonsPressed.insert(button);
+
+  if (m_gameState == GameState::Dead && button != GamepadButton::B) {
+    destroyCurrentGame();
+    startGame();
+    return;
+  }
 
   switch (button) {
     case GamepadButton::A: return onKeyDown(KeyboardKey::Enter);
@@ -488,6 +503,14 @@ void GameImpl::onButtonUp(GamepadButton button)
 
 void GameImpl::onMouseButtonDown()
 {
+  if (m_gameState == GameState::Dead) {
+    if (isInsideGameArea(m_inputState.mousePos)) {
+      destroyCurrentGame();
+      startGame();
+      return;
+    }
+  }
+
   m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
 }
 
@@ -523,7 +546,9 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
 
   auto simulateKeypress = [this, threshold, delta](size_t dim, float neg, KeyboardKey key) {
     if (neg * delta[dim] >= threshold) {
-      onKeyDown(key);
+      if (!m_inputState.keysPressed.contains(key)) {
+        onKeyDown(key);
+      }
     }
     else {
       if (m_inputState.keysPressed.contains(key)) {
@@ -556,41 +581,29 @@ void GameImpl::processKeyboardInput()
 
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs->system(BEHAVIOUR_SYSTEM));
 
-  switch (m_gameState) {
-    case GameState::Playing: {
-      auto& player = dynamic_cast<BPlayer&>(sysBehaviour.getBehaviour(m_scene.player, strPlayer));
+  if (m_gameState == GameState::Playing) {
+    auto& player = dynamic_cast<BPlayer&>(sysBehaviour.getBehaviour(m_scene.player, strPlayer));
 
-      if (m_inputState.keysPressed.contains(KeyboardKey::Left)) {
-        if (player.moveLeft()) {
-          toggleThrowingMode(false);
-        }
+    if (m_inputState.keysPressed.contains(KeyboardKey::Left)) {
+      if (player.moveLeft()) {
+        toggleThrowingMode(false);
       }
-      else if (m_inputState.keysPressed.contains(KeyboardKey::Right)) {
-        if (player.moveRight()) {
-          toggleThrowingMode(false);
-        }
-      }
-      else if (m_inputState.keysPressed.contains(KeyboardKey::Up)) {
-        if (player.moveUp()) {
-          toggleThrowingMode(false);
-        }
-      }
-      else if (m_inputState.keysPressed.contains(KeyboardKey::Down)) {
-        if (player.moveDown()) {
-          toggleThrowingMode(false);
-        }
-      }
-
-      break;
     }
-    case GameState::Dead: {
-      if (m_inputState.keysPressed.contains(KeyboardKey::Enter)) {
-        destroyCurrentGame();
-        startGame();
+    else if (m_inputState.keysPressed.contains(KeyboardKey::Right)) {
+      if (player.moveRight()) {
+        toggleThrowingMode(false);
       }
-      break;
     }
-    default: break;
+    else if (m_inputState.keysPressed.contains(KeyboardKey::Up)) {
+      if (player.moveUp()) {
+        toggleThrowingMode(false);
+      }
+    }
+    else if (m_inputState.keysPressed.contains(KeyboardKey::Down)) {
+      if (player.moveDown()) {
+        toggleThrowingMode(false);
+      }
+    }
   }
 }
 
