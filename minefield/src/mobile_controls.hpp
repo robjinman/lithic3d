@@ -1,5 +1,6 @@
 #pragma once
 
+#include "math.hpp"
 #include <memory>
 #include <functional>
 
@@ -24,6 +25,7 @@ class MobileControls
   public:
     virtual void hide() = 0;
     virtual void show() = 0;
+    virtual void setGameArea(const Rectf& gameArea) = 0;
 
     virtual ~MobileControls() = default;
 };
@@ -34,4 +36,4 @@ class Ecs;
 class EventSystem;
 
 MobileControlsPtr createMobileControls(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect);
+  const MobileControlsCallbacks& callbacks, const Rectf& gameArea);

@@ -108,6 +108,7 @@ class GameImpl : public Game
     void setMobileControlsViewport(uint32_t screenW, uint32_t screenH);
     bool isInsideGameArea(const Vec2f& pos) const;
     Vec2f throwingIndicatorPosition() const;
+    Rectf calculateGameArea(uint32_t screenW, uint32_t screenH) const;
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
@@ -148,7 +149,6 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
   auto viewport = m_renderer.getViewportSize();
-  float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
 
   MobileControlsCallbacks callbacks{
     .onLeftButtonPress = [this]() { onKeyDown(KeyboardKey::Left); },
@@ -164,8 +164,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
     .onEscapeButtonPress = [this]() { onKeyDown(KeyboardKey::Escape); },
     .onEscapeButtonRelease = [this]() { onKeyUp(KeyboardKey::Escape); }
   };
-  m_mobileControls = createMobileControls(*m_ecs, *m_eventSystem, callbacks, screenAspect,
-    GAME_AREA_ASPECT);
+  m_mobileControls = createMobileControls(*m_ecs, *m_eventSystem, callbacks,
+    calculateGameArea(viewport[0], viewport[1]));
 
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 
@@ -198,6 +198,19 @@ void GameImpl::showMobileControls()
     m_mobileControlsActive = true;
     m_mobileControls->show();
   }
+}
+
+Rectf GameImpl::calculateGameArea(uint32_t screenW, uint32_t screenH) const
+{
+  float screenAspect = static_cast<float>(screenW) / screenH;
+  float margin = (screenAspect - GAME_AREA_ASPECT) / 2.f;
+
+  return Rectf{
+    .x = margin,
+    .y = 0,
+    .w = GAME_AREA_ASPECT,
+    .h = 1.f
+  };
 }
 
 void GameImpl::setMobileControlsViewport(uint32_t screenW, uint32_t screenH)
@@ -237,6 +250,7 @@ void GameImpl::onWindowResize(uint32_t w, uint32_t h)
 {
   setViewport(w, h);
   setMobileControlsViewport(w, h);
+  m_mobileControls->setGameArea(calculateGameArea(w, h));
 }
 
 void GameImpl::handleMenuEvent(const Event& event)
@@ -407,6 +421,11 @@ void GameImpl::onKeyDown(KeyboardKey key)
           throwStick(pos[0], pos[1]);
         }
       }
+      break;
+    }
+    case KeyboardKey::M: {
+      m_mobileControls->show();
+      m_mobileControlsActive = true;
       break;
     }
     case KeyboardKey::Escape: {

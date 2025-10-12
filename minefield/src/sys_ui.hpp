@@ -46,6 +46,7 @@ struct CUi
 
 struct UiData
 {
+  bool canReceiveFocus = true;
   SysUi::GroupId group = 0;
   EntityId topSlot = NULL_ENTITY;
   EntityId rightSlot = NULL_ENTITY;

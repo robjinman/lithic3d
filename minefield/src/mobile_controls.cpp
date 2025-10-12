@@ -10,35 +10,58 @@ namespace
 
 const uint32_t zIndex = 199;
 
+// TODO: Support changes to game area on screen resize?
+
 class MobileControlsImpl : public MobileControls
 {
   public:
     MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
-      const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect);
+      const MobileControlsCallbacks& callbacks, const Rectf& gameArea);
 
     void hide() override;
     void show() override;
+    void setGameArea(const Rectf& gameArea) override;
 
   private:
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     MobileControlsCallbacks m_callbacks;
     EntityId m_rootId;
+    EntityId m_leftBtnId;
+    EntityId m_rightBtnId;
+    EntityId m_upBtnId;
+    EntityId m_downBtnId;
+    EntityId m_actionBtnId;
+    EntityId m_escapeBtnId;
 
     EntityId constructRoot();
-    void constructButton(const Vec2f& pos, const Vec2f& size, const std::function<void()>& onPress,
+    EntityId constructButton(const std::function<void()>& onPress,
       const std::function<void()>& onRelease);
+    void positionButtons(const Rectf& gameArea);
 };
 
 MobileControlsImpl::MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect)
+  const MobileControlsCallbacks& callbacks, const Rectf& gameArea)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_callbacks(callbacks)
 {
-  float gameAreaW = gameAreaAspect;
-  float screenW = screenAspect;
-  float margin = (screenW - gameAreaW) / 2.f;
+  m_rootId = constructRoot();
+  m_leftBtnId = constructButton(m_callbacks.onLeftButtonPress, m_callbacks.onLeftButtonRelease);
+  m_rightBtnId = constructButton(m_callbacks.onRightButtonPress, m_callbacks.onRightButtonRelease);
+  m_upBtnId = constructButton(m_callbacks.onUpButtonPress, m_callbacks.onUpButtonRelease);
+  m_downBtnId = constructButton(m_callbacks.onDownButtonPress, m_callbacks.onDownButtonRelease);
+  m_actionBtnId = constructButton(m_callbacks.onActionButtonPress,
+    m_callbacks.onActionButtonRelease);
+  m_escapeBtnId = constructButton(m_callbacks.onEscapeButtonPress,
+    m_callbacks.onEscapeButtonRelease);
+
+  positionButtons(gameArea);
+}
+
+void MobileControlsImpl::positionButtons(const Rectf& gameArea)
+{
+  float margin = gameArea.x;
   float gap = 0.04f;  // Distance between controls and game area or edge of screen
   float btnW = (margin - 2.f * gap) / 3.f;
   float btnH = btnW;
@@ -50,23 +73,21 @@ MobileControlsImpl::MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
   Vec2f btnRightPos{ x0 + 2.f * btnW, y0 + 1.f * btnH };
   Vec2f btnUpPos{ x0 + 1.f * btnW, y0 + 2.f * btnH };
   Vec2f btnDownPos{ x0 + 1.f * btnW, y0 + 0.f * btnH };
+  Vec2f btnEscapePos{ gameArea.w + gap, 1.f - btnH - gap };
+  Vec2f btnActionPos{ gameArea.w + gap, y0 };
 
-  m_rootId = constructRoot();
-  constructButton(btnLeftPos, btnSz, m_callbacks.onLeftButtonPress,
-    m_callbacks.onLeftButtonRelease);
-  constructButton(btnRightPos, btnSz, m_callbacks.onRightButtonPress,
-    m_callbacks.onRightButtonRelease);
-  constructButton(btnUpPos, btnSz, m_callbacks.onUpButtonPress, m_callbacks.onUpButtonRelease);
-  constructButton(btnDownPos, btnSz, m_callbacks.onDownButtonPress,
-    m_callbacks.onDownButtonRelease);
+  auto setTransform = [this](EntityId id, const Vec2f& pos, const Vec2f& size) {
+    m_ecs.componentStore().component<CLocalTransform>(id).transform =
+      translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+      scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+  };
 
-  Vec2f btnActionPos{ gameAreaW + gap, y0 };
-  constructButton(btnActionPos, btnSz, m_callbacks.onActionButtonPress,
-    m_callbacks.onActionButtonRelease);
-
-  Vec2f btnEscapePos{ gameAreaW + gap, 1.f - btnH - gap };
-  constructButton(btnEscapePos, btnSz, m_callbacks.onEscapeButtonPress,
-    m_callbacks.onEscapeButtonRelease);
+  setTransform(m_leftBtnId, btnLeftPos, btnSz);
+  setTransform(m_rightBtnId, btnRightPos, btnSz);
+  setTransform(m_upBtnId, btnUpPos, btnSz);
+  setTransform(m_downBtnId, btnDownPos, btnSz);
+  setTransform(m_actionBtnId, btnActionPos, btnSz);
+  setTransform(m_escapeBtnId, btnEscapePos, btnSz);
 }
 
 void MobileControlsImpl::show()
@@ -79,6 +100,11 @@ void MobileControlsImpl::hide()
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   sysSpatial.setEnabled(m_rootId, false);
+}
+
+void MobileControlsImpl::setGameArea(const Rectf& gameArea)
+{
+  positionButtons(gameArea);
 }
 
 EntityId MobileControlsImpl::constructRoot()
@@ -100,8 +126,8 @@ EntityId MobileControlsImpl::constructRoot()
   return id;
 }
 
-void MobileControlsImpl::constructButton(const Vec2f& pos, const Vec2f& size,
-  const std::function<void()>& onPress, const std::function<void()>& onRelease)
+EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPress,
+  const std::function<void()>& onRelease)
 {
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
@@ -115,8 +141,7 @@ void MobileControlsImpl::constructButton(const Vec2f& pos, const Vec2f& size,
   >();
 
   SpatialData spatial{
-    .transform = translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
-      scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f }),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_rootId,
     .enabled = true
   };
@@ -132,6 +157,7 @@ void MobileControlsImpl::constructButton(const Vec2f& pos, const Vec2f& size,
   sysRender.addEntity(id, render);
 
   UiData ui{};
+  ui.canReceiveFocus = false;
   ui.inputFilter = { MouseButton::Left };
   ui.onInputBegin = [&sysRender, &onPress, colourPressed, id](const UserInput&) {
     sysRender.setColour(id, colourPressed);
@@ -147,13 +173,14 @@ void MobileControlsImpl::constructButton(const Vec2f& pos, const Vec2f& size,
   };
 
   sysUi.addEntity(id, ui);
+
+  return id;
 }
 
 } // namespace
 
 MobileControlsPtr createMobileControls(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect)
+  const MobileControlsCallbacks& callbacks, const Rectf& gameArea)
 {
-  return std::make_unique<MobileControlsImpl>(ecs, eventSystem, callbacks, screenAspect,
-    gameAreaAspect);
+  return std::make_unique<MobileControlsImpl>(ecs, eventSystem, callbacks, gameArea);
 }

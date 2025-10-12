@@ -656,6 +656,11 @@ struct Rect
   T y;
   T w;
   T h;
+
+  bool isInside(const Vector<T, 2>& p)
+  {
+    return p[0] >= x && p[0] <= x + w && p[1] >= y && p[1] <= y + h;
+  }
 };
 
 using Rectf = Rect<float>;

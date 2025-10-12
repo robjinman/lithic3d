@@ -16,6 +16,7 @@ struct ItemGroup
 
 struct ItemData
 {
+  bool canReceiveFocus = false;
   SysUi::GroupId group = 0;
   std::set<UserInput> inputFilter{};
   std::function<void()> onGainFocus = []() {};
@@ -88,6 +89,7 @@ void SysUiImpl::addEntity(EntityId id, const UiData& data)
   component = CUi{};
 
   m_componentData.insert({ id, ItemData{
+    .canReceiveFocus = data.canReceiveFocus,
     .group = data.group,
     .inputFilter = data.inputFilter,
     .onGainFocus = data.onGainFocus,
@@ -205,6 +207,10 @@ void SysUiImpl::sendUnfocus(EntityId id)
 {
   auto& compData = m_componentData.at(id);
 
+  if (!compData.canReceiveFocus) {
+    return;
+  }
+
   if (compData.group != 0) {
     auto& group = m_groups.at(compData.group);
     if (group.focusedItem == id) {
@@ -218,6 +224,10 @@ void SysUiImpl::sendUnfocus(EntityId id)
 void SysUiImpl::sendFocus(EntityId id)
 {
   auto& compData = m_componentData.at(id);
+
+  if (!compData.canReceiveFocus) {
+    return;
+  }
 
   if (compData.group == 0) {
     //EXCEPTION("Entity must be part of a group to receive focus");
@@ -367,30 +377,25 @@ std::optional<T> firstDifference(const std::set<T>& A, const std::set<T>& B)
 
 std::optional<UserInput> getInput(const InputState& prevState, const InputState& state)
 {
-  auto mouseInput = firstDifference(state.mouseButtonsPressed, prevState.mouseButtonsPressed);
-  if (mouseInput.has_value()) {
-    return mouseInput.value();
-  }
-
   auto key = firstDifference(state.keysPressed, prevState.keysPressed);
   if (key.has_value()) {
     return key.value();
   }
 
-  //auto btn = firstDifference(state.gamepadButtonsPressed, prevState.gamepadButtonsPressed);
-  //if (btn.has_value()) {
-  //  return btn.value();
-  //}
+  auto mouseInput = firstDifference(state.mouseButtonsPressed, prevState.mouseButtonsPressed);
+  if (mouseInput.has_value()) {
+    return mouseInput.value();
+  }
 
   return std::nullopt;
 }
 
-void SysUiImpl::update(Tick, const InputState& inputState)
+void SysUiImpl::update(Tick tick, const InputState& inputState_)
 {
+  auto inputState = inputState_;
+
   auto inputBegin = getInput(m_prevInputState, inputState);
   auto inputEnd = getInput(inputState, m_prevInputState);
-
-  // TODO: Gamepad input
 
   std::optional<MouseButton> mouseButtonPressed = std::nullopt;
   std::optional<MouseButton> mouseButtonReleased = std::nullopt;

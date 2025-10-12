@@ -259,7 +259,7 @@ void Application::toggleFullScreen()
     glfwSetWindowMonitor(m_window, monitor, 0, 0, FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H,
       mode->refreshRate);
 
-    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     m_renderer->onResize();
     m_game->onWindowResize(FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H);
