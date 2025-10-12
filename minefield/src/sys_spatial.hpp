@@ -28,21 +28,21 @@ class EEntityEnable : public Event
 //   CGlobalTransform
 struct SpatialData
 {
-  Mat4x4f transform = identityMatrix<float_t, 4>();
+  Mat4x4f transform = identityMatrix<float, 4>();
   EntityId parent = NULL_ENTITY;
   bool enabled = true;
 };
 
 struct CLocalTransform
 {
-  Mat4x4f transform = identityMatrix<float_t, 4>();
+  Mat4x4f transform = identityMatrix<float, 4>();
 
   static constexpr ComponentType TypeId = CLocalTransformTypeId;
 };
 
 struct CGlobalTransform
 {
-  Mat4x4f transform = identityMatrix<float_t, 4>();
+  Mat4x4f transform = identityMatrix<float, 4>();
 
   static constexpr ComponentType TypeId = CGlobalTransformTypeId;
 };

@@ -9,7 +9,7 @@
 struct AnimationFrame
 {
   Vec2f pos{ 0.f, 0.f };
-  float_t rotation = 0.f;
+  float rotation = 0.f;
   Vec2f pivot{ 0.f, 0.f };  // In model space, which for sprites ranges from 0.0 to 1.0 on both axis
   Vec2f scale{ 1.f, 1.f };
   std::optional<Rectf> textureRect;

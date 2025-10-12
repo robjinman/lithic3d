@@ -132,7 +132,7 @@ class RendererImpl : public Renderer
     void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
       const Vec4f& colour, const Mat4x4f& transform) override;
     void drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform) override;
-    void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
+    void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
       const Mat4x4f& transform) override;
     void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
       const Vec4f& colour, const Mat4x4f& transform) override;
@@ -166,8 +166,8 @@ class RendererImpl : public Renderer
     void createSwapChain();
     void createSwapChain(VkExtent2D extent);
     void recreateSwapChain();
-    void setOrthographicMatrix(float_t rotation);
-    void setPerspectiveMatrix(float_t rotation);
+    void setOrthographicMatrix(float rotation);
+    void setPerspectiveMatrix(float rotation);
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
@@ -241,9 +241,9 @@ class RendererImpl : public Renderer
       Vec3f position;
       Vec3f direction;
       Vec3f colour;
-      float_t ambient;
-      float_t specular;
-      float_t zFar;
+      float ambient;
+      float specular;
+      float zFar;
     };
 
     struct LightingState
@@ -552,8 +552,8 @@ void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawLight(const Vec3f& colour, float_t ambient, float_t specular,
-  float_t zFar, const Mat4x4f& transform)
+void RendererImpl::drawLight(const Vec3f& colour, float ambient, float specular,
+  float zFar, const Mat4x4f& transform)
 {
   FrameState& frameState = m_frameStates.getWritable();
   ASSERT(frameState.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
@@ -854,11 +854,6 @@ void RendererImpl::finishFrame()
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
     || m_framebufferResized) {
 
-    m_logger.info("presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || m_framebufferResized");
-    m_logger.info(STR("presentResult == VK_ERROR_OUT_OF_DATE_KHR, " << (presentResult == VK_ERROR_OUT_OF_DATE_KHR)));
-    m_logger.info(STR("presentResult == VK_SUBOPTIMAL_KHR, " << (presentResult == VK_SUBOPTIMAL_KHR)));
-    m_logger.info(STR("m_framebufferResized, " << m_framebufferResized));
-
     m_framebufferResized = false;
     recreateSwapChain();
   }
@@ -962,13 +957,15 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   m_logger.info(STR("Surface capabilities currentTransform = "
     << swapchainSupport.capabilities.currentTransform));
 
-  float_t rotation = 0;
+  float rotation = 0;
   if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
     rotation = degreesToRadians(90.f);
     std::swap(extent.width, extent.height);
     m_viewRotated = true;
   }
-  else if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+  else if (swapchainSupport.capabilities.currentTransform
+    & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+
     EXCEPTION("Unsupported surface transform");
   }
 
@@ -1017,9 +1014,9 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   setPerspectiveMatrix(rotation);
 }
 
-void RendererImpl::setOrthographicMatrix(float_t rotation)
+void RendererImpl::setOrthographicMatrix(float rotation)
 {
-  float_t aspect = m_viewDimensions[0] / static_cast<float_t>(m_viewDimensions[1]);
+  float aspect = m_viewDimensions[0] / static_cast<float>(m_viewDimensions[1]);
 
   m_logger.info(STR("Creating orthographic matrix from viewport dimensions "
     << m_viewDimensions[0] << ", " << m_viewDimensions[1]));
@@ -1027,12 +1024,12 @@ void RendererImpl::setOrthographicMatrix(float_t rotation)
   // TODO: Move to math.cpp
 
   Mat4x4f m;
-  const float_t t = 0.5f;
-  const float_t b = -0.5f;
-  const float_t r = 0.5f * aspect;
-  const float_t l = -0.5f * aspect;
-  const float_t f = 100.f;
-  const float_t n = 0.f;
+  const float t = 0.5f;
+  const float b = -0.5f;
+  const float r = 0.5f * aspect;
+  const float l = -0.5f * aspect;
+  const float f = 100.f;
+  const float n = 0.f;
 
   m.set(0, 0, 2.f / (r - l));
   m.set(0, 3, (r + l) / (l - r));
@@ -1042,18 +1039,18 @@ void RendererImpl::setOrthographicMatrix(float_t rotation)
   m.set(2, 3, -n / (f - n));
   m.set(3, 3, 1.f);
 
-  Mat4x4f rot = rotationMatrix4x4<float_t>(Vec3f{ 0.f, 0.f, rotation });
+  Mat4x4f rot = rotationMatrix4x4<float>(Vec3f{ 0.f, 0.f, rotation });
   m_orthographicMatrix = rot * m;
 }
 
-void RendererImpl::setPerspectiveMatrix(float_t rotation)
+void RendererImpl::setPerspectiveMatrix(float rotation)
 {
-  float_t aspect = m_viewDimensions[0] / static_cast<float_t>(m_viewDimensions[1]);
+  float aspect = m_viewDimensions[0] / static_cast<float>(m_viewDimensions[1]);
 
   m_viewParams.aspectRatio = aspect;
   m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
 
-  Mat4x4f rot = rotationMatrix4x4<float_t>(Vec3f{ 0.f, 0.f, rotation });
+  Mat4x4f rot = rotationMatrix4x4<float>(Vec3f{ 0.f, 0.f, rotation });
   m_perspectiveMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
     m_viewParams.nearPlane, m_viewParams.farPlane);
 }

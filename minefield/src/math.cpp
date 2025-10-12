@@ -14,7 +14,7 @@ Mat2x2f adjoint(const Mat2x2f& M)
   };
 }
 
-float_t determinant(const Mat2x2f& M)
+float determinant(const Mat2x2f& M)
 {
   return M.at(0, 0) * M.at(1, 1) - M.at(0, 1) * M.at(1, 0);
 }
@@ -28,7 +28,7 @@ Line::Line(const Vec2f& A, const Vec2f& B)
   c = B[0] * A[1] - A[0] * B[1];
 }
 
-Line::Line(float_t a, float_t b, float_t c)
+Line::Line(float a, float b, float c)
   : a(a)
   , b(b)
   , c(c)
@@ -49,9 +49,9 @@ bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p)
 
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p)
 {
-  float_t a = -line.b;
-  float_t b = line.a;
-  float_t c = -p[1] * b - p[0] * a;
+  float a = -line.b;
+  float b = line.a;
+  float c = -p[1] * b - p[0] * a;
   Line perpendicular(a, b, c);
 
   Vec2f result;
@@ -61,19 +61,19 @@ Vec2f projectionOntoLine(const Line& line, const Vec2f& p)
   return result;
 }
 
-bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius)
+bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float radius)
 {
   Vec2f D = lseg.B - lseg.A;
-  float_t alpha = D[0] * D[0] + D[1] * D[1];
-  float_t beta = 2.f * (D[0] * (lseg.A[0] - centre[0]) + D[1] * (lseg.A[1] - centre[1]));
-  float_t gamma = square(lseg.A[0] - centre[0]) + square(lseg.A[1] - centre[1]) - radius * radius;
+  float alpha = D[0] * D[0] + D[1] * D[1];
+  float beta = 2.f * (D[0] * (lseg.A[0] - centre[0]) + D[1] * (lseg.A[1] - centre[1]));
+  float gamma = square(lseg.A[0] - centre[0]) + square(lseg.A[1] - centre[1]) - radius * radius;
 
-  float_t discriminant = beta * beta - 4.f * alpha * gamma;
+  float discriminant = beta * beta - 4.f * alpha * gamma;
   if (discriminant < 0) {
     return false;
   }
 
-  float_t t = (-beta + sqrt(discriminant)) / (2.f * alpha);
+  float t = (-beta + sqrt(discriminant)) / (2.f * alpha);
   if (t >= 0 && t <= 1.f) {
     return true;
   }
@@ -92,15 +92,15 @@ bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly)
   int n = static_cast<int>(poly.size());
 
   for (int i = 0; i < n; ++i) {
-    float_t x1 = poly[i][0];
-    float_t y1 = poly[i][1];
+    float x1 = poly[i][0];
+    float y1 = poly[i][1];
 
-    float_t x2 = poly[(i + 1) % n][0];
-    float_t y2 = poly[(i + 1) % n][1];
+    float x2 = poly[(i + 1) % n][0];
+    float y2 = poly[(i + 1) % n][1];
 
     bool intersects = ((y1 > p[1]) != (y2 > p[1]));
     if (intersects) {
-      float_t xIntersect = x1 + (p[1] - y1) * (x2 - x1) / (y2 - y1);
+      float xIntersect = x1 + (p[1] - y1) * (x2 - x1) / (y2 - y1);
 
       if (xIntersect > p[0]) {
         inside = !inside;
@@ -123,10 +123,10 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
   };
 
   auto pointInTriangle = [h](const Vec3f& P, const Vec3f& A, const Vec3f& B, const Vec3f& C) {
-    float_t Q = 0.5f * (-B[h] * C[0] + A[h] * (-B[0] + C[0]) + A[0] * (B[h] - C[h]) + B[0] * C[h]);
-    float_t sign = Q < 0.f ? -1.f : 1.f;
-    float_t s = (A[h] * C[0] - A[0] * C[h] + (C[h] - A[h]) * P[0] + (A[0] - C[0]) * P[h]) * sign;
-    float_t t = (A[0] * B[h] - A[h] * B[0] + (A[h] - B[h]) * P[0] + (B[0] - A[0]) * P[h]) * sign;
+    float Q = 0.5f * (-B[h] * C[0] + A[h] * (-B[0] + C[0]) + A[0] * (B[h] - C[h]) + B[0] * C[h]);
+    float sign = Q < 0.f ? -1.f : 1.f;
+    float s = (A[h] * C[0] - A[0] * C[h] + (C[h] - A[h]) * P[0] + (A[0] - C[0]) * P[h]) * sign;
+    float t = (A[0] * B[h] - A[h] * B[0] + (A[h] - B[h]) * P[0] + (B[0] - A[0]) * P[h]) * sign;
     return s > 0.f && t > 0.f && (s + t) < 2.f * Q * sign;
   };
 
@@ -179,7 +179,7 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
 
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
 {
-  Mat4x4f m = identityMatrix<float_t, 4>();
+  Mat4x4f m = identityMatrix<float, 4>();
   Vec3f f((centre - eye).normalise());
   Vec3f s(f.cross({ 0, 1, 0 }).normalise());
   Vec3f u(s.cross(f));
@@ -198,13 +198,13 @@ Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
   return m;
 }
 
-Mat4x4f perspective(float_t fovX, float_t fovY, float_t n, float_t f)
+Mat4x4f perspective(float fovX, float fovY, float n, float f)
 {
   Mat4x4f m;
-  const float_t t = n * tan(fovY * 0.5f);
-  const float_t b = -t;
-  const float_t r = n * tan(fovX * 0.5f);
-  const float_t l = -r;
+  const float t = n * tan(fovY * 0.5f);
+  const float b = -t;
+  const float r = n * tan(fovX * 0.5f);
+  const float l = -r;
 
   m.set(0, 0, 2.f * n / (r - l));
   m.set(0, 2, (r + l) / (l - r));
@@ -218,13 +218,13 @@ Mat4x4f perspective(float_t fovX, float_t fovY, float_t n, float_t f)
   return m;
 }
 
-Mat4x4f orthographic(float_t fovX, float_t fovY, float_t n, float_t f)
+Mat4x4f orthographic(float fovX, float fovY, float n, float f)
 {
   Mat4x4f m;
-  const float_t t = f * tan(fovY * 0.5f);
-  const float_t b = -t;
-  const float_t r = f * tan(fovX * 0.5f);
-  const float_t l = -r;
+  const float t = f * tan(fovY * 0.5f);
+  const float b = -t;
+  const float r = f * tan(fovX * 0.5f);
+  const float l = -r;
 
   m.set(0, 0, 2.f / (r - l));
   m.set(0, 3, (r + l) / (l - r));
@@ -244,7 +244,7 @@ Mat2x2f inverse(const Mat2x2f& M)
 
 Mat4x4f Transform::toMatrix() const
 {
-  Mat4x4f m = identityMatrix<float_t, 4>();
+  Mat4x4f m = identityMatrix<float, 4>();
   if (scale.has_value()) {
     m = scaleMatrix4x4(scale.value());
   }

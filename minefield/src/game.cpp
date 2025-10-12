@@ -102,7 +102,7 @@ class GameImpl : public Game
     void checkTimeout();
     void toggleThrowingMode(bool on, EntityId stickId = NULL_ENTITY);
     void positionThrowingIndicator(const Vec2f& pos);
-    void throwStick(float_t x, float_t y);
+    void throwStick(float x, float y);
     void adjustVolume();
     void setViewport(uint32_t screenW, uint32_t screenH);
     void setMobileControlsViewport(uint32_t screenW, uint32_t screenH);
@@ -148,7 +148,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
   auto viewport = m_renderer.getViewportSize();
-  float_t screenAspect = static_cast<float_t>(viewport[0]) / viewport[1];
+  float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
 
   MobileControlsCallbacks callbacks{
     .onLeftButtonPress = [this]() { onKeyDown(KeyboardKey::Left); },
@@ -278,8 +278,8 @@ void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
   m_throwingMode = on;
   m_ecs->componentStore().component<CRender>(m_scene.throwingModeIndicator).visible = on;
   if (on) {
-    float_t x = GRID_W * GRID_CELL_W * 0.5f;
-    float_t y = GRID_H * GRID_CELL_H * 0.5f;
+    float x = GRID_W * GRID_CELL_W * 0.5f;
+    float y = GRID_H * GRID_CELL_H * 0.5f;
     m_inputState.mousePos = { x, y };
     positionThrowingIndicator({ x, y });
     m_stickId = stickId;
@@ -490,7 +490,7 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
     return;
   }
 
-  const float_t threshold = 0.5;
+  const float threshold = 0.5;
 
   auto exceedsThreshold = [threshold](const Vec2f& d) {
     return fabs(d[0]) >= threshold || fabs(d[1]) >= threshold;
@@ -502,7 +502,7 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
     return;
   }
 
-  auto simulateKeypress = [this, threshold, delta](size_t dim, float_t neg, KeyboardKey key) {
+  auto simulateKeypress = [this, threshold, delta](size_t dim, float neg, KeyboardKey key) {
     if (neg * delta[dim] >= threshold) {
       onKeyDown(key);
     }
@@ -523,8 +523,8 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
 
 void GameImpl::onRightStickMove(const Vec2f& delta)
 {
-  const float_t threshold = 0.1;
-  const float_t sensitivity = 0.01;
+  const float threshold = 0.1;
+  const float sensitivity = 0.01;
 
   if (delta.squareMagnitude() >= threshold) {
     m_inputState.mousePos += delta * Vec2f{ sensitivity, -sensitivity };
@@ -575,7 +575,7 @@ void GameImpl::processKeyboardInput()
   }
 }
 
-void GameImpl::throwStick(float_t x, float_t y)
+void GameImpl::throwStick(float x, float y)
 {
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(ANIMATION_SYSTEM));
 
@@ -614,8 +614,8 @@ void GameImpl::processMouseInput()
 {
   if (m_gameState == GameState::Playing) {
     if (m_throwingMode) {
-      float_t x = m_inputState.mousePos[0];
-      float_t y = m_inputState.mousePos[1];
+      float x = m_inputState.mousePos[0];
+      float y = m_inputState.mousePos[1];
 
       positionThrowingIndicator({ x, y });
 

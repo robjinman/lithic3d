@@ -34,4 +34,4 @@ class Ecs;
 class EventSystem;
 
 MobileControlsPtr createMobileControls(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, float_t screenAspect, float_t gameAreaAspect);
+  const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect);

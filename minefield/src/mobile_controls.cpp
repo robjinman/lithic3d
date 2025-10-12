@@ -14,7 +14,7 @@ class MobileControlsImpl : public MobileControls
 {
   public:
     MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
-      const MobileControlsCallbacks& callbacks, float_t screenAspect, float_t gameAreaAspect);
+      const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect);
 
     void hide() override;
     void show() override;
@@ -31,20 +31,20 @@ class MobileControlsImpl : public MobileControls
 };
 
 MobileControlsImpl::MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, float_t screenAspect, float_t gameAreaAspect)
+  const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_callbacks(callbacks)
 {
-  float_t gameAreaW = gameAreaAspect;
-  float_t screenW = screenAspect;
-  float_t margin = (screenW - gameAreaW) / 2.f;
-  float_t gap = 0.04f;  // Distance between controls and game area or edge of screen
-  float_t btnW = (margin - 2.f * gap) / 3.f;
-  float_t btnH = btnW;
+  float gameAreaW = gameAreaAspect;
+  float screenW = screenAspect;
+  float margin = (screenW - gameAreaW) / 2.f;
+  float gap = 0.04f;  // Distance between controls and game area or edge of screen
+  float btnW = (margin - 2.f * gap) / 3.f;
+  float btnH = btnW;
   Vec2f btnSz{ btnW, btnH };
-  float_t x0 = -margin + gap;
-  float_t y0 = gap;
+  float x0 = -margin + gap;
+  float y0 = gap;
 
   Vec2f btnLeftPos{ x0 + 0.f * btnW, y0 + 1.f * btnH };
   Vec2f btnRightPos{ x0 + 2.f * btnW, y0 + 1.f * btnH };
@@ -90,9 +90,9 @@ EntityId MobileControlsImpl::constructRoot()
   >();
 
   SpatialData spatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = false
   };
 
   sysSpatial.addEntity(id, spatial);
@@ -152,7 +152,7 @@ void MobileControlsImpl::constructButton(const Vec2f& pos, const Vec2f& size,
 } // namespace
 
 MobileControlsPtr createMobileControls(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, float_t screenAspect, float_t gameAreaAspect)
+  const MobileControlsCallbacks& callbacks, float screenAspect, float gameAreaAspect)
 {
   return std::make_unique<MobileControlsImpl>(ecs, eventSystem, callbacks, screenAspect,
     gameAreaAspect);

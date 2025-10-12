@@ -30,7 +30,7 @@ using render::toBytes;
 namespace
 {
 
-Mat4x4f screenToWorld(const Mat4x4f& transform, float_t aspect)
+Mat4x4f screenToWorld(const Mat4x4f& transform, float aspect)
 {
   static Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 0.f });
   return M * transform;
@@ -95,8 +95,8 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
   uint32_t numGlyphs = lastGlyph - firstGlyph + 1;
   uint32_t numRows = static_cast<uint32_t>(static_cast<float>(numGlyphs) / glyphsPerRow + 0.5f);
 
-  float_t glyphW = uvRect.w / glyphsPerRow;
-  float_t glyphH = uvRect.h / numRows;
+  float glyphW = uvRect.w / glyphsPerRow;
+  float glyphH = uvRect.h / numRows;
 
   std::vector<Vec3f> positions;
   std::vector<Vec3f> normals;
@@ -104,8 +104,8 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
   std::vector<uint16_t> indices;
 
   for (int i = 0; i < length; ++i) {
-    float_t a = i;
-    float_t b = i + 1;
+    float a = i;
+    float b = i + 1;
 
     positions.push_back({ a, 0, 0 });
     positions.push_back({ b, 0, 0 });
@@ -121,10 +121,10 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     int c = codePoint - firstGlyph;
     int row = c / glyphsPerRow;
     int col = c % glyphsPerRow;
-    float_t x0 = uvRect.x + glyphW * col;
-    float_t x1 = x0 + glyphW;
-    float_t y0 = uvRect.y + glyphH * row;
-    float_t y1 = y0 + glyphH;
+    float x0 = uvRect.x + glyphW * col;
+    float x1 = x0 + glyphW;
+    float y0 = uvRect.y + glyphH * row;
+    float y1 = y0 + glyphH;
 
     uVs.push_back({ x0, y1 });
     uVs.push_back({ x1, y1 });
@@ -296,7 +296,7 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
   m_mesh = m_renderer.addMesh(quad());
 
   auto screenAspect = m_renderer.getViewParams().aspectRatio;
-  float_t gameAspect = 630.f / 480.f;  // TODO
+  float gameAspect = 630.f / 480.f;  // TODO
   m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
 }
 

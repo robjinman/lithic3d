@@ -59,7 +59,7 @@ struct GameOptionCounters
 struct Slider
 {
   EntityId entityId = NULL_ENTITY;
-  float_t height;
+  float height;
 };
 
 struct SelectorFunctions
@@ -151,7 +151,7 @@ class MenuSystemImpl : public MenuSystem
     void createAnimations();
     EntityId newMenuItemId();
     void setDifficulty(int level);
-    Slider constructSlider(EntityId parentId, const Vec2f& pos, float_t initialValue);
+    Slider constructSlider(EntityId parentId, const Vec2f& pos, float initialValue);
     EntityId constructQuad(EntityId parentId, const Vec2f& pos, const Vec2f& size,
       const Vec4f& colour);
     void constructMenuItemBase(EntityId id, EntityId parentId, const Sprite& sprite);
@@ -165,7 +165,7 @@ class MenuSystemImpl : public MenuSystem
       const std::string& text, const Vec4f& colour);
     EntityId constructFadeInText(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
       const std::string& text, const Vec4f& colour);
-    void updateSlider(const Slider& slider, float_t value);
+    void updateSlider(const Slider& slider, float value);
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem,
@@ -225,7 +225,7 @@ void MenuSystemImpl::setDifficulty(int level)
 
   m_difficultyLevel = level;
 
-  float_t value = static_cast<float_t>(level) / MAX_DIFFICULTY_LEVEL;
+  float value = static_cast<float>(level) / MAX_DIFFICULTY_LEVEL;
   updateSlider(m_gameDifficultySlider, value);
 
   GameOptions options = m_options.getOptionsForLevel(level);
@@ -245,7 +245,7 @@ void MenuSystemImpl::setDifficulty(int level)
   sysRender.updateDynamicText(counters.bestTimeId, bestTimeString);
 }
 
-void MenuSystemImpl::updateSlider(const Slider& slider, float_t value)
+void MenuSystemImpl::updateSlider(const Slider& slider, float value)
 {
   auto& t = m_ecs.componentStore().component<CLocalTransform>(slider.entityId);
   t.transform.set(1, 1, value * slider.height);
@@ -365,7 +365,7 @@ void MenuSystemImpl::constructRoot()
   >();
 
   SpatialData spatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = sysSpatial.root(),
     .enabled = false
   };
@@ -717,13 +717,13 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
 }
 
 Slider MenuSystemImpl::constructSlider(EntityId parentId, const Vec2f& pos,
-  float_t initialValue)
+  float initialValue)
 {
-  const float_t gap = 0.005f;
+  const float gap = 0.005f;
   const Vec2f size{ 0.03f, 0.3f };
   const Vec2f sliderSize = size - Vec2f{ gap, gap } * 2.f;
   const Vec4f colour{ 0.f, 0.f, 0.f, 0.7f };
-  const float_t lineThickness = 0.002f;
+  const float lineThickness = 0.002f;
 
   // Slider
   auto id = constructQuad(parentId, pos + Vec2f{ gap, gap },
@@ -761,7 +761,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   >();
 
   SpatialData spatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = parentId,
     .enabled = false
   };
@@ -918,7 +918,7 @@ void MenuSystemImpl::constructMainMenu()
   >();
 
   SpatialData mainMenuRootSpatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_root,
     .enabled = false
   };
@@ -930,7 +930,7 @@ void MenuSystemImpl::constructMainMenu()
   >();
 
   SpatialData mainMenuMainSpatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_mainMenu.entityId,
     .enabled = true
   };
@@ -1105,7 +1105,7 @@ EntityId MenuSystemImpl::constructFadeInText(EntityId parentId, const Vec2f& pos
     };
   };
 
-  auto alpha = [](const Vec4f& colour, float_t value) {
+  auto alpha = [](const Vec4f& colour, float value) {
     auto copy = colour;
     copy[3] = value;
     return copy;
@@ -1159,7 +1159,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   >();
 
   SpatialData spatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_mainMenu.entityId,
     .enabled = false
   };
@@ -1243,7 +1243,7 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
   >();
 
-  float_t margin = 0.35f;
+  float margin = 0.35f;
 
   SpatialData spatial{
     .transform = spriteTransform(Vec2f{ pos[0] + margin, pos[1] }, charSize),
@@ -1283,7 +1283,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
   >();
 
   SpatialData spatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_mainMenu.entityId,
     .enabled = false
   };
@@ -1321,7 +1321,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
   constructSelector(difficultyId, id, groupId, difficultySprite, { returnId, returnId },
     difficultyFunctions);
 
-  float_t value = static_cast<float_t>(m_difficultyLevel) / MAX_DIFFICULTY_LEVEL;
+  float value = static_cast<float>(m_difficultyLevel) / MAX_DIFFICULTY_LEVEL;
   m_gameDifficultySlider = constructSlider(id, { 0.65f, 0.55f }, value);
 
   GameOptions options = m_options.getOptionsForLevel(0);
@@ -1382,7 +1382,7 @@ void MenuSystemImpl::constructPauseMenu()
   >();
 
   SpatialData pauseMenuRootSpatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_root,
     .enabled = false
   };
@@ -1394,7 +1394,7 @@ void MenuSystemImpl::constructPauseMenu()
   >();
 
   SpatialData pauseMenuMainSpatial{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = m_pauseMenuId,
     .enabled = true
   };

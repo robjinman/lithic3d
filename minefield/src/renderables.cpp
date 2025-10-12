@@ -51,14 +51,14 @@ TexturePtr loadTexture(const std::vector<char>& data)
   return texture;
 }
 
-MeshPtr cuboid(float_t W, float_t H, float_t D, const Vec2f& textureSize)
+MeshPtr cuboid(float W, float H, float D, const Vec2f& textureSize)
 {
-  float_t w = W / 2.f;
-  float_t h = H / 2.f;
-  float_t d = D / 2.f;
+  float w = W / 2.f;
+  float h = H / 2.f;
+  float d = D / 2.f;
 
-  float_t u = textureSize[0];
-  float_t v = textureSize[1];
+  float u = textureSize[0];
+  float v = textureSize[1];
 
   MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
     .vertexLayout = {

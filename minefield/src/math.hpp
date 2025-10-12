@@ -7,10 +7,8 @@
 #include <vector>
 #include <optional>
 
-using float_t = float;
-
 constexpr double PId = 3.14159265359;
-constexpr float_t PIf = 3.14159265359f;
+constexpr float PIf = 3.14159265359f;
 
 template<typename T>
 T degreesToRadians(T degrees)
@@ -439,14 +437,14 @@ std::ostream& operator<<(std::ostream& stream, const Matrix<T, ROWS, COLS>& m)
 }
 
 using Vec2i = Vector<int, 2>;
-using Vec2f = Vector<float_t, 2>;
-using Vec3f = Vector<float_t, 3>;
-using Vec4f = Vector<float_t, 4>;
-using Mat2x2f = Matrix<float_t, 2, 2>;
-using Mat3x3f = Matrix<float_t, 3, 3>;
-using Mat2x3f = Matrix<float_t, 2, 3>;
-using Mat3x2f = Matrix<float_t, 3, 2>;
-using Mat4x4f = Matrix<float_t, 4, 4>;
+using Vec2f = Vector<float, 2>;
+using Vec3f = Vector<float, 3>;
+using Vec4f = Vector<float, 4>;
+using Mat2x2f = Matrix<float, 2, 2>;
+using Mat3x3f = Matrix<float, 3, 3>;
+using Mat2x3f = Matrix<float, 2, 3>;
+using Mat3x2f = Matrix<float, 3, 2>;
+using Mat4x4f = Matrix<float, 4, 4>;
 
 template<typename T, size_t M>
 Matrix<T, M, M> scaleMatrix(T scale, bool homogeneous)
@@ -561,7 +559,7 @@ template<typename T>
 Matrix<T, 4, 4> createTransform(const Vector<T, 3>& pos, const Vector<T, 3>& ori)
 {
   auto rot = rotationMatrix3x3(ori);
-  Matrix<T, 4, 4> m = identityMatrix<float_t, 4>();
+  Matrix<T, 4, 4> m = identityMatrix<float, 4>();
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 3; ++c) {
       m.set(r, c, rot.at(r, c));
@@ -634,11 +632,11 @@ struct LineSegment
 struct Line
 {
   Line(const Vec2f& A, const Vec2f& B);
-  Line(float_t a, float_t b, float_t c);
+  Line(float a, float b, float c);
 
-  float_t a;
-  float_t b;
-  float_t c;
+  float a;
+  float b;
+  float c;
 };
 
 struct Transform
@@ -660,15 +658,15 @@ struct Rect
   T h;
 };
 
-using Rectf = Rect<float_t>;
+using Rectf = Rect<float>;
 using Recti = Rect<int>;
 
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
-Mat4x4f perspective(float_t fovX, float_t fovY, float_t near, float_t far);
-Mat4x4f orthographic(float_t fovX, float_t fovY, float_t n, float_t f);
+Mat4x4f perspective(float fovX, float fovY, float near, float far);
+Mat4x4f orthographic(float fovX, float fovY, float n, float f);
 bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
-bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float_t radius);
+bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float radius);
 bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
 std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);
 Mat2x2f inverse(const Mat2x2f& M);

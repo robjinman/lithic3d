@@ -4737,10 +4737,10 @@ static int8 channel_position[7][6] =
    // add (1<<23) to convert to int, then divide by 2^SHIFT, then add 0.5/2^SHIFT to round
    #define MAGIC(SHIFT) (1.5f * (1 << (23-SHIFT)) + 0.5f/(1 << SHIFT))
    #define ADDEND(SHIFT) (((150-SHIFT) << 23) + (1 << 22))
-   #define FAST_SCALED_FLOAT_TO_INT(temp,x,s) (temp.f = (x) + MAGIC(s), temp.i - ADDEND(s))
+   #define FAST_SCALED_floatO_INT(temp,x,s) (temp.f = (x) + MAGIC(s), temp.i - ADDEND(s))
    #define check_endianness()
 #else
-   #define FAST_SCALED_FLOAT_TO_INT(temp,x,s) ((int) ((x) * (1 << (s))))
+   #define FAST_SCALED_floatO_INT(temp,x,s) ((int) ((x) * (1 << (s))))
    #define check_endianness()
    #define FASTDEF(x)
 #endif
@@ -4751,7 +4751,7 @@ static void copy_samples(short *dest, float *src, int len)
    check_endianness();
    for (i=0; i < len; ++i) {
       FASTDEF(temp);
-      int v = FAST_SCALED_FLOAT_TO_INT(temp, src[i],15);
+      int v = FAST_SCALED_floatO_INT(temp, src[i],15);
       if ((unsigned int) (v + 32768) > 65535)
          v = v < 0 ? -32768 : 32767;
       dest[i] = v;
@@ -4775,7 +4775,7 @@ static void compute_samples(int mask, short *output, int num_c, float **data, in
       }
       for (i=0; i < n; ++i) {
          FASTDEF(temp);
-         int v = FAST_SCALED_FLOAT_TO_INT(temp,buffer[i],15);
+         int v = FAST_SCALED_floatO_INT(temp,buffer[i],15);
          if ((unsigned int) (v + 32768) > 65535)
             v = v < 0 ? -32768 : 32767;
          output[o+i] = v;
@@ -4815,7 +4815,7 @@ static void compute_stereo_samples(short *output, int num_c, float **data, int d
       }
       for (i=0; i < (n<<1); ++i) {
          FASTDEF(temp);
-         int v = FAST_SCALED_FLOAT_TO_INT(temp,buffer[i],15);
+         int v = FAST_SCALED_floatO_INT(temp,buffer[i],15);
          if ((unsigned int) (v + 32768) > 65535)
             v = v < 0 ? -32768 : 32767;
          output[o2+i] = v;
@@ -4865,7 +4865,7 @@ static void convert_channels_short_interleaved(int buf_c, short *buffer, int dat
          for (i=0; i < limit; ++i) {
             FASTDEF(temp);
             float f = data[i][d_offset+j];
-            int v = FAST_SCALED_FLOAT_TO_INT(temp, f,15);//data[i][d_offset+j],15);
+            int v = FAST_SCALED_floatO_INT(temp, f,15);//data[i][d_offset+j],15);
             if ((unsigned int) (v + 32768) > 65535)
                v = v < 0 ? -32768 : 32767;
             *buffer++ = v;

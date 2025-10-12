@@ -43,7 +43,7 @@ enum class ZIndex : uint32_t
 };
 
 // TODO: Move this
-Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size, float_t rotation = 0.f,
+Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size, float rotation = 0.f,
   Vec2f pivot = Vec2f{})
 {
   Vec3f scaledPivot{ size[0] * pivot[0], size[1] * pivot[1], 0.f };
@@ -179,7 +179,7 @@ EntityId SceneBuilderImpl::constructWorldRoot()
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
 
   sysSpatial.addEntity(id, SpatialData{
-    .transform = identityMatrix<float_t, 4>(),
+    .transform = identityMatrix<float, 4>(),
     .parent = sysSpatial.root(),
     .enabled = true
   });
@@ -228,10 +228,10 @@ EntityId SceneBuilderImpl::constructPlayer()
   sysRender.addEntity(id, render);
 
   long animationDuration = 16;
-  float_t delta = 0.015625f;
+  float delta = 0.015625f;
 
-  auto makeFrame = [](const Vec2f& pos, float_t tx, float_t ty, const Vec4f& col,
-    float_t scale = 1.f) {
+  auto makeFrame = [](const Vec2f& pos, float tx, float ty, const Vec4f& col,
+    float scale = 1.f) {
 
     return AnimationFrame{
       .pos = pos,
@@ -301,11 +301,11 @@ EntityId SceneBuilderImpl::constructPlayer()
     }
   });
 
-  auto calcOffset = [](float_t scale) {
-    float_t w = GRID_CELL_W;
-    float_t h = GRID_CELL_H;
-    float_t w_ = GRID_CELL_W * scale;
-    float_t h_ = GRID_CELL_H * scale;
+  auto calcOffset = [](float scale) {
+    float w = GRID_CELL_W;
+    float h = GRID_CELL_H;
+    float w_ = GRID_CELL_W * scale;
+    float h_ = GRID_CELL_H * scale;
 
     return Vec2f{ w - w_, h - h_ } * 0.5f;
   };
@@ -541,7 +541,7 @@ void SceneBuilderImpl::constructFakeSoil()
     
     m_entities.insert(id);
 
-    float_t x = GRID_CELL_W * i;
+    float x = GRID_CELL_W * i;
 
     Vec2f size{ GRID_CELL_W, GRID_CELL_H };
     Vec2f pos{ x, 11.f * GRID_CELL_H };
@@ -578,7 +578,7 @@ void SceneBuilderImpl::constructSoil()
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
-  auto makeFrame = [](float_t tx, float_t ty, float_t a) {
+  auto makeFrame = [](float tx, float ty, float a) {
     return AnimationFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
@@ -617,8 +617,8 @@ void SceneBuilderImpl::constructSoil()
 
       sysGrid.addEntity(id, i, j);
 
-      float_t x = GRID_CELL_W * i;
-      float_t y = GRID_CELL_H * j;
+      float x = GRID_CELL_W * i;
+      float y = GRID_CELL_H * j;
 
       Vec2f size{ GRID_CELL_W, GRID_CELL_H };
       Vec2f pos{ x, y };
@@ -680,7 +680,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
 
-  auto makeFrame = [](float_t tx, float_t ty) {
+  auto makeFrame = [](float tx, float ty) {
     return AnimationFrame{
       .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
       .scale = Vec2f{ 2.f, 2.f },
@@ -873,7 +873,7 @@ void SceneBuilderImpl::constructGradient()
 
   m_entities.insert(id);
 
-  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * static_cast<float_t>(GRID_H + 0.5f) };
+  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * static_cast<float>(GRID_H + 0.5f) };
   Vec2f pos{ 0.f, 0.f };
 
   SpatialData spatial{
@@ -906,7 +906,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  auto makeFrame = [](float_t tx, float_t ty, float_t a) {
+  auto makeFrame = [](float tx, float ty, float a) {
     return AnimationFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
@@ -1025,7 +1025,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  auto makeFrame = [](float_t tx, float_t ty, float_t a) {
+  auto makeFrame = [](float tx, float ty, float a) {
     return AnimationFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
@@ -1147,7 +1147,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  auto makeFrame = [](float_t x, float_t y, float_t tx, float_t ty, float_t a) {
+  auto makeFrame = [](float x, float y, float tx, float ty, float a) {
     return AnimationFrame{
       .pos = Vec2f{ x, y },
       .scale = Vec2f{ 1.f, 1.f },
@@ -1173,7 +1173,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
   auto animFadeInId = sysAnimation.addAnimation(std::move(animFadeIn));
 
   long animationDuration = 32;
-  float_t delta = 0.015625f;
+  float delta = 0.015625f;
 
   auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
     .name = hashString("move_left"),
@@ -1408,7 +1408,7 @@ void SceneBuilderImpl::constructExit()
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
   auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
 
-  auto makeFrame = [](float_t tx, float_t ty) {
+  auto makeFrame = [](float tx, float ty) {
     return AnimationFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },

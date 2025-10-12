@@ -397,7 +397,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
     data->jointTransformsUbo = std::make_unique<BufferedUbo>(m_physicalDevice, m_device,
       sizeof(JointTransformsUbo));
 
-    std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float_t, 4>());
+    std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float, 4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       data->jointTransformsUbo->write(i, joints.data(), joints.size() * sizeof(Mat4x4f));
     }

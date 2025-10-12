@@ -32,8 +32,8 @@ struct Light
   Vec3f worldPos;
   uint8_t _pad0[4];
   Vec3f colour;
-  float_t ambient;
-  float_t specular;
+  float ambient;
+  float specular;
   uint8_t _pad2[12];
 };
 

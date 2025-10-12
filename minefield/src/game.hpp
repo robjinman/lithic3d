@@ -3,7 +3,7 @@
 #include "input.hpp"
 #include <memory>
 
-const float_t GAME_AREA_ASPECT = 630.f / 480.f;
+const float GAME_AREA_ASPECT = 630.f / 480.f;
 
 class Game
 {

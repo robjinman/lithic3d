@@ -65,7 +65,7 @@ class Application
 
     void run();
     void onKeyboardInput(int key, int action);
-    void onMouseMove(float_t x, float_t y);
+    void onMouseMove(float x, float y);
     void onMouseClick();
     void onJoystickEvent(int event);
 
@@ -113,7 +113,7 @@ void Application::onKeyboardInput(GLFWwindow*, int key, int, int action, int)
 void Application::onMouseMove(GLFWwindow*, double x, double y)
 {
   if (m_instance) {
-    m_instance->onMouseMove(static_cast<float_t>(x), static_cast<float_t>(y));
+    m_instance->onMouseMove(static_cast<float>(x), static_cast<float>(y));
   }
 }
 
@@ -268,7 +268,7 @@ void Application::toggleFullScreen()
   }
 }
 
-void Application::onMouseMove(float_t x, float_t y)
+void Application::onMouseMove(float x, float y)
 {
   Vec2f pos{ x, y };
   Vec2f delta = (pos - m_lastMousePos) / static_cast<Vec2f>(windowSize());
@@ -302,7 +302,7 @@ void Application::enterInputCapture()
   double x = 0;
   double y = 0;
   glfwGetCursorPos(m_window, &x, &y);
-  m_lastMousePos = { static_cast<float_t>(x), static_cast<float_t>(y) };
+  m_lastMousePos = { static_cast<float>(x), static_cast<float>(y) };
 
   m_inputCaptured = true;
 }
@@ -322,12 +322,12 @@ void Application::processGamepadInput()
     }
   }
 
-  float_t leftX = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
-  float_t leftY = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+  float leftX = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+  float leftY = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
   m_game->onLeftStickMove({ leftX, leftY });
 
-  float_t rightX = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
-  float_t rightY = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
+  float rightX = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+  float rightY = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
   m_game->onRightStickMove({ rightX, rightY });
 
   m_gamepadState = state;

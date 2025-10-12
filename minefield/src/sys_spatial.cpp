@@ -63,7 +63,7 @@ bool SysSpatialImpl::hasEntity(EntityId entityId) const
 
 void SysSpatialImpl::update(Tick, const InputState&)
 {
-  Mat4x4f I = identityMatrix<float_t, 4>();
+  Mat4x4f I = identityMatrix<float, 4>();
 
   Mat4x4f* parentT = &I;
   EntityId prevParentId = NULL_ENTITY;

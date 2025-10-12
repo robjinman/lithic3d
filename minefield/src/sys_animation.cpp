@@ -105,8 +105,8 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
   size_t numFrames = anim.frames.size();
   Tick elapsed = animState.tick;
-  float_t fractionComplete = static_cast<float_t>(elapsed) / anim.duration;
-  float_t frameNumFloat = fractionComplete * numFrames;
+  float fractionComplete = static_cast<float>(elapsed) / anim.duration;
+  float frameNumFloat = fractionComplete * numFrames;
   size_t frameNumInt = static_cast<size_t>(frameNumFloat);
 
   ++animState.tick;
@@ -119,7 +119,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
 
     Vec3f pos{ frame.pos[0], frame.pos[1], 0.f };
     Vec3f scale{ frame.scale[0], frame.scale[1], 1.f };
-    float_t rot = degreesToRadians(frame.rotation);
+    float rot = degreesToRadians(frame.rotation);
 
     Vec3f pivot{ frame.scale[0] * frame.pivot[0], frame.scale[1] * frame.pivot[1], 0.f };
 
@@ -156,7 +156,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
     return true;
   }
 
-  float_t fractionOfFrameComplete = frameNumFloat - frameNumInt;
+  float fractionOfFrameComplete = frameNumFloat - frameNumInt;
   auto& frame = anim.frames[frameNumInt];
 
   Vec2f prevPos = frameNumInt > 0 ? anim.frames[frameNumInt - 1].pos : anim.startPos;
@@ -166,9 +166,9 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
   Vec3f pos{ interp[0], interp[1], 0.f };
   Vec3f scale{ frame.scale[0], frame.scale[1], 1.f }; // TODO: interpolate?
 
-  float_t prevRot = frameNumInt > 0 ? anim.frames[frameNumInt - 1].rotation : 0.f;
-  float_t rotDelta = frame.rotation - prevRot;
-  float_t rot = degreesToRadians(prevRot + fractionOfFrameComplete * rotDelta);
+  float prevRot = frameNumInt > 0 ? anim.frames[frameNumInt - 1].rotation : 0.f;
+  float rotDelta = frame.rotation - prevRot;
+  float rot = degreesToRadians(prevRot + fractionOfFrameComplete * rotDelta);
 
   Vec3f pivot{ frame.scale[0] * frame.pivot[0], frame.scale[1] * frame.pivot[1], 0.f };
 

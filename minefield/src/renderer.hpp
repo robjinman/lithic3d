@@ -8,11 +8,11 @@ namespace render
 
 struct ViewParams
 {
-  float_t hFov;
-  float_t vFov;
-  float_t aspectRatio;
-  float_t nearPlane;
-  float_t farPlane;
+  float hFov;
+  float vFov;
+  float aspectRatio;
+  float nearPlane;
+  float farPlane;
 };
 
 enum class RenderPass
@@ -88,7 +88,7 @@ class Renderer
     virtual void drawSprite(MeshHandle mesh, MaterialHandle material,
       const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform) = 0;
-    virtual void drawLight(const Vec3f& colour, float_t ambient, float_t specular, float_t zFar,
+    virtual void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
       const Mat4x4f& transform) = 0;  // TODO: Replace matrix with screen-space coords?
     virtual void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
       const Vec4f& colour, const Mat4x4f& transform) = 0;

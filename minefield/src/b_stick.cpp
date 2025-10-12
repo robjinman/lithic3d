@@ -83,8 +83,8 @@ void BStick::throwStick()
   auto& pos = sysGrid.entityPos(m_entityId);
 
   Vec2f delta{
-    static_cast<float_t>(m_destX - pos[0]) * GRID_CELL_W,
-    static_cast<float_t>(m_destY - pos[1]) * GRID_CELL_H
+    static_cast<float>(m_destX - pos[0]) * GRID_CELL_W,
+    static_cast<float>(m_destY - pos[1]) * GRID_CELL_H
   };
 
   auto anim = std::unique_ptr<Animation>(new Animation{

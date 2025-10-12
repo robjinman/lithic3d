@@ -75,7 +75,7 @@ inline size_t getAttributeSize(BufferUsage usage)
     case BufferUsage::AttrTexCoord:     return sizeof(Vec2f);
     case BufferUsage::AttrTangent:      return sizeof(Vec3f);
     case BufferUsage::AttrJointIndices: return sizeof(uint8_t) * 4;
-    case BufferUsage::AttrJointWeights: return sizeof(float_t) * 4;
+    case BufferUsage::AttrJointWeights: return sizeof(float) * 4;
     case BufferUsage::Index:            return sizeof(uint16_t);
   }
   EXCEPTION("Error getting element size");
@@ -151,8 +151,8 @@ struct Material
   MaterialResource texture; // TODO: Use RenderItemId?
   MaterialResource cubeMap;
   MaterialResource normalMap;
-  float_t metallicFactor = 0.f;
-  float_t roughnessFactor = 0.f;
+  float metallicFactor = 0.f;
+  float roughnessFactor = 0.f;
 };
 
 using MaterialPtr = std::unique_ptr<Material>;
@@ -194,7 +194,7 @@ struct Mesh
     : featureSet(features)
   {}
 
-  Mat4x4f transform = identityMatrix<float_t, 4>();
+  Mat4x4f transform = identityMatrix<float, 4>();
   MeshFeatureSet featureSet;
   std::vector<Buffer> attributeBuffers;
   Buffer indexBuffer;
@@ -238,7 +238,7 @@ inline std::span<uint16_t> getIndexBufferData(Mesh& mesh)
 }
 
 TexturePtr loadTexture(const std::vector<char>& data);
-MeshPtr cuboid(float_t w, float_t h, float_t d, const Vec2f& textureSize);
+MeshPtr cuboid(float w, float h, float d, const Vec2f& textureSize);
 MeshPtr mergeMeshes(const Mesh& A, const Mesh& B);
 std::vector<char> createVertexArray(const Mesh& mesh);
 

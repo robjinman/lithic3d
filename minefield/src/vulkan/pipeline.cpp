@@ -446,7 +446,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   m_vertexAttributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     for (unsigned int i = 0; i < 4; ++i) {
-      uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float_t) * i;
+      uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float) * i;
   
       VkVertexInputAttributeDescription attr{
         .location = (LAST_ATTR_IDX - static_cast<uint32_t>(BufferUsage::AttrPosition)) + 1 + i,
