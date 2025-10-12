@@ -268,15 +268,16 @@ void SysUiImpl::processMouseInput(const Vec2f& mousePos, std::optional<MouseButt
 
         auto& componentData = m_componentData.at(id);
 
+        if (!uiComp.mouseOver) {
+          uiComp.mouseOver = true;
+          sendFocus(id);
+        }
+
         if (componentData.primed && mouseReleased.has_value()) {
           sendInputEnd(id, mouseReleased.value());
         }
         else if (!componentData.primed && mousePressed.has_value()) {
           sendInputBegin(id, mousePressed.value());
-        }
-        else if (!uiComp.mouseOver) {
-          uiComp.mouseOver = true;
-          sendFocus(id);
         }
       }
       else {
