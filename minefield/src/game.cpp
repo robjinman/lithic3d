@@ -88,6 +88,7 @@ class GameImpl : public Game
     float m_musicVolume = 0.75f;
     Vec2i m_viewportOffset;
     Vec2f m_leftStickPrevDelta;
+    std::optional<std::function<void()>> m_stateChangeFn;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -280,9 +281,11 @@ void GameImpl::handleMenuEvent(const Event& event)
       }
     }
     else if (e.entityId == m_menuSystem->quitToMainMenuBtn()) {
-      destroyCurrentGame();
-      m_menuSystem->showMainMenu();
-      m_gameState = GameState::MainMenu;
+      m_stateChangeFn = [this]() {
+        destroyCurrentGame();
+        m_menuSystem->showMainMenu();
+        m_gameState = GameState::MainMenu;
+      };
     }
   }
 }
@@ -294,7 +297,10 @@ void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
   if (on) {
     float x = GRID_W * GRID_CELL_W * 0.5f;
     float y = GRID_H * GRID_CELL_H * 0.5f;
-    m_inputState.mousePos = { x, y };
+    // If mobile controls are active, don't teleport the mouse
+    if (!m_mobileControlsActive) {
+      m_inputState.mousePos = { x, y };
+    }
     positionThrowingIndicator({ x, y });
     m_stickId = stickId;
   }
@@ -363,10 +369,12 @@ void GameImpl::onPlayerVictorious()
     m_options->setBestTime(level, seconds);
   }
 
-  destroyCurrentGame();
-  sysSpatial.setEnabled(m_menuSystem->root(), true);
-  m_menuSystem->showMainMenu();
-  m_gameState = GameState::MainMenu;
+  m_stateChangeFn = [this, &sysSpatial]() {
+    destroyCurrentGame();
+    sysSpatial.setEnabled(m_menuSystem->root(), true);
+    m_menuSystem->showMainMenu();
+    m_gameState = GameState::MainMenu;
+  };
 }
 
 void GameImpl::playSoundForEvent(const Event& event)
@@ -452,8 +460,11 @@ void GameImpl::onKeyDown(KeyboardKey key)
   }
 
   if (m_gameState == GameState::Dead) {
-    destroyCurrentGame();
-    startGame();
+    m_stateChangeFn = [this]() {
+      destroyCurrentGame();
+      startGame();
+    };
+
     return;
   }
 
@@ -470,8 +481,11 @@ void GameImpl::onButtonDown(GamepadButton button)
   //m_inputState.gamepadButtonsPressed.insert(button);
 
   if (m_gameState == GameState::Dead && button != GamepadButton::B) {
-    destroyCurrentGame();
-    startGame();
+    m_stateChangeFn = [this]() {
+      destroyCurrentGame();
+      startGame();
+    };
+
     return;
   }
 
@@ -505,8 +519,11 @@ void GameImpl::onMouseButtonDown()
 {
   if (m_gameState == GameState::Dead) {
     if (isInsideGameArea(m_inputState.mousePos)) {
-      destroyCurrentGame();
-      startGame();
+      m_stateChangeFn = [this]() {
+        destroyCurrentGame();
+        startGame();
+      };
+
       return;
     }
   }
@@ -704,6 +721,11 @@ void GameImpl::adjustVolume()
 
 bool GameImpl::update()
 {
+  if (m_stateChangeFn.has_value()) {
+    m_stateChangeFn.value()();
+    m_stateChangeFn = std::nullopt;
+  }
+
   measureTickRate();
   processKeyboardInput();
   processMouseInput();
