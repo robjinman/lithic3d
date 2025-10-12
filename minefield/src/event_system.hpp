@@ -48,6 +48,8 @@ class EventSystem
     virtual void scheduleEvent(Tick delay, EventPtr event) = 0;
     virtual void processEvents() = 0;
     virtual void dropEvents() = 0;
+
+    virtual ~EventSystem() = default;
 };
 
 using EventSystemPtr = std::unique_ptr<EventSystem>;

@@ -28,6 +28,10 @@ using AnimationPtr = std::unique_ptr<Animation>;
 
 using AnimationId = size_t;
 
+// Requires components:
+//   CSpatialFlags
+//   CLocalTransform
+//   CRender
 struct AnimationData
 {
   std::set<AnimationId> animations;

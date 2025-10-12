@@ -294,6 +294,10 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
 
 void SysAnimationImpl::addEntity(EntityId entityId, const AnimationData& comp)
 {
+  assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
+  assertHasComponent<CLocalTransform>(m_componentStore, entityId);
+  assertHasComponent<CRender>(m_componentStore, entityId);
+
   auto data = std::make_unique<CAnimation>();
 
   for (auto animId : comp.animations) {

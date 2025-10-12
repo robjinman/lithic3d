@@ -22,6 +22,10 @@ class EEntityEnable : public Event
     EntityId entityId;
 };
 
+// Requires components:
+//   CSpatialFlags
+//   CLocalTransform
+//   CGlobalTransform
 struct SpatialData
 {
   Mat4x4f transform = identityMatrix<float_t, 4>();

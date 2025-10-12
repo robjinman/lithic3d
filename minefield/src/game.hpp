@@ -3,6 +3,8 @@
 #include "input.hpp"
 #include <memory>
 
+const float_t GAME_AREA_ASPECT = 630.f / 480.f;
+
 class Game
 {
   public:
@@ -16,9 +18,11 @@ class Game
     virtual void onLeftStickMove(const Vec2f& delta) = 0;
     virtual void onRightStickMove(const Vec2f& delta) = 0;
     virtual void onWindowResize(uint32_t w, uint32_t h) = 0;
+    virtual void hideMobileControls() = 0;
+    virtual void showMobileControls() = 0;
     virtual bool update() = 0;
 
-    virtual ~Game() {}
+    virtual ~Game() = default;
 };
 
 using GamePtr = std::unique_ptr<Game>;

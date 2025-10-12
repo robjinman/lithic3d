@@ -19,6 +19,7 @@
 #include "events.hpp"
 #include "game_options.hpp"
 #include "b_player.hpp"
+#include "mobile_controls.hpp"
 #undef max
 #undef min
 
@@ -57,6 +58,8 @@ class GameImpl : public Game
     void onLeftStickMove(const Vec2f& delta) override;
     void onRightStickMove(const Vec2f& delta) override;
     void onWindowResize(uint32_t w, uint32_t h) override;
+    void hideMobileControls() override;
+    void showMobileControls() override;
     bool update() override;
 
   private:
@@ -67,6 +70,8 @@ class GameImpl : public Game
     GameOptionsManagerPtr m_options;
     EventSystemPtr m_eventSystem;
     MenuSystemPtr m_menuSystem;
+    MobileControlsPtr m_mobileControls;
+    bool m_mobileControlsActive = false;
     EcsPtr m_ecs;
     SceneBuilderPtr m_sceneBuilder;
     InputState m_inputState;
@@ -82,10 +87,7 @@ class GameImpl : public Game
     float m_sfxVolume = 0.75f;
     float m_musicVolume = 0.75f;
     Vec2i m_viewportOffset;
-
-    // As we're simulating keyboard keypresses for both D-pad and left joystick, they interfere
-    // with each other unless we define two separate input modes and switch between them
-    bool m_usingDpad = false;
+    Vec2f m_leftStickPrevDelta;
 
     void measureTickRate();
     void processKeyboardInput();
@@ -103,6 +105,9 @@ class GameImpl : public Game
     void throwStick(float_t x, float_t y);
     void adjustVolume();
     void setViewport(uint32_t screenW, uint32_t screenH);
+    void setMobileControlsViewport(uint32_t screenW, uint32_t screenH);
+    bool isInsideGameArea(const Vec2f& pos) const;
+    Vec2f throwingIndicatorPosition() const;
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
@@ -142,6 +147,26 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger);
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
+  auto viewport = m_renderer.getViewportSize();
+  float_t screenAspect = static_cast<float_t>(viewport[0]) / viewport[1];
+
+  MobileControlsCallbacks callbacks{
+    .onLeftButtonPress = [this]() { onKeyDown(KeyboardKey::Left); },
+    .onLeftButtonRelease = [this]() { onKeyUp(KeyboardKey::Left); },
+    .onRightButtonPress = [this]() { onKeyDown(KeyboardKey::Right); },
+    .onRightButtonRelease = [this]() { onKeyUp(KeyboardKey::Right); },
+    .onUpButtonPress = [this]() { onKeyDown(KeyboardKey::Up); },
+    .onUpButtonRelease = [this]() { onKeyUp(KeyboardKey::Up); },
+    .onDownButtonPress = [this]() { onKeyDown(KeyboardKey::Down); },
+    .onDownButtonRelease = [this]() { onKeyUp(KeyboardKey::Down); },
+    .onActionButtonPress = [this]() { onKeyDown(KeyboardKey::Enter); },
+    .onActionButtonRelease = [this]() { onKeyUp(KeyboardKey::Enter); },
+    .onEscapeButtonPress = [this]() { onKeyDown(KeyboardKey::Escape); },
+    .onEscapeButtonRelease = [this]() { onKeyUp(KeyboardKey::Escape); }
+  };
+  m_mobileControls = createMobileControls(*m_ecs, *m_eventSystem, callbacks, screenAspect,
+    GAME_AREA_ASPECT);
+
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 
   m_renderer.start();
@@ -153,14 +178,45 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
 
   m_audioSystem.playMusic();
 
-  auto viewport = m_renderer.getViewportSize();
   setViewport(viewport[0], viewport[1]);
+  setMobileControlsViewport(viewport[0], viewport[1]);
+}
+
+void GameImpl::hideMobileControls()
+{
+  if (m_mobileControlsActive) {
+    m_logger.info("Hiding mobile controls");
+    m_mobileControlsActive = false;
+    m_mobileControls->hide();
+  }
+}
+
+void GameImpl::showMobileControls()
+{
+  if (!m_mobileControlsActive) {
+    m_logger.info("Showing mobile controls");
+    m_mobileControlsActive = true;
+    m_mobileControls->show();
+  }
+}
+
+void GameImpl::setMobileControlsViewport(uint32_t screenW, uint32_t screenH)
+{
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM));
+
+  Recti fullScreen{
+    .x = 0,
+    .y = 0,
+    .w = static_cast<int>(screenW),
+    .h = static_cast<int>(screenH)
+  };
+
+  sysRender.addViewport(MOBILE_CONTROLS_VIEWPORT, fullScreen);
 }
 
 void GameImpl::setViewport(uint32_t screenW, uint32_t screenH)
 {
-  float_t aspect = 630.f / 480.f;
-  float gameAreaWidth = aspect * screenH;
+  float gameAreaWidth = GAME_AREA_ASPECT * screenH;
   int x = static_cast<int>(0.5f * (static_cast<float>(screenW) - gameAreaWidth));
   Recti viewport{
     .x = x,
@@ -180,6 +236,7 @@ void GameImpl::setViewport(uint32_t screenW, uint32_t screenH)
 void GameImpl::onWindowResize(uint32_t w, uint32_t h)
 {
   setViewport(w, h);
+  setMobileControlsViewport(w, h);
 }
 
 void GameImpl::handleMenuEvent(const Event& event)
@@ -220,11 +277,13 @@ void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
 {
   m_throwingMode = on;
   m_ecs->componentStore().component<CRender>(m_scene.throwingModeIndicator).visible = on;
-  float_t x = GRID_W * GRID_CELL_W * 0.5f;
-  float_t y = GRID_H * GRID_CELL_H * 0.5f;
-  m_inputState.mousePos = { x, y };
-  positionThrowingIndicator({ x, y });
-  m_stickId = stickId;
+  if (on) {
+    float_t x = GRID_W * GRID_CELL_W * 0.5f;
+    float_t y = GRID_H * GRID_CELL_H * 0.5f;
+    m_inputState.mousePos = { x, y };
+    positionThrowingIndicator({ x, y });
+    m_stickId = stickId;
+  }
 }
 
 void GameImpl::handleEvent(const Event& event)
@@ -324,6 +383,16 @@ void GameImpl::playSoundForEvent(const Event& event)
   }
 }
 
+Vec2f GameImpl::throwingIndicatorPosition() const
+{
+  const auto& t = m_ecs->componentStore().component<CLocalTransform>(m_scene.throwingModeIndicator);
+
+  return {
+    t.transform.at(0, 3) + 0.025f,
+    t.transform.at(1, 3) + 0.025f
+  };
+}
+
 void GameImpl::onKeyDown(KeyboardKey key)
 {
   switch (key) {
@@ -334,9 +403,8 @@ void GameImpl::onKeyDown(KeyboardKey key)
     case KeyboardKey::Enter: {
       if (m_gameState == GameState::Playing) {
         if (m_throwingMode) {
-          float_t x = m_inputState.mousePos[0];
-          float_t y = m_inputState.mousePos[1];
-          throwStick(x, y);
+          auto pos = throwingIndicatorPosition();
+          throwStick(pos[0], pos[1]);
         }
       }
       break;
@@ -376,10 +444,10 @@ void GameImpl::onButtonDown(GamepadButton button)
   switch (button) {
     case GamepadButton::A: return onKeyDown(KeyboardKey::Enter);
     case GamepadButton::B: return onKeyDown(KeyboardKey::Escape);
-    case GamepadButton::Left: m_usingDpad = true; return onKeyDown(KeyboardKey::Left);
-    case GamepadButton::Right: m_usingDpad = true; return onKeyDown(KeyboardKey::Right);
-    case GamepadButton::Up: m_usingDpad = true; return onKeyDown(KeyboardKey::Up);
-    case GamepadButton::Down: m_usingDpad = true; return onKeyDown(KeyboardKey::Down);
+    case GamepadButton::Left: return onKeyDown(KeyboardKey::Left);
+    case GamepadButton::Right: return onKeyDown(KeyboardKey::Right);
+    case GamepadButton::Up: return onKeyDown(KeyboardKey::Up);
+    case GamepadButton::Down: return onKeyDown(KeyboardKey::Down);
     default: break;
   }
 }
@@ -418,14 +486,27 @@ void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
 
 void GameImpl::onLeftStickMove(const Vec2f& delta)
 {
+  if (m_mobileControlsActive) {
+    return;
+  }
+
   const float_t threshold = 0.5;
+
+  auto exceedsThreshold = [threshold](const Vec2f& d) {
+    return fabs(d[0]) >= threshold || fabs(d[1]) >= threshold;
+  };
+
+  // Ignore multiple consecutive near zero magnitude deltas
+  if (!exceedsThreshold(m_leftStickPrevDelta) && !exceedsThreshold(delta)) {
+    m_leftStickPrevDelta = delta;
+    return;
+  }
 
   auto simulateKeypress = [this, threshold, delta](size_t dim, float_t neg, KeyboardKey key) {
     if (neg * delta[dim] >= threshold) {
-      m_usingDpad = false;
       onKeyDown(key);
     }
-    else if (!m_usingDpad) {
+    else {
       if (m_inputState.keysPressed.contains(key)) {
         onKeyUp(key);
       }
@@ -436,6 +517,8 @@ void GameImpl::onLeftStickMove(const Vec2f& delta)
   simulateKeypress(0, -1.f, KeyboardKey::Left);
   simulateKeypress(1, 1.f, KeyboardKey::Down);
   simulateKeypress(1, -1.f, KeyboardKey::Up);
+
+  m_leftStickPrevDelta = delta;
 }
 
 void GameImpl::onRightStickMove(const Vec2f& delta)
@@ -510,8 +593,17 @@ void GameImpl::throwStick(float_t x, float_t y)
   }
 }
 
+bool GameImpl::isInsideGameArea(const Vec2f& pos) const
+{
+  return pos[0] >= 0.f && pos[0] < GAME_AREA_ASPECT;
+}
+
 void GameImpl::positionThrowingIndicator(const Vec2f& pos)
 {
+  if (!isInsideGameArea(pos)) {
+    return;
+  }
+
   auto& t = m_ecs->componentStore().component<CLocalTransform>(m_scene.throwingModeIndicator);
 
   t.transform.set(0, 3, pos[0] - 0.025f);
@@ -527,7 +619,7 @@ void GameImpl::processMouseInput()
 
       positionThrowingIndicator({ x, y });
 
-      if (m_inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
+      if (!m_mobileControlsActive && m_inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
         throwStick(x, y);
       }
     }

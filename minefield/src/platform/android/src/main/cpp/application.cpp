@@ -95,12 +95,16 @@ class Application
 
     bool update();
     void onConfigChange();
-    void onLeftStickMove(float_t x, float_t y);
-    void onRightStickMove(float_t x, float_t y);
+    void onLeftStickMove(float x, float y);
+    void onRightStickMove(float x, float y);
     void onKeyDown(KeyboardKey key);
     void onKeyUp(KeyboardKey key);
     void onButtonDown(GamepadButton button);
     void onButtonUp(GamepadButton button);
+    void onMouseMove(float x, float y);
+    void onMouseButtonDown(float x, float y);
+    void onMouseButtonUp();
+    void hideMobileControls();
 
   private:
     Logger& m_logger;
@@ -126,6 +130,7 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   m_viewportSize = m_renderer->getViewportSize();
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger);
+  m_game->showMobileControls();
 }
 
 bool Application::update()
@@ -141,17 +146,22 @@ bool Application::update()
   return m_game->update();
 }
 
+void Application::hideMobileControls()
+{
+  m_game->hideMobileControls();
+}
+
 void Application::onConfigChange()
 {
   m_renderer->onResize();
 }
 
-void Application::onLeftStickMove(float_t x, float_t y)
+void Application::onLeftStickMove(float x, float y)
 {
   m_leftStickDelta = { x, y };
 }
 
-void Application::onRightStickMove(float_t x, float_t y)
+void Application::onRightStickMove(float x, float y)
 {
   m_rightStickDelta = { x, y };
 }
@@ -178,6 +188,32 @@ void Application::onButtonDown(GamepadButton button)
 void Application::onButtonUp(GamepadButton button)
 {
   m_game->onButtonUp(button);
+}
+
+void Application::onMouseMove(float x, float y)
+{
+  m_game->onMouseMove({ x, y }, {});
+}
+
+void Application::onMouseButtonDown(float x, float)
+{
+  auto viewport = m_renderer->getViewportSize();
+  float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
+
+  float xNorm = x / viewport[1];
+  float x0 = (screenAspect - GAME_AREA_ASPECT) / 2.f;
+  float x1 = x0 + GAME_AREA_ASPECT;
+
+  if (xNorm < x0 || xNorm > x1) {
+    m_game->showMobileControls();
+  }
+
+  m_game->onMouseButtonDown();
+}
+
+void Application::onMouseButtonUp()
+{
+  m_game->onMouseButtonUp();
 }
 
 ApplicationPtr createApplication(android_app& state, Logger& logger)
@@ -273,6 +309,8 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
       if (src == AINPUT_SOURCE_JOYSTICK || src == AINPUT_SOURCE_GAMEPAD
         || src == AINPUT_SOURCE_DPAD) {
 
+        m_app->hideMobileControls();
+
         float threshold = 0.1f;
 
         float hatX = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_HAT_X, 0);
@@ -292,6 +330,26 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
         float rz = AMotionEvent_getAxisValue(&event, AMOTION_EVENT_AXIS_RZ, 0);
 
         m_app->onRightStickMove(z, rz);
+      }
+      else if (src & AINPUT_SOURCE_CLASS_POINTER) {
+        float x = AMotionEvent_getX(&event, 0);
+        float y = AMotionEvent_getY(&event, 0);
+
+        int32_t action = AMotionEvent_getAction(&event) & AMOTION_EVENT_ACTION_MASK;
+        switch (action) {
+          case AMOTION_EVENT_ACTION_DOWN:
+            m_app->onMouseMove(x, y);
+            m_app->onMouseButtonDown(x, y);
+            break;
+          case AMOTION_EVENT_ACTION_UP:
+            m_app->onMouseMove(x, y);
+            m_app->onMouseButtonUp();
+            break;
+          case AMOTION_EVENT_ACTION_MOVE: {
+            m_app->onMouseMove(x, y);
+            break;
+          }
+        }
       }
 
       return 1;

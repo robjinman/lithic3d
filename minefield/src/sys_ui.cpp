@@ -80,6 +80,10 @@ SysUiImpl::SysUiImpl(Ecs& ecs, Logger& logger)
 
 void SysUiImpl::addEntity(EntityId id, const UiData& data)
 {
+  assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
+  assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
+  assertHasComponent<CUi>(m_ecs.componentStore(), id);
+
   auto& component = m_ecs.componentStore().component<CUi>(id);
   component = CUi{};
 
@@ -216,7 +220,8 @@ void SysUiImpl::sendFocus(EntityId id)
   auto& compData = m_componentData.at(id);
 
   if (compData.group == 0) {
-    EXCEPTION("Entity must be part of a group to receive focus");
+    //EXCEPTION("Entity must be part of a group to receive focus");
+    return;
   }
 
   if (compData.group != m_activeGroup) {

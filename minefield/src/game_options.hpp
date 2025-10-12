@@ -23,7 +23,7 @@ class GameOptionsManager
     virtual const GameOptions& getOptionsForLevel(uint32_t level) const = 0;
     virtual void setBestTime(uint32_t level, uint32_t time) = 0;
 
-    ~GameOptionsManager() = default;
+    virtual ~GameOptionsManager() = default;
 };
 
 using GameOptionsManagerPtr = std::unique_ptr<GameOptionsManager>;

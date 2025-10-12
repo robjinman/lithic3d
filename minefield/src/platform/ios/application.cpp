@@ -44,6 +44,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windo
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
+  m_game->showMobileControls();
 }
 
 void ApplicationImpl::onViewResize()

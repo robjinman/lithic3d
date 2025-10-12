@@ -8,6 +8,7 @@ const size_t TICKS_PER_SECOND = 60;
 const float_t WORLD_UNITS_PER_METRE = 10;
 
 const size_t MAIN_VIEWPORT = 1;
+const size_t MOBILE_CONTROLS_VIEWPORT = 2;
 
 inline float_t metresToWorldUnits(float_t x)
 {
