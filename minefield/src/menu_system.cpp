@@ -87,7 +87,7 @@ class MenuSystemImpl : public MenuSystem
 {
   public:
     MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, const GameOptionsManager& options,
-      Logger& logger);
+      Logger& logger, bool hasQuitButton);
 
     EntityId root() const override;
 
@@ -144,7 +144,7 @@ class MenuSystemImpl : public MenuSystem
     void constructBackdrop();
     void constructFlare();
     void constructPauseMenu();
-    void constructMainMenu();
+    void constructMainMenu(bool hasQuitButton);
     Menu constructSettingsSubmenu(EntityId parentId, const Menu& prevMenu);
     Menu constructCreditsSubmenu(const Menu& prevMenu);
     Menu constructGameOptionsSubmenu(const Menu& prevMenu);
@@ -169,7 +169,7 @@ class MenuSystemImpl : public MenuSystem
 };
 
 MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem,
-  const GameOptionsManager& options, Logger& logger)
+  const GameOptionsManager& options, Logger& logger, bool hasQuitButton)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_options(options)
@@ -181,7 +181,7 @@ MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem,
   constructBackdrop();
   constructFlare();
   constructPauseMenu();
-  constructMainMenu();
+  constructMainMenu(hasQuitButton);
 }
 
 EntityId MenuSystemImpl::startGameBtn() const
@@ -907,7 +907,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   return { id, groupId, musicVolumeId };
 }
 
-void MenuSystemImpl::constructMainMenu()
+void MenuSystemImpl::constructMainMenu(bool hasQuitButton)
 {
   auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
   auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
@@ -943,12 +943,14 @@ void MenuSystemImpl::constructMainMenu()
   auto optionsId = newMenuItemId();
   auto settingsId = newMenuItemId();
   auto creditsId = newMenuItemId();
-  m_quitGameBtnId = newMenuItemId();
+  m_quitGameBtnId = hasQuitButton ? newMenuItemId() : NULL_ENTITY;
 
   m_mainMenu.firstItemId = m_startGameBtnId;
 
+  float y = hasQuitButton ? 0.41f : 0.31f;
+
   Sprite startSprite{
-    .pos{ 0.02f, 0.41f },
+    .pos{ 0.02f, y },
     .size{ 0.3f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
@@ -959,10 +961,12 @@ void MenuSystemImpl::constructMainMenu()
   };
 
   constructMenuItem(m_startGameBtnId, mainMenuMainId, m_mainMenu.itemGroupId, startSprite,
-    { m_quitGameBtnId, optionsId });
+    { hasQuitButton ? m_quitGameBtnId : creditsId, optionsId });
+
+  y -= 0.1f;
 
   Sprite optionsSprite{
-    .pos{ 0.02f, 0.31f },
+    .pos{ 0.02f, y },
     .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
@@ -975,8 +979,10 @@ void MenuSystemImpl::constructMainMenu()
   constructMenuItem(optionsId, mainMenuMainId, m_mainMenu.itemGroupId, optionsSprite,
     { m_startGameBtnId, settingsId });
 
+  y -= 0.1f;
+
   Sprite settingsSprite{
-    .pos{ 0.02f, 0.21f },
+    .pos{ 0.02f, y },
     .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
@@ -989,8 +995,10 @@ void MenuSystemImpl::constructMainMenu()
   constructMenuItem(settingsId, mainMenuMainId, m_mainMenu.itemGroupId, settingsSprite,
     { optionsId, creditsId });
 
+  y -= 0.1f;
+
   Sprite creditsSprite{
-    .pos{ 0.02f, 0.11f },
+    .pos{ 0.02f, y },
     .size{ 0.4f, 0.05625f },
     .texRect{
       .x = pxToUvX(0.f),
@@ -1001,21 +1009,25 @@ void MenuSystemImpl::constructMainMenu()
   };
 
   constructMenuItem(creditsId, mainMenuMainId, m_mainMenu.itemGroupId, creditsSprite,
-    { settingsId, m_quitGameBtnId });
+    { settingsId, hasQuitButton ? m_quitGameBtnId : m_startGameBtnId });
 
-  Sprite quitSprite{
-    .pos{ 0.02f, 0.01f },
-    .size{ 0.4f, 0.05625f },
-    .texRect{
-      .x = pxToUvX(0.f),
-      .y = pxToUvY(192.f, 32.f),
-      .w = pxToUvW(256.f),
-      .h = pxToUvH(32.f)
-    }
-  };
+  y -= 0.1f;
 
-  constructMenuItem(m_quitGameBtnId, mainMenuMainId, m_mainMenu.itemGroupId, quitSprite,
-    { creditsId, m_startGameBtnId });
+  if (hasQuitButton) {
+    Sprite quitSprite{
+      .pos{ 0.02f, y },
+      .size{ 0.4f, 0.05625f },
+      .texRect{
+        .x = pxToUvX(0.f),
+        .y = pxToUvY(192.f, 32.f),
+        .w = pxToUvW(256.f),
+        .h = pxToUvH(32.f)
+      }
+    };
+
+    constructMenuItem(m_quitGameBtnId, mainMenuMainId, m_mainMenu.itemGroupId, quitSprite,
+      { creditsId, m_startGameBtnId });
+  }
 
   auto mainMenuSettings = constructSettingsSubmenu(m_mainMenu.entityId,
     { mainMenuMainId, m_mainMenu.itemGroupId });
@@ -1474,7 +1486,7 @@ void MenuSystemImpl::constructPauseMenu()
 }
 
 MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem,
-  const GameOptionsManager& options, Logger& logger)
+  const GameOptionsManager& options, Logger& logger, bool hasQuitButton)
 {
-  return std::make_unique<MenuSystemImpl>(ecs, eventSystem, options, logger);
+  return std::make_unique<MenuSystemImpl>(ecs, eventSystem, options, logger, hasQuitButton);
 }

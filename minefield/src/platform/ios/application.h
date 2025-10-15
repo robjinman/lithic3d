@@ -6,8 +6,11 @@
 class Application
 {
   public:
-    virtual void update() = 0;
+    virtual bool update() = 0;
     virtual void onViewResize() = 0;
+    virtual void onTouchBegin(float x, float y) = 0;
+    virtual void onTouchMove(float x, float y) = 0;
+    virtual void onTouchEnd(float x, float y) = 0;
 
     virtual ~Application() {}
 };

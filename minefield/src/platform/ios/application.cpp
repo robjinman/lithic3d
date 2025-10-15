@@ -21,7 +21,10 @@ class ApplicationImpl : public Application
     ApplicationImpl(const char* bundlePath, WindowDelegatePtr windowDelegate);
 
     void onViewResize() override;
-    void update() override;
+    bool update() override;
+    void onTouchBegin(float x, float y) override;
+    void onTouchMove(float x, float y) override;
+    void onTouchEnd(float x, float y) override;
 
   private:
     WindowDelegatePtr m_windowDelegate;
@@ -43,7 +46,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windo
   m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
+  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger, false);
   m_game->showMobileControls();
 }
 
@@ -52,7 +55,7 @@ void ApplicationImpl::onViewResize()
   m_renderer->onResize();
 }
 
-void ApplicationImpl::update()
+bool ApplicationImpl::update()
 {
   auto viewportSize = m_renderer->getViewportSize();
   if (viewportSize != m_viewportSize) {
@@ -60,7 +63,24 @@ void ApplicationImpl::update()
     m_viewportSize = viewportSize;
   }
 
-  m_game->update();
+  return m_game->update();
+}
+
+void ApplicationImpl::onTouchBegin(float x, float y)
+{
+  m_game->onMouseMove({ x, y }, {});
+  m_game->onMouseButtonDown();
+}
+
+void ApplicationImpl::onTouchMove(float x, float y)
+{
+  m_game->onMouseMove({ x, y }, {});
+}
+
+void ApplicationImpl::onTouchEnd(float x, float y)
+{
+  m_game->onMouseMove({ x, y }, {});
+  m_game->onMouseButtonUp();
 }
 
 }

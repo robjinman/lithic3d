@@ -33,4 +33,4 @@ class FileSystem;
 class Logger;
 
 GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger);
+  Logger& logger, bool hasQuitButton = true);

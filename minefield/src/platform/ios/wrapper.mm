@@ -5,7 +5,22 @@
 
 WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 
+// -- BEGIN EventRelay------------------------------------------------------------------------------
+@interface EventRelay : NSObject
+@property (nonatomic, copy, nullable) void(^onTouchBegin)(float x, float y);
+@property (nonatomic, copy, nullable) void(^onTouchMove)(float x, float y);
+@property (nonatomic, copy, nullable) void(^onTouchEnd)(float x, float y);
+@end
+
+@implementation EventRelay
+@end
+// -- END EventRelay--------------------------------------------------------------------------------
+
+// -- BEGIN MetalView ------------------------------------------------------------------------------
 @interface MetalView : UIView
+- (instancetype)initWithFrame:(CGRect)frame andEventRelay:(EventRelay*)eventRelay;
+
+@property (strong) EventRelay* eventRelay;
 @end
 
 @implementation MetalView
@@ -14,19 +29,69 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   return [CAMetalLayer class];
 }
 
-- (instancetype)initWithFrame:(CGRect)frame
++ (CGPoint)toPixels:(CGPoint)pt
+{
+  CGFloat scale = [UIScreen mainScreen].scale;
+  return CGPointMake(pt.x * scale, pt.y * scale);
+}
+
+- (instancetype)initWithFrame:(CGRect)frame andEventRelay:(EventRelay*)eventRelay
 {
   self = [super initWithFrame:frame];
+
   if (self) {
     CAMetalLayer* metalLayer = (CAMetalLayer*)self.layer;
     metalLayer.device = MTLCreateSystemDefaultDevice();
     metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     metalLayer.framebufferOnly = YES;
+
+    self.eventRelay = eventRelay;
   }
+
   return self;
 }
-@end
 
+- (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event
+{
+  UITouch* touch = [touches anyObject];
+  CGPoint pt = [touch locationInView:self];
+  CGPoint pos = [MetalView toPixels:pt];
+
+  if (self.eventRelay.onTouchBegin) {
+    self.eventRelay.onTouchBegin(pos.x, pos.y);
+  }
+}
+
+- (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event
+{
+  UITouch* touch = [touches anyObject];
+  CGPoint pt = [touch locationInView:self];
+  CGPoint pos = [MetalView toPixels:pt];
+
+  if (self.eventRelay.onTouchMove) {
+    self.eventRelay.onTouchMove(pos.x, pos.y);
+  }
+}
+
+- (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event
+{
+  UITouch* touch = [touches anyObject];
+  CGPoint pt = [touch locationInView:self];
+  CGPoint pos = [MetalView toPixels:pt];
+
+  if (self.eventRelay.onTouchEnd) {
+    self.eventRelay.onTouchEnd(pos.x, pos.y);
+  }
+}
+
+- (void)touchesCancelled:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event
+{
+  NSLog(@"Touch cancel");
+}
+@end
+// -- END MetalView --------------------------------------------------------------------------------
+
+// -- BEGIN ViewController -------------------------------------------------------------------------
 @interface ViewController : UIViewController
 @property (strong, nonatomic) CADisplayLink* displayLink;
 @end
@@ -38,12 +103,27 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 
 - (void)loadView
 {
-  self.view = [[MetalView alloc] initWithFrame:[UIScreen mainScreen].bounds];
+  EventRelay* relay = [EventRelay new];
+  relay.onTouchBegin = ^(float x, float y){ _application->onTouchBegin(x, y); };
+  relay.onTouchMove = ^(float x, float y){ _application->onTouchMove(x, y); };
+  relay.onTouchEnd = ^(float x, float y){ _application->onTouchEnd(x, y); };
+
+  self.view = [[MetalView alloc] initWithFrame:[UIScreen mainScreen].bounds andEventRelay:relay];
 }
 
 - (BOOL)prefersStatusBarHidden
 {
   return YES;
+}
+
+- (BOOL)prefersHomeIndicatorAutoHidden
+{
+  return YES;
+}
+
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures
+{
+  return UIRectEdgeAll;
 }
 
 - (void)viewDidLoad
@@ -58,7 +138,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   const char* bundlePathCStr = [bundlePath UTF8String];
 
   _application = createApplication(bundlePathCStr, createWindowDelegate(metalLayer));
-  [self MINEFIELD_onViewResize];
+  [self MF_onViewResize];
 
   self.view.insetsLayoutMarginsFromSafeArea = NO;
   self.view.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
@@ -68,12 +148,12 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
 }
 
-- (void)MINEFIELD_onViewResize
+- (void)MF_onViewResize
 {
-  [self MINEFIELD_onViewResize:self.view.bounds.size];
+  [self MF_onViewResize:self.view.bounds.size];
 }
 
-- (void)MINEFIELD_onViewResize:(CGSize)size
+- (void)MF_onViewResize:(CGSize)size
 {
   CAMetalLayer* metalLayer = (CAMetalLayer*)self.view.layer;
 
@@ -90,7 +170,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 - (void)viewWillLayoutSubviews
 {
   [super viewWillLayoutSubviews];
-  [self MINEFIELD_onViewResize:self.view.bounds.size];
+  [self MF_onViewResize:self.view.bounds.size];
 }
 
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
@@ -98,7 +178,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 
   [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-    [self MINEFIELD_onViewResize:size];
+    [self MF_onViewResize:size];
   } completion:nil];
 }
 
@@ -114,7 +194,9 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 
 - (void)updateLoop:(CADisplayLink*)sender
 {
-  _application->update();
+  if (!_application->update()) {
+    // On iOS, we can't quit programmatically without it looking like a crash
+  }
 }
 
 - (void)dealloc
@@ -123,8 +205,10 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   [super dealloc];
 }
 @end
+// -- END ViewController ---------------------------------------------------------------------------
 
-@interface AppDelegate : UIResponder <UIApplicationDelegate>
+// -- BEGIN AppDelegate ----------------------------------------------------------------------------
+@interface AppDelegate : UIResponder<UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow* window;
 @end
 
@@ -137,6 +221,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   return YES;
 }
 @end
+// -- END AppDelegate ------------------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {

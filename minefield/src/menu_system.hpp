@@ -68,4 +68,4 @@ class GameOptionsManager;
 class Logger;
 
 MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem, const GameOptionsManager& optons,
-  Logger& logger);
+  Logger& logger, bool hasQuitButton);

@@ -46,7 +46,7 @@ class GameImpl : public Game
 {
   public:
     GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-      Logger& logger);
+      Logger& logger, bool hasQuitButton);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -113,7 +113,7 @@ class GameImpl : public Game
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger)
+  Logger& logger, bool hasQuitButton)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_audioSystem(audioSystem)
@@ -146,7 +146,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
-  m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger);
+  m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger, hasQuitButton);
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
   auto viewport = m_renderer.getViewportSize();
@@ -743,7 +743,7 @@ bool GameImpl::update()
 } // namespace
 
 GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger)
+  Logger& logger, bool hasQuitButton)
 {
-  return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger);
+  return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger, hasQuitButton);
 }
