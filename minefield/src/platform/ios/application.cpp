@@ -9,7 +9,9 @@
 #include "audio_system.hpp"
 #include <iostream>
 
-PlatformPathsPtr createPlatformPaths(const std::filesystem::path& bundlePath);
+namespace fs = std::filesystem;
+
+PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath, const fs::path& appSupportPath);
 FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
 
 namespace
@@ -18,7 +20,8 @@ namespace
 class ApplicationImpl : public Application
 {
   public:
-    ApplicationImpl(const char* bundlePath, WindowDelegatePtr windowDelegate);
+    ApplicationImpl(const char* bundlePath, const char* appSupportPath,
+      WindowDelegatePtr windowDelegate);
 
     void onViewResize() override;
     bool update() override;
@@ -37,11 +40,12 @@ class ApplicationImpl : public Application
     Vec2i m_viewportSize;
 };
 
-ApplicationImpl::ApplicationImpl(const char* bundlePath, WindowDelegatePtr windowDelegate)
+ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportPath,
+  WindowDelegatePtr windowDelegate)
   : m_windowDelegate(std::move(windowDelegate))
 {
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_platformPaths = createPlatformPaths(bundlePath);
+  m_platformPaths = createPlatformPaths(bundlePath, appSupportPath);
   m_fileSystem = createDefaultFileSystem(*m_platformPaths);
   m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
@@ -85,7 +89,8 @@ void ApplicationImpl::onTouchEnd(float x, float y)
 
 }
 
-ApplicationPtr createApplication(const char* bundlePath, WindowDelegatePtr windowDelegate)
+ApplicationPtr createApplication(const char* bundlePath, const char* appSupportPath,
+  WindowDelegatePtr windowDelegate)
 {
-  return std::make_unique<ApplicationImpl>(bundlePath, std::move(windowDelegate));
+  return std::make_unique<ApplicationImpl>(bundlePath, appSupportPath, std::move(windowDelegate));
 }

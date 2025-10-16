@@ -17,4 +17,5 @@ class Application
 
 using ApplicationPtr = std::unique_ptr<Application>;
 
-ApplicationPtr createApplication(const char* bundlePath, WindowDelegatePtr windowDelegate);
+ApplicationPtr createApplication(const char* bundlePath, const char* appSupportPath,
+  WindowDelegatePtr windowDelegate);

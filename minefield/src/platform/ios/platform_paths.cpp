@@ -11,50 +11,48 @@ const std::string appName = "minefield";
 class PlatformPathsImpl : public PlatformPaths
 {
   public:
-    PlatformPathsImpl(const std::filesystem::path& bundlePath);
+    PlatformPathsImpl(const fs::path& bundlePath, const fs::path& appSupportPath);
 
-    const std::filesystem::path& appData() const override;
-    const std::filesystem::path& userData() const override;
+    const fs::path& appData() const override;
+    const fs::path& userData() const override;
 
   private:
     fs::path m_appDataPath;
     fs::path m_userDataPath;
 
-    void determineAppDataPath(const std::filesystem::path& bundlePath);
-    void determineUserDataPath();
+    void determineAppDataPath(const fs::path& bundlePath);
+    void determineUserDataPath(const fs::path& bundlePath);
 };
 
-PlatformPathsImpl::PlatformPathsImpl(const std::filesystem::path& bundlePath)
+PlatformPathsImpl::PlatformPathsImpl(const fs::path& bundlePath, const fs::path& appSupportPath)
 {
   determineAppDataPath(bundlePath);
-  determineUserDataPath();
+  determineUserDataPath(appSupportPath);
 }
 
-void PlatformPathsImpl::determineAppDataPath(const std::filesystem::path& bundlePath)
+void PlatformPathsImpl::determineAppDataPath(const fs::path& bundlePath)
 {
   m_appDataPath = bundlePath / "data";
 }
 
-void PlatformPathsImpl::determineUserDataPath()
+void PlatformPathsImpl::determineUserDataPath(const fs::path& appSupportPath)
 {
-  const char* home = std::getenv("HOME");
-  fs::path base = home ? fs::path(home) : fs::path(".");
-  m_userDataPath = base / ".local" / "share" / vendorName / appName;
+  m_userDataPath = appSupportPath;
 }
 
-const std::filesystem::path& PlatformPathsImpl::appData() const
+const fs::path& PlatformPathsImpl::appData() const
 {
   return m_appDataPath;
 }
 
-const std::filesystem::path& PlatformPathsImpl::userData() const
+const fs::path& PlatformPathsImpl::userData() const
 {
   return m_userDataPath;
 }
 
 }
 
-PlatformPathsPtr createPlatformPaths(const std::filesystem::path& bundlePath)
+PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath, const fs::path& appSupportPath)
 {
-  return std::make_unique<PlatformPathsImpl>(bundlePath);
+  return std::make_unique<PlatformPathsImpl>(bundlePath, appSupportPath);
 }

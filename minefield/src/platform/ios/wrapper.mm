@@ -137,7 +137,13 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   NSString* bundlePath = [[NSBundle mainBundle] bundlePath];
   const char* bundlePathCStr = [bundlePath UTF8String];
 
-  _application = createApplication(bundlePathCStr, createWindowDelegate(metalLayer));
+  NSError* err = nil;
+  NSURL* appSupport = [NSFileManager.defaultManager URLForDirectory:NSApplicationSupportDirectory
+    inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:&err];
+  const char* appSupportPathStr = [[appSupport path] UTF8String];
+
+  _application = createApplication(bundlePathCStr, appSupportPathStr,
+    createWindowDelegate(metalLayer));
   [self MF_onViewResize];
 
   self.view.insetsLayoutMarginsFromSafeArea = NO;
