@@ -4,9 +4,18 @@
 #include "sys_spatial.hpp"
 #include "systems.hpp"
 #include "sys_render.hpp"
+#include "sys_ui.hpp"
 
 namespace
 {
+
+const std::set<UserInput> lettersFilter{
+  KeyboardKey::A, KeyboardKey::B, KeyboardKey::C, KeyboardKey::D, KeyboardKey::E, KeyboardKey::F,
+  KeyboardKey::G, KeyboardKey::H, KeyboardKey::I, KeyboardKey::J, KeyboardKey::K, KeyboardKey::L,
+  KeyboardKey::M, KeyboardKey::N, KeyboardKey::O, KeyboardKey::P, KeyboardKey::Q, KeyboardKey::R,
+  KeyboardKey::S, KeyboardKey::T, KeyboardKey::U, KeyboardKey::V, KeyboardKey::W, KeyboardKey::X,
+  KeyboardKey::Y, KeyboardKey::Z
+};
 
 class ProductActivationImpl : public ProductActivation
 {
@@ -72,7 +81,7 @@ EntityId ProductActivationImpl::constructPrompt()
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
   >();
 
-  Vec2f pos{ 0.2f, 0.7f };
+  Vec2f pos{ 0.3f, 0.7f };
   Vec2f size{ 0.022f, 0.044f };
 
   SpatialData spatial{
@@ -102,10 +111,93 @@ EntityId ProductActivationImpl::constructPrompt()
   return id;
 }
 
+struct CTextbox
+{
+  uint32_t cursorPos = 0;
+
+  static constexpr ComponentType TypeId = CTextboxTypeId;
+};
+
 EntityId ProductActivationImpl::constructTextbox()
 {
-  // TODO
-  return NULL_ENTITY;
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+
+  auto& store = m_ecs.componentStore();
+
+  auto id = store.allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText, CUi, CTextbox
+  >();
+
+  store.component<CTextbox>(id) = CTextbox{};
+
+  Vec2f pos{ 0.3f, 0.5f };
+  Vec2f size{ 0.05f, 0.1f };
+
+  SpatialData spatial{
+    .transform = translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+      scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f }),
+    .parent = m_rootId,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  DynamicTextData render{
+    .viewport = MAIN_VIEWPORT,
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .text = "________",
+    .maxLength = 8,
+    .zIndex = 1,
+    .colour = { 1.f, 1.f, 1.f, 1.f }
+  };
+
+  sysRender.addEntity(id, render);
+
+  UiData ui{};
+  ui.group = SysUi::nextGroupId();
+  ui.canReceiveFocus = true;
+  ui.inputFilter = lettersFilter,
+  ui.inputFilter.insert(KeyboardKey::Backspace);
+  ui.onInputBegin = [id, &sysRender, &store](const UserInput& input) {
+    auto key = std::get<KeyboardKey>(input);
+    auto& textbox = store.component<CTextbox>(id);
+
+    if (key == KeyboardKey::Backspace) {
+      if (textbox.cursorPos > 0) {
+        --textbox.cursorPos;
+        auto& dynText = store.component<CDynamicText>(id);
+        std::string text{dynText.text, 8};
+        text[textbox.cursorPos] = '_';
+
+        sysRender.updateDynamicText(id, text);
+      }
+    }
+    else {
+      if (textbox.cursorPos < 8) {
+        char character = 'A' + (static_cast<uint32_t>(key) - static_cast<uint32_t>(KeyboardKey::A));
+
+        auto& dynText = store.component<CDynamicText>(id);
+        std::string text{dynText.text, 8};
+        text[textbox.cursorPos] = character;
+
+        sysRender.updateDynamicText(id, text);
+
+        ++textbox.cursorPos;
+      }
+    }
+  };
+
+  sysUi.addEntity(id, ui);
+  sysUi.sendFocus(id);
+
+  return id;
 }
 
 } // namespace

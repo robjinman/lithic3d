@@ -9,6 +9,7 @@ enum class KeyboardKey
   Space = 32,
   Escape = 256,
   Enter = 257,
+  Backspace = 259,
   F1 = 290,
   F2 = 291,
   F3 = 292,
