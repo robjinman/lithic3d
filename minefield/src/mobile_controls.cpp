@@ -158,6 +158,8 @@ EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, Enti
   };
 
   sysRender.addEntity(labelId, render);
+
+  return labelId;
 }
 
 EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPress,
