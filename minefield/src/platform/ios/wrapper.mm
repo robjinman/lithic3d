@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
+#import <GameController/GameController.h>
 #include "application.h"
 
 WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
@@ -150,8 +151,87 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   self.view.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
   self.view.layoutMargins = UIEdgeInsetsZero;
 
-  self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateLoop:)];
+  self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(MF_updateLoop:)];
   [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
+
+  NSNotificationCenter* nc = NSNotificationCenter.defaultCenter;
+  [nc addObserver:self selector:@selector(MF_onControllerConnect:)
+    name:GCControllerDidConnectNotification object:nil];
+
+  for (GCController* c in GCController.controllers) {
+    [self MF_registerController:c];
+  }
+}
+
+- (void)MF_registerController:(GCController*)c
+{
+  GCExtendedGamepad *gp = c.extendedGamepad;
+  if (gp) {
+    gp.buttonA.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::A);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::A);
+      }
+    };
+    gp.buttonB.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::B);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::B);
+      }
+    };
+    gp.leftThumbstick.valueChangedHandler = ^(GCControllerDirectionPad* pad, float x, float y) {
+      _application->hideMobileControls();
+      _application->onLeftStickMove(x, -y);
+    };
+    gp.rightThumbstick.valueChangedHandler = ^(GCControllerDirectionPad* pad, float x, float y) {
+      _application->hideMobileControls();
+      _application->onRightStickMove(x, -y);
+    };
+    gp.dpad.valueChangedHandler = ^(GCControllerDirectionPad* pad, float x, float y) {
+      if (pad.left.isPressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::Left);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::Left);
+      }
+
+      if (pad.right.isPressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::Right);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::Right);
+      }
+
+      if (pad.up.isPressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::Up);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::Up);
+      }
+
+      if (pad.down.isPressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::Down);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::Down);
+      }
+    };
+  }
+}
+
+- (void)MF_onControllerConnect:(NSNotification*)n
+{
+  [self MF_registerController:(GCController*)n.object];
 }
 
 - (void)MF_onViewResize
@@ -198,7 +278,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   return UIInterfaceOrientationMaskLandscape;
 }
 
-- (void)updateLoop:(CADisplayLink*)sender
+- (void)MF_updateLoop:(CADisplayLink*)sender
 {
   if (!_application->update()) {
     // On iOS, we can't quit programmatically without it looking like a crash

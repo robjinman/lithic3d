@@ -107,7 +107,7 @@ class GameImpl : public Game
     void adjustVolume();
     void setViewport(uint32_t screenW, uint32_t screenH);
     void setMobileControlsViewport(uint32_t screenW, uint32_t screenH);
-    bool isInsideGameArea(const Vec2f& pos) const;
+    bool isInsideGameArea(float x, float y) const;
     Vec2f throwingIndicatorPosition() const;
     Rectf calculateGameArea(uint32_t screenW, uint32_t screenH) const;
 };
@@ -299,7 +299,8 @@ void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
     float y = GRID_H * GRID_CELL_H * 0.5f;
     // If mobile controls are active, don't teleport the mouse
     if (!m_mobileControlsActive) {
-      m_inputState.mousePos = { x, y };
+      m_inputState.mouseX = x;
+      m_inputState.mouseY = y;
     }
     positionThrowingIndicator({ x, y });
     m_stickId = stickId;
@@ -518,7 +519,7 @@ void GameImpl::onButtonUp(GamepadButton button)
 void GameImpl::onMouseButtonDown()
 {
   if (m_gameState == GameState::Dead) {
-    if (isInsideGameArea(m_inputState.mousePos)) {
+    if (isInsideGameArea(m_inputState.mouseX, m_inputState.mouseY)) {
       m_stateChangeFn = [this]() {
         destroyCurrentGame();
         startGame();
@@ -539,8 +540,8 @@ void GameImpl::onMouseButtonUp()
 void GameImpl::onMouseMove(const Vec2f& pos, const Vec2f&)
 {
   int H = m_renderer.getViewportSize()[1];
-  m_inputState.mousePos[0] = (pos[0] - m_viewportOffset[0]) / H;
-  m_inputState.mousePos[1] = 1.f - (pos[1] - m_viewportOffset[1]) / H;
+  m_inputState.mouseX = (pos[0] - m_viewportOffset[0]) / H;
+  m_inputState.mouseY = 1.f - (pos[1] - m_viewportOffset[1]) / H;
 }
 
 void GameImpl::onLeftStickMove(const Vec2f& delta)
@@ -588,7 +589,8 @@ void GameImpl::onRightStickMove(const Vec2f& delta)
   const float sensitivity = 0.01;
 
   if (delta.squareMagnitude() >= threshold) {
-    m_inputState.mousePos += delta * Vec2f{ sensitivity, -sensitivity };
+    m_inputState.mouseX += delta[0] * sensitivity;
+    m_inputState.mouseY += delta[1] * -sensitivity;
   }
 }
 
@@ -642,14 +644,14 @@ void GameImpl::throwStick(float x, float y)
   }
 }
 
-bool GameImpl::isInsideGameArea(const Vec2f& pos) const
+bool GameImpl::isInsideGameArea(float x, float) const
 {
-  return pos[0] >= 0.f && pos[0] < GAME_AREA_ASPECT;
+  return x >= 0.f && x < GAME_AREA_ASPECT;
 }
 
 void GameImpl::positionThrowingIndicator(const Vec2f& pos)
 {
-  if (!isInsideGameArea(pos)) {
+  if (!isInsideGameArea(pos[0], pos[1])) {
     return;
   }
 
@@ -663,8 +665,8 @@ void GameImpl::processMouseInput()
 {
   if (m_gameState == GameState::Playing) {
     if (m_throwingMode) {
-      float x = m_inputState.mousePos[0];
-      float y = m_inputState.mousePos[1];
+      float x = m_inputState.mouseX;
+      float y = m_inputState.mouseY;
 
       positionThrowingIndicator({ x, y });
 

@@ -131,6 +131,7 @@ else()
       "-framework QuartzCore"
       "-framework IOKit"
       "-framework IOSurface"
+      "-framework GameController"
     )
     set(CMAKE_OSX_DEPLOYMENT_TARGET "17")
     set(CMAKE_XCODE_GENERATE_SCHEME "TRUE")

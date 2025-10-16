@@ -1,6 +1,7 @@
 #pragma once
 
 #include "input.hpp"
+#include "math.hpp"
 #include <memory>
 
 const float GAME_AREA_ASPECT = 630.f / 480.f;

@@ -68,7 +68,7 @@ class SysUiImpl : public SysUi
     GroupId m_activeGroup = 0;
     InputState m_prevInputState;
 
-    void processMouseInput(const Vec2f& mousePos, std::optional<MouseButton> mousePressed,
+    void processMouseInput(float mouseX, float mouseY, std::optional<MouseButton> mousePressed,
       std::optional<MouseButton> mouseReleased);
     void processKeyPress(KeyboardKey key);
     void processKeyRelease(KeyboardKey key);
@@ -249,8 +249,8 @@ void SysUiImpl::sendFocus(EntityId id)
   compData.onGainFocus();
 }
 
-void SysUiImpl::processMouseInput(const Vec2f& mousePos, std::optional<MouseButton> mousePressed,
-  std::optional<MouseButton> mouseReleased)
+void SysUiImpl::processMouseInput(float mouseX, float mouseY,
+  std::optional<MouseButton> mousePressed, std::optional<MouseButton> mouseReleased)
 {
   auto groups = m_ecs.componentStore().components<CSpatialFlags, CGlobalTransform, CUi>();
 
@@ -273,9 +273,7 @@ void SysUiImpl::processMouseInput(const Vec2f& mousePos, std::optional<MouseButt
       Vec2f pos{ t.transform.at(0, 3), t.transform.at(1, 3) };
       Vec2f size{ t.transform.at(0, 0), t.transform.at(1, 1) };
 
-      if (inRange(mousePos[0], pos[0], pos[0] + size[0]) &&
-        inRange(mousePos[1], pos[1], pos[1] + size[1])) {
-
+      if (inRange(mouseX, pos[0], pos[0] + size[0]) && inRange(mouseY, pos[1], pos[1] + size[1])) {
         auto& componentData = m_componentData.at(id);
 
         if (!uiComp.mouseOver) {
@@ -408,12 +406,14 @@ void SysUiImpl::update(Tick tick, const InputState& inputState_)
     mouseButtonReleased = std::get<MouseButton>(inputEnd.value());
   }
 
-  bool mouseMoved = m_prevInputState.mousePos != inputState.mousePos;
+  bool mouseMoved = m_prevInputState.mouseX != inputState.mouseX ||
+    m_prevInputState.mouseY != inputState.mouseY;
   bool mouseStateChanged =
     mouseButtonPressed.has_value() || mouseButtonReleased.has_value() || mouseMoved;
 
   if (mouseStateChanged) {
-    processMouseInput(inputState.mousePos, mouseButtonPressed, mouseButtonReleased);
+    processMouseInput(inputState.mouseX, inputState.mouseY, mouseButtonPressed,
+      mouseButtonReleased);
   }
 
   std::optional<KeyboardKey> keyPress = std::nullopt;

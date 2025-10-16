@@ -28,6 +28,11 @@ class ApplicationImpl : public Application
     void onTouchBegin(float x, float y) override;
     void onTouchMove(float x, float y) override;
     void onTouchEnd(float x, float y) override;
+    void onButtonDown(GamepadButton button) override;
+    void onButtonUp(GamepadButton button) override;
+    void onLeftStickMove(float x, float y) override;
+    void onRightStickMove(float x, float y) override;
+    void hideMobileControls() override;
 
   private:
     WindowDelegatePtr m_windowDelegate;
@@ -38,6 +43,8 @@ class ApplicationImpl : public Application
     render::RendererPtr m_renderer;
     GamePtr m_game;
     Vec2i m_viewportSize;
+    Vec2f m_leftStickDelta;
+    Vec2f m_rightStickDelta;
 };
 
 ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportPath,
@@ -67,11 +74,50 @@ bool ApplicationImpl::update()
     m_viewportSize = viewportSize;
   }
 
+  m_game->onLeftStickMove(m_leftStickDelta);
+  m_game->onRightStickMove(m_rightStickDelta);
+
   return m_game->update();
+}
+
+void ApplicationImpl::hideMobileControls()
+{
+  m_game->hideMobileControls();
+}
+
+void ApplicationImpl::onButtonDown(GamepadButton button)
+{
+  m_game->onButtonDown(button);
+}
+
+void ApplicationImpl::onButtonUp(GamepadButton button)
+{
+  m_game->onButtonUp(button);
+}
+
+void ApplicationImpl::onLeftStickMove(float x, float y)
+{
+  m_leftStickDelta = { x, y };
+}
+
+void ApplicationImpl::onRightStickMove(float x, float y)
+{
+  m_rightStickDelta = { x, y };
 }
 
 void ApplicationImpl::onTouchBegin(float x, float y)
 {
+  auto viewport = m_renderer->getViewportSize();
+  float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
+
+  float xNorm = x / viewport[1];
+  float x0 = (screenAspect - GAME_AREA_ASPECT) / 2.f;
+  float x1 = x0 + GAME_AREA_ASPECT;
+
+  if (xNorm < x0 || xNorm > x1) {
+    m_game->showMobileControls();
+  }
+
   m_game->onMouseMove({ x, y }, {});
   m_game->onMouseButtonDown();
 }

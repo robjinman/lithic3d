@@ -35,6 +35,7 @@ class MobileControlsImpl : public MobileControls
     EntityId constructRoot();
     EntityId constructButton(const std::function<void()>& onPress,
       const std::function<void()>& onRelease, const std::string& label);
+    EntityId constructButtonLabel(const std::string& label, EntityId parentId);
     void positionButtons(const Rectf& gameArea);
 };
 
@@ -125,6 +126,40 @@ EntityId MobileControlsImpl::constructRoot()
   return id;
 }
 
+EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, EntityId parentId)
+{
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+
+  auto labelId = m_ecs.componentStore().allocate<
+    CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CSprite
+  >();
+
+  SpatialData spatial{
+    .transform = translationMatrix4x4(Vec3f{ 0.25f, 0.25f, 0.f })
+      * scaleMatrix4x4(Vec3f{ 0.5f, 0.5f, 1.f }),
+    .parent = parentId,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(labelId, spatial);
+
+  TextData render{
+    .viewport = MOBILE_CONTROLS_VIEWPORT,
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .text = label,
+    .zIndex = zIndex + 1,
+    .colour = { 0.2f, 0.9f, 0.2f, 1.f }
+  };
+
+  sysRender.addEntity(labelId, render);
+}
+
 EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPress,
   const std::function<void()>& onRelease, const std::string& label)
 {
@@ -174,33 +209,7 @@ EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPres
   sysUi.addEntity(id, ui);
 
   if (!label.empty()) {
-    auto labelId = m_ecs.componentStore().allocate<
-      CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CSprite
-    >();
-
-    SpatialData spatial{
-      .transform = translationMatrix4x4(Vec3f{ 0.25f, 0.25f, 0.f })
-        * scaleMatrix4x4(Vec3f{ 0.5f, 0.5f, 1.f }),
-      .parent = id,
-      .enabled = true
-    };
-
-    sysSpatial.addEntity(labelId, spatial);
-
-    TextData render{
-      .viewport = MOBILE_CONTROLS_VIEWPORT,
-      .textureRect = {
-        .x = pxToUvX(256.f),
-        .y = pxToUvY(64.f, 192.f),
-        .w = pxToUvW(192.f),
-        .h = pxToUvH(192.f)
-      },
-      .text = label,
-      .zIndex = zIndex + 1,
-      .colour = { 0.2f, 0.9f, 0.2f, 1.f }
-    };
-
-    sysRender.addEntity(labelId, render);
+    constructButtonLabel(label, id);
   }
 
   return id;

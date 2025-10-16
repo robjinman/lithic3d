@@ -1,6 +1,5 @@
 #pragma once
 
-#include "math.hpp"
 #include <set>
 #include <variant>
 
@@ -62,5 +61,6 @@ struct InputState
   //std::set<GamepadButton> gamepadButtonsPressed;
   std::set<MouseButton> mouseButtonsPressed;
 
-  Vec2f mousePos;
+  float mouseX = 0.f;
+  float mouseY = 0.f;
 };

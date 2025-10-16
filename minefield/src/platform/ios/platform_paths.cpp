@@ -5,9 +5,6 @@ namespace fs = std::filesystem;
 namespace
 {
 
-const std::string vendorName = "freeholdapps";
-const std::string appName = "minefield";
-
 class PlatformPathsImpl : public PlatformPaths
 {
   public:

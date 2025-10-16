@@ -1,6 +1,7 @@
 #pragma once
 
 #include "window_delegate.hpp"
+#include "input.hpp"
 #include <memory>
 
 class Application
@@ -11,6 +12,11 @@ class Application
     virtual void onTouchBegin(float x, float y) = 0;
     virtual void onTouchMove(float x, float y) = 0;
     virtual void onTouchEnd(float x, float y) = 0;
+    virtual void onButtonDown(GamepadButton button) = 0;
+    virtual void onButtonUp(GamepadButton button) = 0;
+    virtual void onLeftStickMove(float x, float y) = 0;
+    virtual void onRightStickMove(float x, float y) = 0;
+    virtual void hideMobileControls() = 0;
 
     virtual ~Application() {}
 };
