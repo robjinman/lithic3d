@@ -20,6 +20,8 @@
 #include "game_options.hpp"
 #include "b_player.hpp"
 #include "mobile_controls.hpp"
+#include "drm.hpp"
+#include "product_activation.hpp"
 #undef max
 #undef min
 
@@ -35,6 +37,7 @@ const auto strTick = hashString("tick");
 
 enum class GameState
 {
+  ProductActivation,
   Playing,
   Paused,
   MainMenu,
@@ -73,6 +76,8 @@ class GameImpl : public Game
     MobileControlsPtr m_mobileControls;
     bool m_mobileControlsActive = false;
     EcsPtr m_ecs;
+    DrmPtr m_drm;
+    ProductActivationPtr m_productActivation;
     SceneBuilderPtr m_sceneBuilder;
     InputState m_inputState;
     Timer m_timer;
@@ -147,6 +152,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
   m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger, hasQuitButton);
+  m_drm = createDrm(m_fileSystem);
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
   auto viewport = m_renderer.getViewportSize();
@@ -172,10 +178,17 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
 
   m_renderer.start();
 
-  dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_menuSystem->root(), true);
-  m_menuSystem->showMainMenu();
-
-  m_gameState = GameState::MainMenu;
+  if (m_drm->isActivated()) {
+    dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_menuSystem->root(), true);
+    m_menuSystem->showMainMenu();
+    m_gameState = GameState::MainMenu;
+  }
+  else {
+    m_productActivation = createProductActivation(*m_ecs, *m_eventSystem, *m_drm, m_logger);
+    dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_productActivation->root(),
+      true);
+    m_gameState = GameState::ProductActivation;
+  }
 
   m_audioSystem.playMusic();
 

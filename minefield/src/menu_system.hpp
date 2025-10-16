@@ -29,11 +29,6 @@ class ESubmenuExit : public Event
   public:
     ESubmenuExit()
       : Event(g_strSubmenuExit) {}
-
-    std::string toString() const override
-    {
-      return STR(Event::toString());
-    }
 };
 
 class InputState;
