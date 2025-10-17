@@ -22,7 +22,7 @@ const bool MOBILE_PLATFORM = false;
 const Platform PLATFORM = Platform::Android;
 const bool MOBILE_PLATFORM = true;
 #elif defined(PLATFORM_IOS)
-const Platform PLATFORM = Platform::IOS;
+const Platform PLATFORM = Platform::iOS;
 const bool MOBILE_PLATFORM = true;
 #else
 const Platform PLATFORM = Platform::Linux;

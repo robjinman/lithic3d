@@ -190,6 +190,7 @@ class SysRenderImpl : public SysRender
     void addEntity(EntityId entityId, const QuadData& data) override;
 
     void addViewport(ViewportId id, const Recti& viewport) override;
+    void setClearColour(const Vec4f& colour) override;
 
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
@@ -212,6 +213,7 @@ class SysRenderImpl : public SysRender
     MeshHandle m_mesh;
     std::unordered_map<EntityId, MeshHandle> m_textItems;
     std::unordered_map<ViewportId, Recti> m_viewports;
+    Vec4f m_clearColour{ 0.f, 0.f, 0.f, 1.f };
 };
 
 SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
@@ -315,6 +317,11 @@ void SysRenderImpl::addViewport(ViewportId id, const Recti& viewport)
   ASSERT(id != 0, "Viewport ID 0 is reserved; choose a different number");
 
   m_viewports[id] = viewport;
+}
+
+void SysRenderImpl::setClearColour(const Vec4f& colour)
+{
+  m_clearColour = colour;
 }
 
 void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
@@ -494,7 +501,7 @@ const Camera& SysRenderImpl::camera() const
 void SysRenderImpl::update(Tick, const InputState&)
 {
   try {
-    m_renderer.beginFrame({ 0.02f, 0.015f, 0.01f, 1.f });
+    m_renderer.beginFrame(m_clearColour);
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     ViewportId viewport = 0;

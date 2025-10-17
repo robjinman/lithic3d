@@ -149,6 +149,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   auto sysSpatial = createSysSpatial(m_ecs->componentStore(), *m_eventSystem);
   auto sysUi = createSysUi(*m_ecs, m_logger);
 
+  sysRender->setClearColour({ 0.f, 0.f, 0.f, 1.f });
+
   m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(GRID_SYSTEM, std::move(sysGrid));

@@ -101,6 +101,7 @@ class SysRender : public System
     virtual Camera& camera() = 0;
     virtual const Camera& camera() const = 0;
 
+    virtual void setClearColour(const Vec4f& colour) = 0;
     virtual void addViewport(ViewportId id, const Recti& viewport) = 0;
 
     virtual void addEntity(EntityId entityId, const SpriteData& data) = 0;

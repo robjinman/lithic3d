@@ -5,6 +5,7 @@
 #include <openssl/sha.h>
 #include <fstream>
 #include <cstring>
+#include <chrono>
 
 namespace fs = std::filesystem;
 
@@ -20,7 +21,11 @@ const uint32_t keyLength = 8;
 
 #elif defined(__APPLE__)
 
-// TODO
+std::string getSystemId()
+{
+  // TODO
+  return "aaaaaaaaaabbbbbbbbbbcccccccccc12";
+}
 
 #else
 
