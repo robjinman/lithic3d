@@ -156,7 +156,7 @@ Application::Application()
   m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
+  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger, Platform::Desktop);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 

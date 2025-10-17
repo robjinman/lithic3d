@@ -57,8 +57,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
   m_audioSystem = createAudioSystem(*m_fileSystem);
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger, false);
-  m_game->showMobileControls();
+  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger, Platform::iOS);
 }
 
 void ApplicationImpl::onViewResize()

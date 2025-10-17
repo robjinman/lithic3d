@@ -9,12 +9,10 @@
 namespace
 {
 
-const std::set<UserInput> lettersFilter{
+const std::set<UserInput> hexFilter{
   KeyboardKey::A, KeyboardKey::B, KeyboardKey::C, KeyboardKey::D, KeyboardKey::E, KeyboardKey::F,
-  KeyboardKey::G, KeyboardKey::H, KeyboardKey::I, KeyboardKey::J, KeyboardKey::K, KeyboardKey::L,
-  KeyboardKey::M, KeyboardKey::N, KeyboardKey::O, KeyboardKey::P, KeyboardKey::Q, KeyboardKey::R,
-  KeyboardKey::S, KeyboardKey::T, KeyboardKey::U, KeyboardKey::V, KeyboardKey::W, KeyboardKey::X,
-  KeyboardKey::Y, KeyboardKey::Z
+  KeyboardKey::Num0, KeyboardKey::Num1, KeyboardKey::Num2, KeyboardKey::Num3, KeyboardKey::Num4,
+  KeyboardKey::Num5, KeyboardKey::Num6, KeyboardKey::Num7, KeyboardKey::Num8, KeyboardKey::Num9
 };
 
 class ProductActivationImpl : public ProductActivation
@@ -163,9 +161,9 @@ EntityId ProductActivationImpl::constructTextbox()
   UiData ui{};
   ui.group = SysUi::nextGroupId();
   ui.canReceiveFocus = true;
-  ui.inputFilter = lettersFilter,
+  ui.inputFilter = hexFilter,
   ui.inputFilter.insert(KeyboardKey::Backspace);
-  ui.onInputBegin = [id, &sysRender, &store](const UserInput& input) {
+  ui.onInputBegin = [this, id, &sysRender, &store](const UserInput& input) {
     auto key = std::get<KeyboardKey>(input);
     auto& textbox = store.component<CTextbox>(id);
 
@@ -189,7 +187,11 @@ EntityId ProductActivationImpl::constructTextbox()
 
         sysRender.updateDynamicText(id, text);
 
-        ++textbox.cursorPos;
+        if (++textbox.cursorPos == 8) {
+          if (m_drm.activate(text)) {
+            m_eventSystem.raiseEvent(EProductActivate{});
+          }
+        }
       }
     }
   };
