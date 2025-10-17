@@ -129,7 +129,7 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, m_logger);
   m_viewportSize = m_renderer->getViewportSize();
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger, Platform::Android);
+  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger);
 }
 
 bool Application::update()

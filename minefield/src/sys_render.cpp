@@ -494,7 +494,7 @@ const Camera& SysRenderImpl::camera() const
 void SysRenderImpl::update(Tick, const InputState&)
 {
   try {
-    m_renderer.beginFrame({ 0.f, 0.f, 0.f, 1.f });
+    m_renderer.beginFrame({ 0.02f, 0.015f, 0.01f, 1.f });
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     ViewportId viewport = 0;

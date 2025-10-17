@@ -20,8 +20,11 @@
 #include "game_options.hpp"
 #include "b_player.hpp"
 #include "mobile_controls.hpp"
+#include "platform.hpp"
+#ifdef DRM
 #include "drm.hpp"
 #include "product_activation.hpp"
+#endif
 #undef max
 #undef min
 
@@ -49,7 +52,7 @@ class GameImpl : public Game
 {
   public:
     GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-      Logger& logger, Platform platform);
+      Logger& logger);
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -76,8 +79,10 @@ class GameImpl : public Game
     MobileControlsPtr m_mobileControls;
     bool m_mobileControlsActive = false;
     EcsPtr m_ecs;
+#ifdef DRM
     DrmPtr m_drm;
     ProductActivationPtr m_productActivation;
+#endif
     SceneBuilderPtr m_sceneBuilder;
     InputState m_inputState;
     Timer m_timer;
@@ -118,7 +123,7 @@ class GameImpl : public Game
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger, Platform platform)
+  Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_audioSystem(audioSystem)
@@ -152,7 +157,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
   m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger,
-    platform != Platform::iOS);
+    PLATFORM != Platform::iOS);
 
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
@@ -182,18 +187,18 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   setViewport(viewport[0], viewport[1]);
   setMobileControlsViewport(viewport[0], viewport[1]);
 
-  if (platform == Platform::Desktop) {
-    m_drm = createDrm(m_fileSystem);
+#ifdef DRM
+  m_drm = createDrm(m_fileSystem);
 
-    if (!m_drm->isActivated()) {
-      m_productActivation = createProductActivation(*m_ecs, *m_eventSystem, *m_drm, m_logger);
-      dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_productActivation->root(),
-        true);
-      m_gameState = GameState::ProductActivation;
+  if (!m_drm->isActivated()) {
+    m_productActivation = createProductActivation(*m_ecs, *m_eventSystem, *m_drm, m_logger);
+    dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_productActivation->root(),
+      true);
+    m_gameState = GameState::ProductActivation;
 
-      return;
-    }
+    return;
   }
+#endif
 
   dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_menuSystem->root(), true);
   m_menuSystem->showMainMenu();
@@ -201,7 +206,7 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
 
   m_audioSystem.playMusic();
 
-  if (platform == Platform::iOS || platform == Platform::Android) {
+  if (MOBILE_PLATFORM) {
     showMobileControls();
   }
 }
@@ -336,7 +341,11 @@ void GameImpl::handleEvent(const Event& event)
 
   m_ecs->processEvent(event);
 
-  if (event.name == g_strProductActivate) {
+  if (event.name == g_strPlayerDeath) {
+    onPlayerDeath();
+  }
+#ifdef DRM
+  else if (event.name == g_strProductActivate) {
     auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
     
     sysSpatial.setEnabled(m_productActivation->root(), false);
@@ -346,9 +355,7 @@ void GameImpl::handleEvent(const Event& event)
 
     m_audioSystem.playMusic();
   }
-  else if (event.name == g_strPlayerDeath) {
-    onPlayerDeath();
-  }
+#endif
   else if (event.name == g_strPlayerVictorious) {
     onPlayerVictorious();
   }
@@ -778,7 +785,7 @@ bool GameImpl::update()
 } // namespace
 
 GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger, Platform platform)
+  Logger& logger)
 {
-  return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger, platform);
+  return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger);
 }

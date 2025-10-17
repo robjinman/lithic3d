@@ -6,13 +6,6 @@
 
 const float GAME_AREA_ASPECT = 630.f / 480.f;
 
-enum class Platform
-{
-  Desktop, // Windows, Linux, Mac
-  iOS,
-  Android
-};
-
 class Game
 {
   public:
@@ -41,4 +34,4 @@ class FileSystem;
 class Logger;
 
 GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger, Platform platform);
+  Logger& logger);
