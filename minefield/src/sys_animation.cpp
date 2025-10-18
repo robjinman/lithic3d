@@ -357,7 +357,7 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);
 
-  ASSERT(!m_activeAnimations.contains(entityId), "Entity already has animation playing");
+  DBG_ASSERT(!m_activeAnimations.contains(entityId), "Entity already has animation playing");
 
   m_activeAnimations.insert({ entityId, AnimationState{
     .id = animId,

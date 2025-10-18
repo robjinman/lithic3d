@@ -163,8 +163,7 @@ class MenuSystemImpl : public MenuSystem
       const std::string& text, uint32_t value);
     EntityId constructTextItem(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
       const std::string& text, const Vec4f& colour);
-    EntityId constructFadeInText(EntityId parentId, const Vec2f& pos, const Vec2f& charSize,
-      const std::string& text, const Vec4f& colour);
+    void addFadeInAnimForEntity(EntityId entityId);
     void updateSlider(const Slider& slider, float value);
 };
 
@@ -1098,8 +1097,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
   return id;
 }
 
-EntityId MenuSystemImpl::constructFadeInText(EntityId parentId, const Vec2f& pos,
-  const Vec2f& charSize, const std::string& text, const Vec4f& colour)
+void MenuSystemImpl::addFadeInAnimForEntity(EntityId entityId)
 {
   static const HashedString strFadeIn = hashString("fade_in");
 
@@ -1122,6 +1120,8 @@ EntityId MenuSystemImpl::constructFadeInText(EntityId parentId, const Vec2f& pos
     copy[3] = value;
     return copy;
   };
+
+  const Vec4f& colour = m_ecs.componentStore().component<CRender>(entityId).colour;
 
   AnimationId animFadeInId = 0;
   if (animations.contains(colour)) {
@@ -1147,13 +1147,9 @@ EntityId MenuSystemImpl::constructFadeInText(EntityId parentId, const Vec2f& pos
     animFadeInId = sysAnimation.addAnimation(std::move(anim));
   }
 
-  auto id = constructTextItem(parentId, pos, charSize, text, colour);
-
-  sysAnimation.addEntity(id, AnimationData{
+  sysAnimation.addEntity(entityId, AnimationData{
     .animations{ animFadeInId }
   });
-
-  return id;
 }
 
 Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
@@ -1178,17 +1174,55 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   sysSpatial.addEntity(id, spatial);
 
-  std::string txt1 = "Design & Programming: Rob Jinman";
-  std::string txt2 = "Music:                Jack Normal";
+  auto logoId = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+  >();
+
+  float h = 0.26f;
+  float w = 1.f * h;
+
+  SpatialData logoSpatial{
+    .transform = spriteTransform({ 0.765f, 0.55f }, { w, h }),
+    .parent = id,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(logoId, logoSpatial);
+
+  SpriteData logoRender{
+    .viewport = MAIN_VIEWPORT,
+    .textureRect{
+      .x = pxToUvX(512.f),
+      .y = pxToUvY(384.f, 128.f),
+      .w = pxToUvW(128.f),
+      .h = pxToUvH(128.f)
+    },
+    .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
+    .colour = Vec4f{ 0.f, 0.f, 0.f, 0.f }
+  };
+
+  sysRender.addEntity(logoId, logoRender);
+
+  addFadeInAnimForEntity(logoId);
+
+  std::string txt1 = "Code:  Rob Jinman";
+  std::string txt2 = "Music: Jack Normal";
   std::string txt3 = "Sprites: http://untamed.wild-refuge.net";
   std::string txt4 = versionString();
 
-  std::array<EntityId, 4> textItems{
-    constructFadeInText(id, { 0.54f, 0.7f }, { 0.022f, 0.044f }, txt1, { 0.f, 0.f, 0.f, 0.f }),
-    constructFadeInText(id, { 0.54f, 0.65f }, { 0.022f, 0.044f }, txt2, { 0.f, 0.f, 0.f, 0.f }),
-    constructFadeInText(id, { 0.5f, 0.02f }, { 0.02f, 0.04f }, txt3, { 0.5f, 0.5f, 0.5f, 0.f }),
-    constructFadeInText(id, { 0.014f, 0.96f }, { 0.0175f, 0.035f }, txt4, { 0.7f, 0.7f, 0.7f, 0.f })
+  std::array<EntityId, 5> items{
+    constructTextItem(id, { 0.7f, 0.42f }, { 0.022f, 0.044f }, txt1, { 1.f, 1.f, 1.f, 0.f }),
+    constructTextItem(id, { 0.7f, 0.37f }, { 0.022f, 0.044f }, txt2, { 1.f, 1.f, 1.f, 0.f }),
+    constructTextItem(id, { 0.5f, 0.02f }, { 0.02f, 0.04f }, txt3, { 0.5f, 0.5f, 0.5f, 0.f }),
+    constructTextItem(id, { 0.014f, 0.96f }, { 0.0175f, 0.035f }, txt4, { 0.7f, 0.7f, 0.7f, 0.f }),
+    logoId
   };
+
+  addFadeInAnimForEntity(items[0]);
+  addFadeInAnimForEntity(items[1]);
+  addFadeInAnimForEntity(items[2]);
+  addFadeInAnimForEntity(items[3]);
+  addFadeInAnimForEntity(items[4]);
 
   auto groupId = SysUi::nextGroupId();
 
@@ -1209,14 +1243,14 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"),
     { g_strMenuItemActivate, g_strSubmenuExit, g_strEntityEnable },
-    [this, id, prevMenu, returnId, textItems, &sysAnimation, &sysSpatial, &sysRender, &sysUi]
+    [this, id, prevMenu, returnId, items, &sysAnimation, &sysSpatial, &sysRender, &sysUi]
     (const Event& e) {
 
     if ((e.name == g_strMenuItemActivate &&
       dynamic_cast<const EMenuItemActivate&>(e).entityId == returnId) ||
       e.name == g_strSubmenuExit) {
 
-      for (auto textItem : textItems) {
+      for (auto textItem : items) {
         sysAnimation.stopAnimation(textItem);
         sysRender.setColour(textItem, { 0.f, 0.f, 0.f, 0.f });
       }
@@ -1228,7 +1262,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
     else if (e.name == g_strEntityEnable) {
       auto& event = dynamic_cast<const EEntityEnable&>(e);
       if (event.entityId == id) {
-        for (auto textItem : textItems) {
+        for (auto textItem : items) {
           sysAnimation.playAnimation(textItem, strFadeIn);
         }
       }

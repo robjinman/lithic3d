@@ -1,6 +1,7 @@
 #include "utils.hpp"
 #include "version.hpp"
 #include "exception.hpp"
+#include "platform.hpp"
 #include <fstream>
 #include <map>
 #include <random>
@@ -18,7 +19,16 @@ std::map<HashedString, std::string>& getHashTable()
 
 std::string versionString()
 {
-  return STR("Minefield " << Minefield_VERSION_MAJOR << "." << Minefield_VERSION_MINOR);
+  static std::string s = []() {
+    return STR(Minefield_VERSION_MAJOR << "." << Minefield_VERSION_MINOR
+      << "-" << PLATFORM_NAME
+#ifdef DRM
+      << "-drm"
+#endif
+      << "");
+  }();
+
+  return s;
 }
 
 HashedString hashString(const std::string& s)
