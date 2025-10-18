@@ -56,9 +56,9 @@ std::string sha256(const std::string& input)
   return ss.str().substr(0, keyLength);
 }
 
-std::string secret(unsigned plusDays)
+std::string secret(int dayOffset)
 {
-  auto now = std::chrono::system_clock::now();
+  auto now = std::chrono::system_clock::now() + std::chrono::days{dayOffset};
   auto today = std::chrono::floor<std::chrono::days>(now);
   std::chrono::year_month_day ymd{today};
 
@@ -66,7 +66,7 @@ std::string secret(unsigned plusDays)
   ss << "MinefieldByFreeholdAppsLtd";
   ss << static_cast<int>(ymd.year());
   ss << static_cast<unsigned>(ymd.month());
-  ss << static_cast<unsigned>(ymd.day()) + plusDays;
+  ss << static_cast<unsigned>(ymd.day());
 
   return ss.str();
 }
@@ -115,9 +115,9 @@ bool DrmImpl::isActivated() const
 
 bool DrmImpl::activate(const std::string& key)
 {
-  // Compare against keys for 5 days starting from yesterday
-  const int offset = -1;
-  const int numKeys = 5;
+  // Accept any key generated within the last few days or for the next few days
+  const int offset = -5;
+  const int numKeys = 10;
 
   for (int i = 0; i < numKeys; ++i) {
     if (sha256(secret(i + offset)) == key) {
