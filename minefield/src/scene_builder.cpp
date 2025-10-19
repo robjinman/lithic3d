@@ -91,7 +91,6 @@ class SceneBuilderImpl : public SceneBuilder
     const GameOptionsManager& m_options;
     EntityIdSet m_entities;
     EntityId m_worldRoot;
-    EntityId m_menuRoot;
     EntityId m_playerId;
 
     EntityId constructStaticEntity(const Vec2f& pos, const Vec2f& size, const Rectf& texRect,

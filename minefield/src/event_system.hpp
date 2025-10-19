@@ -28,6 +28,8 @@ class Event
       return ss.str();
     }
 
+    virtual ~Event() = default;
+
     HashedString name;
     std::optional<EntityIdSet> targets;
 };

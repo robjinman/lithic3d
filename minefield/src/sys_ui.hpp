@@ -6,7 +6,7 @@
 #include "component_types.hpp"
 #include <functional>
 
-class UiData;
+struct UiData;
 
 // Requires components:
 //   CSpatialFlags

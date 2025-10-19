@@ -31,7 +31,7 @@ class ESubmenuExit : public Event
       : Event(g_strSubmenuExit) {}
 };
 
-class InputState;
+struct InputState;
 
 class MenuSystem
 {

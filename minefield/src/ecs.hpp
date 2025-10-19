@@ -11,7 +11,7 @@ using SystemId = uint32_t;
 using EntityIdSet = std::set<EntityId>;
 
 class Event;
-class InputState;
+struct InputState;
 
 class System
 {

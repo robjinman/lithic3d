@@ -591,7 +591,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
 
   constructMenuItemBase(rightBtnId, parentId, rightBtnSprite);
 
-  auto focusAll = [&sysAnimation, &sysUi, id, leftBtnId, rightBtnId]() {
+  auto focusAll = [&sysAnimation, id, leftBtnId, rightBtnId]() {
     sysAnimation.stopAnimation(id);
     sysAnimation.stopAnimation(leftBtnId);
     sysAnimation.stopAnimation(rightBtnId);
@@ -653,7 +653,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
   sysUi.addEntity(id, ui);
 
   auto makeBtnUiComp =
-    [this, &sysAnimation, &sysUi, &filter, id, groupId, unfocusAll]
+    [&sysAnimation, &sysUi, &filter, id, groupId, unfocusAll]
     (EntityId btnId, const std::function<void()>& onBtnDown, const std::function<void()>& onBtnUp) {
 
     auto onBtnUpWrap = [&sysUi, onBtnUp, id]() {
@@ -889,7 +889,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"),
     { g_strMenuItemActivate, g_strSubmenuExit },
-    [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
+    [id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
     if ((e.name == g_strMenuItemActivate
       && dynamic_cast<const EMenuItemActivate&>(e).entityId == returnId) ||
@@ -1241,7 +1241,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"),
     { g_strMenuItemActivate, g_strSubmenuExit, g_strEntityEnable },
-    [this, id, prevMenu, returnId, items, &sysAnimation, &sysSpatial, &sysRender, &sysUi]
+    [id, prevMenu, returnId, items, &sysAnimation, &sysSpatial, &sysRender, &sysUi]
     (const Event& e) {
 
     if ((e.name == g_strMenuItemActivate &&
@@ -1398,7 +1398,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 
   auto behaviour = createBGeneric(hashString("menu_behaviour"),
     { g_strMenuItemActivate, g_strSubmenuExit },
-    [this, id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
+    [id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
     if ((e.name == g_strMenuItemActivate &&
       dynamic_cast<const EMenuItemActivate&>(e).entityId == returnId) ||

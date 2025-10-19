@@ -181,11 +181,13 @@
     },
     {
       "name": "ios-debug",
-      "configurePreset": "ios-debug"
+      "configurePreset": "ios-debug",
+      "configuration": "Debug"
     },
     {
       "name": "ios-release",
-      "configurePreset": "ios-release"
+      "configurePreset": "ios-release",
+      "configuration": "Release"
     },
     {
       "name": "windows-debug",
