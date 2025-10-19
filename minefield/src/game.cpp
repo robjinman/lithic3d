@@ -129,6 +129,9 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   , m_audioSystem(audioSystem)
   , m_renderer(renderer)
 {
+  m_logger.info(STR("Minefield version " << getVersionString()));
+  m_logger.info(STR("Build ID: " << getBuildId()));
+
   m_audioSystem.addMusic("sounds/music.ogg");
   m_audioSystem.addSound(strBang, "sounds/bang.wav");
   m_audioSystem.addSound(strCollect, "sounds/collect.wav");

@@ -16,6 +16,7 @@ std::string shaderTypeName(ShaderType type)
   switch (type) {
     case ShaderType::Vertex: return "vertex";
     case ShaderType::Fragment: return "fragment";
+    default: assert(false);
   }
 }
 
@@ -288,6 +289,8 @@ ShaderByteCode ShaderSystemImpl::fetchShaderFromCache(ShaderType type,
 
   auto hash = std::hash<ShaderProgramSpec>{}(spec);
   auto path = STR("shaders/" << hash << "_" << shaderTypeName(type) << ".spirv");
+
+  m_logger.info(STR("Loading shader " << path << " from cache"));
 
   auto bytes = m_fileSystem.readUserDataFile(path);
   code.resize(bytes.size() / sizeof(uint32_t));

@@ -33,10 +33,17 @@ std::string getVersionString()
 
 std::string getBuildId()
 {
-#ifdef BUILD_ID
   return BUILD_ID;
-#endif
-  return "BUILD_ID_NOT_SET";
+}
+
+uint32_t getVersionMajor()
+{
+  return Minefield_VERSION_MAJOR;
+}
+
+uint32_t getVersionMinor()
+{
+  return Minefield_VERSION_MINOR;
 }
 
 HashedString hashString(const std::string& s)

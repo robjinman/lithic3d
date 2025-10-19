@@ -4,7 +4,6 @@
 #include "vulkan/vulkan_window_delegate.hpp"
 #include "renderer.hpp"
 #include "exception.hpp"
-#include "version.hpp"
 #include "logger.hpp"
 #include "camera.hpp"
 #include "utils.hpp"
@@ -1927,7 +1926,7 @@ void RendererImpl::createInstance()
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     .pNext = nullptr,
     .pApplicationName = "Minefield",
-    .applicationVersion = VK_MAKE_VERSION(Minefield_VERSION_MAJOR, Minefield_VERSION_MINOR, 0),
+    .applicationVersion = VK_MAKE_VERSION(getVersionMajor(), getVersionMinor(), 0),
     .pEngineName = "No Engine",
     .engineVersion = VK_MAKE_VERSION(1, 0, 0),
     .apiVersion = VK_API_VERSION_1_2
