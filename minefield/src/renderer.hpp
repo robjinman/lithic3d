@@ -107,5 +107,4 @@ class FileSystem;
 class WindowDelegate;
 class Logger;
 
-render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
-  Logger& logger);
+render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger);

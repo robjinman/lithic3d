@@ -223,7 +223,7 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
   , m_renderer(renderer)
   , m_fileSystem(fileSystem)
 {
-  // TODO: What's this shader for?
+  // Text
   {
     MeshFeatureSet meshFeatures{
       .vertexLayout = {

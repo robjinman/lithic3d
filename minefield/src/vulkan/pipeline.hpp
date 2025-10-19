@@ -1,13 +1,12 @@
 #pragma once
 
 #include "tree_set.hpp"
-#include "renderer.hpp"
+#include "shader_system.hpp"
 #include "vulkan/render_resources.hpp"
 #include <vulkan/vulkan.h>
 #include <optional>
 
 class Logger;
-class FileSystem;
 
 namespace render
 {
@@ -38,15 +37,6 @@ struct RenderNode
 using RenderGraphKey = long;
 using RenderNodePtr = std::unique_ptr<RenderNode>;
 using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>; // TODO: Store by value?
-
-struct PipelineKey
-{
-  RenderPass renderPass;
-  std::optional<MeshFeatureSet> meshFeatures;
-  std::optional<MaterialFeatureSet> materialFeatures;
-
-  bool operator==(const PipelineKey& rhs) const = default;
-};
 
 // TODO: Replace inheritance
 
@@ -128,21 +118,11 @@ class Pipeline
 
 using PipelinePtr = std::unique_ptr<Pipeline>;
 
-PipelinePtr createPipeline(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+PipelinePtr createPipeline(const ShaderSpec& shaderSpec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
 
 } // namespace render
-
-template<>
-struct std::hash<render::PipelineKey>
-{
-  std::size_t operator()(const render::PipelineKey& key) const noexcept
-  {
-    return hashAll(key.renderPass, key.meshFeatures, key.materialFeatures);
-  }
-};
 
 template<>
 struct std::hash<Recti>

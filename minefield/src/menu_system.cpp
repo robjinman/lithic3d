@@ -1203,8 +1203,6 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   sysRender.addEntity(logoId, logoRender);
 
-  addFadeInAnimForEntity(logoId);
-
   std::string txt1 = "Code:  Rob Jinman";
   std::string txt2 = "Music: Jack Normal";
   std::string txt3 = "Sprites: http://untamed.wild-refuge.net";

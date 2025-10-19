@@ -41,6 +41,8 @@ const std::vector<const char*> DeviceExtensions = {
 #endif
 };
 
+using PipelineKey = ShaderSpec;
+
 struct QueueFamilyIndices
 {
   std::optional<uint32_t> graphicsFamily;
@@ -83,7 +85,7 @@ struct RemoveMeshWorkItem : public WorkItem
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger);
+    RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger);
 
     void start() override;
     bool isStarted() const override;
@@ -193,8 +195,8 @@ class RendererImpl : public Renderer
       const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
     void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
 
+    ShaderSystemPtr m_shaderSystem;
     ViewParams m_viewParams;
-    const FileSystem& m_fileSystem;
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
     VkInstance m_instance;
@@ -279,13 +281,13 @@ class RendererImpl : public Renderer
     WorkQueue m_workQueue;
 };
 
-RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window,
-  Logger& logger)
-  : m_fileSystem(fileSystem)
-  , m_window(window)
+RendererImpl::RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger)
+  : m_window(window)
   , m_logger(logger)
 {
   DBG_TRACE(m_logger);
+
+  m_shaderSystem = createShaderSystem(fileSystem, m_logger);
 
   m_viewParams = ViewParams{
     .hFov = 0.f,
@@ -350,24 +352,24 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
   return m_thread.run<void>([&, this]() {
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
-    auto addPipeline = [this, depthFormat, &meshFeatures, &materialFeatures](PipelineKey key,
-      VkExtent2D extent) {
+    auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
+      auto shader = m_shaderSystem->compileShader(key);
 
       if (!m_pipelines.contains(key)) {
-        auto pipeline = createPipeline(key.renderPass, meshFeatures, materialFeatures, m_fileSystem,
-          *m_resources, m_logger, m_device, extent, m_swapchainImageFormat, depthFormat);
+        auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
+          m_swapchainImageFormat, depthFormat);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
       }
     };
 
     // TODO: Bit wasteful creating identical pipelines for main and overlay
-
+/*
     addPipeline(PipelineKey{
       .renderPass = RenderPass::Main,
       .meshFeatures = meshFeatures,
       .materialFeatures = materialFeatures
-    }, m_swapchainExtent);
+    }, m_swapchainExtent);*/
 
     addPipeline(PipelineKey{
       .renderPass = RenderPass::Overlay,
@@ -379,7 +381,7 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
        addPipeline(PipelineKey{
         .renderPass = RenderPass::Shadow,
         .meshFeatures = meshFeatures,
-        .materialFeatures = std::nullopt
+        .materialFeatures = {}
       }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
     }
   }).get();
@@ -1335,7 +1337,7 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
     .materialFeatures = node.material.features
   };
   if (renderPass == RenderPass::Shadow) {
-    key.materialFeatures = std::nullopt;
+    key.materialFeatures = {};
   }
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
@@ -2026,8 +2028,7 @@ RendererImpl::~RendererImpl()
 } // namespace
 } // namespace render
 
-render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
-  Logger& logger)
+render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger)
 {
   return std::make_unique<render::RendererImpl>(fileSystem,
     dynamic_cast<VulkanWindowDelegate&>(window), logger);

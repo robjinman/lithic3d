@@ -1,10 +1,8 @@
 #include "vulkan/pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/render_resources.hpp"
-#include "file_system.hpp"
 #include "utils.hpp"
 #include "logger.hpp"
-#include <shaderc/shaderc.hpp>
 #include <array>
 #include <numeric>
 #include <cstring>
@@ -53,6 +51,8 @@ struct DynamicTextPushConstants
   Vec4f colour;               // 16 bytes
 };
 #pragma pack(pop)
+
+// TODO: Store all of these details in the ShaderProgram object
 
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_SIZE = 64;
@@ -265,86 +265,10 @@ VkPipelineDepthStencilStateCreateInfo disabledDepthStencilState()
   };
 }
 
-class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
-{
-  public:
-    SourceIncluder(const FileSystem& fileSystem)
-      : m_fileSystem(fileSystem) {}
-
-    shaderc_include_result* GetInclude(const char* requested_source,
-      shaderc_include_type type, const char* requesting_source, size_t include_depth) override;
-
-    void ReleaseInclude(shaderc_include_result* data) override;
-
-  private:
-    const FileSystem& m_fileSystem;
-    std::string m_errorMessage;
-};
-
-shaderc_include_result* SourceIncluder::GetInclude(const char* requested_source,
-  shaderc_include_type, const char*, size_t)
-{
-  auto result = new shaderc_include_result{};
-
-  try {
-    const std::filesystem::path sourcesDir = "shaders";
-    auto sourcePath = sourcesDir / requested_source;
-
-    size_t sourceNameLength = sourcePath.string().length();
-    char* nameBuffer = new char[sourceNameLength];
-    memcpy(nameBuffer, reinterpret_cast<const char*>(sourcePath.c_str()), sourceNameLength);
-
-    result->source_name = nameBuffer;
-    result->source_name_length = sourceNameLength;
-
-    auto source = m_fileSystem.readAppDataFile(sourcePath);
-    size_t contentBufferLength = source.size();
-    char* contentBuffer = new char[contentBufferLength];
-    memcpy(contentBuffer, source.data(), source.size());
-
-    result->content = contentBuffer;
-    result->content_length = contentBufferLength;
-    result->user_data = nullptr;
-  }
-  catch (const std::exception& ex) {
-    m_errorMessage = ex.what();
-    result->content = m_errorMessage.c_str();
-    result->content_length = m_errorMessage.length();
-  }
-
-  return result;
-}
-
-void SourceIncluder::ReleaseInclude(shaderc_include_result* data)
-{
-  if (data) {
-    if (data->content) {
-      delete[] data->content;
-    }
-    if (data->source_name) {
-      delete[] data->source_name;
-    }
-    delete data;
-  }
-}
-
-struct ShaderProgram
-{
-  std::vector<uint32_t> vertexShaderCode;
-  std::vector<uint32_t> fragmentShaderCode;
-};
-
-enum class ShaderType
-{
-  Vertex,
-  Fragment
-};
-
 class PipelineImpl : public Pipeline
 {
   public:
-    PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+    PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
       VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
 
@@ -357,9 +281,8 @@ class PipelineImpl : public Pipeline
 
   private:
     Logger& m_logger;
-    const FileSystem& m_fileSystem;
     const RenderResources& m_renderResources;
-    RenderPass m_renderPass;
+    ShaderSpec m_shaderSpec;
     VkDevice m_device;
     VkFormat m_swapchainImageFormat;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
@@ -386,31 +309,21 @@ class PipelineImpl : public Pipeline
     VkPipelineDepthStencilStateCreateInfo m_depthStencilStateInfo;
     VkPipelineRenderingCreateInfo m_renderingCreateInfo;
 
-    ShaderProgram compileShaderProgram(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures);
-
-    std::vector<uint32_t> compileShader(const std::string& name, const std::vector<char>& source,
-      ShaderType type, const std::vector<std::string>& defines);
-
     void constructPipeline(VkExtent2D swapchainExtent);
     void destroyPipeline();
 };
 
-PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
   : m_logger(logger)
-  , m_fileSystem(fileSystem)
   , m_renderResources(renderResources)
-  , m_renderPass(renderPass)
+  , m_shaderSpec(shaderSpec)
   , m_device(device)
   , m_swapchainImageFormat(swapchainImageFormat)
 {
-  auto program = compileShaderProgram(renderPass, meshFeatures, materialFeatures);
-
-  m_vertShaderModule = createShaderModule(m_device, program.vertexShaderCode);
-  m_fragShaderModule = createShaderModule(m_device, program.fragmentShaderCode);
+  m_vertShaderModule = createShaderModule(m_device, shader.vertexShaderCode);
+  m_fragShaderModule = createShaderModule(m_device, shader.fragmentShaderCode);
 
   m_vertShaderStageInfo = VkPipelineShaderStageCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -433,7 +346,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   };
 
   size_t vertexSize = 0;
-  for (auto usage : meshFeatures.vertexLayout) {
+  for (auto usage : shaderSpec.meshFeatures.vertexLayout) {
     vertexSize += getAttributeSize(usage);
   }
 
@@ -443,8 +356,8 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  m_vertexAttributeDescriptions = createAttributeDescriptions(meshFeatures.vertexLayout);
-  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+  m_vertexAttributeDescriptions = createAttributeDescriptions(shaderSpec.meshFeatures.vertexLayout);
+  if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     for (unsigned int i = 0; i < 4; ++i) {
       uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float) * i;
   
@@ -462,7 +375,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   m_vertexBindingDescriptions = {
     vertexBindingDescription
   };
-  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+  if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     m_vertexBindingDescriptions.push_back(VkVertexInputBindingDescription{
       .binding = 1,
       .stride = sizeof(MeshInstance),
@@ -481,9 +394,9 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
   };
 
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
-  m_rasterizationStateInfo =
-    defaultRasterizationState(materialFeatures.flags.test(MaterialFeatures::IsDoubleSided));
-  if (m_renderPass == RenderPass::Shadow) {
+  bool doubleSided = shaderSpec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
+  m_rasterizationStateInfo = defaultRasterizationState(doubleSided);
+  if (m_shaderSpec.renderPass == RenderPass::Shadow) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
     m_rasterizationStateInfo.depthClampEnable = VK_FALSE;
     m_rasterizationStateInfo.depthBiasClamp = 0.f;
@@ -502,8 +415,8 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (meshFeatures.flags.test(MeshFeatures::IsQuad)) {
-    if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
+  if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
+    if (shaderSpec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
       m_pushConstantRanges = {
         VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -532,7 +445,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
       };
     }
   }
-  else if (meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
+  else if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -546,8 +459,8 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
       }
     };
   }
-  else if (!meshFeatures.flags.test(MeshFeatures::IsInstanced)
-    && !meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+  else if (!m_shaderSpec.meshFeatures.flags.test(MeshFeatures::IsInstanced)
+    && !m_shaderSpec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
 
     m_pushConstantRanges = {
       VkPushConstantRange{
@@ -573,7 +486,7 @@ PipelineImpl::PipelineImpl(RenderPass renderPass, const MeshFeatureSet& meshFeat
     .pPushConstantRanges = m_pushConstantRanges.size() == 0 ? nullptr : m_pushConstantRanges.data()
   };
 
-  switch (m_renderPass) {
+  switch (m_shaderSpec.renderPass) {
     case RenderPass::Overlay:
       m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -622,8 +535,8 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     "Failed to create default pipeline layout");
 
   m_logger.info(STR("Pipeline layout: " << m_layout));
-  m_logger.info(STR("Render pass overlay: " << (m_renderPass == RenderPass::Overlay)));
-  m_logger.info(STR("Render pass main: " << (m_renderPass == RenderPass::Main)));
+  m_logger.info(STR("Render pass overlay: " << (m_shaderSpec.renderPass == RenderPass::Overlay)));
+  m_logger.info(STR("Render pass main: " << (m_shaderSpec.renderPass == RenderPass::Main)));
   m_logger.info(STR("Swapchain extent: "
     << m_swapchainExtent.width << ", " << m_swapchainExtent.height));
 
@@ -682,8 +595,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   BindState& bindState, size_t currentFrame)
 {
   auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
-  auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(m_renderPass,
-    currentFrame);
+  auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(
+    m_shaderSpec.renderPass, currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
   auto objectDescriptorSet = m_renderResources.getObjectDescriptorSet(node.mesh.id, currentFrame);
 
@@ -811,126 +724,6 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   bindState.descriptorSets = descriptorSets;
 }
 
-ShaderProgram PipelineImpl::compileShaderProgram(RenderPass renderPass,
-  const MeshFeatureSet& meshFeatures, const MaterialFeatureSet& materialFeatures)
-{
-  std::vector<std::string> defines;
-  for (auto attr : meshFeatures.vertexLayout) {
-    switch (attr) {
-      case BufferUsage::AttrPosition: defines.push_back("ATTR_POSITION"); break;
-      case BufferUsage::AttrNormal: defines.push_back("ATTR_NORMAL"); break;
-      case BufferUsage::AttrTexCoord: defines.push_back("ATTR_TEXCOORD"); break;
-      case BufferUsage::AttrTangent: defines.push_back("ATTR_TANGENT"); break;
-      case BufferUsage::AttrJointIndices: defines.push_back("ATTR_JOINTS"); break;
-      case BufferUsage::AttrJointWeights: defines.push_back("ATTR_WEIGHTS"); break;
-      default: break;
-    }
-  }
-
-  std::string vertShader = "main_default";
-  std::string fragShader = "main_default";
-
-  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    defines.push_back("ATTR_MODEL_MATRIX");
-  }
-
-  if (meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
-    defines.push_back("FEATURE_VERTEX_SKINNING");
-  }
-
-  if (renderPass == RenderPass::Shadow) {
-    defines.push_back("RENDER_PASS_SHADOW");
-    fragShader = "main_depth";
-  }
-  else {
-    defines.push_back("FEATURE_MATERIALS");
-
-    if (renderPass == RenderPass::Main) {
-      defines.push_back("FEATURE_LIGHTING");
-
-      if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
-        vertShader = "main_passthrough";
-        fragShader = "main_skybox";
-      }
-    }
-
-    if (meshFeatures.flags.test(MeshFeatures::IsQuad)) {
-      if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
-        vertShader = "main_sprite";
-        fragShader = "main_sprite";
-      }
-      else {
-        vertShader = "main_quad";
-        fragShader = "main_quad";
-      }
-    }
-    else if (meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
-      vertShader = "main_dynamic_text";
-      fragShader = "main_sprite";
-    }
-
-    if (materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
-      assert(meshFeatures.flags.test(MeshFeatures::HasTangents));
-      defines.push_back("FEATURE_NORMAL_MAPPING");
-    }
-
-    if (materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
-      defines.push_back("FEATURE_TEXTURE_MAPPING");
-    }
-  }
-
-  m_logger.info(STR("Compiling shaders with options: " << defines));
-  m_logger.info(STR("Render pass: " << static_cast<int>(renderPass)));
-  m_logger.info(STR("Mesh features: " << meshFeatures));
-  m_logger.info(STR("Material features: " << materialFeatures));
-
-  ShaderProgram program;
-
-  auto vertShaderSrc =
-    m_fileSystem.readAppDataFile(STR("shaders/vertex/" << vertShader << ".glsl"));
-  auto fragShaderSrc =
-    m_fileSystem.readAppDataFile(STR("shaders/fragment/" << fragShader << ".glsl"));
-  program.vertexShaderCode = compileShader("vertex", vertShaderSrc, ShaderType::Vertex, defines);
-  program.fragmentShaderCode = compileShader("fragment", fragShaderSrc, ShaderType::Fragment,
-    defines);
-
-  assert(program.fragmentShaderCode.size() > 0);
-  assert(program.vertexShaderCode.size() > 0);
-
-  return program;
-}
-
-std::vector<uint32_t> PipelineImpl::compileShader(const std::string& name,
-  const std::vector<char>& source, ShaderType type, const std::vector<std::string>& defines)
-{
-  shaderc_shader_kind kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
-  switch (type) {
-    case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
-    case ShaderType::Fragment: kind = shaderc_shader_kind::shaderc_glsl_fragment_shader; break;
-  }
-
-  shaderc::Compiler compiler;
-  shaderc::CompileOptions options;
-  options.SetOptimizationLevel(shaderc_optimization_level_performance);
-  options.SetWarningsAsErrors();
-  options.SetIncluder(std::make_unique<SourceIncluder>(m_fileSystem));
-  for (auto& define : defines) {
-    options.AddMacroDefinition(define);
-  }
-
-  auto result = compiler.CompileGlslToSpv(source.data(), source.size(), kind, name.c_str(),
-    options);
-
-  if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-    EXCEPTION("Error compiling shader: " << result.GetErrorMessage());
-  }
-
-  std::vector<uint32_t> code;
-  code.assign(result.cbegin(), result.cend());
-
-  return code;
-}
-
 void PipelineImpl::destroyPipeline()
 {
   if (m_pipeline != VK_NULL_HANDLE) {
@@ -954,14 +747,12 @@ PipelineImpl::~PipelineImpl()
 
 } // namespace
 
-PipelinePtr createPipeline(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures, const FileSystem& fileSystem,
+PipelinePtr createPipeline(const ShaderSpec& shaderSpec, const ShaderProgram& shaderProgram,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
 {
-  return std::make_unique<PipelineImpl>(renderPass, meshFeatures, materialFeatures,
-    fileSystem, renderResources, logger, device, swapchainExtent, swapchainImageFormat,
-    depthFormat);
+  return std::make_unique<PipelineImpl>(shaderSpec, shaderProgram, renderResources, logger, device,
+    swapchainExtent, swapchainImageFormat, depthFormat);
 }
 
 } // namespace render
