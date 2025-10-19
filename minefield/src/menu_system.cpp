@@ -1206,7 +1206,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   std::string txt1 = "Code:  Rob Jinman";
   std::string txt2 = "Music: Jack Normal";
   std::string txt3 = "Sprites: http://untamed.wild-refuge.net";
-  std::string txt4 = versionString();
+  std::string txt4 = getVersionString();
 
   std::array<EntityId, 5> items{
     constructTextItem(id, { 0.7f, 0.42f }, { 0.022f, 0.044f }, txt1, { 1.f, 1.f, 1.f, 0.f }),

@@ -17,7 +17,7 @@ std::map<HashedString, std::string>& getHashTable()
 
 }
 
-std::string versionString()
+std::string getVersionString()
 {
   static std::string s = []() {
     return STR(Minefield_VERSION_MAJOR << "." << Minefield_VERSION_MINOR
@@ -29,6 +29,14 @@ std::string versionString()
   }();
 
   return s;
+}
+
+std::string getBuildId()
+{
+#ifdef BUILD_ID
+  return BUILD_ID;
+#endif
+  return "BUILD_ID_NOT_SET";
 }
 
 HashedString hashString(const std::string& s)

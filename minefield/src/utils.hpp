@@ -42,7 +42,8 @@ std::ostream& operator<<(std::ostream& stream, const std::array<T, N>& v)
   return stream;
 }
 
-std::string versionString();
+std::string getVersionString();
+std::string getBuildId();
 
 using HashedString = size_t;
 

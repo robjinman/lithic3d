@@ -11,6 +11,14 @@ namespace render
 namespace
 {
 
+std::string shaderTypeName(ShaderType type)
+{
+  switch (type) {
+    case ShaderType::Vertex: return "vertex";
+    case ShaderType::Fragment: return "fragment";
+  }
+}
+
 struct ShaderSource
 {
   ShaderType type;
@@ -93,6 +101,7 @@ class ShaderSystemImpl : public ShaderSystem
   private:
     Logger& m_logger;
     FileSystem& m_fileSystem;
+    bool m_cacheIsInvalid = true;
 
     ShaderByteCode compileShader(const ShaderSource& source);
 
@@ -101,12 +110,30 @@ class ShaderSystemImpl : public ShaderSystem
     ShaderSource loadFragShaderSource(const ShaderProgramSpec& spec) const;
     std::string selectVertShader(const ShaderProgramSpec& spec) const;
     std::string selectFragShader(const ShaderProgramSpec& spec) const;
+    void writeShaderToCache(ShaderType type, const ShaderProgramSpec& spec,
+      const ShaderByteCode& code);
 };
 
 ShaderSystemImpl::ShaderSystemImpl(FileSystem& fileSystem, Logger& logger)
   : m_fileSystem(fileSystem)
   , m_logger(logger)
 {
+  auto currentBuildId = getBuildId();
+
+  if (m_fileSystem.userDataFileExists("shaders/build.txt")) {
+    auto buildId = m_fileSystem.readUserDataFile("shaders/build.txt");
+
+    if (strncmp(currentBuildId.c_str(), buildId.data(), currentBuildId.size()) == 0) {
+      m_cacheIsInvalid = false;
+    }
+  }
+
+  if (m_cacheIsInvalid) {
+    // TODO: Delete shader directory
+
+    m_fileSystem.writeUserDataFile("shaders/build.txt", currentBuildId.c_str(),
+      currentBuildId.size());
+  }
 }
 
 std::string ShaderSystemImpl::selectVertShader(const ShaderProgramSpec& spec) const
@@ -244,32 +271,49 @@ ShaderSource ShaderSystemImpl::loadFragShaderSource(const ShaderProgramSpec& spe
   return source;
 }
 
+void ShaderSystemImpl::writeShaderToCache(ShaderType type, const ShaderProgramSpec& spec,
+  const ShaderByteCode& code)
+{
+  auto hash = std::hash<ShaderProgramSpec>{}(spec);
+  auto path = STR("shaders/" << hash << "_" << shaderTypeName(type) << ".spirv");
+
+  m_fileSystem.writeUserDataFile(path,
+    reinterpret_cast<const char*>(code.data()), code.size() * sizeof(uint32_t));
+}
+
 ShaderByteCode ShaderSystemImpl::fetchShaderFromCache(ShaderType type,
   const ShaderProgramSpec& spec) const
 {
-  // TODO
-  return ShaderByteCode{};
+  ShaderByteCode code;
+
+  auto hash = std::hash<ShaderProgramSpec>{}(spec);
+  auto path = STR("shaders/" << hash << "_" << shaderTypeName(type) << ".spirv");
+
+  auto bytes = m_fileSystem.readUserDataFile(path);
+  code.resize(bytes.size() / sizeof(uint32_t));
+  memcpy(code.data(), bytes.data(), bytes.size());
+
+  return code;
 }
 
 ShaderProgram ShaderSystemImpl::compileShaderProgram(const ShaderProgramSpec& spec)
 {
-  ShaderProgram program{
-    .vertexShaderCode = fetchShaderFromCache(ShaderType::Vertex, spec),
-    .fragmentShaderCode = fetchShaderFromCache(ShaderType::Fragment, spec)
-  };
-
-  if (program.vertexShaderCode.empty()) {
-    auto source = loadVertShaderSource(spec);
-    program.vertexShaderCode = compileShader(source);
+  if (!m_cacheIsInvalid) {
+    return ShaderProgram{
+      .vertexShaderCode = fetchShaderFromCache(ShaderType::Vertex, spec),
+      .fragmentShaderCode = fetchShaderFromCache(ShaderType::Fragment, spec)
+    };
   }
 
-  if (program.fragmentShaderCode.empty()) {
-    auto source = loadFragShaderSource(spec);
-    program.fragmentShaderCode = compileShader(source);
-  }
+  ShaderProgram program;
 
-  assert(program.fragmentShaderCode.size() > 0);
-  assert(program.vertexShaderCode.size() > 0);
+  auto vertShaderSource = loadVertShaderSource(spec);
+  program.vertexShaderCode = compileShader(vertShaderSource);
+  writeShaderToCache(ShaderType::Vertex, spec, program.vertexShaderCode);
+
+  auto fragShaderSource = loadFragShaderSource(spec);
+  program.fragmentShaderCode = compileShader(fragShaderSource);
+  writeShaderToCache(ShaderType::Fragment, spec, program.fragmentShaderCode);
 
   return program;
 }
