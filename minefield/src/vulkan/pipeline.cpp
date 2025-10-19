@@ -268,7 +268,7 @@ VkPipelineDepthStencilStateCreateInfo disabledDepthStencilState()
 class PipelineImpl : public Pipeline
 {
   public:
-    PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& shader,
+    PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
       VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
 
@@ -282,7 +282,7 @@ class PipelineImpl : public Pipeline
   private:
     Logger& m_logger;
     const RenderResources& m_renderResources;
-    ShaderSpec m_shaderSpec;
+    ShaderProgramSpec m_spec;
     VkDevice m_device;
     VkFormat m_swapchainImageFormat;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
@@ -313,12 +313,12 @@ class PipelineImpl : public Pipeline
     void destroyPipeline();
 };
 
-PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& shader,
+PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
   : m_logger(logger)
   , m_renderResources(renderResources)
-  , m_shaderSpec(shaderSpec)
+  , m_spec(spec)
   , m_device(device)
   , m_swapchainImageFormat(swapchainImageFormat)
 {
@@ -346,7 +346,7 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
   };
 
   size_t vertexSize = 0;
-  for (auto usage : shaderSpec.meshFeatures.vertexLayout) {
+  for (auto usage : spec.meshFeatures.vertexLayout) {
     vertexSize += getAttributeSize(usage);
   }
 
@@ -356,8 +356,8 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  m_vertexAttributeDescriptions = createAttributeDescriptions(shaderSpec.meshFeatures.vertexLayout);
-  if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+  m_vertexAttributeDescriptions = createAttributeDescriptions(spec.meshFeatures.vertexLayout);
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     for (unsigned int i = 0; i < 4; ++i) {
       uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float) * i;
   
@@ -375,7 +375,7 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
   m_vertexBindingDescriptions = {
     vertexBindingDescription
   };
-  if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     m_vertexBindingDescriptions.push_back(VkVertexInputBindingDescription{
       .binding = 1,
       .stride = sizeof(MeshInstance),
@@ -394,9 +394,9 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
   };
 
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
-  bool doubleSided = shaderSpec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
+  bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
   m_rasterizationStateInfo = defaultRasterizationState(doubleSided);
-  if (m_shaderSpec.renderPass == RenderPass::Shadow) {
+  if (m_spec.renderPass == RenderPass::Shadow) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
     m_rasterizationStateInfo.depthClampEnable = VK_FALSE;
     m_rasterizationStateInfo.depthBiasClamp = 0.f;
@@ -415,8 +415,8 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
-    if (shaderSpec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
+    if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
       m_pushConstantRanges = {
         VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -445,7 +445,7 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
       };
     }
   }
-  else if (shaderSpec.meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
+  else if (spec.meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
@@ -459,8 +459,8 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
       }
     };
   }
-  else if (!m_shaderSpec.meshFeatures.flags.test(MeshFeatures::IsInstanced)
-    && !m_shaderSpec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+  else if (!m_spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)
+    && !m_spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
 
     m_pushConstantRanges = {
       VkPushConstantRange{
@@ -486,7 +486,7 @@ PipelineImpl::PipelineImpl(const ShaderSpec& shaderSpec, const ShaderProgram& sh
     .pPushConstantRanges = m_pushConstantRanges.size() == 0 ? nullptr : m_pushConstantRanges.data()
   };
 
-  switch (m_shaderSpec.renderPass) {
+  switch (m_spec.renderPass) {
     case RenderPass::Overlay:
       m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -535,8 +535,8 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     "Failed to create default pipeline layout");
 
   m_logger.info(STR("Pipeline layout: " << m_layout));
-  m_logger.info(STR("Render pass overlay: " << (m_shaderSpec.renderPass == RenderPass::Overlay)));
-  m_logger.info(STR("Render pass main: " << (m_shaderSpec.renderPass == RenderPass::Main)));
+  m_logger.info(STR("Render pass overlay: " << (m_spec.renderPass == RenderPass::Overlay)));
+  m_logger.info(STR("Render pass main: " << (m_spec.renderPass == RenderPass::Main)));
   m_logger.info(STR("Swapchain extent: "
     << m_swapchainExtent.width << ", " << m_swapchainExtent.height));
 
@@ -596,7 +596,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
 {
   auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
   auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(
-    m_shaderSpec.renderPass, currentFrame);
+    m_spec.renderPass, currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
   auto objectDescriptorSet = m_renderResources.getObjectDescriptorSet(node.mesh.id, currentFrame);
 
@@ -747,11 +747,11 @@ PipelineImpl::~PipelineImpl()
 
 } // namespace
 
-PipelinePtr createPipeline(const ShaderSpec& shaderSpec, const ShaderProgram& shaderProgram,
+PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shaderProgram,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
 {
-  return std::make_unique<PipelineImpl>(shaderSpec, shaderProgram, renderResources, logger, device,
+  return std::make_unique<PipelineImpl>(spec, shaderProgram, renderResources, logger, device,
     swapchainExtent, swapchainImageFormat, depthFormat);
 }
 

@@ -11,6 +11,15 @@ namespace render
 namespace
 {
 
+struct ShaderSource
+{
+  ShaderType type;
+  std::string name;
+  std::string fileName;
+  std::vector<std::string> defines;
+  std::vector<char> source;
+};
+
 class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
 {
   public:
@@ -79,14 +88,19 @@ class ShaderSystemImpl : public ShaderSystem
   public:
     ShaderSystemImpl(FileSystem& fileSystem, Logger& logger);
 
-    ShaderProgram compileShader(const ShaderSpec& spec) override;
+    ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec) override;
 
   private:
     Logger& m_logger;
     FileSystem& m_fileSystem;
 
-    std::vector<uint32_t> compileShader(const std::string& name, const std::vector<char>& source,
-      ShaderType type, const std::vector<std::string>& defines);
+    ShaderByteCode compileShader(const ShaderSource& source);
+
+    ShaderByteCode fetchShaderFromCache(ShaderType type, const ShaderProgramSpec& spec) const;
+    ShaderSource loadVertShaderSource(const ShaderProgramSpec& spec) const;
+    ShaderSource loadFragShaderSource(const ShaderProgramSpec& spec) const;
+    std::string selectVertShader(const ShaderProgramSpec& spec) const;
+    std::string selectFragShader(const ShaderProgramSpec& spec) const;
 };
 
 ShaderSystemImpl::ShaderSystemImpl(FileSystem& fileSystem, Logger& logger)
@@ -95,87 +109,164 @@ ShaderSystemImpl::ShaderSystemImpl(FileSystem& fileSystem, Logger& logger)
 {
 }
 
-ShaderProgram ShaderSystemImpl::compileShader(const ShaderSpec& spec)
+std::string ShaderSystemImpl::selectVertShader(const ShaderProgramSpec& spec) const
 {
-  std::vector<std::string> defines;
-  for (auto attr : spec.meshFeatures.vertexLayout) {
-    switch (attr) {
-      case BufferUsage::AttrPosition: defines.push_back("ATTR_POSITION"); break;
-      case BufferUsage::AttrNormal: defines.push_back("ATTR_NORMAL"); break;
-      case BufferUsage::AttrTexCoord: defines.push_back("ATTR_TEXCOORD"); break;
-      case BufferUsage::AttrTangent: defines.push_back("ATTR_TANGENT"); break;
-      case BufferUsage::AttrJointIndices: defines.push_back("ATTR_JOINTS"); break;
-      case BufferUsage::AttrJointWeights: defines.push_back("ATTR_WEIGHTS"); break;
-      default: break;
+  std::string shader = "main_default";
+
+  if (spec.renderPass == RenderPass::Main) {
+    if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+      shader = "main_passthrough";
     }
   }
 
-  std::string vertShader = "main_default";
-  std::string fragShader = "main_default";
-
-  if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    defines.push_back("ATTR_MODEL_MATRIX");
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
+    if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
+      shader = "main_sprite";
+    }
+    else {
+      shader = "main_quad";
+    }
+  }
+  else if (spec.meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
+    shader = "main_dynamic_text";
   }
 
-  if (spec.meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
-    defines.push_back("FEATURE_VERTEX_SKINNING");
-  }
+  return shader;
+}
+
+std::string ShaderSystemImpl::selectFragShader(const ShaderProgramSpec& spec) const
+{
+  std::string shader = "main_default";
 
   if (spec.renderPass == RenderPass::Shadow) {
-    defines.push_back("RENDER_PASS_SHADOW");
-    fragShader = "main_depth";
+    shader = "main_depth";
   }
   else {
-    defines.push_back("FEATURE_MATERIALS");
-
     if (spec.renderPass == RenderPass::Main) {
-      defines.push_back("FEATURE_LIGHTING");
-
       if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
-        vertShader = "main_passthrough";
-        fragShader = "main_skybox";
+        shader = "main_skybox";
       }
     }
 
     if (spec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
       if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
-        vertShader = "main_sprite";
-        fragShader = "main_sprite";
+        shader = "main_sprite";
       }
       else {
-        vertShader = "main_quad";
-        fragShader = "main_quad";
+        shader = "main_quad";
       }
     }
     else if (spec.meshFeatures.flags.test(MeshFeatures::IsDynamicText)) {
-      vertShader = "main_dynamic_text";
-      fragShader = "main_sprite";
+      shader = "main_sprite";
+    }
+  }
+
+  return shader;
+}
+
+ShaderSource ShaderSystemImpl::loadVertShaderSource(const ShaderProgramSpec& spec) const
+{
+  ShaderSource source;
+  source.name = "vertex";
+  source.type = ShaderType::Vertex;
+  source.fileName = selectVertShader(spec);
+  source.source = m_fileSystem.readAppDataFile(STR("shaders/vertex/"
+    << source.fileName << ".glsl"));
+
+  for (auto attr : spec.meshFeatures.vertexLayout) {
+    switch (attr) {
+      case BufferUsage::AttrPosition: source.defines.push_back("ATTR_POSITION"); break;
+      case BufferUsage::AttrNormal: source.defines.push_back("ATTR_NORMAL"); break;
+      case BufferUsage::AttrTexCoord: source.defines.push_back("ATTR_TEXCOORD"); break;
+      case BufferUsage::AttrTangent: source.defines.push_back("ATTR_TANGENT"); break;
+      case BufferUsage::AttrJointIndices: source.defines.push_back("ATTR_JOINTS"); break;
+      case BufferUsage::AttrJointWeights: source.defines.push_back("ATTR_WEIGHTS"); break;
+      default: break;
+    }
+  }
+
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+    source.defines.push_back("ATTR_MODEL_MATRIX");
+  }
+
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
+    source.defines.push_back("FEATURE_VERTEX_SKINNING");
+  }
+
+  if (spec.renderPass == RenderPass::Shadow) {
+    source.defines.push_back("RENDER_PASS_SHADOW");
+  }
+  else {
+    source.defines.push_back("FEATURE_MATERIALS");
+
+    if (spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
+      assert(spec.meshFeatures.flags.test(MeshFeatures::HasTangents));
+      source.defines.push_back("FEATURE_NORMAL_MAPPING");
+    }
+
+    if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
+      source.defines.push_back("FEATURE_TEXTURE_MAPPING");
+    }
+  }
+
+  return source;
+}
+
+ShaderSource ShaderSystemImpl::loadFragShaderSource(const ShaderProgramSpec& spec) const
+{
+  ShaderSource source;
+  source.name = "fragment";
+  source.type = ShaderType::Fragment;
+  source.fileName = selectFragShader(spec);
+  source.source = m_fileSystem.readAppDataFile(STR("shaders/fragment/"
+    << source.fileName << ".glsl"));
+
+  if (spec.renderPass == RenderPass::Shadow) {
+    source.defines.push_back("RENDER_PASS_SHADOW");
+  }
+  else {
+    source.defines.push_back("FEATURE_MATERIALS");
+
+    if (spec.renderPass == RenderPass::Main) {
+      source.defines.push_back("FEATURE_LIGHTING");
     }
 
     if (spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
       assert(spec.meshFeatures.flags.test(MeshFeatures::HasTangents));
-      defines.push_back("FEATURE_NORMAL_MAPPING");
+      source.defines.push_back("FEATURE_NORMAL_MAPPING");
     }
 
     if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
-      defines.push_back("FEATURE_TEXTURE_MAPPING");
+      source.defines.push_back("FEATURE_TEXTURE_MAPPING");
     }
   }
 
-  m_logger.info(STR("Compiling shaders with options: " << defines));
-  m_logger.info(STR("Render pass: " << static_cast<int>(spec.renderPass)));
-  m_logger.info(STR("Mesh features: " << spec.meshFeatures));
-  m_logger.info(STR("Material features: " << spec.materialFeatures));
+  return source;
+}
 
-  ShaderProgram program;
+ShaderByteCode ShaderSystemImpl::fetchShaderFromCache(ShaderType type,
+  const ShaderProgramSpec& spec) const
+{
+  // TODO
+  return ShaderByteCode{};
+}
 
-  auto vertShaderSrc =
-    m_fileSystem.readAppDataFile(STR("shaders/vertex/" << vertShader << ".glsl"));
-  auto fragShaderSrc =
-    m_fileSystem.readAppDataFile(STR("shaders/fragment/" << fragShader << ".glsl"));
-  program.vertexShaderCode = compileShader("vertex", vertShaderSrc, ShaderType::Vertex, defines);
-  program.fragmentShaderCode = compileShader("fragment", fragShaderSrc, ShaderType::Fragment,
-    defines);
+ShaderProgram ShaderSystemImpl::compileShaderProgram(const ShaderProgramSpec& spec)
+{
+  ShaderProgram program{
+    .vertexShaderCode = fetchShaderFromCache(ShaderType::Vertex, spec),
+    .fragmentShaderCode = fetchShaderFromCache(ShaderType::Fragment, spec)
+  };
+
+  if (program.vertexShaderCode.empty()) {
+    auto source = loadVertShaderSource(spec);
+    program.vertexShaderCode = compileShader(source);
+  }
+
+  if (program.fragmentShaderCode.empty()) {
+    auto source = loadFragShaderSource(spec);
+    program.fragmentShaderCode = compileShader(source);
+  }
 
   assert(program.fragmentShaderCode.size() > 0);
   assert(program.vertexShaderCode.size() > 0);
@@ -183,32 +274,33 @@ ShaderProgram ShaderSystemImpl::compileShader(const ShaderSpec& spec)
   return program;
 }
 
-std::vector<uint32_t> ShaderSystemImpl::compileShader(const std::string& name,
-  const std::vector<char>& source, ShaderType type, const std::vector<std::string>& defines)
+ShaderByteCode ShaderSystemImpl::compileShader(const ShaderSource& source)
 {
   shaderc_shader_kind kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
-  switch (type) {
+  switch (source.type) {
     case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
     case ShaderType::Fragment: kind = shaderc_shader_kind::shaderc_glsl_fragment_shader; break;
   }
+
+  m_logger.info(STR("Compiling " << source.name << " shader with options: " << source.defines));
 
   shaderc::Compiler compiler;
   shaderc::CompileOptions options;
   options.SetOptimizationLevel(shaderc_optimization_level_performance);
   options.SetWarningsAsErrors();
   options.SetIncluder(std::make_unique<SourceIncluder>(m_fileSystem));
-  for (auto& define : defines) {
+  for (auto& define : source.defines) {
     options.AddMacroDefinition(define);
   }
 
-  auto result = compiler.CompileGlslToSpv(source.data(), source.size(), kind, name.c_str(),
-    options);
+  auto result = compiler.CompileGlslToSpv(source.source.data(), source.source.size(), kind,
+    source.name.c_str(), options);
 
   if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
     EXCEPTION("Error compiling shader: " << result.GetErrorMessage());
   }
 
-  std::vector<uint32_t> code;
+  ShaderByteCode code;
   code.assign(result.cbegin(), result.cend());
 
   return code;

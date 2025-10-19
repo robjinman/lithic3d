@@ -118,7 +118,7 @@ class Pipeline
 
 using PipelinePtr = std::unique_ptr<Pipeline>;
 
-PipelinePtr createPipeline(const ShaderSpec& shaderSpec, const ShaderProgram& shader,
+PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
   VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
 

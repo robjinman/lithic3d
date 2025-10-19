@@ -8,10 +8,12 @@ class FileSystem;
 namespace render
 {
 
+using ShaderByteCode = std::vector<uint32_t>;
+
 struct ShaderProgram
 {
-  std::vector<uint32_t> vertexShaderCode;
-  std::vector<uint32_t> fragmentShaderCode;
+  ShaderByteCode vertexShaderCode;
+  ShaderByteCode fragmentShaderCode;
 };
 
 enum class ShaderType
@@ -20,19 +22,19 @@ enum class ShaderType
   Fragment
 };
 
-struct ShaderSpec
+struct ShaderProgramSpec
 {
   RenderPass renderPass;
   MeshFeatureSet meshFeatures;
   MaterialFeatureSet materialFeatures;
 
-  bool operator==(const ShaderSpec& rhs) const = default;
+  bool operator==(const ShaderProgramSpec& rhs) const = default;
 };
 
 class ShaderSystem
 {
   public:
-    virtual ShaderProgram compileShader(const ShaderSpec& spec) = 0;
+    virtual ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec) = 0;
 
     virtual ~ShaderSystem() = default;
 };
@@ -44,9 +46,9 @@ ShaderSystemPtr createShaderSystem(FileSystem& fileSystem, Logger& logger);
 } // namespace render
 
 template<>
-struct std::hash<render::ShaderSpec>
+struct std::hash<render::ShaderProgramSpec>
 {
-  std::size_t operator()(const render::ShaderSpec& spec) const noexcept
+  std::size_t operator()(const render::ShaderProgramSpec& spec) const noexcept
   {
     return hashAll(spec.renderPass, spec.meshFeatures, spec.materialFeatures);
   }

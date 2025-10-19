@@ -41,7 +41,7 @@ const std::vector<const char*> DeviceExtensions = {
 #endif
 };
 
-using PipelineKey = ShaderSpec;
+using PipelineKey = ShaderProgramSpec;
 
 struct QueueFamilyIndices
 {
@@ -353,7 +353,7 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
     auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
-      auto shader = m_shaderSystem->compileShader(key);
+      auto shader = m_shaderSystem->compileShaderProgram(key);
 
       if (!m_pipelines.contains(key)) {
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
