@@ -38,6 +38,8 @@ const auto strScream = hashString("scream");
 const auto strThrow = hashString("throw");
 const auto strTick = hashString("tick");
 
+const Tick deathPromptDelay = 0.66f * TICKS_PER_SECOND;
+
 enum class GameState
 {
   ProductActivation,
@@ -93,6 +95,7 @@ class GameImpl : public Game
     GameState m_gameState;
     bool m_shouldExit = false;
     bool m_throwingMode = false;
+    Tick m_timeOfDeath = 0;
     EntityId m_stickId = NULL_ENTITY;
     float m_sfxVolume = 0.75f;
     float m_musicVolume = 0.75f;
@@ -414,10 +417,8 @@ void GameImpl::startGame()
 
 void GameImpl::onPlayerDeath()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
-
   m_gameState = GameState::Dead;
-  sysSpatial.setEnabled(m_scene.restartGamePrompt, true);
+  m_timeOfDeath = m_currentTick;
 
   toggleThrowingMode(false);
 }
@@ -523,7 +524,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
     default: break;
   }
 
-  if (m_gameState == GameState::Dead) {
+  if (m_gameState == GameState::Dead && m_currentTick - m_timeOfDeath >= deathPromptDelay) {
     m_stateChangeFn = [this]() {
       destroyCurrentGame();
       startGame();
@@ -544,7 +545,9 @@ void GameImpl::onButtonDown(GamepadButton button)
 {
   //m_inputState.gamepadButtonsPressed.insert(button);
 
-  if (m_gameState == GameState::Dead && button != GamepadButton::B) {
+  if (m_gameState == GameState::Dead && button != GamepadButton::B
+    && m_currentTick - m_timeOfDeath >= deathPromptDelay) {
+
     m_stateChangeFn = [this]() {
       destroyCurrentGame();
       startGame();
@@ -582,7 +585,9 @@ void GameImpl::onButtonUp(GamepadButton button)
 void GameImpl::onMouseButtonDown()
 {
   if (m_gameState == GameState::Dead) {
-    if (isInsideGameArea(m_inputState.mouseX, m_inputState.mouseY)) {
+    if (isInsideGameArea(m_inputState.mouseX, m_inputState.mouseY)
+      && m_currentTick - m_timeOfDeath >= deathPromptDelay) {
+
       m_stateChangeFn = [this]() {
         destroyCurrentGame();
         startGame();
@@ -795,6 +800,13 @@ bool GameImpl::update()
   processKeyboardInput();
   processMouseInput();
   checkTimeout();
+
+  if (m_gameState == GameState::Dead || m_gameState == GameState::DeadPaused) {
+    if (m_currentTick - m_timeOfDeath >= deathPromptDelay) {
+      dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_scene.restartGamePrompt,
+        true);
+    }
+  }
 
   m_ecs->update(m_currentTick, m_inputState);
   m_eventSystem->processEvents();
