@@ -81,7 +81,7 @@ struct RemoveMeshWorkItem : public WorkItem
   RenderItemId meshId;
 };
 
-// 90 degrees anti-clockwise
+// 90 degrees clockwise
 // TODO: Support other rotations
 VkRect2D rotateRect(const VkRect2D& rect)
 {
@@ -91,21 +91,21 @@ VkRect2D rotateRect(const VkRect2D& rect)
       .y = rect.offset.x
     },
     .extent{
-      .width = rect.extent.width,
-      .height = rect.extent.height
+      .width = rect.extent.height,
+      .height = rect.extent.width
     }
   };
 }
 
-// 90 degrees anti-clockwise
+// 90 degrees clockwise
 // TODO: Support other rotations
 ScreenMargins rotateMargins(const ScreenMargins& margins)
 {
   return ScreenMargins{
-    .left = margins.top,
-    .top = margins.right,
-    .bottom = margins.left,
-    .right = margins.bottom
+    .left = margins.bottom,
+    .right = margins.top,
+    .top = margins.left,
+    .bottom = margins.right
   };
 }
 

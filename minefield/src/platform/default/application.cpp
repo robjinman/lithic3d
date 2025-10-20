@@ -14,7 +14,7 @@
 #include <windows.h>
 #endif
 
-const int WINDOWED_RESOLUTION_W = 1000;// 630;
+const int WINDOWED_RESOLUTION_W = 630;
 const int WINDOWED_RESOLUTION_H = 480;
 const int FULLSCREEN_RESOLUTION_W = 1920;
 const int FULLSCREEN_RESOLUTION_H = 1080;
@@ -145,7 +145,7 @@ Application::Application()
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
-  //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
   m_instance = this;
 
@@ -165,10 +165,7 @@ Application::Application()
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, {
-    .left = 200,
-    .bottom = 100
-  });
+  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, {});
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
 
