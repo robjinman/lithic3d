@@ -23,7 +23,7 @@ class ApplicationImpl : public Application
     ApplicationImpl(const char* bundlePath, const char* appSupportPath,
       WindowDelegatePtr windowDelegate);
 
-    void onViewResize() override;
+    void onViewResize(float w, float h) override;
     bool update() override;
     void onTouchBegin(float x, float y) override;
     void onTouchMove(float x, float y) override;
@@ -42,7 +42,7 @@ class ApplicationImpl : public Application
     AudioSystemPtr m_audioSystem;
     render::RendererPtr m_renderer;
     GamePtr m_game;
-    Vec2i m_viewportSize;
+    Vec2i m_screenSize;
     Vec2f m_leftStickDelta;
     Vec2f m_rightStickDelta;
 };
@@ -55,22 +55,28 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
   m_platformPaths = createPlatformPaths(bundlePath, appSupportPath);
   m_fileSystem = createDefaultFileSystem(*m_platformPaths);
   m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
+
+  render::ScreenMargins margins{
+    .left = 50,
+    .bottom = 50
+  };
+  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, margins);
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
 }
 
-void ApplicationImpl::onViewResize()
+void ApplicationImpl::onViewResize(float w, float h)
 {
-  m_renderer->onResize();
+  m_screenSize = { static_cast<int>(w), static_cast<int>(h) };
+  m_game->onWindowResize(w, h);
 }
 
 bool ApplicationImpl::update()
 {
-  auto viewportSize = m_renderer->getViewportSize();
-  if (viewportSize != m_viewportSize) {
-    m_game->onWindowResize(viewportSize[0], viewportSize[1]);
-    m_viewportSize = viewportSize;
+  auto screenSize = m_renderer->getScreenSize();
+  if (screenSize != m_screenSize) {
+    m_game->onWindowResize(screenSize[0], screenSize[1]);
+    m_screenSize = screenSize;
   }
 
   m_game->onLeftStickMove(m_leftStickDelta);

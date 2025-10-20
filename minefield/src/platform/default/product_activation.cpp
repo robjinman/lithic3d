@@ -92,7 +92,7 @@ EntityId ProductActivationImpl::constructPrompt()
   sysSpatial.addEntity(id, spatial);
 
   TextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -143,7 +143,7 @@ EntityId ProductActivationImpl::constructTextbox()
   sysSpatial.addEntity(id, spatial);
 
   DynamicTextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),

@@ -7,8 +7,8 @@ using Tick = long;
 const size_t TICKS_PER_SECOND = 60;
 const float WORLD_UNITS_PER_METRE = 10;
 
-const size_t MAIN_VIEWPORT = 1;
-const size_t MOBILE_CONTROLS_VIEWPORT = 2;
+const size_t MAIN_SCISSOR = 1;
+const size_t MOBILE_CONTROLS_SCISSOR = 2;
 
 inline float metresToWorldUnits(float x)
 {

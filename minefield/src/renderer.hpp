@@ -35,6 +35,14 @@ struct RemoveMeshResult : public WorkItemResultValue
 {
 };
 
+struct ScreenMargins
+{
+  uint32_t left = 0;
+  uint32_t right = 0;
+  uint32_t top = 0;
+  uint32_t bottom = 0;
+};
+
 class Renderer
 {
   public:
@@ -43,7 +51,9 @@ class Renderer
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
     virtual const ViewParams& getViewParams() const = 0;
-    virtual Vec2i getViewportSize() const = 0;
+    virtual Vec2i getScreenSize() const = 0;
+    virtual Vec2i getViewportSize() const = 0;  // Screen size after subtracting margins
+    virtual const ScreenMargins& getMargins() const = 0;
     virtual void checkError() const = 0;
 
     // Initialisation
@@ -78,7 +88,7 @@ class Renderer
     virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
       const Mat4x4f& viewMatrix) = 0;
     virtual void setOrderKey(uint32_t order) = 0;
-    virtual void setViewport(const Recti& viewport) = 0;
+    virtual void setScissor(const Recti& scissor) = 0;
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const Vec4f& colour) = 0;
     virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
@@ -107,4 +117,5 @@ class FileSystem;
 class WindowDelegate;
 class Logger;
 
-render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger);
+render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger,
+  const render::ScreenMargins& margins);

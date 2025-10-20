@@ -29,7 +29,7 @@ struct RenderNode
   RenderNodeType type;
   MeshHandle mesh;
   MaterialHandle material;
-  uint32_t viewportId = 0;
+  uint32_t scissorId = 0;
 
   virtual ~RenderNode() = default;
 };
@@ -120,7 +120,8 @@ using PipelinePtr = std::unique_ptr<Pipeline>;
 
 PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
-  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
+  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  const ScreenMargins& margins);
 
 } // namespace render
 

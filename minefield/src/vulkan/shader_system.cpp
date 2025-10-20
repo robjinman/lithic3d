@@ -116,8 +116,8 @@ class ShaderSystemImpl : public ShaderSystem
 };
 
 ShaderSystemImpl::ShaderSystemImpl(FileSystem& fileSystem, Logger& logger)
-  : m_fileSystem(fileSystem)
-  , m_logger(logger)
+  : m_logger(logger)
+  , m_fileSystem(fileSystem)
 {
   auto currentBuildId = getBuildId();
 

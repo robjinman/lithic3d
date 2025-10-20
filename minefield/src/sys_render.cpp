@@ -32,7 +32,7 @@ namespace
 
 Mat4x4f screenToWorld(const Mat4x4f& transform, float aspect)
 {
-  static Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 0.f });
+  Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 0.f });
   return M * transform;
 }
 
@@ -189,8 +189,9 @@ class SysRenderImpl : public SysRender
     void addEntity(EntityId entityId, const DynamicTextData& data) override;
     void addEntity(EntityId entityId, const QuadData& data) override;
 
-    void addViewport(ViewportId id, const Recti& viewport) override;
+    void addScissor(ScissorId id, const Recti& scissor) override;
     void setClearColour(const Vec4f& colour) override;
+    void onResize() override;
 
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
@@ -212,7 +213,7 @@ class SysRenderImpl : public SysRender
     MaterialHandle m_textureAtlas;
     MeshHandle m_mesh;
     std::unordered_map<EntityId, MeshHandle> m_textItems;
-    std::unordered_map<ViewportId, Recti> m_viewports;
+    std::unordered_map<ScissorId, Recti> m_scissors;
     Vec4f m_clearColour{ 0.f, 0.f, 0.f, 1.f };
 };
 
@@ -296,10 +297,6 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
   m_textureAtlas = m_renderer.addMaterial(std::move(atlasMaterial));
 
   m_mesh = m_renderer.addMesh(quad());
-
-  auto screenAspect = m_renderer.getViewParams().aspectRatio;
-  float gameAspect = 630.f / 480.f;  // TODO
-  m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
 }
 
 void SysRenderImpl::start()
@@ -312,11 +309,11 @@ double SysRenderImpl::frameRate() const
   return m_renderer.frameRate();
 }
 
-void SysRenderImpl::addViewport(ViewportId id, const Recti& viewport)
+void SysRenderImpl::addScissor(ScissorId id, const Recti& scissor)
 {
-  ASSERT(id != 0, "Viewport ID 0 is reserved; choose a different number");
+  ASSERT(id != 0, "Scissor ID 0 is reserved; choose a different number");
 
-  m_viewports[id] = viewport;
+  m_scissors[id] = scissor;
 }
 
 void SysRenderImpl::setClearColour(const Vec4f& colour)
@@ -324,10 +321,15 @@ void SysRenderImpl::setClearColour(const Vec4f& colour)
   m_clearColour = colour;
 }
 
+void SysRenderImpl::onResize()
+{
+  m_renderer.onResize();  // Async
+}
+
 void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
-  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
+  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -338,7 +340,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
-    .viewport = data.viewport
+    .scissor = data.scissor
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
@@ -363,7 +365,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
 void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
-  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
+  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -375,7 +377,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
-    .viewport = data.viewport
+    .scissor = data.scissor
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
@@ -407,7 +409,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
 
 void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
 {
-  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
+  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -417,13 +419,13 @@ void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
-    .viewport = data.viewport
+    .scissor = data.scissor
   };
 }
 
 void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
 {
-  ASSERT(data.viewport != 0, "Viewport ID 0 is reserved; choose a different number");
+  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -434,7 +436,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
-    .viewport = data.viewport
+    .scissor = data.scissor
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
@@ -501,10 +503,14 @@ const Camera& SysRenderImpl::camera() const
 void SysRenderImpl::update(Tick, const InputState&)
 {
   try {
+    auto screenAspect = m_renderer.getViewParams().aspectRatio;
+    float gameAspect = 630.f / 480.f;  // TODO
+    m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
+
     m_renderer.beginFrame(m_clearColour);
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-    ViewportId viewport = 0;
+    ScissorId scissor = 0;
     for (auto& group : m_componentStore.components<CRender>()) {
       size_t n = group.numEntities();
       auto renderComps = group.components<CRender>();
@@ -529,9 +535,9 @@ void SysRenderImpl::update(Tick, const InputState&)
 
         m_renderer.setOrderKey(renderComp.zIndex);
 
-        if (renderComp.viewport != viewport) {
-          viewport = renderComp.viewport;
-          m_renderer.setViewport(m_viewports.at(viewport));
+        if (renderComp.scissor != scissor) {
+          scissor = renderComp.scissor;
+          m_renderer.setScissor(m_scissors.at(scissor));
         }
 
         if (!spriteComps.empty()) {

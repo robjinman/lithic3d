@@ -81,17 +81,49 @@ struct RemoveMeshWorkItem : public WorkItem
   RenderItemId meshId;
 };
 
+// 90 degrees anti-clockwise
+// TODO: Support other rotations
+VkRect2D rotateRect(const VkRect2D& rect)
+{
+  return VkRect2D{
+    .offset {
+      .x = rect.offset.y,
+      .y = rect.offset.x
+    },
+    .extent{
+      .width = rect.extent.width,
+      .height = rect.extent.height
+    }
+  };
+}
+
+// 90 degrees anti-clockwise
+// TODO: Support other rotations
+ScreenMargins rotateMargins(const ScreenMargins& margins)
+{
+  return ScreenMargins{
+    .left = margins.top,
+    .top = margins.right,
+    .bottom = margins.left,
+    .right = margins.bottom
+  };
+}
+
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger);
+    RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
+      const ScreenMargins& margins);
 
     void start() override;
     bool isStarted() const override;
     void onResize() override;
     double frameRate() const override;
+    // TODO: Is this just the perspective projection? What about orthographic?
     const ViewParams& getViewParams() const override;
+    Vec2i getScreenSize() const override;
     Vec2i getViewportSize() const override;
+    const ScreenMargins& getMargins() const override;
     void checkError() const override;
 
     // Initialisation
@@ -124,7 +156,7 @@ class RendererImpl : public Renderer
     void beginFrame(const Vec4f& clearColour) override;
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void setOrderKey(uint32_t order) override;
-    void setViewport(const Recti& viewport) override;
+    void setScissor(const Recti& scissor) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
     void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const Vec4f& colour) override;
@@ -186,7 +218,7 @@ class RendererImpl : public Renderer
     void renderLoop();
     void cleanUp();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
-      const std::vector<VkRect2D>& viewports, VkCommandBuffer commandBuffer);
+      const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer);
     RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
       MaterialHandle material) const;
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
@@ -194,6 +226,7 @@ class RendererImpl : public Renderer
       const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
     void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
 
+    ScreenMargins m_margins;
     ShaderSystemPtr m_shaderSystem;
     ViewParams m_viewParams;
     VulkanWindowDelegate& m_window;
@@ -210,7 +243,8 @@ class RendererImpl : public Renderer
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
     bool m_viewRotated = false;
-    Vec2i m_viewDimensions; // Equivalent to swapchain extent, with width/height swapped if rotated
+    // Equals swapchain extent (with width/height swapped if rotated) with margins subtracted
+    Vec2i m_viewDimensions;
     std::vector<VkImageView> m_swapchainImageViews;
     std::vector<VkImage> m_swapchainImages;
     VkImage m_depthImage;
@@ -260,8 +294,8 @@ class RendererImpl : public Renderer
       Vec4f clearColour;
       std::optional<RenderPass> currentRenderPass;
       uint32_t currentOrderKey = 0;
-      std::vector<VkRect2D> viewports;
-      uint32_t currentViewport = 0;
+      std::vector<VkRect2D> scissors;
+      uint32_t currentScissor = 0;
     };
 
     TripleBuffer<FrameState> m_frameStates;
@@ -280,8 +314,10 @@ class RendererImpl : public Renderer
     WorkQueue m_workQueue;
 };
 
-RendererImpl::RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger)
-  : m_window(window)
+RendererImpl::RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
+  const ScreenMargins& margins)
+  : m_margins(margins)
+  , m_window(window)
   , m_logger(logger)
 {
   DBG_TRACE(m_logger);
@@ -356,7 +392,8 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
 
       if (!m_pipelines.contains(key)) {
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
-          m_swapchainImageFormat, depthFormat);
+          m_swapchainImageFormat, depthFormat,
+          m_viewRotated ? rotateMargins(m_margins) : m_margins);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
       }
@@ -401,9 +438,22 @@ const ViewParams& RendererImpl::getViewParams() const
   return m_viewParams;
 }
 
+Vec2i RendererImpl::getScreenSize() const
+{
+  return {
+    static_cast<int>(m_swapchainExtent.width),
+    static_cast<int>(m_swapchainExtent.height)
+  };
+}
+
 Vec2i RendererImpl::getViewportSize() const
 {
   return m_viewDimensions;
+}
+
+const ScreenMargins& RendererImpl::getMargins() const
+{
+  return m_margins;
 }
 
 RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
@@ -464,7 +514,7 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
     auto newNode = std::make_unique<InstancedModelNode>();
     newNode->mesh = mesh;
     newNode->material = material;
-    newNode->viewportId = frameState.currentViewport;
+    newNode->scissorId = frameState.currentScissor;
     node = newNode.get();
     renderGraph.insert(key, std::move(newNode));
     state.lookup.insert({ key, node });
@@ -487,7 +537,7 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->uvCoords = uvCoords;
   node->colour = colour;
-  node->viewportId = frameState.currentViewport;
+  node->scissorId = frameState.currentScissor;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -507,7 +557,7 @@ void RendererImpl::drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f&
   node->mesh = mesh;
   node->modelMatrix = transform;
   node->colour = colour;
-  node->viewportId = frameState.currentViewport;
+  node->scissorId = frameState.currentScissor;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, node->material);
 
@@ -545,7 +595,7 @@ void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->colour = colour;
   node->jointTransforms = jointTransforms;
-  node->viewportId = frameState.currentViewport;
+  node->scissorId = frameState.currentScissor;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -583,7 +633,7 @@ void RendererImpl::drawDynamicText(MeshHandle mesh, MaterialHandle material,
   node->modelMatrix = transform;
   node->text = text;
   node->colour = colour;
-  node->viewportId = frameState.currentViewport;
+  node->scissorId = frameState.currentScissor;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -602,7 +652,7 @@ void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
   auto node = std::make_unique<SkyboxNode>();
   node->mesh = mesh;
   node->material = material;
-  node->viewportId = frameState.currentViewport;
+  node->scissorId = frameState.currentScissor;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
 
@@ -619,9 +669,9 @@ void RendererImpl::beginFrame(const Vec4f& clearColour)
   state.clearColour = clearColour;
   state.currentRenderPass = std::nullopt;
   state.renderPasses.clear();
-  state.viewports.clear();
-  state.viewports.push_back({ VkOffset2D{0, 0}, m_swapchainExtent });
-  state.currentViewport = 0;
+  state.scissors.clear();
+  state.scissors.push_back({ VkOffset2D{0, 0}, m_swapchainExtent });
+  state.currentScissor = 0;
 }
 
 void RendererImpl::setOrderKey(uint32_t order)
@@ -629,21 +679,21 @@ void RendererImpl::setOrderKey(uint32_t order)
   m_frameStates.getWritable().currentOrderKey = order;
 }
 
-void RendererImpl::setViewport(const Recti& viewport)
+void RendererImpl::setScissor(const Recti& scissor)
 {
   auto& state = m_frameStates.getWritable();
-  uint32_t index = static_cast<uint32_t>(state.viewports.size());
-  state.viewports.push_back(VkRect2D{
+  uint32_t index = static_cast<uint32_t>(state.scissors.size());
+  state.scissors.push_back(VkRect2D{
     .offset{
-      .x = viewport.x,
-      .y = viewport.y
+      .x = scissor.x,
+      .y = scissor.y
     },
     .extent{
-      .width = static_cast<uint32_t>(viewport.w),
-      .height = static_cast<uint32_t>(viewport.h)
+      .width = static_cast<uint32_t>(scissor.w),
+      .height = static_cast<uint32_t>(scissor.h)
     }
   });
-  state.currentViewport = index;
+  state.currentScissor = index;
 }
 
 void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix)
@@ -953,11 +1003,15 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
     minImageCount = std::min(minImageCount, swapchainSupport.capabilities.maxImageCount);
   }
 
-  m_viewDimensions = { static_cast<int>(extent.width), static_cast<int>(extent.height) };
+  m_viewDimensions = {
+    static_cast<int>(extent.width - m_margins.left - m_margins.right),
+    static_cast<int>(extent.height - m_margins.top - m_margins.bottom)
+  };
 
   m_logger.info(STR("Surface capabilities currentTransform = "
     << swapchainSupport.capabilities.currentTransform));
 
+  // TODO: Support 270 rotation
   float rotation = 0;
   if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
     rotation = degreesToRadians(90.f);
@@ -995,7 +1049,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
-  createInfo.oldSwapchain = VK_NULL_HANDLE;
+  createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO
 
   VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain),
     "Failed to create swap chain");
@@ -1017,7 +1071,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
 
 void RendererImpl::setOrthographicMatrix(float rotation)
 {
-  float aspect = m_viewDimensions[0] / static_cast<float>(m_viewDimensions[1]);
+  float aspect = static_cast<float>(m_viewDimensions[0]) / m_viewDimensions[1];
 
   m_logger.info(STR("Creating orthographic matrix from viewport dimensions "
     << m_viewDimensions[0] << ", " << m_viewDimensions[1]));
@@ -1046,7 +1100,7 @@ void RendererImpl::setOrthographicMatrix(float rotation)
 
 void RendererImpl::setPerspectiveMatrix(float rotation)
 {
-  float aspect = m_viewDimensions[0] / static_cast<float>(m_viewDimensions[1]);
+  float aspect = static_cast<float>(m_viewDimensions[0]) / m_viewDimensions[1];
 
   m_viewParams.aspectRatio = aspect;
   m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
@@ -1345,15 +1399,10 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   return *i->second;
 }
 
-void rotateRect(VkRect2D& rect) {
-  std::swap(rect.extent.width, rect.extent.height);
-  std::swap(rect.offset.x, rect.offset.y);
-}
-
 void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
-  const std::vector<VkRect2D>& viewports, VkCommandBuffer commandBuffer)
+  const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer)
 {
-  uint32_t viewportId = std::numeric_limits<uint32_t>::max();
+  uint32_t scissorId = std::numeric_limits<uint32_t>::max();
   Pipeline* prevPipeline = nullptr;
   BindState bindState{};
 
@@ -1377,12 +1426,18 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
 
     auto& pipeline = choosePipeline(renderPass, *node);
 
-    if (node->viewportId != viewportId || &pipeline != prevPipeline) {
-      viewportId = node->viewportId;
-      auto rect = viewports[viewportId];
-      if (m_viewRotated) {
-        rotateRect(rect);
-      }
+    if (node->scissorId != scissorId || &pipeline != prevPipeline) {
+      scissorId = node->scissorId;
+      auto margins = m_viewRotated ? rotateMargins(m_margins) : m_margins;
+      auto rect = m_viewRotated ? rotateRect(scissors[scissorId]) : scissors[scissorId];
+      rect.offset.x += margins.left;
+      rect.offset.y += margins.top;
+
+      //VkRect2D rect{
+      //  .offset{},
+      //  .extent = m_swapchainExtent
+      //};
+
       vkCmdSetScissor(commandBuffer, 0, 1, &rect);
       prevPipeline = &pipeline;
     }
@@ -1454,7 +1509,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Shadow, renderGraph, frameState.viewports, commandBuffer);
+  recordCommandBuffer(RenderPass::Shadow, renderGraph, frameState.scissors, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1562,7 +1617,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Main, renderGraph, frameState.viewports, commandBuffer);
+  recordCommandBuffer(RenderPass::Main, renderGraph, frameState.scissors, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1651,7 +1706,7 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Overlay);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.viewports, commandBuffer);
+  recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.scissors, commandBuffer);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -2027,8 +2082,9 @@ RendererImpl::~RendererImpl()
 } // namespace
 } // namespace render
 
-render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger)
+render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger,
+  const render::ScreenMargins& margins)
 {
   return std::make_unique<render::RendererImpl>(fileSystem,
-    dynamic_cast<VulkanWindowDelegate&>(window), logger);
+    dynamic_cast<VulkanWindowDelegate&>(window), logger, margins);
 }

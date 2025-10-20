@@ -115,7 +115,7 @@ class Application
     GamePtr m_game;
     Vec2f m_leftStickDelta;
     Vec2f m_rightStickDelta;
-    Vec2i m_viewportSize;
+    Vec2i m_screenSize;
 };
 
 using ApplicationPtr = std::unique_ptr<Application>;
@@ -126,18 +126,18 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   , m_fileSystem(std::move(fileSystem))
 {
   m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, m_logger);
-  m_viewportSize = m_renderer->getViewportSize();
+  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, m_logger, {});
+  m_screenSize = m_renderer->getScreenSize();
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger);
 }
 
 bool Application::update()
 {
-  auto viewportSize = m_renderer->getViewportSize();
-  if (viewportSize != m_viewportSize) {
-    m_game->onWindowResize(viewportSize[0], viewportSize[1]);
-    m_viewportSize = viewportSize;
+  auto screenSize = m_renderer->getScreenSize();
+  if (screenSize != m_screenSize) {
+    m_game->onWindowResize(screenSize[0], screenSize[1]);
+    m_screenSize = screenSize;
   }
 
   m_game->onLeftStickMove(m_leftStickDelta);

@@ -115,11 +115,11 @@ class GameImpl : public Game
     void positionThrowingIndicator(const Vec2f& pos);
     void throwStick(float x, float y);
     void adjustVolume();
-    void setViewport(uint32_t screenW, uint32_t screenH);
-    void setMobileControlsViewport(uint32_t screenW, uint32_t screenH);
+    void setScissor(uint32_t viewportW, uint32_t viewportH);
+    void setMobileControlsScissor(uint32_t viewportW, uint32_t viewportH);
     bool isInsideGameArea(float x, float y) const;
     Vec2f throwingIndicatorPosition() const;
-    Rectf calculateGameArea(uint32_t screenW, uint32_t screenH) const;
+    Rectf calculateGameArea(uint32_t viewportW, uint32_t viewportH) const;
 };
 
 GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
@@ -189,8 +189,8 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
 
   m_renderer.start();
 
-  setViewport(viewport[0], viewport[1]);
-  setMobileControlsViewport(viewport[0], viewport[1]);
+  setScissor(viewport[0], viewport[1]);
+  setMobileControlsScissor(viewport[0], viewport[1]);
 
 #ifdef DRM
   m_drm = createDrm(m_fileSystem);
@@ -234,57 +234,75 @@ void GameImpl::showMobileControls()
   }
 }
 
-Rectf GameImpl::calculateGameArea(uint32_t screenW, uint32_t screenH) const
+Rectf GameImpl::calculateGameArea(uint32_t viewportW, uint32_t viewportH) const
 {
-  float screenAspect = static_cast<float>(screenW) / screenH;
-  float margin = (screenAspect - GAME_AREA_ASPECT) / 2.f;
+  float aspect = static_cast<float>(viewportW) / viewportH;
+  float marginWithinViewport = (aspect - GAME_AREA_ASPECT) / 2.f;
 
   return Rectf{
-    .x = margin,
-    .y = 0,
+    .x = marginWithinViewport,
+    .y = 0.f,
     .w = GAME_AREA_ASPECT,
     .h = 1.f
   };
 }
 
-void GameImpl::setMobileControlsViewport(uint32_t screenW, uint32_t screenH)
+void GameImpl::setMobileControlsScissor(uint32_t viewportW, uint32_t viewportH)
 {
   auto& sysRender = dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM));
 
   Recti fullScreen{
     .x = 0,
     .y = 0,
-    .w = static_cast<int>(screenW),
-    .h = static_cast<int>(screenH)
+    .w = static_cast<int>(viewportW),
+    .h = static_cast<int>(viewportH)
   };
 
-  sysRender.addViewport(MOBILE_CONTROLS_VIEWPORT, fullScreen);
+  sysRender.addScissor(MOBILE_CONTROLS_SCISSOR, fullScreen);
 }
 
-void GameImpl::setViewport(uint32_t screenW, uint32_t screenH)
+void GameImpl::setScissor(uint32_t viewportW, uint32_t viewportH)
 {
-  float gameAreaWidth = GAME_AREA_ASPECT * screenH;
-  int x = static_cast<int>(0.5f * (static_cast<float>(screenW) - gameAreaWidth));
-  Recti viewport{
+  float gameAreaWidth = GAME_AREA_ASPECT * viewportH;
+  int x = static_cast<int>(0.5f * (static_cast<float>(viewportW) - gameAreaWidth));
+  Recti scissor{
     .x = x,
     .y = 0,
     .w = static_cast<int>(gameAreaWidth),
-    .h = static_cast<int>(screenH)
+    .h = static_cast<int>(viewportH)
   };
-  dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).addViewport(MAIN_VIEWPORT, viewport);
+  dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).addScissor(MAIN_SCISSOR, scissor);
 
-  m_logger.info(STR("Resetting viewport: screen (w: " << screenW << ", h: " << screenH << "), "
-    << "viewport (x: " << viewport.x << ", y: " << viewport.y << ", w: " << viewport.w << ", h: "
-    << viewport.h << ")"));
+  auto& margins = m_renderer.getMargins();
 
-  m_viewportOffset = { viewport.x, viewport.y };
+  m_viewportOffset = {
+    scissor.x + static_cast<int>(margins.left),
+    scissor.y + static_cast<int>(margins.top)
+  };
 }
 
 void GameImpl::onWindowResize(uint32_t w, uint32_t h)
 {
-  setViewport(w, h);
-  setMobileControlsViewport(w, h);
-  m_mobileControls->setGameArea(calculateGameArea(w, h));
+  auto& margins = m_renderer.getMargins();
+
+  float viewportW = w - margins.left - margins.right;
+  float viewportH = h - margins.top - margins.bottom;
+
+  auto gameArea = calculateGameArea(viewportW, viewportH);
+
+  m_logger.info(STR("Window resized (w: " << w << ", h: " << h << ")"));
+  m_logger.info(STR("Screen margins (l: " << margins.left << ", r: " << margins.right
+    << ", t: " << margins.top << ", b: " << margins.bottom << ")"));
+  m_logger.info(STR("Viewport (w: " << viewportW << ", h: " << viewportH << ")"));
+  m_logger.info(STR("Game area (x: " << gameArea.x << ", y: " << gameArea.y << ", w: "
+    << gameArea.w << ", h: " << gameArea.h << ")"));
+
+  setScissor(viewportW, viewportH);
+  setMobileControlsScissor(viewportW, viewportH);
+
+  m_mobileControls->setGameArea(gameArea);
+
+  dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).onResize();
 }
 
 void GameImpl::handleMenuEvent(const Event& event)

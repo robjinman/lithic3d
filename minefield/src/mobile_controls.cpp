@@ -145,7 +145,7 @@ EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, Enti
   sysSpatial.addEntity(labelId, spatial);
 
   TextData render{
-    .viewport = MOBILE_CONTROLS_VIEWPORT,
+    .scissor = MOBILE_CONTROLS_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -185,7 +185,7 @@ EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPres
   sysSpatial.addEntity(id, spatial);
 
   QuadData render{
-    .viewport = MOBILE_CONTROLS_VIEWPORT,
+    .scissor = MOBILE_CONTROLS_SCISSOR,
     .zIndex = zIndex,
     .colour = colourUnpressed
   };

@@ -214,7 +214,7 @@ EntityId SceneBuilderImpl::constructPlayer()
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(384.f),
       .y = pxToUvY(256.f, 48.f),
@@ -369,7 +369,7 @@ void SceneBuilderImpl::constructSky()
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(416.f, 32.f),
@@ -427,7 +427,7 @@ void SceneBuilderImpl::constructClouds()
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
         .y = pxToUvY(0.f, 32.f),
@@ -469,7 +469,7 @@ void SceneBuilderImpl::constructClouds()
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
         .y = pxToUvY(32.f, 32.f),
@@ -515,7 +515,7 @@ void SceneBuilderImpl::constructTrees()
   sysSpatial.addEntity(id, spatial);
   
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(352.f, 40.f),
@@ -554,7 +554,7 @@ void SceneBuilderImpl::constructFakeSoil()
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(384.f),
         .y = pxToUvY(0.f, 16.f),
@@ -631,7 +631,7 @@ void SceneBuilderImpl::constructSoil()
       sysSpatial.addEntity(id, spatial);
 
       SpriteData render{
-        .viewport = MAIN_VIEWPORT,
+        .scissor = MAIN_SCISSOR,
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
           .y = pxToUvY(0.f, 16.f),
@@ -745,7 +745,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(672.f),
         .y = pxToUvY(224.f, 32.f),
@@ -841,7 +841,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       sysSpatial.addEntity(id, spatial);
 
       SpriteData render{
-        .viewport = MAIN_VIEWPORT,
+        .scissor = MAIN_SCISSOR,
         .textureRect = Rectf{
           .x = pxToUvX(16.f * (value - 1)),
           .y = pxToUvY(400.f, 16.f),
@@ -884,7 +884,7 @@ void SceneBuilderImpl::constructGradient()
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(512.f),
       .y = pxToUvY(256.f, 128.f),
@@ -991,7 +991,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
         .y = pxToUvY(0.f, 16.f),
@@ -1111,7 +1111,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
         .y = pxToUvY(64.f, 32.f),
@@ -1268,7 +1268,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
       .x = pxToUvX(256.f),
       .y = pxToUvY(256.f, 48.f),
@@ -1376,7 +1376,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     sysSpatial.addEntity(id, spatial);
 
     SpriteData render{
-      .viewport = MAIN_VIEWPORT,
+      .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
         .y = pxToUvY(160.f, 32.f),
@@ -1458,7 +1458,7 @@ void SceneBuilderImpl::constructExit()
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(128.f),
       .y = pxToUvY(416.f, 16.f),
@@ -1511,7 +1511,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
   sysSpatial.addEntity(id, spatial);
 
   DynamicTextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -1578,7 +1578,7 @@ void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
   sysSpatial.addEntity(id, spatial);
 
   DynamicTextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -1618,7 +1618,7 @@ EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& 
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = texRect,
     .zIndex = zIndex
   };
@@ -1665,7 +1665,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
   sysSpatial.addEntity(id, spatial);
 
   TextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),

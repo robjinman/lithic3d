@@ -138,13 +138,13 @@ VkPipelineInputAssemblyStateCreateInfo defaultInputAssemblyState()
 }
 
 VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkRect2D& scissor,
-  VkExtent2D swapchainExtent)
+  VkExtent2D swapchainExtent, const Rectf& viewportRect)
 {
   viewport = VkViewport{
-    .x = 0.f,
-    .y = 0.f,
-    .width = static_cast<float>(swapchainExtent.width),
-    .height = static_cast<float>(swapchainExtent.height),
+    .x = viewportRect.x,
+    .y = viewportRect.y,
+    .width = viewportRect.w,
+    .height = viewportRect.h,
     .minDepth = 0.f,
     .maxDepth = 1.f
   };
@@ -270,7 +270,8 @@ class PipelineImpl : public Pipeline
   public:
     PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
-      VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat);
+      VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+      const ScreenMargins& margins);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
@@ -285,11 +286,11 @@ class PipelineImpl : public Pipeline
     ShaderProgramSpec m_spec;
     VkDevice m_device;
     VkFormat m_swapchainImageFormat;
+    ScreenMargins m_margins;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
     VkShaderModule m_fragShaderModule = VK_NULL_HANDLE;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_layout = VK_NULL_HANDLE;
-
     VkPipelineShaderStageCreateInfo m_vertShaderStageInfo;
     VkPipelineShaderStageCreateInfo m_fragShaderStageInfo;
     std::vector<VkVertexInputAttributeDescription> m_vertexAttributeDescriptions;
@@ -315,12 +316,14 @@ class PipelineImpl : public Pipeline
 
 PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
-  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
+  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  const ScreenMargins& margins)
   : m_logger(logger)
   , m_renderResources(renderResources)
   , m_spec(spec)
   , m_device(device)
   , m_swapchainImageFormat(swapchainImageFormat)
+  , m_margins(margins)
 {
   m_vertShaderModule = createShaderModule(m_device, shader.vertexShaderCode);
   m_fragShaderModule = createShaderModule(m_device, shader.fragmentShaderCode);
@@ -545,7 +548,15 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     m_fragShaderStageInfo
   };
 
-  auto viewportStateInfo = defaultViewportState(m_viewport, m_initialScissor, m_swapchainExtent);
+  Rectf rect{
+    .x = static_cast<float>(m_margins.left),
+    .y = static_cast<float>(m_margins.top),
+    .w = static_cast<float>(swapchainExtent.width - m_margins.left - m_margins.right),
+    .h = static_cast<float>(swapchainExtent.height - m_margins.top - m_margins.bottom)
+  };
+
+  auto viewportStateInfo = defaultViewportState(m_viewport, m_initialScissor, m_swapchainExtent,
+    rect);
 
   std::vector<VkDynamicState> dynamicStates{ VK_DYNAMIC_STATE_SCISSOR };
 
@@ -749,10 +760,11 @@ PipelineImpl::~PipelineImpl()
 
 PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shaderProgram,
   const RenderResources& renderResources, Logger& logger, VkDevice device,
-  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat)
+  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  const ScreenMargins& margins)
 {
   return std::make_unique<PipelineImpl>(spec, shaderProgram, renderResources, logger, device,
-    swapchainExtent, swapchainImageFormat, depthFormat);
+    swapchainExtent, swapchainImageFormat, depthFormat, margins);
 }
 
 } // namespace render

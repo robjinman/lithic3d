@@ -393,7 +393,7 @@ void MenuSystemImpl::constructBackdrop()
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
       .y = pxToUvY(4.f, 252.f),
@@ -443,7 +443,7 @@ void MenuSystemImpl::constructFlare()
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
       .y = pxToUvY(256.f, 256.f),
@@ -486,7 +486,7 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
   sysSpatial.addEntity(id, spatial);
 
   SpriteData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = sprite.texRect,
     .zIndex = static_cast<uint32_t>(ZIndex::MenuItem)
   };
@@ -705,7 +705,7 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
   sysSpatial.addEntity(id, spatial);
 
   QuadData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
     .colour = colour
   };
@@ -828,7 +828,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   sysSpatial.addEntity(musicIconId, musicIconSpatial);
 
   SpriteData musicIconRender{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(96.f),
       .y = pxToUvY(448.f, 64.f),
@@ -853,7 +853,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   sysSpatial.addEntity(sfxIconId, sfxIconSpatial);
 
   SpriteData sfxIconRender{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
       .y = pxToUvY(448.f, 64.f),
@@ -1080,7 +1080,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
   sysSpatial.addEntity(id, spatial);
 
   TextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -1190,7 +1190,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   sysSpatial.addEntity(logoId, logoSpatial);
 
   SpriteData logoRender{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect{
       .x = pxToUvX(512.f),
       .y = pxToUvY(384.f, 128.f),
@@ -1298,7 +1298,7 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
   sysSpatial.addEntity(counterId, spatial);
 
   DynamicTextData render{
-    .viewport = MAIN_VIEWPORT,
+    .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),

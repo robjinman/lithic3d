@@ -14,7 +14,7 @@
 #include <windows.h>
 #endif
 
-const int WINDOWED_RESOLUTION_W = 630;
+const int WINDOWED_RESOLUTION_W = 1000;// 630;
 const int WINDOWED_RESOLUTION_H = 480;
 const int FULLSCREEN_RESOLUTION_W = 1920;
 const int FULLSCREEN_RESOLUTION_H = 1080;
@@ -68,6 +68,7 @@ class Application
     void onMouseMove(float x, float y);
     void onMouseClick();
     void onJoystickEvent(int event);
+    void onWindowResize(int w, int h);
 
     ~Application();
 
@@ -77,6 +78,7 @@ class Application
     static void onMouseMove(GLFWwindow*, double x, double y);
     static void onMouseClick(GLFWwindow* window, int, int, int);
     static void onJoystickEvent(int, int event);
+    static void onWindowResize(GLFWwindow* window, int w, int h);
 
     GLFWwindow* m_window;
     PlatformPathsPtr m_platformPaths;
@@ -131,12 +133,19 @@ void Application::onJoystickEvent(int, int event)
   }
 }
 
+void Application::onWindowResize(GLFWwindow*, int w, int h)
+{
+  if (m_instance) {
+    m_instance->onWindowResize(w, h);
+  }
+}
+
 Application::Application()
 {
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
   m_instance = this;
 
@@ -144,6 +153,8 @@ Application::Application()
     nullptr);
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
+
+  glfwSetWindowSizeCallback(m_window, onWindowResize);
 
   m_controlMode = glfwJoystickPresent(GLFW_JOYSTICK_1) ?
     ControlMode::Gamepad :
@@ -154,7 +165,10 @@ Application::Application()
   m_windowDelegate = createWindowDelegate(*m_window);
   m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger);
+  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, {
+    .left = 200,
+    .bottom = 100
+  });
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
 
@@ -244,7 +258,6 @@ void Application::toggleFullScreen()
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-    m_renderer->onResize();
     m_game->onWindowResize(m_initialWindowState.width, m_initialWindowState.height);
 
     m_fullscreen = false;
@@ -261,11 +274,15 @@ void Application::toggleFullScreen()
 
     //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    m_renderer->onResize();
     m_game->onWindowResize(FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H);
 
     m_fullscreen = true;
   }
+}
+
+void Application::onWindowResize(int w, int h)
+{
+  m_game->onWindowResize(w, h);
 }
 
 void Application::onMouseMove(float x, float y)

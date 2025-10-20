@@ -250,7 +250,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   metalLayer.bounds = CGRectMake(0, 0, size.width, size.height);
   metalLayer.drawableSize = drawableSize;
 
-  _application->onViewResize();
+  _application->onViewResize(drawableSize.width, drawableSize.height);
 }
 
 - (void)viewWillLayoutSubviews
