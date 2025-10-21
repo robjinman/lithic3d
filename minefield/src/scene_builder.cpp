@@ -909,11 +909,12 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
     return AnimationFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
+      // Tweak the size and position a bit
       .textureRect = Rectf{
         .x = pxToUvX(tx),
-        .y = pxToUvY(ty, 16.f),
+        .y = pxToUvY(ty - 1, 16 + 1.f),
         .w = pxToUvW(16.f),
-        .h = pxToUvH(16.f)
+        .h = pxToUvH(16 + 1.f)
       },
       .colour = Vec4f{ 1.f, 1.f, 1.f, a }
     };
