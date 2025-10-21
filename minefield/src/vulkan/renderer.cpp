@@ -239,7 +239,7 @@ class RendererImpl : public Renderer
     VkDevice m_device;
     VkQueue m_graphicsQueue;
     VkQueue m_presentQueue;
-    VkSwapchainKHR m_swapchain;
+    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
     bool m_viewRotated = false;
@@ -1049,7 +1049,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
-  createInfo.oldSwapchain = VK_NULL_HANDLE; // TODO
+  createInfo.oldSwapchain = m_swapchain;
 
   VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain),
     "Failed to create swap chain");
