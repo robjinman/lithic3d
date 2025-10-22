@@ -17,7 +17,7 @@ struct ViewParams
 
 enum class RenderPass
 {
-  Shadow,
+  Shadow = 0,
   Main,
   Ssr,
   Overlay
@@ -117,5 +117,5 @@ class FileSystem;
 class WindowDelegate;
 class Logger;
 
-render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger,
-  const render::ScreenMargins& margins);
+render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
+  Logger& logger, const render::ScreenMargins& margins);

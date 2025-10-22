@@ -205,6 +205,7 @@ else()
   include(CPack)
 
   if(PLATFORM_LINUX OR PLATFORM_OSX OR PLATFORM_WINDOWS)
+    add_subdirectory("tools")
     add_subdirectory("test")
   endif()
 

@@ -2,6 +2,9 @@
 
 #include "renderer.hpp"
 
+namespace render
+{
+
 using ShaderByteCode = std::vector<uint32_t>;
 
 struct ShaderProgram
@@ -12,7 +15,7 @@ struct ShaderProgram
 
 enum class ShaderType
 {
-  Vertex,
+  Vertex = 0,
   Fragment
 };
 
@@ -23,19 +26,13 @@ struct ShaderProgramSpec
   MaterialFeatureSet materialFeatures;
 
   bool operator==(const ShaderProgramSpec& rhs) const = default;
+
+  std::string toString() const;
 };
 
-class ShaderSystem
-{
-  public:
-    virtual ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec) = 0;
+ShaderProgram loadShaderProgram(const FileSystem& fileSystem, const ShaderProgramSpec& spec);
 
-    virtual ~ShaderSystem() = default;
-};
-
-using ShaderSystemPtr = std::unique_ptr<ShaderSystem>;
-
-ShaderSystemPtr createShaderSystem();
+} // namespace render
 
 template<>
 struct std::hash<render::ShaderProgramSpec>

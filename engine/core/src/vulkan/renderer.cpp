@@ -112,7 +112,7 @@ ScreenMargins rotateMargins(const ScreenMargins& margins)
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
+    RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
       const ScreenMargins& margins);
 
     void start() override;
@@ -226,8 +226,8 @@ class RendererImpl : public Renderer
       const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
     void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
 
+    const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
-    ShaderSystemPtr m_shaderSystem;
     ViewParams m_viewParams;
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
@@ -314,15 +314,14 @@ class RendererImpl : public Renderer
     WorkQueue m_workQueue;
 };
 
-RendererImpl::RendererImpl(FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
+RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
   const ScreenMargins& margins)
-  : m_margins(margins)
+  : m_fileSystem(fileSystem)
+  , m_margins(margins)
   , m_window(window)
   , m_logger(logger)
 {
   DBG_TRACE(m_logger);
-
-  m_shaderSystem = createShaderSystem(fileSystem, m_logger);
 
   m_viewParams = ViewParams{
     .hFov = 0.f,
@@ -388,7 +387,7 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
     auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
-      auto shader = m_shaderSystem->compileShaderProgram(key);
+      auto shader = loadShaderProgram(m_fileSystem, key);
 
       if (!m_pipelines.contains(key)) {
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
@@ -2082,8 +2081,8 @@ RendererImpl::~RendererImpl()
 } // namespace
 } // namespace render
 
-render::RendererPtr createRenderer(FileSystem& fileSystem, WindowDelegate& window, Logger& logger,
-  const render::ScreenMargins& margins)
+render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
+  Logger& logger, const render::ScreenMargins& margins)
 {
   return std::make_unique<render::RendererImpl>(fileSystem,
     dynamic_cast<VulkanWindowDelegate&>(window), logger, margins);

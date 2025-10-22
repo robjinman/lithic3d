@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tree_set.hpp"
-#include "shader_system.hpp"
+#include "shader.hpp"
 #include "vulkan/render_resources.hpp"
 #include <vulkan/vulkan.h>
 #include <optional>
