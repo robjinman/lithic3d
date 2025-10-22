@@ -107,7 +107,7 @@ else()
       "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/ios/application.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/ios/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/lib/src/vulkan/platform/ios/vulkan_window_delegate.mm"
+      "${PROJECT_SOURCE_DIR}/engine/core/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"

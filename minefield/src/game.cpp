@@ -56,6 +56,7 @@ class GameImpl : public Game
     GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
       Logger& logger);
 
+    float gameViewportAspectRatio() const override;
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
     void onButtonDown(GamepadButton button) override;
@@ -219,6 +220,11 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   }
 }
 
+float GameImpl::gameViewportAspectRatio() const
+{
+  return 63.f / 48.f;
+}
+
 void GameImpl::hideMobileControls()
 {
   if (m_mobileControlsActive) {
@@ -239,13 +245,15 @@ void GameImpl::showMobileControls()
 
 Rectf GameImpl::calculateGameArea(uint32_t viewportW, uint32_t viewportH) const
 {
+  float gameViewportRatio = gameViewportAspectRatio();
+
   float aspect = static_cast<float>(viewportW) / viewportH;
-  float marginWithinViewport = (aspect - GAME_AREA_ASPECT) / 2.f;
+  float marginWithinViewport = (aspect - gameViewportRatio) / 2.f;
 
   return Rectf{
     .x = marginWithinViewport,
     .y = 0.f,
-    .w = GAME_AREA_ASPECT,
+    .w = gameViewportRatio,
     .h = 1.f
   };
 }
@@ -266,7 +274,7 @@ void GameImpl::setMobileControlsScissor(uint32_t viewportW, uint32_t viewportH)
 
 void GameImpl::setScissor(uint32_t viewportW, uint32_t viewportH)
 {
-  float gameAreaWidth = GAME_AREA_ASPECT * viewportH;
+  float gameAreaWidth = gameViewportAspectRatio() * viewportH;
   int x = static_cast<int>(0.5f * (static_cast<float>(viewportW) - gameAreaWidth));
   Recti scissor{
     .x = x,
@@ -714,7 +722,7 @@ void GameImpl::throwStick(float x, float y)
 
 bool GameImpl::isInsideGameArea(float x, float) const
 {
-  return x >= 0.f && x < GAME_AREA_ASPECT;
+  return x >= 0.f && x < gameViewportAspectRatio();
 }
 
 void GameImpl::positionThrowingIndicator(const Vec2f& pos)

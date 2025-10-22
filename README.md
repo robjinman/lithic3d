@@ -1,7 +1,5 @@
-Minefield
-=========
-
-A remake of the 2013 game Minefield.
+Freehold Game Engine
+====================
 
 Building from source
 --------------------

@@ -196,12 +196,14 @@ void Application::onMouseMove(float x, float y)
 
 void Application::onMouseButtonDown(float x, float)
 {
+  auto aspect = m_game->gameViewportAspectRatio();
+
   auto viewport = m_renderer->getViewportSize();
   float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
 
   float xNorm = x / viewport[1];
-  float x0 = (screenAspect - GAME_AREA_ASPECT) / 2.f;
-  float x1 = x0 + GAME_AREA_ASPECT;
+  float x0 = (screenAspect - aspect) / 2.f;
+  float x1 = x0 + aspect;
 
   if (xNorm < x0 || xNorm > x1) {
     m_game->showMobileControls();

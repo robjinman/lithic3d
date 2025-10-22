@@ -7,6 +7,7 @@
 class Game
 {
   public:
+    virtual float gameViewportAspectRatio() const = 0;
     virtual void onKeyDown(KeyboardKey key) = 0;
     virtual void onKeyUp(KeyboardKey key) = 0;
     virtual void onButtonDown(GamepadButton button) = 0;

@@ -2,7 +2,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
 #import <GameController/GameController.h>
-#include "application.h"
+#include "application.hpp"
 
 WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 
