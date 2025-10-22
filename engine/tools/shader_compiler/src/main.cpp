@@ -1,7 +1,7 @@
-#include <shader.hpp>
+#include <vulkan/shader.hpp>
+#include <utils.hpp>
 #include <shaderc/shaderc.hpp>
 #include <iostream>
-#include <filesystem>
 #include <cassert>
 #include <cstring>
 
@@ -30,27 +30,26 @@ struct ShaderSource
 class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
 {
   public:
-    SourceIncluder(const FileSystem& fileSystem)
-      : m_fileSystem(fileSystem) {}
+    SourceIncluder(const fs::path& sourcesDir)
+      : m_sourcesDir(sourcesDir) {}
 
-    shaderc_include_result* GetInclude(const char* requested_source,
-      shaderc_include_type type, const char* requesting_source, size_t include_depth) override;
+    shaderc_include_result* GetInclude(const char* requestedSource,
+      shaderc_include_type type, const char* requestingSource, size_t includeDepth) override;
 
     void ReleaseInclude(shaderc_include_result* data) override;
 
   private:
-    const FileSystem& m_fileSystem;
+    fs::path m_sourcesDir;
     std::string m_errorMessage;
 };
 
-shaderc_include_result* SourceIncluder::GetInclude(const char* requested_source,
+shaderc_include_result* SourceIncluder::GetInclude(const char* requestedSource,
   shaderc_include_type, const char*, size_t)
 {
   auto result = new shaderc_include_result{};
 
   try {
-    const std::filesystem::path sourcesDir = "shaders";
-    auto sourcePath = sourcesDir / requested_source;
+    auto sourcePath = m_sourcesDir / requestedSource;
 
     size_t sourceNameLength = sourcePath.string().length();
     char* nameBuffer = new char[sourceNameLength];
@@ -59,7 +58,7 @@ shaderc_include_result* SourceIncluder::GetInclude(const char* requested_source,
     result->source_name = nameBuffer;
     result->source_name_length = sourceNameLength;
 
-    auto source = m_fileSystem.readAppDataFile(sourcePath);
+    auto source = readBinaryFile(sourcePath);
     size_t contentBufferLength = source.size();
     char* contentBuffer = new char[contentBufferLength];
     memcpy(contentBuffer, source.data(), source.size());
@@ -93,22 +92,27 @@ void SourceIncluder::ReleaseInclude(shaderc_include_result* data)
 class ShaderCompiler
 {
   public:
-    ShaderCompiler();
+    ShaderCompiler(const fs::path& sourcesDir, const fs::path& outputDir);
 
     ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec);
 
   private:
+    fs::path m_sourcesDir;
+    fs::path m_outputDir;
+
     ShaderByteCode compileShader(const ShaderSource& source);
     ShaderSource loadVertShaderSource(const ShaderProgramSpec& spec) const;
     ShaderSource loadFragShaderSource(const ShaderProgramSpec& spec) const;
     std::string selectVertShader(const ShaderProgramSpec& spec) const;
     std::string selectFragShader(const ShaderProgramSpec& spec) const;
+    void writeCompiledShader(ShaderType type, const ShaderProgramSpec& spec,
+      const ShaderByteCode& code);
 };
 
-ShaderCompiler::ShaderCompiler()
+ShaderCompiler::ShaderCompiler(const fs::path& sourcesDir, const fs::path& outputDir)
+  : m_sourcesDir(sourcesDir)
+  , m_outputDir(outputDir)
 {
-  m_platformPaths = createPlatformPaths();
-  m_fileSystem = createDefaultFileSystem(*m_platformPaths);
 }
 
 std::string ShaderCompiler::selectVertShader(const ShaderProgramSpec& spec) const
@@ -172,8 +176,7 @@ ShaderSource ShaderCompiler::loadVertShaderSource(const ShaderProgramSpec& spec)
   source.name = "vertex";
   source.type = ShaderType::Vertex;
   source.fileName = selectVertShader(spec);
-  source.source = m_fileSystem->readAppDataFile(STR("shaders/vertex/"
-    << source.fileName << ".glsl"));
+  source.source = readBinaryFile(m_sourcesDir / "vertex" / (source.fileName + ".glsl"));
 
   for (auto attr : spec.meshFeatures.vertexLayout) {
     switch (attr) {
@@ -220,8 +223,7 @@ ShaderSource ShaderCompiler::loadFragShaderSource(const ShaderProgramSpec& spec)
   source.name = "fragment";
   source.type = ShaderType::Fragment;
   source.fileName = selectFragShader(spec);
-  source.source = m_fileSystem.readAppDataFile(STR("shaders/fragment/"
-    << source.fileName << ".glsl"));
+  source.source = readBinaryFile(m_sourcesDir / "fragment" / (source.fileName + ".glsl"));
 
   if (spec.renderPass == RenderPass::Shadow) {
     source.defines.push_back("RENDER_PASS_SHADOW");
@@ -246,70 +248,46 @@ ShaderSource ShaderCompiler::loadFragShaderSource(const ShaderProgramSpec& spec)
   return source;
 }
 
-void ShaderCompiler::writeShaderToCache(ShaderType type, const ShaderProgramSpec& spec,
+void ShaderCompiler::writeCompiledShader(ShaderType type, const ShaderProgramSpec& spec,
   const ShaderByteCode& code)
 {
-  auto hash = std::hash<ShaderProgramSpec>{}(spec);
-  auto path = STR("shaders/" << hash << "_" << shaderTypeName(type) << ".spirv");
+  auto path = m_outputDir / fileNameForShader(type, spec);
 
-  m_fileSystem.writeUserDataFile(path,
-    reinterpret_cast<const char*>(code.data()), code.size() * sizeof(uint32_t));
-}
-
-ShaderByteCode ShaderCompiler::fetchShaderFromCache(ShaderType type,
-  const ShaderProgramSpec& spec) const
-{
-  ShaderByteCode code;
-
-  auto hash = std::hash<ShaderProgramSpec>{}(spec);
-  auto path = STR("shaders/" << hash << "_" << shaderTypeName(type) << ".spirv");
-
-  m_logger.info(STR("Loading shader " << path << " from cache"));
-
-  auto bytes = m_fileSystem.readUserDataFile(path);
-  code.resize(bytes.size() / sizeof(uint32_t));
-  memcpy(code.data(), bytes.data(), bytes.size());
-
-  return code;
+  std::cout << "Writing to " << path << std::endl;
+  writeBinaryFile(path, reinterpret_cast<const char*>(code.data()), code.size() * sizeof(uint32_t));
 }
 
 ShaderProgram ShaderCompiler::compileShaderProgram(const ShaderProgramSpec& spec)
 {
-  if (!m_cacheIsInvalid) {
-    return ShaderProgram{
-      .vertexShaderCode = fetchShaderFromCache(ShaderType::Vertex, spec),
-      .fragmentShaderCode = fetchShaderFromCache(ShaderType::Fragment, spec)
-    };
-  }
-
   ShaderProgram program;
 
   auto vertShaderSource = loadVertShaderSource(spec);
   program.vertexShaderCode = compileShader(vertShaderSource);
-  writeShaderToCache(ShaderType::Vertex, spec, program.vertexShaderCode);
+  writeCompiledShader(ShaderType::Vertex, spec, program.vertexShaderCode);
 
   auto fragShaderSource = loadFragShaderSource(spec);
   program.fragmentShaderCode = compileShader(fragShaderSource);
-  writeShaderToCache(ShaderType::Fragment, spec, program.fragmentShaderCode);
+  writeCompiledShader(ShaderType::Fragment, spec, program.fragmentShaderCode);
 
   return program;
 }
 
 ShaderByteCode ShaderCompiler::compileShader(const ShaderSource& source)
 {
+  std::cout << "Compiling " << source.name << " shader with defines: "
+    << source.defines << std::endl;
+
   shaderc_shader_kind kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
   switch (source.type) {
     case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
     case ShaderType::Fragment: kind = shaderc_shader_kind::shaderc_glsl_fragment_shader; break;
   }
 
-  m_logger.info(STR("Compiling " << source.name << " shader with options: " << source.defines));
-
   shaderc::Compiler compiler;
   shaderc::CompileOptions options;
   options.SetOptimizationLevel(shaderc_optimization_level_performance);
   options.SetWarningsAsErrors();
-  options.SetIncluder(std::make_unique<SourceIncluder>(m_fileSystem));
+  options.SetIncluder(std::make_unique<SourceIncluder>(m_sourcesDir));
   for (auto& define : source.defines) {
     options.AddMacroDefinition(define);
   }
@@ -327,11 +305,98 @@ ShaderByteCode ShaderCompiler::compileShader(const ShaderSource& source)
   return code;
 }
 
+const std::vector<ShaderProgramSpec> specs{
+  // Text
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Overlay,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{}
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{
+        bitflag(MaterialFeatures::HasTexture)
+      }
+    }
+  },
+  // Sprites
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Overlay,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{
+        bitflag(MeshFeatures::IsQuad)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{
+        bitflag(MaterialFeatures::HasTexture)
+      }
+    }
+  },
+  // Quads
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Overlay,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{
+        bitflag(MeshFeatures::IsQuad)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{}
+    }
+  },
+  // Dynamic text
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Overlay,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{
+        bitflag(MeshFeatures::IsDynamicText)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{
+        bitflag(MaterialFeatures::HasTexture)
+      }
+    }
+  }
+};
+
 int main(int argc, char** argv)
 {
-  std::cout << "Hello, World!\n";
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " sources_dir output_dir" << std::endl;
+    return EXIT_FAILURE;
+  }
 
+  const fs::path sourcesDir = argv[1];
+  const fs::path outputDir = argv[2];
 
+  std::filesystem::create_directories(outputDir);
 
-  return 0;
+  ShaderCompiler compiler{sourcesDir, outputDir};
+
+  for (auto& spec : specs) {
+    compiler.compileShaderProgram(spec);
+  }
+
+  return EXIT_SUCCESS;
 }

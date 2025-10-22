@@ -83,7 +83,7 @@ inline size_t getAttributeSize(BufferUsage usage)
 
 namespace MeshFeatures
 {
-enum Enum : uint64_t
+enum Enum : uint32_t
 {
   IsInstanced,
   IsSkybox,
@@ -94,6 +94,11 @@ enum Enum : uint64_t
   IsDynamicText
 };
 using Flags = std::bitset<32>;
+}
+
+constexpr uint32_t bitflag(uint32_t pos)
+{
+  return 1u << pos;
 }
 
 using VertexLayout = std::array<BufferUsage, MAX_ATTRIBUTES>;
@@ -108,7 +113,7 @@ struct MeshFeatureSet
 
 namespace MaterialFeatures
 {
-enum Enum : uint64_t
+enum Enum : uint32_t
 {
   HasTransparency,
   HasTexture,

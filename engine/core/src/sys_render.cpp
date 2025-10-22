@@ -286,6 +286,7 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
     m_renderer.compileShader(meshFeatures, materialFeatures);
   }
 
+  // TODO
   auto atlas = render::loadTexture(m_fileSystem.readAppDataFile("textures/atlas.png"));
 
   MaterialFeatureSet atlasFeatures{};

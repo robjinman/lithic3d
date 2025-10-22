@@ -1,5 +1,6 @@
 #include "shader.hpp"
 #include "file_system.hpp"
+#include <cstring>
 
 namespace render
 {
@@ -19,7 +20,24 @@ void loadShader(const FileSystem& fileSystem, ShaderType type, const ShaderProgr
 
 std::string ShaderProgramSpec::toString() const
 {
-  return STR(static_cast<int>(renderPass) << "_" << meshFeatures << "_" << materialFeatures);
+  std::stringstream ss;
+  ss << "rp" << static_cast<int>(renderPass);
+  ss << "vtl";
+  size_t n = meshFeatures.vertexLayout.size();
+  for (size_t i = 0; i < n; ++i) {
+    ss << static_cast<int>(meshFeatures.vertexLayout[i]);
+    if (i + 1 < n) {
+      ss << "-";
+    }
+  }
+  ss << "mshf" << meshFeatures.flags;
+  ss << "matf" << materialFeatures.flags;
+  return ss.str();
+}
+
+std::string fileNameForShader(ShaderType type, const ShaderProgramSpec& spec)
+{
+  return STR(static_cast<int>(type) << "_" << spec.toString() << ".spv");
 }
 
 ShaderProgram loadShaderProgram(const FileSystem& fileSystem, const ShaderProgramSpec& spec)

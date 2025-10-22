@@ -21,7 +21,7 @@ enum class ShaderType
 
 struct ShaderProgramSpec
 {
-  RenderPass renderPass;
+  RenderPass renderPass;  // TODO: Should this be here?
   MeshFeatureSet meshFeatures;
   MaterialFeatureSet materialFeatures;
 
@@ -31,6 +31,7 @@ struct ShaderProgramSpec
 };
 
 ShaderProgram loadShaderProgram(const FileSystem& fileSystem, const ShaderProgramSpec& spec);
+std::string fileNameForShader(ShaderType type, const ShaderProgramSpec& spec);
 
 } // namespace render
 
