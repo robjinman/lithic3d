@@ -1,6 +1,6 @@
 #include "trace.hpp"
 #include "logger.hpp"
-#include "utils.hpp"
+#include "strings.hpp"
 
 Trace::Trace(Logger& logger, const std::string& file, const std::string& func)
   : m_logger(logger)

@@ -1,5 +1,5 @@
 #include "vulkan/vulkan_utils.hpp"
-#include "utils.hpp"
+#include "strings.hpp"
 #include <vector>
 
 PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingFn;

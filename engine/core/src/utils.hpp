@@ -1,16 +1,9 @@
 #pragma once
 
-#include <sstream>
 #include <vector>
 #include <array>
 #include <concepts>
 #include <filesystem>
-
-#define STR(x) [&]() {\
-  std::stringstream MAC_ss; \
-  MAC_ss << x; \
-  return MAC_ss.str(); \
-}()
 
 template<typename T>
 bool inRange(T value, T min, T max)
@@ -46,11 +39,6 @@ std::string getVersionString();
 uint32_t getVersionMajor();
 uint32_t getVersionMinor();
 std::string getBuildId();
-
-using HashedString = size_t;
-
-HashedString hashString(const std::string& s);
-std::string getHashedString(HashedString hash);
 
 int randomInt();
 

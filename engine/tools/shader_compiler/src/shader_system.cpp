@@ -1,12 +1,10 @@
 #include "shader_system.hpp"
-#include "file_system.hpp"
-#include "logger.hpp"
 #include <shaderc/shaderc.hpp>
+#include <filesystem>
 #include <cassert>
 #include <cstring>
 
-namespace render
-{
+namespace fs = std::filesystem;
 
 namespace
 {
@@ -32,8 +30,8 @@ struct ShaderSource
 class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
 {
   public:
-    SourceIncluder(const FileSystem& fileSystem)
-      : m_fileSystem(fileSystem) {}
+    SourceIncluder(const fs::path& sourcesPath)
+      : m_sourcesPath(sourcesPath) {}
 
     shaderc_include_result* GetInclude(const char* requested_source,
       shaderc_include_type type, const char* requesting_source, size_t include_depth) override;
@@ -41,7 +39,7 @@ class SourceIncluder : public shaderc::CompileOptions::IncluderInterface
     void ReleaseInclude(shaderc_include_result* data) override;
 
   private:
-    const FileSystem& m_fileSystem;
+    fs::path m_sourcesPath;
     std::string m_errorMessage;
 };
 
@@ -95,46 +93,21 @@ void SourceIncluder::ReleaseInclude(shaderc_include_result* data)
 class ShaderSystemImpl : public ShaderSystem
 {
   public:
-    ShaderSystemImpl(FileSystem& fileSystem, Logger& logger);
+    ShaderSystemImpl(FileSystem& fileSystem);
 
     ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec) override;
 
   private:
-    Logger& m_logger;
-    FileSystem& m_fileSystem;
-    bool m_cacheIsInvalid = true;
-
     ShaderByteCode compileShader(const ShaderSource& source);
 
-    ShaderByteCode fetchShaderFromCache(ShaderType type, const ShaderProgramSpec& spec) const;
     ShaderSource loadVertShaderSource(const ShaderProgramSpec& spec) const;
     ShaderSource loadFragShaderSource(const ShaderProgramSpec& spec) const;
     std::string selectVertShader(const ShaderProgramSpec& spec) const;
     std::string selectFragShader(const ShaderProgramSpec& spec) const;
-    void writeShaderToCache(ShaderType type, const ShaderProgramSpec& spec,
-      const ShaderByteCode& code);
 };
 
-ShaderSystemImpl::ShaderSystemImpl(FileSystem& fileSystem, Logger& logger)
-  : m_logger(logger)
-  , m_fileSystem(fileSystem)
+ShaderSystemImpl::ShaderSystemImpl(FileSystem& fileSystem)
 {
-  auto currentBuildId = getBuildId();
-
-  if (m_fileSystem.userDataFileExists("shaders/build.txt")) {
-    auto buildId = m_fileSystem.readUserDataFile("shaders/build.txt");
-
-    if (strncmp(currentBuildId.c_str(), buildId.data(), currentBuildId.size()) == 0) {
-      m_cacheIsInvalid = false;
-    }
-  }
-
-  if (m_cacheIsInvalid) {
-    // TODO: Delete shader directory
-
-    m_fileSystem.writeUserDataFile("shaders/build.txt", currentBuildId.c_str(),
-      currentBuildId.size());
-  }
 }
 
 std::string ShaderSystemImpl::selectVertShader(const ShaderProgramSpec& spec) const
@@ -359,5 +332,3 @@ ShaderSystemPtr createShaderSystem(FileSystem& fileSystem, Logger& logger)
 {
   return std::make_unique<ShaderSystemImpl>(fileSystem, logger);
 }
-
-} // namespace render
