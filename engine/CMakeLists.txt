@@ -120,19 +120,13 @@ else()
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
-    )
-    set_source_files_properties(
-      "${GAME_PROJECT_DIRECTORY}/data"
-      PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources
+      "${PROJECT_SOURCE_DIR}/platform/ios/Assets.xcassets"
     )
     set_source_files_properties(
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
-      PROPERTIES
-        MACOSX_PACKAGE_LOCATION Resources
-    )
-    set_source_files_properties(
+      "${GAME_PROJECT_DIRECTORY}/data"
       "${LAUNCH_STORYBOARDC}"
+      "${PROJECT_SOURCE_DIR}/platform/ios/Assets.xcassets"
       PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources
     )
@@ -157,12 +151,12 @@ else()
       XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES "YES"
       XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
       XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
-      #XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
+      XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
       MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_STRING}"
       MACOSX_BUNDLE_BUNDLE_VERSION "${GAME_VERSION_STRING}"
       MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/Info.plist
       XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "LW57Q4U5U7"
-      XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARY};${Vulkan_Layer_VALIDATION}"
+      XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARY}" #${Vulkan_Layer_VALIDATION}
       XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY "YES"
       XCODE_EMBED_FRAMEWORKS_REMOVE_HEADERS_ON_COPY "YES"
       XCODE_ATTRIBUTE_SKIP_INSTALL "NO"

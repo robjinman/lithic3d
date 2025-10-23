@@ -11,6 +11,7 @@
 #include "thread.hpp"
 #include "triple_buffer.hpp"
 #include "trace.hpp"
+#include "platform.hpp"
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -26,7 +27,7 @@
 #include <TargetConditionals.h>
 #endif
 
-#if !defined(NDEBUG) && TARGET_OS_SIMULATOR != 1
+#if !defined(NDEBUG) && !defined(PLATFORM_IOS)
 #define USE_VALIDATION_LAYERS 1
 #endif
 
@@ -42,7 +43,7 @@ const std::vector<const char*> ValidationLayers = {
 const std::vector<const char*> DeviceExtensions = {
   VK_KHR_SWAPCHAIN_EXTENSION_NAME,
   VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-#ifdef __APPLE__
+#ifdef PLATFORM_OSX
   "VK_KHR_portability_subset",
 #endif
 };
@@ -1224,7 +1225,7 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const
     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
   };
 
-#if defined(__APPLE__) && TARGET_OS_SIMULATOR != 1
+#if defined(PLATFORM_OSX)
   extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
   auto windowExtensions = m_window.getRequiredExtensions();
@@ -1996,7 +1997,7 @@ void RendererImpl::createInstance()
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
-#ifdef __APPLE__
+#ifdef PLATFORM_OSX
   createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 #ifndef USE_VALIDATION_LAYERS
