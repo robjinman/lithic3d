@@ -147,7 +147,7 @@ elseif(PLATFORM_IOS)
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::MoltenVK)
 
   # Comment out for iOS simulator
-  #target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)
 endif()
 
 target_include_directories(${ENGINE_LIB_TARGET} PUBLIC

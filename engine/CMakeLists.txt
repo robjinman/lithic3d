@@ -107,7 +107,7 @@ else()
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_STRING}")
     set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp")
     # Uncomment for iOS simulator
-    set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/ios_sim/audio_system.cpp")
+    #set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/ios_sim/audio_system.cpp")
     add_executable(${EXE_TARGET} MACOSX_BUNDLE
       "${PROJECT_SOURCE_DIR}/engine/src/ios/wrapper.mm"
       "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"

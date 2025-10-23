@@ -26,7 +26,7 @@
 #include <TargetConditionals.h>
 #endif
 
-#if !defined(NDEBUG) && !defined(TARGET_OS_SIMULATOR)
+#if !defined(NDEBUG) && TARGET_OS_SIMULATOR != 1
 #define USE_VALIDATION_LAYERS 1
 #endif
 
@@ -1224,7 +1224,7 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const
     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
   };
 
-#if defined(__APPLE__) && !defined(TARGET_OS_SIMULATOR)
+#if defined(__APPLE__) && TARGET_OS_SIMULATOR != 1
   extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
   auto windowExtensions = m_window.getRequiredExtensions();
