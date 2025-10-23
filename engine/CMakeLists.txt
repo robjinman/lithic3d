@@ -33,6 +33,7 @@ else()
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/engine/src/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/drm.cpp"
@@ -51,6 +52,7 @@ else()
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/engine/src/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/drm.cpp"
@@ -66,6 +68,7 @@ else()
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/engine/src/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/default/drm.cpp"
@@ -84,7 +87,7 @@ else()
       glfw
       "-framework OpenAL"
     )
-  elseif(PLATFORM_IOS)
+  elseif(PLATFORM_IOS) 
     set(LAUNCH_STORYBOARD ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/LaunchScreen.storyboard)
     set(LAUNCH_STORYBOARDC ${CMAKE_CURRENT_BINARY_DIR}/LaunchScreen.storyboardc)
 
@@ -102,11 +105,15 @@ else()
     set(MACOSX_BUNDLE_GUI_IDENTIFIER "%{GAME_BUNDLE_IDENTIFIER}")
     set(MACOSX_BUNDLE_LONG_VERSION_STRING "${GAME_VERSION_STRING}")
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_STRING}")
+    set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp")
+    # Uncomment for iOS simulator
+    set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/ios_sim/audio_system.cpp")
     add_executable(${EXE_TARGET} MACOSX_BUNDLE
       "${PROJECT_SOURCE_DIR}/engine/src/ios/wrapper.mm"
       "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/ios/application.cpp"
       "${PROJECT_SOURCE_DIR}/engine/src/ios/platform_paths.cpp"
+      "${AUDIO_SYSTEM_CPP}"
       "${PROJECT_SOURCE_DIR}/engine/core/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
@@ -148,7 +155,7 @@ else()
       XCODE_ATTRIBUTE_CLANG_ENABLE_MODULES "YES"
       XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/Frameworks"
       XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
-      XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
+      #XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
       MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_STRING}"
       MACOSX_BUNDLE_BUNDLE_VERSION "${GAME_VERSION_STRING}"
       MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/Info.plist

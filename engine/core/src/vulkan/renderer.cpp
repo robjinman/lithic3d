@@ -22,6 +22,13 @@
 #include <map>
 #include <cassert>
 #include <iostream>
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
+#if !defined(NDEBUG) && !defined(TARGET_OS_SIMULATOR)
+#define USE_VALIDATION_LAYERS 1
+#endif
 
 namespace render
 {
@@ -335,7 +342,7 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
 
   m_thread.run<void>([this]() {
     createInstance();
-#ifndef NDEBUG
+#ifdef USE_VALIDATION_LAYERS
     setupDebugMessenger();
 #endif
   }).get();
@@ -1048,7 +1055,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
-  createInfo.oldSwapchain = m_swapchain;
+  createInfo.oldSwapchain = VK_NULL_HANDLE;// m_swapchain;
 
   VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain),
     "Failed to create swap chain");
@@ -1217,13 +1224,13 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const
     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
   };
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(TARGET_OS_SIMULATOR)
   extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
   auto windowExtensions = m_window.getRequiredExtensions();
   extensions.insert(extensions.end(), windowExtensions.begin(), windowExtensions.end());
 
-#ifndef NDEBUG
+#ifdef USE_VALIDATION_LAYERS
   extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
 
@@ -1339,7 +1346,7 @@ void RendererImpl::createLogicalDevice()
   createInfo.enabledExtensionCount = static_cast<uint32_t>(DeviceExtensions.size());
   createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
 
-#ifdef NDEBUG
+#ifndef USE_VALIDATION_LAYERS
   createInfo.enabledLayerCount = 0;
 #else
   createInfo.enabledLayerCount = static_cast<uint32_t>(ValidationLayers.size());
@@ -1972,17 +1979,17 @@ void RendererImpl::createInstance()
 {
   DBG_TRACE(m_logger);
 
-#ifndef NDEBUG
+#ifdef USE_VALIDATION_LAYERS
   checkValidationLayerSupport();
 #endif
 
   VkApplicationInfo appInfo{
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     .pNext = nullptr,
-    .pApplicationName = "Minefield",
-    .applicationVersion = VK_MAKE_VERSION(getVersionMajor(), getVersionMinor(), 0),
-    .pEngineName = "No Engine",
-    .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+    .pApplicationName = "Freehold Game Engine Application", // TODO
+    .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+    .pEngineName = "Freehold Game Engine",
+    .engineVersion = VK_MAKE_VERSION(getVersionMajor(), getVersionMinor(), 0),
     .apiVersion = VK_API_VERSION_1_2
   };
 
@@ -1992,7 +1999,7 @@ void RendererImpl::createInstance()
 #ifdef __APPLE__
   createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
-#ifdef NDEBUG
+#ifndef USE_VALIDATION_LAYERS
   createInfo.enabledLayerCount = 0;
   createInfo.pNext = nullptr;
 #else
@@ -2065,7 +2072,7 @@ void RendererImpl::cleanUp()
   m_pipelines.clear();
   cleanupSwapChain();
   m_resources.reset();
-#ifndef NDEBUG
+#ifdef USE_VALIDATION_LAYERS
   destroyDebugMessenger();
 #endif
   vkDestroySurfaceKHR(m_instance, m_surface, nullptr);

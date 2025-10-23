@@ -80,7 +80,7 @@ if(PLATFORM_LINUX)
     #find_package(GOOGLE_PERFTOOLS REQUIRED)
   endif()
 
-  find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+  find_package(Vulkan REQUIRED)
   find_package(OpenSSL REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DDRM -DPLATFORM_LINUX)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g -D_GLIBCXX_DEBUG)
@@ -89,7 +89,7 @@ if(PLATFORM_LINUX)
     set(RELEASE_COMPILE_FLAGS ${RELEASE_COMPILE_FLAGS} -g)
   endif()
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::shaderc_combined OpenSSL::SSL)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::Vulkan OpenSSL::SSL OpenAL::OpenAL fmt::fmt)
 elseif(PLATFORM_ANDROID)
   find_package(Vulkan REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DPLATFORM_ANDROID)
@@ -101,10 +101,11 @@ elseif(PLATFORM_ANDROID)
     "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
   add_library(${ENGINE_LIB_TARGET} SHARED
     ${CPP_SOURCES}
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/application.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/file_system.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/android/src/main/cpp/logger.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/platform/android/vulkan_window_delegate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/application.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/file_system.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/vulkan/platform/android/vulkan_window_delegate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
   )
   add_library(app-glue STATIC
     "$ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue/android_native_app_glue.c"
@@ -112,39 +113,41 @@ elseif(PLATFORM_ANDROID)
   target_include_directories(app-glue PUBLIC
     "$ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue"
   )
-  target_include_directories(${ENGINE_LIB_TARGET} PUBLIC
-    "$ENV{ANDROID_NDK_HOME}/sources/third_party/shaderc/include"
-  )
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
     android
     log
     app-glue
-    "$ENV{ANDROID_NDK_HOME}/sources/third_party/shaderc/libs/c++_static/${ANDROID_ABI}/libshaderc.a"
+    Vulkan::Vulkan
+    OpenAL::OpenAL
+    fmt::fmt
   )
 elseif(PLATFORM_WINDOWS)
-  find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+  find_package(Vulkan REQUIRED)
   find_package(OpenSSL REQUIRED)
   set(COMPILE_FLAGS /W4 /DDRM /DPLATFORM_WINDOWS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::shaderc_combined OpenSSL::SSL)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::Vulkan OpenSSL::SSL OpenAL::OpenAL fmt::fmt)
 elseif(PLATFORM_OSX)
-  find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+  find_package(Vulkan REQUIRED)
   find_package(OpenSSL REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DDRM -DPLATFORM_OSX)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::shaderc_combined OpenSSL::SSL)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::Vulkan OpenSSL::SSL OpenAL::OpenAL fmt::fmt)
 elseif(PLATFORM_IOS)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../platform/ios/cmake")
-  find_package(Vulkan REQUIRED COMPONENTS MoltenVK shaderc_combined)
+  find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
   set(COMPILE_FLAGS -Wextra -Wall -DPLATFORM_IOS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::shaderc_combined)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::MoltenVK)
+
+  # Comment out for iOS simulator
+  #target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)
 endif()
 
 target_include_directories(${ENGINE_LIB_TARGET} PUBLIC
@@ -155,10 +158,7 @@ target_include_directories(${ENGINE_LIB_TARGET} PUBLIC
 )
 
 target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
-  Vulkan::Vulkan
   tinyxml2::tinyxml2
-  OpenAL::OpenAL
-  fmt::fmt
 )
 
 target_compile_options(${ENGINE_LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")
