@@ -20,24 +20,28 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+
 if(PLATFORM_ANDROID)
   if(NOT DEFINED ENV{ANDROID_NDK_HOME})
     message(FATAL_ERROR "Please set ANDROID_NDK_HOME")
     return()
   endif()
 
-  set(PROJECT_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-
-  set(VCPKG_MANIFEST_DIR "${PROJECT_ROOT_DIR}/platform/android/vcpkg")
+  set(VCPKG_MANIFEST_DIR "${REPO_ROOT}/engine/platform/android/vcpkg")
+  message("${VCPKG_MANIFEST_DIR}")
   set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
-  set(VCPKG_INSTALLED_DIR "${PROJECT_ROOT_DIR}/build/android/vcpkg_installed")
+  set(VCPKG_INSTALLED_DIR "${REPO_ROOT}/build/android/vcpkg_installed")
   set(CMAKE_SYSTEM_NAME "android")
   set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "$ENV{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake")
-  set(VCPKG_TARGET_TRIPLET "arm64-android")
+  set(VCPKG_TARGET_TRIPLET "arm64-android") # TODO
   set(VCPKG_CMAKE_SYSTEM_NAME "Android")
   set(ENV{VULKAN_SDK} "$ENV{ANDROID_NDK_HOME}/sysroot/usr")
-  set(ANDROID_ABI "arm64-v8a")
+  set(ANDROID_ABI "arm64-v8a")  # TODO
 endif()
+
+# Must come AFTER setting VCPKG_... variables
+project("FreeholdGameEngineCore")
 
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 1)
@@ -95,17 +99,8 @@ elseif(PLATFORM_ANDROID)
   set(COMPILE_FLAGS -Wextra -Wall -DPLATFORM_ANDROID)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
-  # Export ANativeActivity_onCreate(),
-  # Refer to: https://github.com/android-ndk/ndk/issues/381.
-  set(CMAKE_SHARED_LINKER_FLAGS
-    "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
-  add_library(${ENGINE_LIB_TARGET} SHARED
+  add_library(${ENGINE_LIB_TARGET} STATIC
     ${CPP_SOURCES}
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/application.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/file_system.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/vulkan/platform/android/vulkan_window_delegate.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
   )
   add_library(app-glue STATIC
     "$ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue/android_native_app_glue.c"
@@ -120,6 +115,23 @@ elseif(PLATFORM_ANDROID)
     Vulkan::Vulkan
     OpenAL::OpenAL
     fmt::fmt
+  )
+  set(GAME_PROJECT_DIRECTORY "${REPO_ROOT}/minefield") # TODO
+  add_subdirectory("${GAME_PROJECT_DIRECTORY}" "game")
+  # Export ANativeActivity_onCreate(),
+  # Refer to: https://github.com/android-ndk/ndk/issues/381.
+  set(CMAKE_SHARED_LINKER_FLAGS
+    "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
+  add_library(app SHARED
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/application.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/file_system.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/platform/android/vulkan_window_delegate.cpp"
+  )
+  # libgame will depend on core
+  target_link_libraries(app PUBLIC
+    libgame
   )
 elseif(PLATFORM_WINDOWS)
   find_package(Vulkan REQUIRED)

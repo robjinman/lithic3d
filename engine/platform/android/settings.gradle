@@ -19,10 +19,10 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "minefield"
+rootProject.name = "FreeholdGameEngine" // TODO
 
 include ':app'
-project(':app').projectDir = new File('../../minefield/src/platform/android')
+project(':app').projectDir = new File('../../src/android')
 
 include ':data'
 project(':data').projectDir = new File('./data')

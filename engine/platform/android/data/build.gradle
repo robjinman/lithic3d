@@ -2,7 +2,7 @@ plugins {
     id 'com.android.asset-pack'
 }
 
-layout.buildDirectory.set(file("$rootDir/../../build/android/assetpack_build"))
+layout.buildDirectory.set(file("$rootDir/../../../build/android/assetpack_build"))
 
 assetPack {
     packName = "data"

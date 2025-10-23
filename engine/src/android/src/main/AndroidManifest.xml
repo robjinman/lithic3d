@@ -15,7 +15,7 @@
             android:exported="true"
             android:colorMode="wideColorGamut">
         <meta-data android:name="android.app.lib_name"
-            android:value="libminefield" />
+            android:value="app" />
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

@@ -2,14 +2,14 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-layout.buildDirectory.set(file("$rootDir/../../build/android/gradle_output"))
+layout.buildDirectory.set(file("$rootDir/../../../build/android/gradle_output"))
 
 android {
-    namespace 'com.freeholdapps.minefield'
+    namespace 'com.freeholdapps.minefield' // TODO
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.freeholdapps.minefield"
+        applicationId "com.freeholdapps.minefield" // TODO
         minSdk 24
         targetSdk 35
         versionCode 1
@@ -22,7 +22,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
-                    targets "libminefield"
+                    targets "app"
                 }
             }
         }
@@ -30,7 +30,7 @@ android {
             externalNativeBuild {
                 cmake {
                     arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
-                    targets "libminefield"
+                    targets "app"
                 }
             }
         }
@@ -38,8 +38,8 @@ android {
 
     externalNativeBuild {
         cmake {
-            buildStagingDirectory "$rootDir/../../build/android/cxx"
-            path file('../../../CMakeLists.txt')
+            buildStagingDirectory "$rootDir/../../../build/android/cxx"
+            path file('../../core/CMakeLists.txt')
             version '3.22.1'
         }
     }

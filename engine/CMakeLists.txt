@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
+project("FreeholdGameEngine")
+
 # TODO: Move this
 if(ANDROID_BUILD)
   set(PLATFORM_ANDROID 1)
@@ -18,8 +20,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(PLATFORM_ANDROID)
   add_custom_target(android_bundle ALL
-    COMMAND "${PROJECT_SOURCE_DIR}/engine/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}"
-    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/engine/platform/android"
+    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
     COMMENT "Running Gradle build..."
   )
@@ -32,13 +34,13 @@ else()
   if(PLATFORM_LINUX)
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/engine/src/default/application.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/product_activation.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/drm.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/linux/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/core/src/vulkan/platform/default/vulkan_window_delegate.cpp" # TODO: Move to core target?
+      "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
+      "${PROJECT_SOURCE_DIR}/src/linux/platform_paths.cpp"
+      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/default/vulkan_window_delegate.cpp" # TODO: Move to core target?
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
@@ -51,13 +53,13 @@ else()
   elseif(PLATFORM_WINDOWS)
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/engine/src/default/application.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/product_activation.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/drm.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/windows/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/core/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
+      "${PROJECT_SOURCE_DIR}/src/windows/platform_paths.cpp"
+      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     set_target_properties(${EXE_TARGET} PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
     target_link_libraries(${EXE_TARGET} PRIVATE
@@ -67,13 +69,13 @@ else()
   elseif(PLATFORM_OSX)
     find_package(glfw3 REQUIRED)
     add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/engine/src/default/application.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/product_activation.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/drm.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/linux/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/core/src/vulkan/platform/default/vulkan_window_delegate.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
+      "${PROJECT_SOURCE_DIR}/src/linux/platform_paths.cpp"
+      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     set_target_properties(${EXE_TARGET} PROPERTIES
       MACOSX_BUNDLE TRUE
@@ -105,16 +107,16 @@ else()
     set(MACOSX_BUNDLE_GUI_IDENTIFIER "%{GAME_BUNDLE_IDENTIFIER}")
     set(MACOSX_BUNDLE_LONG_VERSION_STRING "${GAME_VERSION_STRING}")
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_STRING}")
-    set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/default/audio_system.cpp")
+    set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp")
     # Uncomment for iOS simulator
-    #set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/engine/src/ios_sim/audio_system.cpp")
+    #set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/src/ios_sim/audio_system.cpp")
     add_executable(${EXE_TARGET} MACOSX_BUNDLE
-      "${PROJECT_SOURCE_DIR}/engine/src/ios/wrapper.mm"
-      "${PROJECT_SOURCE_DIR}/engine/src/default/file_system.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/ios/application.cpp"
-      "${PROJECT_SOURCE_DIR}/engine/src/ios/platform_paths.cpp"
+      "${PROJECT_SOURCE_DIR}/src/ios/wrapper.mm"
+      "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/ios/application.cpp"
+      "${PROJECT_SOURCE_DIR}/src/ios/platform_paths.cpp"
       "${AUDIO_SYSTEM_CPP}"
-      "${PROJECT_SOURCE_DIR}/engine/core/src/vulkan/platform/ios/vulkan_window_delegate.mm"
+      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/ios/vulkan_window_delegate.mm"
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
