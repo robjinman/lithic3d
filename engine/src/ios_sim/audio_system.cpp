@@ -1,5 +1,7 @@
-#include "audio_system.hpp"
+#include <fge/audio_system.hpp>
 
+namespace fge
+{
 namespace
 {
 
@@ -27,3 +29,5 @@ AudioSystemPtr createAudioSystem(FileSystem& fileSystem)
 {
   return std::make_unique<AudioSystemImpl>(fileSystem);
 }
+
+} // namespace fge
