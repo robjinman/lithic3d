@@ -1,11 +1,8 @@
 #pragma once
 
-#include "window_delegate.hpp"
-#include "input.hpp"
+#include <fge/window_delegate.hpp>
+#include <fge/input.hpp>
 #include <memory>
-
-namespace fge
-{
 
 class Application
 {
@@ -15,8 +12,8 @@ class Application
     virtual void onTouchBegin(float x, float y) = 0;
     virtual void onTouchMove(float x, float y) = 0;
     virtual void onTouchEnd(float x, float y) = 0;
-    virtual void onButtonDown(GamepadButton button) = 0;
-    virtual void onButtonUp(GamepadButton button) = 0;
+    virtual void onButtonDown(fge::GamepadButton button) = 0;
+    virtual void onButtonUp(fge::GamepadButton button) = 0;
     virtual void onLeftStickMove(float x, float y) = 0;
     virtual void onRightStickMove(float x, float y) = 0;
     virtual void hideMobileControls() = 0;
@@ -27,6 +24,4 @@ class Application
 using ApplicationPtr = std::unique_ptr<Application>;
 
 ApplicationPtr createApplication(const char* bundlePath, const char* appSupportPath,
-  WindowDelegatePtr windowDelegate);
-
-} // namespace fge
+  fge::WindowDelegatePtr windowDelegate);

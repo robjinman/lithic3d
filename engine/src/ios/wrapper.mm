@@ -1,10 +1,17 @@
+#include "application.hpp"
 #import <UIKit/UIKit.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <Metal/Metal.h>
 #import <GameController/GameController.h>
-#include "application.hpp"
+
+using fge::GamepadButton;
+
+namespace fge
+{
 
 WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
+
+} // namespace fge
 
 // -- BEGIN EventRelay------------------------------------------------------------------------------
 @interface EventRelay : NSObject
@@ -144,7 +151,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
   const char* appSupportPathStr = [[appSupport path] UTF8String];
 
   _application = createApplication(bundlePathCStr, appSupportPathStr,
-    createWindowDelegate(metalLayer));
+    fge::createWindowDelegate(metalLayer));
   [self MF_onViewResize];
 
   self.view.insetsLayoutMarginsFromSafeArea = NO;

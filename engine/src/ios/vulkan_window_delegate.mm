@@ -1,5 +1,5 @@
-#include "vulkan/vulkan_window_delegate.hpp"
-#include "vulkan/vulkan_utils.hpp"
+#include <fge/vulkan/vulkan_window_delegate.hpp>
+#include <fge/exception.hpp>
 #include <vulkan/vulkan_metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
@@ -41,7 +41,9 @@ VkSurfaceKHR IosWindowDelegateImpl::createSurface(VkInstance instance)
   VkMetalSurfaceCreateInfoEXT info{VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
   info.pLayer = m_metalLayer;
 
-  VK_CHECK(vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface), "Failed to create surface");
+  if (vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface) != VK_SUCCESS) {
+    EXCEPTION("Failed to create surface");
+  }
 
   return surface;
 }

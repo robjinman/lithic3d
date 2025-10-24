@@ -1,4 +1,4 @@
-#include "platform_paths.hpp"
+#include <fge/platform_paths.hpp>
 
 namespace fs = std::filesystem;
 
