@@ -1,15 +1,18 @@
-#include "utils.hpp"
 #include "version.hpp"
-#include "exception.hpp"
-#include "platform.hpp"
-#include "strings.hpp"
+#include "fge/utils.hpp"
+#include "fge/exception.hpp"
+#include "fge/platform.hpp"
+#include "fge/strings.hpp"
 #include <fstream>
 #include <random>
+
+namespace fge
+{
 
 std::string getVersionString()
 {
   static std::string s = []() {
-    return STR(Minefield_VERSION_MAJOR << "." << Minefield_VERSION_MINOR
+    return STR(FGE_VERSION_MAJOR << "." << FGE_VERSION_MINOR
       << "-" << PLATFORM_NAME
 #ifdef DRM
       << "-drm"
@@ -20,19 +23,19 @@ std::string getVersionString()
   return s;
 }
 
-std::string getBuildId()
-{
-  return BUILD_ID;
-}
+//std::string getBuildId()
+//{
+//  return BUILD_ID;
+//}
 
 uint32_t getVersionMajor()
 {
-  return Minefield_VERSION_MAJOR;
+  return FGE_VERSION_MAJOR;
 }
 
 uint32_t getVersionMinor()
 {
-  return Minefield_VERSION_MINOR;
+  return FGE_VERSION_MINOR;
 }
 
 int randomInt()
@@ -73,3 +76,5 @@ void writeBinaryFile(const std::filesystem::path& path, const char* data, size_t
 
   stream.write(data, size);
 }
+
+} // namespace fge

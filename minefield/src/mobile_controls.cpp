@@ -1,9 +1,37 @@
 #include "mobile_controls.hpp"
-#include "sys_render.hpp"
-#include "sys_spatial.hpp"
-#include "sys_animation.hpp"
-#include "sys_ui.hpp"
-#include "systems.hpp"
+#include "units.hpp"
+#include <fge/sys_render.hpp>
+#include <fge/sys_spatial.hpp>
+#include <fge/sys_animation.hpp>
+#include <fge/sys_ui.hpp>
+#include <fge/systems.hpp>
+
+using fge::EntityId;
+using fge::Vec2f;
+using fge::Vec3f;
+using fge::Vec4f;
+using fge::Rectf;
+using fge::identityMatrix;
+using fge::Ecs;
+using fge::EventSystem;
+using fge::SpatialData;
+using fge::TextData;
+using fge::UiData;
+using fge::QuadData;
+using fge::CLocalTransform;
+using fge::CSpatialFlags;
+using fge::CGlobalTransform;
+using fge::CSprite;
+using fge::CUi;
+using fge::CRender;
+using fge::SysSpatial;
+using fge::SysRender;
+using fge::SysUi;
+using fge::SPATIAL_SYSTEM;
+using fge::RENDER_SYSTEM;
+using fge::UI_SYSTEM;
+using fge::UserInput;
+using fge::MouseButton;
 
 namespace
 {
@@ -78,8 +106,8 @@ void MobileControlsImpl::positionButtons(const Rectf& gameArea)
 
   auto setTransform = [this](EntityId id, const Vec2f& pos, const Vec2f& size) {
     m_ecs.componentStore().component<CLocalTransform>(id).transform =
-      translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
-      scaleMatrix4x4(Vec3f{ size[0], size[1], 1.f });
+      fge::translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+      fge::scaleMatrix4x4(Vec3f{ size[0], size[1], 1.f });
   };
 
   setTransform(m_leftBtnId, btnLeftPos, btnSz);
@@ -147,10 +175,10 @@ EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, Enti
   TextData render{
     .scissor = MOBILE_CONTROLS_SCISSOR,
     .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
+      .x = fge::pxToUvX(256.f),
+      .y = fge::pxToUvY(64.f, 192.f),
+      .w = fge::pxToUvW(192.f),
+      .h = fge::pxToUvH(192.f)
     },
     .text = label,
     .zIndex = zIndex + 1,

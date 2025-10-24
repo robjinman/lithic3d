@@ -1,13 +1,15 @@
-#include "audio_system.hpp"
-#include "exception.hpp"
-#include "file_system.hpp"
 #include "stb_vorbis.hpp"
+#define DR_WAV_IMPLEMENTATION
+#include "dr_wav.h"
+#include <fge/audio_system.hpp>
+#include <fge/exception.hpp>
+#include <fge/file_system.hpp>
 #include <AL/al.h>
 #include <AL/alc.h>
-#define DR_WAV_IMPLEMENTATION
-#include <dr_wav.h>
 #include <map>
 
+namespace fge
+{
 namespace
 {
 
@@ -228,3 +230,5 @@ AudioSystemPtr createAudioSystem(FileSystem& fileSystem)
 {
   return std::make_unique<AudioSystemImpl>(fileSystem);
 }
+
+} // namespace fge

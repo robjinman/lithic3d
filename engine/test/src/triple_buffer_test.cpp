@@ -1,5 +1,7 @@
-#include <triple_buffer.hpp>
+#include <fge/triple_buffer.hpp>
 #include <gtest/gtest.h>
+
+using namespace fge;
 
 class TripleBufferTest : public testing::Test
 {

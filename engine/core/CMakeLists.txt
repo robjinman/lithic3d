@@ -51,7 +51,7 @@ set(VERSION_MINOR "${VERSION_MINOR}" PARENT_SCOPE)
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}")
 set(VERSION_STRING "${VERSION_STRING}" PARENT_SCOPE)
 
-string(TIMESTAMP BUILD_ID)
+#string(TIMESTAMP BUILD_ID)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug")
@@ -93,7 +93,12 @@ if(PLATFORM_LINUX)
     set(RELEASE_COMPILE_FLAGS ${RELEASE_COMPILE_FLAGS} -g)
   endif()
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::Vulkan OpenSSL::SSL OpenAL::OpenAL fmt::fmt)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
+    Vulkan::Vulkan
+    OpenSSL::SSL
+    OpenAL::OpenAL
+    fmt::fmt
+  )
 elseif(PLATFORM_ANDROID)
   find_package(Vulkan REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DPLATFORM_ANDROID)
@@ -127,11 +132,12 @@ elseif(PLATFORM_ANDROID)
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/file_system.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/platform/android/vulkan_window_delegate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/stb_vorbis.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/vulkan_window_delegate.cpp"
   )
-  # libgame will depend on core
+  # game will depend on core
   target_link_libraries(app PUBLIC
-    libgame
+    game
   )
 elseif(PLATFORM_WINDOWS)
   find_package(Vulkan REQUIRED)
@@ -140,7 +146,12 @@ elseif(PLATFORM_WINDOWS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} /O2)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::Vulkan OpenSSL::SSL OpenAL::OpenAL fmt::fmt)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
+    Vulkan::Vulkan
+    OpenSSL::SSL
+    OpenAL::OpenAL
+    fmt::fmt
+  )
 elseif(PLATFORM_OSX)
   find_package(Vulkan REQUIRED)
   find_package(OpenSSL REQUIRED)
@@ -148,7 +159,12 @@ elseif(PLATFORM_OSX)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::Vulkan OpenSSL::SSL OpenAL::OpenAL fmt::fmt)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
+    Vulkan::Vulkan
+    OpenSSL::SSL
+    OpenAL::OpenAL
+    fmt::fmt
+  )
 elseif(PLATFORM_IOS)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../platform/ios/cmake")
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
@@ -162,11 +178,13 @@ elseif(PLATFORM_IOS)
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)
 endif()
 
-target_include_directories(${ENGINE_LIB_TARGET} PUBLIC
-  "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
-  "${CMAKE_CURRENT_SOURCE_DIR}/src"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/include"
-  "${Stb_INCLUDE_DIR}"
+target_include_directories(${ENGINE_LIB_TARGET}
+  PRIVATE
+    "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${Stb_INCLUDE_DIR}"
+  PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
 target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC

@@ -1,8 +1,10 @@
-#include "math.hpp"
-#include "utils.hpp"
+#include "fge/math.hpp"
+#include "fge/utils.hpp"
 #include <cassert>
 #include <numeric>
 
+namespace fge
+{
 namespace
 {
 
@@ -272,3 +274,5 @@ void Transform::mix(const Transform& T)
     scale = T.scale;
   }
 }
+
+} // namespace fge

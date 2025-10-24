@@ -1,10 +1,12 @@
-#include "sys_animation.hpp"
-#include "sys_render.hpp"
-#include "sys_spatial.hpp"
+#include "fge/sys_animation.hpp"
+#include "fge/sys_render.hpp"
+#include "fge/sys_spatial.hpp"
 #include <chrono>
 #include <map>
 #include <cassert>
 
+namespace fge
+{
 namespace
 {
 
@@ -429,3 +431,5 @@ SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logge
 {
   return std::make_unique<SysAnimationImpl>(componentStore, logger);
 }
+
+} // namespace fge

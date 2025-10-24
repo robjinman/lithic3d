@@ -1,10 +1,12 @@
-#include "sys_ui.hpp"
-#include "input.hpp"
-#include "logger.hpp"
-#include "sys_spatial.hpp"
+#include "fge/sys_ui.hpp"
+#include "fge/input.hpp"
+#include "fge/logger.hpp"
+#include "fge/sys_spatial.hpp"
 #include <map>
 #include <algorithm>
 
+namespace fge
+{
 namespace
 {
 
@@ -443,3 +445,5 @@ SysUiPtr createSysUi(Ecs& ecs, Logger& logger)
 {
   return std::make_unique<SysUiImpl>(ecs, logger);
 }
+
+} // namespace fge

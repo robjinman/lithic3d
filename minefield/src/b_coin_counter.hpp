@@ -1,9 +1,12 @@
 #pragma once
 
-#include "sys_behaviour.hpp"
+#include <fge/sys_behaviour.hpp>
 
+namespace fge
+{
 class Ecs;
 class EventSystem;
+}
 
-BehaviourDataPtr createBCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventSystem,
-  EntityId entityId);
+fge::BehaviourDataPtr createBCoinCounter(uint32_t coinsRequired, fge::Ecs& ecs,
+  fge::EventSystem& eventSystem, fge::EntityId entityId);

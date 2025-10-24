@@ -3,6 +3,8 @@
 #include <mutex>
 #include <thread>
 
+namespace fge
+{
 namespace
 {
 
@@ -50,3 +52,5 @@ LoggerPtr createAndroidLogger()
 {
   return std::make_unique<AndroidLogger>();
 }
+
+} // namespace fge

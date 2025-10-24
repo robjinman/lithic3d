@@ -1,4 +1,7 @@
-#include "camera.hpp"
+#include "fge/camera.hpp"
+
+namespace fge
+{
 
 Camera::Camera()
   : m_position{0, 0, 0}
@@ -24,3 +27,5 @@ const Vec3f& Camera::getPosition() const
 {
   return m_position;
 }
+
+} // namespace fge

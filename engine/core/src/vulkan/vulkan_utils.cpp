@@ -1,6 +1,9 @@
 #include "vulkan/vulkan_utils.hpp"
-#include "strings.hpp"
+#include "fge/strings.hpp"
 #include <vector>
+
+namespace fge
+{
 
 PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingFn;
 PFN_vkCmdEndRenderingKHR vkCmdEndRenderingFn;
@@ -141,3 +144,5 @@ VkFormat findDepthFormat(VkPhysicalDevice physicalDevice)
     VK_FORMAT_D24_UNORM_S8_UINT
   }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
+
+} // namespace fge

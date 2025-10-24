@@ -1,10 +1,13 @@
 #pragma once
 
-#include "tree_set.hpp"
-#include "shader.hpp"
+#include "fge/tree_set.hpp"
+#include "fge/vulkan/shader.hpp"
 #include "vulkan/render_resources.hpp"
 #include <vulkan/vulkan.h>
 #include <optional>
+
+namespace fge
+{
 
 class Logger;
 
@@ -124,12 +127,13 @@ PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& s
   const ScreenMargins& margins);
 
 } // namespace render
+} // namespace fge
 
 template<>
-struct std::hash<Recti>
+struct std::hash<fge::Recti>
 {
-  std::size_t operator()(const Recti& rect) const noexcept
+  std::size_t operator()(const fge::Recti& rect) const noexcept
   {
-    return hashAll(rect.x, rect.y, rect.w, rect.h);
+    return fge::hashAll(rect.x, rect.y, rect.w, rect.h);
   }
 };

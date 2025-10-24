@@ -1,5 +1,5 @@
-#include <vulkan/shader.hpp>
-#include <utils.hpp>
+#include <fge/vulkan/shader.hpp>
+#include <fge/utils.hpp>
 #include <shaderc/shaderc.hpp>
 #include <iostream>
 #include <cassert>
@@ -7,7 +7,8 @@
 
 namespace fs = std::filesystem;
 
-using namespace render;
+using namespace fge;
+using namespace fge::render;
 
 std::string shaderTypeName(ShaderType type)
 {

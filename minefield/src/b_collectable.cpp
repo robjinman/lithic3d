@@ -1,14 +1,22 @@
 #include "b_collectable.hpp"
-#include "event_system.hpp"
-#include "sys_animation.hpp"
 #include "game_events.hpp"
-#include "systems.hpp"
-#include "events.hpp"
+#include <fge/event_system.hpp>
+#include <fge/sys_animation.hpp>
+#include <fge/systems.hpp>
+#include <fge/events.hpp>
+
+using fge::EntityId;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::SysAnimation;
 
 namespace
 {
 
-class BCollectable : public BehaviourData
+class BCollectable : public fge::BehaviourData
 {
   public:
     BCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
@@ -52,7 +60,7 @@ const std::set<HashedString>& BCollectable::subscriptions() const
 void BCollectable::processEvent(const Event& event)
 {
   static HashedString strCollect = hashString("collect");
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   if (event.name == g_strEntityEnter) {
     auto& e = dynamic_cast<const EEntityEnter&>(event);
@@ -62,7 +70,7 @@ void BCollectable::processEvent(const Event& event)
         sysAnimation.finishAnimation(m_entityId);
       }
       sysAnimation.playAnimation(m_entityId, strCollect, [this]() {
-        m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+        m_eventSystem.raiseEvent(fge::ERequestDeletion{m_entityId});
       });
       m_eventSystem.raiseEvent(EItemCollect{m_entityId, m_value});
     }
@@ -71,7 +79,7 @@ void BCollectable::processEvent(const Event& event)
 
 } // namespace
 
-BehaviourDataPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::BehaviourDataPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId, int value)
 {
   return std::make_unique<BCollectable>(ecs, eventSystem, entityId, playerId, value);

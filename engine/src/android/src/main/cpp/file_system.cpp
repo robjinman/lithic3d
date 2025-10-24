@@ -5,6 +5,8 @@
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
 namespace
 {
 
@@ -164,3 +166,5 @@ FileSystemPtr createAndroidFileSystem(const fs::path& userDataPath, AAssetManage
 {
   return std::make_unique<AndroidFileSystem>(userDataPath, assetManager);
 }
+
+} // namespace fge

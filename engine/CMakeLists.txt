@@ -36,11 +36,12 @@ else()
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/stb_vorbis.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/vulkan_window_delegate.cpp"
       "${PROJECT_SOURCE_DIR}/src/linux/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/default/vulkan_window_delegate.cpp" # TODO: Move to core target?
     )
     target_link_libraries(${EXE_TARGET} PRIVATE
       glfw
@@ -55,11 +56,12 @@ else()
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/stb_vorbis.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/vulkan_window_delegate.cpp"
       "${PROJECT_SOURCE_DIR}/src/windows/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     set_target_properties(${EXE_TARGET} PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
     target_link_libraries(${EXE_TARGET} PRIVATE
@@ -71,11 +73,12 @@ else()
     add_executable(${EXE_TARGET}
       "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/stb_vorbis.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
+      "${PROJECT_SOURCE_DIR}/src/default/vulkan_window_delegate.cpp"
       "${PROJECT_SOURCE_DIR}/src/linux/platform_paths.cpp"
-      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/default/vulkan_window_delegate.cpp"
     )
     set_target_properties(${EXE_TARGET} PROPERTIES
       MACOSX_BUNDLE TRUE
@@ -115,8 +118,9 @@ else()
       "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/src/ios/application.cpp"
       "${PROJECT_SOURCE_DIR}/src/ios/platform_paths.cpp"
+      "${PROJECT_SOURCE_DIR}/src/ios/vulkan_window_delegate.mm"
       "${AUDIO_SYSTEM_CPP}"
-      "${PROJECT_SOURCE_DIR}/core/src/vulkan/platform/ios/vulkan_window_delegate.mm"
+      "${PROJECT_SOURCE_DIR}/src/default/stb_vorbis.cpp"
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
@@ -166,7 +170,7 @@ else()
     )
   endif()
 
-  target_link_libraries(${EXE_TARGET} PRIVATE libgame)
+  target_link_libraries(${EXE_TARGET} PRIVATE game)
 
   add_custom_target(
     link_data ALL

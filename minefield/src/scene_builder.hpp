@@ -1,30 +1,30 @@
 #pragma once
 
-#include "ecs.hpp"
-#include "sys_animation.hpp"
+#include <fge/ecs.hpp>
+#include <fge/sys_animation.hpp>
 #include <memory>
 
 struct Scene
 {
-  EntityId player = NULL_ENTITY;
-  EntityId worldRoot = NULL_ENTITY;
-  EntityId throwingModeIndicator = NULL_ENTITY;
-  EntityId restartGamePrompt = NULL_ENTITY;
+  fge::EntityId player = fge::NULL_ENTITY;
+  fge::EntityId worldRoot = fge::NULL_ENTITY;
+  fge::EntityId throwingModeIndicator = fge::NULL_ENTITY;
+  fge::EntityId restartGamePrompt = fge::NULL_ENTITY;
 };
 
 class SceneBuilder
 {
   public:
     virtual Scene buildScene(uint32_t level) = 0;
-    virtual EntityIdSet entities() const = 0;
+    virtual fge::EntityIdSet entities() const = 0;
 
     virtual ~SceneBuilder() = default;
 };
 
 using SceneBuilderPtr = std::unique_ptr<SceneBuilder>;
 
-class EventSystem;
+namespace fge { class EventSystem; }
 class GameOptionsManager;
 
-SceneBuilderPtr createSceneBuilder(EventSystem& eventSystem, Ecs& ecs,
+SceneBuilderPtr createSceneBuilder(fge::EventSystem& eventSystem, fge::Ecs& ecs,
   const GameOptionsManager& options);

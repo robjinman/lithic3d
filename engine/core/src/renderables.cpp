@@ -1,13 +1,15 @@
-#include "renderables.hpp"
-#include "utils.hpp"
-#include "exception.hpp"
-#include "file_system.hpp"
+#include "fge/renderables.hpp"
+#include "fge/utils.hpp"
+#include "fge/exception.hpp"
+#include "fge/file_system.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <fstream>
 #include <cassert>
 #include <set>
-#include <iostream>
+
+namespace fge
+{
 
 std::ostream& operator<<(std::ostream& stream, const render::MeshFeatureSet& features)
 {
@@ -281,3 +283,4 @@ std::vector<char> createVertexArray(const Mesh& mesh)
 }
 
 } // namespace render
+} // namespace fge

@@ -28,7 +28,10 @@ class GameOptionsManager
 
 using GameOptionsManagerPtr = std::unique_ptr<GameOptionsManager>;
 
+namespace fge
+{
 class FileSystem;
 class Logger;
+}
 
-GameOptionsManagerPtr createGameOptionsManager(FileSystem& fileSystem, Logger& logger);
+GameOptionsManagerPtr createGameOptionsManager(fge::FileSystem& fileSystem, fge::Logger& logger);

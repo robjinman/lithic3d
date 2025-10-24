@@ -1,9 +1,11 @@
-#include "event_system.hpp"
-#include "logger.hpp"
-#include "utils.hpp"
+#include "fge/event_system.hpp"
+#include "fge/logger.hpp"
+#include "fge/utils.hpp"
 #include <map>
 #include <list>
 
+namespace fge
+{
 namespace
 {
 
@@ -105,3 +107,5 @@ EventSystemPtr createEventSystem(Logger& logger)
 {
   return std::make_unique<EventSystemImpl>(logger);
 }
+
+} // namespace fge

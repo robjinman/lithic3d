@@ -1,16 +1,19 @@
-#include "sys_render.hpp"
-#include "renderer.hpp"
-#include "logger.hpp"
-#include "camera.hpp"
-#include "exception.hpp"
-#include "utils.hpp"
-#include "time.hpp"
-#include "file_system.hpp"
-#include "sys_spatial.hpp"
+#include "fge/sys_render.hpp"
+#include "fge/renderer.hpp"
+#include "fge/logger.hpp"
+#include "fge/camera.hpp"
+#include "fge/exception.hpp"
+#include "fge/utils.hpp"
+#include "fge/time.hpp"
+#include "fge/file_system.hpp"
+#include "fge/sys_spatial.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
 #include <cstring>
+
+namespace fge
+{
 
 using render::Renderer;
 using render::Mesh;
@@ -591,3 +594,5 @@ SysRenderPtr createSysRender(ComponentStore& componentStore, Renderer& renderer,
 {
   return std::make_unique<SysRenderImpl>(componentStore, renderer, fileSystem, logger);
 }
+
+} // namespace fge

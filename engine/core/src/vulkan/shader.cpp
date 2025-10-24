@@ -1,7 +1,9 @@
-#include "shader.hpp"
-#include "file_system.hpp"
+#include "fge/vulkan/shader.hpp"
+#include "fge/file_system.hpp"
 #include <cstring>
 
+namespace fge
+{
 namespace render
 {
 namespace
@@ -16,7 +18,7 @@ void loadShader(const FileSystem& fileSystem, ShaderType type, const ShaderProgr
   memcpy(code.data(), bytes.data(), bytes.size());
 }
 
-}
+} // namespace
 
 std::string ShaderProgramSpec::toString() const
 {
@@ -50,4 +52,5 @@ ShaderProgram loadShaderProgram(const FileSystem& fileSystem, const ShaderProgra
   return program;
 }
 
-}
+} // namespace render
+} // namespace fge

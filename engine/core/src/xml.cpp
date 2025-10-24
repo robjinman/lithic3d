@@ -1,6 +1,6 @@
-#include "xml.hpp"
-#include "exception.hpp"
-#include "utils.hpp"
+#include "fge/xml.hpp"
+#include "fge/exception.hpp"
+#include "fge/utils.hpp"
 #include <tinyxml2.h>
 #include <map>
 
@@ -8,6 +8,9 @@ using tinyxml2::XMLDocument;
 using tinyxml2::XMLElement;
 using tinyxml2::XMLAttribute;
 using tinyxml2::XMLError;
+
+namespace fge
+{
 
 XmlNode::Iterator::Iterator(std::vector<std::unique_ptr<XmlNode>>::const_iterator i)
   : m_i(i)
@@ -135,3 +138,5 @@ XmlNodePtr parseXml(const std::vector<char>& data)
 
   return std::make_unique<XmlNodeImpl>(*doc.RootElement());
 }
+
+} // namespace fge

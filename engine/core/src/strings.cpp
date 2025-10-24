@@ -1,7 +1,9 @@
-#include "strings.hpp"
-#include "exception.hpp"
+#include "fge/strings.hpp"
+#include "fge/exception.hpp"
 #include <map>
 
+namespace fge
+{
 namespace
 {
 
@@ -36,3 +38,5 @@ std::string getHashedString(HashedString hash)
 {
   return getHashTable().at(hash);
 }
+
+} // namespace fge

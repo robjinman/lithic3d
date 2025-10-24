@@ -1,24 +1,68 @@
 #include "scene_builder.hpp"
-#include "sys_animation.hpp"
-#include "sys_behaviour.hpp"
+#include "game_options.hpp"
+#include "units.hpp"
 #include "sys_grid.hpp"
-#include "sys_render.hpp"
-#include "sys_spatial.hpp"
-#include "ecs.hpp"
 #include "b_player.hpp"
 #include "b_collectable.hpp"
 #include "b_numeric_tile.hpp"
-#include "b_generic.hpp"
 #include "b_wanderer.hpp"
 #include "b_coin_counter.hpp"
 #include "b_stick.hpp"
 #include "b_exit.hpp"
 #include "game_events.hpp"
-#include "systems.hpp"
-#include "events.hpp"
-#include "game_options.hpp"
+#include <fge/b_generic.hpp>
+#include <fge/sys_animation.hpp>
+#include <fge/sys_behaviour.hpp>
+#include <fge/sys_render.hpp>
+#include <fge/sys_spatial.hpp>
+#include <fge/ecs.hpp>
+#include <fge/systems.hpp>
+#include <fge/events.hpp>
 #include <random>
 #include <cstring>
+
+using fge::EntityId;
+using fge::EntityIdSet;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::Vec2i;
+using fge::Vec2f;
+using fge::Vec3f;
+using fge::Vec4f;
+using fge::Rectf;
+using fge::Mat4x4f;
+using fge::identityMatrix;
+using fge::SysAnimation;
+using fge::SysRender;
+using fge::SysSpatial;
+using fge::SysBehaviour;
+using fge::RENDER_SYSTEM;
+using fge::SPATIAL_SYSTEM;
+using fge::ANIMATION_SYSTEM;
+using fge::BEHAVIOUR_SYSTEM;
+using fge::UI_SYSTEM;
+using fge::AnimationId;
+using fge::Animation;
+using fge::AnimationFrame;
+using fge::SpriteData;
+using fge::SpatialData;
+using fge::DynamicTextData;
+using fge::QuadData;
+using fge::TextData;
+using fge::AnimationData;
+using fge::CLocalTransform;
+using fge::CGlobalTransform;
+using fge::CSpatialFlags;
+using fge::CDynamicText;
+using fge::CRender;
+using fge::CSprite;
+using fge::pxToUvX;
+using fge::pxToUvY;
+using fge::pxToUvW;
+using fge::pxToUvH;
 
 namespace
 {
@@ -651,7 +695,7 @@ void SceneBuilderImpl::constructSoil()
       auto collectBehaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 0);
       sysBehaviour.addBehaviour(id, std::move(collectBehaviour));
 
-      auto dissolveBehaviour = createBGeneric(hashString("dissolve"), { g_strEntityExplode },
+      auto dissolveBehaviour = fge::createBGeneric(hashString("dissolve"), { g_strEntityExplode },
         [&sysAnimation, this, id](const Event& e) {
 
         if (e.name == g_strEntityExplode) {
@@ -659,7 +703,7 @@ void SceneBuilderImpl::constructSoil()
             sysAnimation.finishAnimation(id);
           }
           sysAnimation.playAnimation(id, hashString("collect"), [this, id]() {
-            m_eventSystem.raiseEvent(ERequestDeletion{id});
+            m_eventSystem.raiseEvent(fge::ERequestDeletion{id});
           });
         }
       });
@@ -768,14 +812,14 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
           m_eventSystem.raiseEvent(EEntityExplode{id, event.pos, targets});
 
           sysAnimation.playAnimation(id, strExplode, [this, id]() {
-            m_eventSystem.raiseEvent(ERequestDeletion{id});
+            m_eventSystem.raiseEvent(fge::ERequestDeletion{id});
           });
           sysRender.setZIndex(id, static_cast<uint32_t>(ZIndex::Explosion));
         }
       }
     };
 
-    auto behaviour = createBGeneric(strExplode, { g_strEntityLandOn }, onEvent);
+    auto behaviour = fge::createBGeneric(strExplode, { g_strEntityLandOn }, onEvent);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
     sysAnimation.addEntity(id, AnimationData{
@@ -1009,7 +1053,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
     });
 
     sysAnimation.playAnimation(id, hashString("idle"), true);
-    sysAnimation.seek(id, randomInt());
+    sysAnimation.seek(id, fge::randomInt());
 
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 1);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
@@ -1129,7 +1173,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     });
 
     sysAnimation.playAnimation(id, hashString("idle"), true);
-    sysAnimation.seek(id, randomInt());
+    sysAnimation.seek(id, fge::randomInt());
 
     auto behaviour = createBCollectable(m_ecs, m_eventSystem, id, m_playerId, 5);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
@@ -1369,7 +1413,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
     SpatialData spatial{
-      .transform = spriteTransform(pos, size, PIf / 4.f, { 0.f, 0.5f }),
+      .transform = spriteTransform(pos, size, fge::PIf / 4.f, { 0.f, 0.5f }),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -1527,7 +1571,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 
   sysRender.addEntity(id, render);
 
-  auto behaviour = createBGeneric(hashString("on_tick"), { g_strTimerTick },
+  auto behaviour = fge::createBGeneric(hashString("on_tick"), { g_strTimerTick },
     [this, &sysRender, id](const Event& e) {
 
     if (e.name == g_strTimerTick) {

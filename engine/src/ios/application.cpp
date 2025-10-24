@@ -11,6 +11,9 @@
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
+
 PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath, const fs::path& appSupportPath);
 FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
 
@@ -147,3 +150,5 @@ ApplicationPtr createApplication(const char* bundlePath, const char* appSupportP
 {
   return std::make_unique<ApplicationImpl>(bundlePath, appSupportPath, std::move(windowDelegate));
 }
+
+} // namespace fge

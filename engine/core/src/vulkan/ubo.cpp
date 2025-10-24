@@ -1,6 +1,8 @@
 #include "vulkan/ubo.hpp"
 #include <cstring>
 
+namespace fge
+{
 namespace render
 {
 
@@ -73,4 +75,6 @@ BufferedUbo::~BufferedUbo()
   }
 }
 
-}
+} // namespace render
+} // namespace fge
+

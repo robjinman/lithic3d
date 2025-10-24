@@ -4,6 +4,8 @@
 #include <array>
 #include <memory>
 
+namespace fge
+{
 namespace render
 {
 
@@ -33,3 +35,4 @@ class BufferedUbo
 using BufferedUboPtr = std::unique_ptr<BufferedUbo>;
 
 } // namespace render
+} // namespace fge

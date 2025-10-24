@@ -1,12 +1,14 @@
 #include "vulkan/pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/render_resources.hpp"
-#include "utils.hpp"
-#include "logger.hpp"
+#include "fge/utils.hpp"
+#include "fge/logger.hpp"
 #include <array>
 #include <numeric>
 #include <cstring>
 
+namespace fge
+{
 namespace render
 {
 namespace
@@ -768,3 +770,4 @@ PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& s
 }
 
 } // namespace render
+} // namespace fge

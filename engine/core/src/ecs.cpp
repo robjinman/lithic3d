@@ -1,10 +1,12 @@
-#include "ecs.hpp"
-#include "event_system.hpp"
-#include "logger.hpp"
-#include "component_store.hpp"
-#include "events.hpp"
+#include "fge/ecs.hpp"
+#include "fge/event_system.hpp"
+#include "fge/logger.hpp"
+#include "fge/component_store.hpp"
+#include "fge/events.hpp"
 #include <map>
 
+namespace fge
+{
 namespace
 {
 
@@ -113,3 +115,5 @@ EcsPtr createEcs(Logger& logger)
 {
   return std::make_unique<EcsImpl>(logger);
 }
+
+} // namespace fge

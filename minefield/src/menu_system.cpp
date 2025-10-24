@@ -1,17 +1,68 @@
 #include "menu_system.hpp"
-#include "ecs.hpp"
-#include "event_system.hpp"
-#include "logger.hpp"
-#include "sys_render.hpp"
-#include "sys_spatial.hpp"
-#include "sys_behaviour.hpp"
-#include "sys_animation.hpp"
-#include "sys_ui.hpp"
-#include "systems.hpp"
-#include "b_generic.hpp"
-#include "input.hpp"
 #include "game_options.hpp"
+#include "utils.hpp"
+#include "units.hpp"
+#include "sys_grid.hpp"
+#include <fge/b_generic.hpp>
+#include <fge/ecs.hpp>
+#include <fge/event_system.hpp>
+#include <fge/logger.hpp>
+#include <fge/sys_render.hpp>
+#include <fge/sys_spatial.hpp>
+#include <fge/sys_behaviour.hpp>
+#include <fge/sys_animation.hpp>
+#include <fge/sys_ui.hpp>
+#include <fge/systems.hpp>
+#include <fge/input.hpp>
 #include <cstring>
+
+using fge::EntityId;
+using fge::NULL_ENTITY;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::Vec2f;
+using fge::Vec3f;
+using fge::Vec4f;
+using fge::Rectf;
+using fge::Mat4x4f;
+using fge::identityMatrix;
+using fge::SysUi;
+using fge::SysAnimation;
+using fge::SysRender;
+using fge::SysSpatial;
+using fge::SysBehaviour;
+using fge::RENDER_SYSTEM;
+using fge::SPATIAL_SYSTEM;
+using fge::ANIMATION_SYSTEM;
+using fge::BEHAVIOUR_SYSTEM;
+using fge::UI_SYSTEM;
+using fge::AnimationId;
+using fge::Animation;
+using fge::AnimationFrame;
+using fge::SpriteData;
+using fge::SpatialData;
+using fge::DynamicTextData;
+using fge::QuadData;
+using fge::TextData;
+using fge::UiData;
+using fge::AnimationData;
+using fge::CLocalTransform;
+using fge::CGlobalTransform;
+using fge::CSpatialFlags;
+using fge::CDynamicText;
+using fge::CRender;
+using fge::CSprite;
+using fge::CUi;
+using fge::KeyboardKey;
+using fge::MouseButton;
+using fge::UserInput;
+using fge::pxToUvX;
+using fge::pxToUvY;
+using fge::pxToUvW;
+using fge::pxToUvH;
 
 namespace
 {
@@ -34,8 +85,8 @@ static const HashedString strCancel = hashString("cancel");
 // TODO: Move this
 Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
 {
-  return translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
-    scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+  return fge::translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+    fge::scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
 }
 
 struct Menu
@@ -86,8 +137,8 @@ struct Sprite
 class MenuSystemImpl : public MenuSystem
 {
   public:
-    MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem, const GameOptionsManager& options,
-      Logger& logger, bool hasQuitButton);
+    MenuSystemImpl(fge::Ecs& ecs, fge::EventSystem& eventSystem, const GameOptionsManager& options,
+      fge::Logger& logger, bool hasQuitButton);
 
     EntityId root() const override;
 
@@ -106,10 +157,10 @@ class MenuSystemImpl : public MenuSystem
     void update() override;
 
   private:
-    Ecs& m_ecs;
-    EventSystem& m_eventSystem;
+    fge::Ecs& m_ecs;
+    fge::EventSystem& m_eventSystem;
     const GameOptionsManager& m_options;
-    Logger& m_logger;
+    fge::Logger& m_logger;
     EntityId m_root;
     EntityId m_pauseMenuId;
     Menu m_pauseMenuMain;
@@ -167,8 +218,8 @@ class MenuSystemImpl : public MenuSystem
     void updateSlider(const Slider& slider, float value);
 };
 
-MenuSystemImpl::MenuSystemImpl(Ecs& ecs, EventSystem& eventSystem,
-  const GameOptionsManager& options, Logger& logger, bool hasQuitButton)
+MenuSystemImpl::MenuSystemImpl(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+  const GameOptionsManager& options, fge::Logger& logger, bool hasQuitButton)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_options(options)
@@ -246,20 +297,20 @@ void MenuSystemImpl::setDifficulty(int level)
 
 void MenuSystemImpl::updateSlider(const Slider& slider, float value)
 {
-  auto& t = m_ecs.componentStore().component<CLocalTransform>(slider.entityId);
+  auto& t = m_ecs.componentStore().component<fge::CLocalTransform>(slider.entityId);
   t.transform.set(1, 1, value * slider.height);
 }
 
 void MenuSystemImpl::update()
 {
   if (m_musicVolumeDelta != 0.f) {
-    m_musicVolume = clip(m_musicVolume + m_musicVolumeDelta, 0.f, 1.f);
+    m_musicVolume = fge::clip(m_musicVolume + m_musicVolumeDelta, 0.f, 1.f);
     updateSlider(m_musicVolumeSlider1, m_musicVolume);
     updateSlider(m_musicVolumeSlider2, m_musicVolume);
   }
 
   if (m_sfxVolumeDelta != 0.f) {
-    m_sfxVolume = clip(m_sfxVolume + m_sfxVolumeDelta, 0.f, 1.f);
+    m_sfxVolume = fge::clip(m_sfxVolume + m_sfxVolumeDelta, 0.f, 1.f);
     updateSlider(m_sfxVolumeSlider1, m_sfxVolume);
     updateSlider(m_sfxVolumeSlider2, m_sfxVolume);
   }
@@ -267,7 +318,7 @@ void MenuSystemImpl::update()
 
 void MenuSystemImpl::createAnimations()
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   auto makeFrame = [](const Vec4f& colour) {
     return AnimationFrame{
@@ -497,7 +548,7 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
     .animations = { m_animIdle, m_animIdleFocused, m_animPrime, m_animActivate }
   });
   sysAnimation.playAnimation(id, strIdle, true);
-  sysAnimation.seek(id, randomInt());
+  sysAnimation.seek(id, fge::randomInt());
 }
 
 void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::GroupId groupId,
@@ -887,7 +938,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
   constructMenuItem(returnId, id, groupId, returnSprite, { sfxVolumeId, musicVolumeId });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"),
+  auto behaviour = fge::createBGeneric(hashString("menu_behaviour"),
     { g_strMenuItemActivate, g_strSubmenuExit },
     [id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
@@ -1033,7 +1084,7 @@ void MenuSystemImpl::constructMainMenu(bool hasQuitButton)
   auto mainMenuOptions = constructGameOptionsSubmenu({ mainMenuMainId, m_mainMenu.itemGroupId });
   auto mainMenuCredits = constructCreditsSubmenu({ mainMenuMainId, m_mainMenu.itemGroupId });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
+  auto behaviour = fge::createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
     [this, &sysSpatial, &sysUi, settingsId, mainMenuMainId, mainMenuSettings, optionsId,
       mainMenuOptions, creditsId, mainMenuCredits](const Event& e) {
 
@@ -1239,8 +1290,8 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   constructMenuItem(returnId, id, groupId, returnSprite, { NULL_ENTITY, NULL_ENTITY });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"),
-    { g_strMenuItemActivate, g_strSubmenuExit, g_strEntityEnable },
+  auto behaviour = fge::createBGeneric(hashString("menu_behaviour"),
+    { g_strMenuItemActivate, g_strSubmenuExit, fge::g_strEntityEnable },
     [id, prevMenu, returnId, items, &sysAnimation, &sysSpatial, &sysRender, &sysUi]
     (const Event& e) {
 
@@ -1257,8 +1308,8 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
       sysSpatial.setEnabled(prevMenu.entityId, true);
       sysUi.setActiveGroup(prevMenu.itemGroupId);
     }
-    else if (e.name == g_strEntityEnable) {
-      auto& event = dynamic_cast<const EEntityEnable&>(e);
+    else if (e.name == fge::g_strEntityEnable) {
+      auto& event = dynamic_cast<const fge::EEntityEnable&>(e);
       if (event.entityId == id) {
         for (auto textItem : items) {
           sysAnimation.playAnimation(textItem, strFadeIn);
@@ -1396,7 +1447,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 
   constructMenuItem(returnId, id, groupId, returnSprite, { difficultyId, difficultyId });
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"),
+  auto behaviour = fge::createBGeneric(hashString("menu_behaviour"),
     { g_strMenuItemActivate, g_strSubmenuExit },
     [id, prevMenu, returnId, &sysSpatial, &sysUi](const Event& e) {
 
@@ -1499,7 +1550,7 @@ void MenuSystemImpl::constructPauseMenu()
     { m_pauseMenuMain.entityId, m_pauseMenuMain.itemGroupId });
   m_pauseMenuSettingsId = pauseMenuSettings.entityId;
 
-  auto behaviour = createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
+  auto behaviour = fge::createBGeneric(hashString("menu_behaviour"), { g_strMenuItemActivate },
     [this, &sysSpatial, &sysUi, settingsId, pauseMenuSettings](const Event& e) {
 
     if (e.name == g_strMenuItemActivate) {
@@ -1518,7 +1569,7 @@ void MenuSystemImpl::constructPauseMenu()
 }
 
 MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem,
-  const GameOptionsManager& options, Logger& logger, bool hasQuitButton)
+  const GameOptionsManager& options, fge::Logger& logger, bool hasQuitButton)
 {
   return std::make_unique<MenuSystemImpl>(ecs, eventSystem, options, logger, hasQuitButton);
 }

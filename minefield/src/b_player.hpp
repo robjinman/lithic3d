@@ -1,8 +1,8 @@
 #pragma once
 
-#include "sys_behaviour.hpp"
+#include <fge/sys_behaviour.hpp>
 
-class BPlayer : public BehaviourData
+class BPlayer : public fge::BehaviourData
 {
   public:
     virtual bool moveUp() = 0;
@@ -15,7 +15,10 @@ class BPlayer : public BehaviourData
 
 using BPlayerPtr = std::unique_ptr<BPlayer>;
 
+namespace fge
+{
 class Ecs;
 class EventSystem;
+}
 
-BPlayerPtr createBPlayer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId);
+BPlayerPtr createBPlayer(fge::Ecs& ecs, fge::EventSystem& eventSystem, fge::EntityId entityId);

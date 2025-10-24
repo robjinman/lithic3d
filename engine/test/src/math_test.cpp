@@ -1,7 +1,8 @@
-#include <math.hpp>
-#include <utils.hpp>
+#include <fge/math.hpp>
 #include <gtest/gtest.h>
 #include <vector>
+
+using namespace fge;
 
 class MathTest : public testing::Test
 {

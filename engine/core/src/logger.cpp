@@ -1,8 +1,10 @@
-#include "logger.hpp"
+#include "fge/logger.hpp"
 #include <iostream>
 #include <mutex>
 #include <thread>
 
+namespace fge
+{
 namespace
 {
 
@@ -82,3 +84,5 @@ LoggerPtr createLogger(std::ostream& errorStream, std::ostream& warningStream,
 {
   return std::make_unique<LoggerImpl>(errorStream, warningStream, infoStream, debugStream);
 }
+
+} // namespace fge

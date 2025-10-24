@@ -1,13 +1,15 @@
 #include "vulkan/render_resources.hpp"
 #include "vulkan/ubo.hpp"
-#include "logger.hpp"
-#include "trace.hpp"
-#include "utils.hpp"
+#include "fge/logger.hpp"
+#include "fge/trace.hpp"
+#include "fge/utils.hpp"
 #include <map>
 #include <array>
 #include <cstring>
 #include <cassert>
 
+namespace fge
+{
 namespace render
 {
 namespace
@@ -1497,3 +1499,4 @@ RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevi
 }
 
 } // namespace render
+} // namespace fge

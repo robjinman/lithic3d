@@ -2,6 +2,8 @@
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
 namespace
 {
 
@@ -53,3 +55,5 @@ PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath, const fs::path&
 {
   return std::make_unique<PlatformPathsImpl>(bundlePath, appSupportPath);
 }
+
+} // namespace fge

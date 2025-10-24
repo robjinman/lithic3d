@@ -1,27 +1,31 @@
-#include "logger.hpp"
-#include "game.hpp"
-#include "renderer.hpp"
-#include "time.hpp"
-#include "utils.hpp"
-#include "units.hpp"
-#include "window_delegate.hpp"
-#include "file_system.hpp"
-#include "platform_paths.hpp"
-#include "audio_system.hpp"
-#include <iostream>
+#include <fge/logger.hpp>
+#include <fge/game.hpp>
+#include <fge/renderer.hpp>
+#include <fge/time.hpp>
+#include <fge/window_delegate.hpp>
+#include <fge/file_system.hpp>
+#include <fge/platform_paths.hpp>
+#include <fge/audio_system.hpp>
+#include <fge/units.hpp>
 #include <GLFW/glfw3.h>
 #if defined(_WIN32) && defined(NDEBUG)
 #include <windows.h>
 #endif
+#include <iostream>
 
 const int WINDOWED_RESOLUTION_W = 630;
 const int WINDOWED_RESOLUTION_H = 480;
 const int FULLSCREEN_RESOLUTION_W = 1920;
 const int FULLSCREEN_RESOLUTION_H = 1080;
 
+namespace fge
+{
+
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
 PlatformPathsPtr createPlatformPaths();
 FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
+
+} // namespace fge
 
 namespace
 {
@@ -40,21 +44,21 @@ enum class ControlMode
   Gamepad
 };
 
-GamepadButton buttonCode(int button)
+fge::GamepadButton buttonCode(int button)
 {
   switch (button) {
-    case GLFW_GAMEPAD_BUTTON_A:             return GamepadButton::A;
-    case GLFW_GAMEPAD_BUTTON_B:             return GamepadButton::B;
-    case GLFW_GAMEPAD_BUTTON_X:             return GamepadButton::X;
-    case GLFW_GAMEPAD_BUTTON_Y:             return GamepadButton::Y;
-    case GLFW_GAMEPAD_BUTTON_LEFT_BUMPER:   return GamepadButton::L1;
-    case GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER:  return GamepadButton::R1;
-    case GLFW_GAMEPAD_BUTTON_DPAD_LEFT:     return GamepadButton::Left;
-    case GLFW_GAMEPAD_BUTTON_DPAD_RIGHT:    return GamepadButton::Right;
-    case GLFW_GAMEPAD_BUTTON_DPAD_UP:       return GamepadButton::Up;
-    case GLFW_GAMEPAD_BUTTON_DPAD_DOWN:     return GamepadButton::Down;
+    case GLFW_GAMEPAD_BUTTON_A:             return fge::GamepadButton::A;
+    case GLFW_GAMEPAD_BUTTON_B:             return fge::GamepadButton::B;
+    case GLFW_GAMEPAD_BUTTON_X:             return fge::GamepadButton::X;
+    case GLFW_GAMEPAD_BUTTON_Y:             return fge::GamepadButton::Y;
+    case GLFW_GAMEPAD_BUTTON_LEFT_BUMPER:   return fge::GamepadButton::L1;
+    case GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER:  return fge::GamepadButton::R1;
+    case GLFW_GAMEPAD_BUTTON_DPAD_LEFT:     return fge::GamepadButton::Left;
+    case GLFW_GAMEPAD_BUTTON_DPAD_RIGHT:    return fge::GamepadButton::Right;
+    case GLFW_GAMEPAD_BUTTON_DPAD_UP:       return fge::GamepadButton::Up;
+    case GLFW_GAMEPAD_BUTTON_DPAD_DOWN:     return fge::GamepadButton::Down;
     // ...
-    default:                                return GamepadButton::Unknown;
+    default:                                return fge::GamepadButton::Unknown;
   }
 }
 
@@ -81,25 +85,25 @@ class Application
     static void onWindowResize(GLFWwindow* window, int w, int h);
 
     GLFWwindow* m_window;
-    PlatformPathsPtr m_platformPaths;
-    FileSystemPtr m_fileSystem;
-    WindowDelegatePtr m_windowDelegate;
-    LoggerPtr m_logger;
-    AudioSystemPtr m_audioSystem;
-    render::RendererPtr m_renderer;
-    GamePtr m_game;
+    fge::PlatformPathsPtr m_platformPaths;
+    fge::FileSystemPtr m_fileSystem;
+    fge::WindowDelegatePtr m_windowDelegate;
+    fge::LoggerPtr m_logger;
+    fge::AudioSystemPtr m_audioSystem;
+    fge::render::RendererPtr m_renderer;
+    fge::GamePtr m_game;
 
     bool m_fullscreen = false;
     bool m_inputCaptured = false;
     WindowState m_initialWindowState;
     ControlMode m_controlMode;
-    Vec2f m_lastMousePos;
+    fge::Vec2f m_lastMousePos;
     GLFWgamepadstate m_gamepadState;
 
     void enterInputCapture();
     void exitInputCapture();
     void toggleFullScreen();
-    Vec2i windowSize() const;
+    fge::Vec2i windowSize() const;
     void processGamepadInput();
 };
 
@@ -160,12 +164,12 @@ Application::Application()
     ControlMode::Gamepad :
     ControlMode::KeyboardMouse;
 
-  m_platformPaths = createPlatformPaths();
-  m_fileSystem = createDefaultFileSystem(*m_platformPaths);
-  m_windowDelegate = createWindowDelegate(*m_window);
-  m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, {});
+  m_platformPaths = fge::createPlatformPaths();
+  m_fileSystem = fge::createDefaultFileSystem(*m_platformPaths);
+  m_windowDelegate = fge::createWindowDelegate(*m_window);
+  m_logger = fge::createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  m_audioSystem = fge::createAudioSystem(*m_fileSystem);
+  m_renderer = fge::createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, {});
 
   m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
 
@@ -176,7 +180,7 @@ Application::Application()
 
 void Application::run()
 {
-  FrameRateLimiter frameRateLimiter{TICKS_PER_SECOND};
+  fge::FrameRateLimiter frameRateLimiter{fge::TICKS_PER_SECOND};
 
   while(!glfwWindowShouldClose(m_window)) {
     glfwPollEvents();
@@ -193,9 +197,9 @@ void Application::run()
   }
 }
 
-Vec2i Application::windowSize() const
+fge::Vec2i Application::windowSize() const
 {
-  Vec2i size;
+  fge::Vec2i size;
   glfwGetWindowSize(m_window, &size[0], &size[1]);
   return size;
 }
@@ -220,22 +224,22 @@ void Application::onJoystickEvent(int event)
 
 void Application::onKeyboardInput(int code, int action)
 {
-  auto key = static_cast<KeyboardKey>(code);
+  auto key = static_cast<fge::KeyboardKey>(code);
 
   if (action == GLFW_PRESS) {
     m_game->onKeyDown(key);
 
     switch (key) {
-      case KeyboardKey::Escape:
+      case fge::KeyboardKey::Escape:
         //exitInputCapture();
         break;
-      case KeyboardKey::F:
+      case fge::KeyboardKey::F:
         m_logger->info(STR("Renderer frame rate: " << m_renderer->frameRate()));
         break;
 #ifdef __APPLE__
-      case KeyboardKey::F12:
+      case fge::KeyboardKey::F12:
 #else
-      case KeyboardKey::F11:
+      case fge::KeyboardKey::F11:
 #endif
         toggleFullScreen();
         break;
@@ -284,8 +288,8 @@ void Application::onWindowResize(int w, int h)
 
 void Application::onMouseMove(float x, float y)
 {
-  Vec2f pos{ x, y };
-  Vec2f delta = (pos - m_lastMousePos) / static_cast<Vec2f>(windowSize());
+  fge::Vec2f pos{ x, y };
+  fge::Vec2f delta = (pos - m_lastMousePos) / static_cast<fge::Vec2f>(windowSize());
   m_game->onMouseMove(pos, delta);
   m_lastMousePos = { x, y };
 }

@@ -12,6 +12,9 @@
 #include <android/log.h>
 #include <iostream>
 
+namespace fge
+{
+
 LoggerPtr createAndroidLogger();
 WindowDelegatePtr createWindowDelegate(ANativeWindow& window);
 FileSystemPtr createAndroidFileSystem(const std::filesystem::path& userDataPath,
@@ -396,15 +399,16 @@ int32_t handleInput(android_app* state, AInputEvent* event)
 }
 
 } // namespace
+} // namespace fge
 
 void android_main(android_app* state)
 {
   autoHideNavBar(state);
 
-  auto logger = createAndroidLogger();
+  auto logger = fge::createAndroidLogger();
   logger->info("Starting Minefield");
 
-  EventHandler handler{*logger};
+  fge::EventHandler handler{*logger};
 
   state->onAppCmd = handleCommand;
   state->onInputEvent = handleInput;
@@ -414,10 +418,10 @@ void android_main(android_app* state)
     return;
   }
 
-  auto application = createApplication(*state, *logger);
+  auto application = fge::createApplication(*state, *logger);
   handler.setApplication(application.get());
 
-  FrameRateLimiter frameRateLimiter{TICKS_PER_SECOND};
+  fge::FrameRateLimiter frameRateLimiter{fge::TICKS_PER_SECOND};
 
   while (!state->destroyRequested) {
     android_poll_source* source = nullptr;

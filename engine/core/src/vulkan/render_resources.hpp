@@ -1,7 +1,10 @@
 #pragma once
 
-#include "renderer.hpp"
+#include "fge/renderer.hpp"
 #include <vulkan/vulkan.h>
+
+namespace fge
+{
 
 class Logger;
 
@@ -140,3 +143,4 @@ RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevi
   VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
 
 } // namespace render
+} // namespace fge

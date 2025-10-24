@@ -1,6 +1,6 @@
 #pragma once
 
-#include "math.hpp"
+#include <fge/math.hpp>
 #include <memory>
 #include <functional>
 
@@ -25,15 +25,18 @@ class MobileControls
   public:
     virtual void hide() = 0;
     virtual void show() = 0;
-    virtual void setGameArea(const Rectf& gameArea) = 0;
+    virtual void setGameArea(const fge::Rectf& gameArea) = 0;
 
     virtual ~MobileControls() = default;
 };
 
 using MobileControlsPtr = std::unique_ptr<MobileControls>;
 
+namespace fge
+{
 class Ecs;
 class EventSystem;
+}
 
-MobileControlsPtr createMobileControls(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, const Rectf& gameArea);
+MobileControlsPtr createMobileControls(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+  const MobileControlsCallbacks& callbacks, const fge::Rectf& gameArea);

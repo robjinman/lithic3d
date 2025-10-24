@@ -1,8 +1,20 @@
+#include "units.hpp"
 #include "b_stick.hpp"
 #include "game_events.hpp"
-#include "events.hpp"
 #include "sys_grid.hpp"
-#include "systems.hpp"
+#include <fge/systems.hpp>
+#include <fge/events.hpp>
+
+using fge::EntityId;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::SysAnimation;
+using fge::AnimationId;
+using fge::Animation;
+using fge::AnimationFrame;
 
 namespace
 {
@@ -10,7 +22,7 @@ namespace
 static const auto strThrow = hashString("throw");
 static const auto strFade = hashString("fade");
 
-class BStick : public BehaviourData
+class BStick : public fge::BehaviourData
 {
   public:
     BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
@@ -61,28 +73,28 @@ const std::set<HashedString>& BStick::subscriptions() const
 void BStick::onLand()
 {
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
 
   auto entities = sysGrid.getEntities(m_destX, m_destY);
   entities.erase(m_entityId);
 
-  m_eventSystem.raiseEvent(EEntityLandOn{m_entityId, Vec2i{ m_destX, m_destY }, entities});
+  m_eventSystem.raiseEvent(EEntityLandOn{m_entityId, fge::Vec2i{ m_destX, m_destY }, entities});
 
   sysAnimation.playAnimation(m_entityId, strFade, [this]() {
-    m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+    m_eventSystem.raiseEvent(fge::ERequestDeletion{m_entityId});
   });
 }
 
 void BStick::throwStick()
 {
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   auto& pos = sysGrid.entityPos(m_entityId);
 
-  Vec2f delta{
+  fge::Vec2f delta{
     static_cast<float>(m_destX - pos[0]) * GRID_CELL_W,
     static_cast<float>(m_destY - pos[1]) * GRID_CELL_H
   };
@@ -94,10 +106,10 @@ void BStick::throwStick()
       AnimationFrame{
         .pos = delta,
         .rotation = 360.f,
-        .pivot = Vec2f{ 0.f, 0.5f },
-        .scale = Vec2f{ 1.f, 1.f },
+        .pivot = fge::Vec2f{ 0.f, 0.5f },
+        .scale = fge::Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
-        .colour = Vec4f{ 1.f, 1.f, 1.f, 1.f }
+        .colour = fge::Vec4f{ 1.f, 1.f, 1.f, 1.f }
       }
     }
   });
@@ -129,7 +141,7 @@ void BStick::processEvent(const Event& event)
 
 } // namespace
 
-BehaviourDataPtr createBStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::BehaviourDataPtr createBStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId, AnimationId throwAnimation)
 {
   return std::make_unique<BStick>(ecs, eventSystem, entityId, playerId, throwAnimation);

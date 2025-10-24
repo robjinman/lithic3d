@@ -1,17 +1,17 @@
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/pipeline.hpp"
 #include "vulkan/render_resources.hpp"
-#include "vulkan/vulkan_window_delegate.hpp"
-#include "renderer.hpp"
-#include "exception.hpp"
-#include "logger.hpp"
-#include "camera.hpp"
-#include "utils.hpp"
-#include "time.hpp"
-#include "thread.hpp"
-#include "triple_buffer.hpp"
-#include "trace.hpp"
-#include "platform.hpp"
+#include "fge/vulkan/vulkan_window_delegate.hpp"
+#include "fge/renderer.hpp"
+#include "fge/exception.hpp"
+#include "fge/logger.hpp"
+#include "fge/camera.hpp"
+#include "fge/utils.hpp"
+#include "fge/time.hpp"
+#include "fge/thread.hpp"
+#include "fge/triple_buffer.hpp"
+#include "fge/trace.hpp"
+#include "fge/platform.hpp"
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -31,6 +31,8 @@
 #define USE_VALIDATION_LAYERS 1
 #endif
 
+namespace fge
+{
 namespace render
 {
 namespace
@@ -2095,3 +2097,5 @@ render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate&
   return std::make_unique<render::RendererImpl>(fileSystem,
     dynamic_cast<VulkanWindowDelegate&>(window), logger, margins);
 }
+
+} // namespace fge

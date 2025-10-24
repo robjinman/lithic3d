@@ -16,10 +16,20 @@ set(GAME_VERSION_STRING "2.0")
 set(GAME_VERSION_STRING "${GAME_VERSION_STRING}" PARENT_SCOPE)
 
 #########################################
+# Build a library target called 'game' with a dependency on ${ENGINE_LIB_TARGET}
 
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/version_in.hpp"
+  "${PROJECT_BINARY_DIR}/include/version.hpp"
+)
 
 file(GLOB CPP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
-add_library(libgame ${CPP_SOURCES})
+add_library(game ${CPP_SOURCES})
 
-target_link_libraries(libgame PUBLIC "${ENGINE_LIB_TARGET}")
+target_include_directories(game PUBLIC
+  "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
+target_link_libraries(game PUBLIC "${ENGINE_LIB_TARGET}")

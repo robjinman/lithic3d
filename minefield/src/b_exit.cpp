@@ -1,12 +1,20 @@
 #include "b_exit.hpp"
 #include "game_events.hpp"
-#include "systems.hpp"
-#include "sys_animation.hpp"
+#include <fge/systems.hpp>
+#include <fge/sys_animation.hpp>
+
+using fge::EntityId;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::SysAnimation;
 
 namespace
 {
 
-class BExit : public BehaviourData
+class BExit : public fge::BehaviourData
 {
   public:
     BExit(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId);
@@ -48,7 +56,7 @@ const std::set<HashedString>& BExit::subscriptions() const
 
 void BExit::processEvent(const Event& event)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   if (event.name == g_strGoldTargetAttained) {
     sysAnimation.playAnimation(m_entityId, hashString("idle"), true);
@@ -68,7 +76,7 @@ void BExit::processEvent(const Event& event)
 
 } // namespace
 
-BehaviourDataPtr createBExit(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::BehaviourDataPtr createBExit(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId)
 {
   return std::make_unique<BExit>(ecs, eventSystem, entityId, playerId);

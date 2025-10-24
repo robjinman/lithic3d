@@ -1,9 +1,19 @@
 #include "b_numeric_tile.hpp"
-#include "sys_render.hpp"
-#include "event_system.hpp"
 #include "game_events.hpp"
-#include "events.hpp"
-#include "systems.hpp"
+#include <fge/sys_render.hpp>
+#include <fge/event_system.hpp>
+#include <fge/events.hpp>
+#include <fge/systems.hpp>
+
+using fge::EntityId;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::SysRender;
+using fge::Vec2i;
+using fge::Rectf;
 
 namespace
 {
@@ -18,7 +28,7 @@ struct EDelayUpdate : Event {
   bool makeVisible;
 };
 
-class BNumericTile : public BehaviourData
+class BNumericTile : public fge::BehaviourData
 {
   public:
     BNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, const Vec2i& pos,
@@ -62,7 +72,7 @@ const std::set<HashedString>& BNumericTile::subscriptions() const
 
 void BNumericTile::processEvent(const Event& event)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(fge::RENDER_SYSTEM));
 
   if (event.name == g_strEntityExplode) {
     auto& e = dynamic_cast<const EEntityExplode&>(event);
@@ -80,10 +90,10 @@ void BNumericTile::processEvent(const Event& event)
 
     if (m_value > 0) {
       Rectf rect{
-        .x = pxToUvX(16.f * (m_value - 1)),
-        .y = pxToUvY(400.f, 16.f),
-        .w = pxToUvW(16.f),
-        .h = pxToUvH(16.f)
+        .x = fge::pxToUvX(16.f * (m_value - 1)),
+        .y = fge::pxToUvY(400.f, 16.f),
+        .w = fge::pxToUvW(16.f),
+        .h = fge::pxToUvH(16.f)
       };
 
       sysRender.setTextureRect(m_entityId, rect);
@@ -92,14 +102,14 @@ void BNumericTile::processEvent(const Event& event)
       }
     }
     else {
-      m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+      m_eventSystem.raiseEvent(fge::ERequestDeletion{m_entityId});
     }
   }
 }
 
 } // namespace
 
-BehaviourDataPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::BehaviourDataPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   const Vec2i& pos, int value)
 {
   return std::make_unique<BNumericTile>(ecs, eventSystem, entityId, pos, value);

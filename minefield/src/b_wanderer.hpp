@@ -1,9 +1,12 @@
 #pragma once
 
-#include "sys_behaviour.hpp"
+#include <fge/sys_behaviour.hpp>
 
+namespace fge
+{
 class Ecs;
 class EventSystem;
+}
 
-BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
-  EntityId playerId);
+fge::BehaviourDataPtr createBWanderer(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+  fge::EntityId entityId, fge::EntityId playerId);

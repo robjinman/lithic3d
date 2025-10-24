@@ -1,7 +1,10 @@
 #pragma once
 
-#include "exception.hpp"
+#include "fge/exception.hpp"
 #include <vulkan/vulkan.h>
+
+namespace fge
+{
 
 extern PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingFn;
 extern PFN_vkCmdEndRenderingKHR vkCmdEndRenderingFn;
@@ -30,3 +33,5 @@ uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
   VkMemoryPropertyFlags properties);
 
 VkFormat findDepthFormat(VkPhysicalDevice physicalDevice);
+
+} // namespace fge

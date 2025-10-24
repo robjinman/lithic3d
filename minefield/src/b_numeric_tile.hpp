@@ -1,9 +1,12 @@
 #pragma once
 
-#include "sys_behaviour.hpp"
+#include <fge/sys_behaviour.hpp>
 
+namespace fge
+{
 class Ecs;
 class EventSystem;
+}
 
-BehaviourDataPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
-  const Vec2i& pos, int value);
+fge::BehaviourDataPtr createBNumericTile(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+  fge::EntityId entityId, const fge::Vec2i& pos, int value);

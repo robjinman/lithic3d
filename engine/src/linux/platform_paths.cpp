@@ -1,7 +1,9 @@
-#include "platform_paths.hpp"
+#include <fge/platform_paths.hpp>
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
 namespace
 {
 
@@ -52,9 +54,11 @@ const std::filesystem::path& PlatformPathsImpl::userData() const
   return m_userDataPath;
 }
 
-}
+} // namespace
 
 PlatformPathsPtr createPlatformPaths()
 {
   return std::make_unique<PlatformPathsImpl>();
 }
+
+} // namespace fge

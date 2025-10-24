@@ -1,7 +1,7 @@
 #include "game_options.hpp"
-#include "exception.hpp"
-#include "file_system.hpp"
-#include "utils.hpp"
+#include <fge/exception.hpp>
+#include <fge/file_system.hpp>
+#include <fge/utils.hpp>
 #include <cstring>
 
 namespace
@@ -61,18 +61,18 @@ const std::array<GameOptions, NUM_DIFFICULTY_LEVELS> levels{
 class GameOptionsManagerImpl : public GameOptionsManager
 {
   public:
-    GameOptionsManagerImpl(FileSystem& fileSystem, Logger& logger);
+    GameOptionsManagerImpl(fge::FileSystem& fileSystem, fge::Logger& logger);
 
     const GameOptions& getOptionsForLevel(uint32_t level) const override;
     void setBestTime(uint32_t level, uint32_t time) override;
 
   private:
-    Logger& m_logger;
-    FileSystem& m_fileSystem;
+    fge::Logger& m_logger;
+    fge::FileSystem& m_fileSystem;
     std::array<GameOptions, NUM_DIFFICULTY_LEVELS> m_levels;
 };
 
-GameOptionsManagerImpl::GameOptionsManagerImpl(FileSystem& fileSystem, Logger& logger)
+GameOptionsManagerImpl::GameOptionsManagerImpl(fge::FileSystem& fileSystem, fge::Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
 {
@@ -112,7 +112,7 @@ void GameOptionsManagerImpl::setBestTime(uint32_t level, uint32_t time)
 
 }
 
-GameOptionsManagerPtr createGameOptionsManager(FileSystem& fileSystem, Logger& logger)
+GameOptionsManagerPtr createGameOptionsManager(fge::FileSystem& fileSystem, fge::Logger& logger)
 {
   return std::make_unique<GameOptionsManagerImpl>(fileSystem, logger);
 }

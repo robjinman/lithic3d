@@ -4,6 +4,9 @@
 #include "input.hpp"
 #include <memory>
 
+namespace fge
+{
+
 class Application
 {
   public:
@@ -25,3 +28,5 @@ using ApplicationPtr = std::unique_ptr<Application>;
 
 ApplicationPtr createApplication(const char* bundlePath, const char* appSupportPath,
   WindowDelegatePtr windowDelegate);
+
+} // namespace fge

@@ -1,6 +1,8 @@
-#include <graph.hpp>
+#include <fge/graph.hpp>
 #include <gtest/gtest.h>
 #include <vector>
+
+using namespace fge;
 
 class GraphTest : public testing::Test
 {

@@ -1,6 +1,8 @@
-#include <tree_set.hpp>
+#include <fge/tree_set.hpp>
 #include <gtest/gtest.h>
 #include <vector>
+
+using namespace fge;
 
 class TreeSetTest : public testing::Test
 {

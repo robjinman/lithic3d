@@ -1,7 +1,9 @@
-#include <component_store.hpp>
+#include <fge/component_store.hpp>
+#include <fge/sys_render.hpp>
 #include <gtest/gtest.h>
 #include <vector>
-#include "sys_render.hpp"
+
+using namespace fge;
 
 class EcsTest : public testing::Test
 {

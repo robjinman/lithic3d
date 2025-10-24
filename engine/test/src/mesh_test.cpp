@@ -1,7 +1,8 @@
-#include <renderables.hpp>
+#include <fge/renderables.hpp>
 #include <gtest/gtest.h>
 
-using namespace render;
+using namespace fge;
+using namespace fge::render;
 
 class MeshTest : public testing::Test
 {

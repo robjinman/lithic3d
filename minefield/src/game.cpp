@@ -1,32 +1,53 @@
-#include "game.hpp"
+
 #include "game_events.hpp"
-#include "file_system.hpp"
-#include "time.hpp"
-#include "camera.hpp"
-#include "logger.hpp"
-#include "scene_builder.hpp"
-#include "audio_system.hpp"
-#include "renderer.hpp"
-#include "menu_system.hpp"
-#include "sys_animation.hpp"
-#include "sys_behaviour.hpp"
 #include "sys_grid.hpp"
-#include "sys_render.hpp"
-#include "sys_spatial.hpp"
-#include "sys_ui.hpp"
-#include "ecs.hpp"
-#include "systems.hpp"
-#include "events.hpp"
+#include "scene_builder.hpp"
+#include "menu_system.hpp"
 #include "game_options.hpp"
 #include "b_player.hpp"
 #include "mobile_controls.hpp"
-#include "platform.hpp"
+#include "units.hpp"
+#include "utils.hpp"
+#include "version.hpp"
+#include <fge/game.hpp>
+#include <fge/file_system.hpp>
+#include <fge/time.hpp>
+#include <fge/logger.hpp>
+#include <fge/audio_system.hpp>
+#include <fge/renderer.hpp>
+#include <fge/sys_animation.hpp>
+#include <fge/sys_behaviour.hpp>
+#include <fge/sys_render.hpp>
+#include <fge/sys_spatial.hpp>
+#include <fge/sys_ui.hpp>
+#include <fge/ecs.hpp>
+#include <fge/systems.hpp>
+#include <fge/events.hpp>
+#include <fge/platform.hpp>
 #ifdef DRM
-#include "drm.hpp"
-#include "product_activation.hpp"
+#include <fge/drm.hpp>
+#include <fge/product_activation.hpp>
 #endif
 #undef max
 #undef min
+
+using fge::EntityId;
+using fge::NULL_ENTITY;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::Tick;
+using fge::KeyboardKey;
+using fge::GamepadButton;
+using fge::MouseButton;
+using fge::Vec2f;
+using fge::Vec2i;
+using fge::Rectf;
+using fge::Recti;
+using fge::SysRender;
+using fge::SysSpatial;
+using fge::SysAnimation;
+using fge::SysBehaviour;
 
 namespace
 {
@@ -50,11 +71,11 @@ enum class GameState
   DeadPaused
 };
 
-class GameImpl : public Game
+class GameImpl : public fge::Game
 {
   public:
-    GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-      Logger& logger);
+    GameImpl(fge::render::Renderer& renderer, fge::AudioSystem& audioSystem,
+      fge::FileSystem& fileSystem, fge::Logger& logger);
 
     float gameViewportAspectRatio() const override;
     void onKeyDown(KeyboardKey key) override;
@@ -72,23 +93,23 @@ class GameImpl : public Game
     bool update() override;
 
   private:
-    Logger& m_logger;
-    FileSystem& m_fileSystem;
-    AudioSystem& m_audioSystem;
-    render::Renderer& m_renderer;
+    fge::Logger& m_logger;
+    fge::FileSystem& m_fileSystem;
+    fge::AudioSystem& m_audioSystem;
+    fge::render::Renderer& m_renderer;
     GameOptionsManagerPtr m_options;
-    EventSystemPtr m_eventSystem;
+    fge::EventSystemPtr m_eventSystem;
     MenuSystemPtr m_menuSystem;
     MobileControlsPtr m_mobileControls;
     bool m_mobileControlsActive = false;
-    EcsPtr m_ecs;
+    fge::EcsPtr m_ecs;
 #ifdef DRM
-    DrmPtr m_drm;
-    ProductActivationPtr m_productActivation;
+    fge::DrmPtr m_drm;
+    fge::ProductActivationPtr m_productActivation;
 #endif
     SceneBuilderPtr m_sceneBuilder;
-    InputState m_inputState;
-    Timer m_timer;
+    fge::InputState m_inputState;
+    fge::Timer m_timer;
     Tick m_currentTick = 0;
     Tick m_timeSinceStart = 0;
     double m_measuredTickRate = 0;
@@ -126,15 +147,14 @@ class GameImpl : public Game
     Rectf calculateGameArea(uint32_t viewportW, uint32_t viewportH) const;
 };
 
-GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger)
+GameImpl::GameImpl(fge::render::Renderer& renderer, fge::AudioSystem& audioSystem,
+  fge::FileSystem& fileSystem, fge::Logger& logger)
   : m_logger(logger)
   , m_fileSystem(fileSystem)
   , m_audioSystem(audioSystem)
   , m_renderer(renderer)
 {
   m_logger.info(STR("Minefield version " << getVersionString()));
-  m_logger.info(STR("Build ID: " << getBuildId()));
 
   m_audioSystem.addMusic("sounds/music.ogg");
   m_audioSystem.addSound(strBang, "sounds/bang.wav");
@@ -158,15 +178,15 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
 
   sysRender->setClearColour({ 0.f, 0.f, 0.f, 1.f });
 
-  m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
-  m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
+  m_ecs->addSystem(fge::ANIMATION_SYSTEM, std::move(sysAnimation));
+  m_ecs->addSystem(fge::BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(GRID_SYSTEM, std::move(sysGrid));
-  m_ecs->addSystem(RENDER_SYSTEM, std::move(sysRender));
-  m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
-  m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
+  m_ecs->addSystem(fge::RENDER_SYSTEM, std::move(sysRender));
+  m_ecs->addSystem(fge::SPATIAL_SYSTEM, std::move(sysSpatial));
+  m_ecs->addSystem(fge::UI_SYSTEM, std::move(sysUi));
 
   m_menuSystem = createMenuSystem(*m_ecs, *m_eventSystem, *m_options, m_logger,
-    PLATFORM != Platform::iOS);
+    fge::PLATFORM != fge::Platform::iOS);
 
   m_sceneBuilder = createSceneBuilder(*m_eventSystem, *m_ecs, *m_options);
 
@@ -197,25 +217,27 @@ GameImpl::GameImpl(render::Renderer& renderer, AudioSystem& audioSystem, FileSys
   setMobileControlsScissor(viewport[0], viewport[1]);
 
 #ifdef DRM
-  m_drm = createDrm(m_fileSystem);
+  m_drm = fge::createDrm(m_fileSystem);
 
   if (!m_drm->isActivated()) {
-    m_productActivation = createProductActivation(*m_ecs, *m_eventSystem, *m_drm, m_logger);
-    dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_productActivation->root(),
-      true);
+    m_productActivation = fge::createProductActivation(*m_ecs, *m_eventSystem, *m_drm, m_logger);
+    dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM))
+      .setEnabled(m_productActivation->root(), true);
     m_gameState = GameState::ProductActivation;
 
     return;
   }
 #endif
 
-  dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_menuSystem->root(), true);
+  dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM))
+    .setEnabled(m_menuSystem->root(), true);
+
   m_menuSystem->showMainMenu();
   m_gameState = GameState::MainMenu;
 
   m_audioSystem.playMusic();
 
-  if (MOBILE_PLATFORM) {
+  if (fge::MOBILE_PLATFORM) {
     showMobileControls();
   }
 }
@@ -260,7 +282,7 @@ Rectf GameImpl::calculateGameArea(uint32_t viewportW, uint32_t viewportH) const
 
 void GameImpl::setMobileControlsScissor(uint32_t viewportW, uint32_t viewportH)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM));
+  auto& sysRender = dynamic_cast<SysRender&>(m_ecs->system(fge::RENDER_SYSTEM));
 
   Recti fullScreen{
     .x = 0,
@@ -282,7 +304,8 @@ void GameImpl::setScissor(uint32_t viewportW, uint32_t viewportH)
     .w = static_cast<int>(gameAreaWidth),
     .h = static_cast<int>(viewportH)
   };
-  dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).addScissor(MAIN_SCISSOR, scissor);
+  dynamic_cast<SysRender&>(m_ecs->system(fge::RENDER_SYSTEM))
+    .addScissor(MAIN_SCISSOR, scissor);
 
   auto& margins = m_renderer.getMargins();
 
@@ -313,12 +336,12 @@ void GameImpl::onWindowResize(uint32_t w, uint32_t h)
 
   m_mobileControls->setGameArea(gameArea);
 
-  dynamic_cast<SysRender&>(m_ecs->system(RENDER_SYSTEM)).onResize();
+  dynamic_cast<SysRender&>(m_ecs->system(fge::RENDER_SYSTEM)).onResize();
 }
 
 void GameImpl::handleMenuEvent(const Event& event)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM));
 
   if (event.name == g_strMenuItemActivate) {
     auto& e = dynamic_cast<const EMenuItemActivate&>(event);
@@ -355,7 +378,7 @@ void GameImpl::handleMenuEvent(const Event& event)
 void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
 {
   m_throwingMode = on;
-  m_ecs->componentStore().component<CRender>(m_scene.throwingModeIndicator).visible = on;
+  m_ecs->componentStore().component<fge::CRender>(m_scene.throwingModeIndicator).visible = on;
   if (on) {
     float x = GRID_W * GRID_CELL_W * 0.5f;
     float y = GRID_H * GRID_CELL_H * 0.5f;
@@ -379,8 +402,8 @@ void GameImpl::handleEvent(const Event& event)
     onPlayerDeath();
   }
 #ifdef DRM
-  else if (event.name == g_strProductActivate) {
-    auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+  else if (event.name == fge::g_strProductActivate) {
+    auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM));
     
     sysSpatial.setEnabled(m_productActivation->root(), false);
     sysSpatial.setEnabled(m_menuSystem->root(), true);
@@ -433,7 +456,7 @@ void GameImpl::onPlayerDeath()
 
 void GameImpl::onPlayerVictorious()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM));
 
   auto level = m_menuSystem->difficultyLevel();
   uint32_t seconds = static_cast<uint32_t>(m_timeSinceStart / TICKS_PER_SECOND);
@@ -477,7 +500,8 @@ void GameImpl::playSoundForEvent(const Event& event)
 
 Vec2f GameImpl::throwingIndicatorPosition() const
 {
-  const auto& t = m_ecs->componentStore().component<CLocalTransform>(m_scene.throwingModeIndicator);
+  const auto& t = m_ecs->componentStore()
+    .component<fge::CLocalTransform>(m_scene.throwingModeIndicator);
 
   return {
     t.transform.at(0, 3) + 0.025f,
@@ -513,7 +537,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
       break;
     }
     case KeyboardKey::Escape: {
-      auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM));
+      auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM));
 
       if (m_gameState == GameState::Dead || m_gameState == GameState::Playing) {
         sysSpatial.setEnabled(m_menuSystem->root(), true);
@@ -674,7 +698,7 @@ void GameImpl::processKeyboardInput()
 {
   static auto strPlayer = hashString("player");
 
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs->system(BEHAVIOUR_SYSTEM));
+  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs->system(fge::BEHAVIOUR_SYSTEM));
 
   if (m_gameState == GameState::Playing) {
     auto& player = dynamic_cast<BPlayer&>(sysBehaviour.getBehaviour(m_scene.player, strPlayer));
@@ -704,7 +728,7 @@ void GameImpl::processKeyboardInput()
 
 void GameImpl::throwStick(float x, float y)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs->system(fge::ANIMATION_SYSTEM));
 
   if (sysAnimation.hasAnimationPlaying(m_stickId)) {
     return;
@@ -731,7 +755,7 @@ void GameImpl::positionThrowingIndicator(const Vec2f& pos)
     return;
   }
 
-  auto& t = m_ecs->componentStore().component<CLocalTransform>(m_scene.throwingModeIndicator);
+  auto& t = m_ecs->componentStore().component<fge::CLocalTransform>(m_scene.throwingModeIndicator);
 
   t.transform.set(0, 3, pos[0] - 0.025f);
   t.transform.set(1, 3, pos[1] - 0.025f);
@@ -811,8 +835,8 @@ bool GameImpl::update()
 
   if (m_gameState == GameState::Dead || m_gameState == GameState::DeadPaused) {
     if (m_currentTick - m_timeOfDeath >= deathPromptDelay) {
-      dynamic_cast<SysSpatial&>(m_ecs->system(SPATIAL_SYSTEM)).setEnabled(m_scene.restartGamePrompt,
-        true);
+      dynamic_cast<SysSpatial&>(m_ecs->system(fge::SPATIAL_SYSTEM))
+        .setEnabled(m_scene.restartGamePrompt, true);
     }
   }
 
@@ -827,8 +851,8 @@ bool GameImpl::update()
 
 } // namespace
 
-GamePtr createGame(render::Renderer& renderer, AudioSystem& audioSystem, FileSystem& fileSystem,
-  Logger& logger)
+fge::GamePtr createGame(fge::render::Renderer& renderer, fge::AudioSystem& audioSystem,
+  fge::FileSystem& fileSystem, fge::Logger& logger)
 {
   return std::make_unique<GameImpl>(renderer, audioSystem, fileSystem, logger);
 }

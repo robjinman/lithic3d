@@ -1,10 +1,18 @@
 #include "b_wanderer.hpp"
 #include "game_events.hpp"
-#include "systems.hpp"
 #include "sys_grid.hpp"
-#include "sys_animation.hpp"
-#include "sys_render.hpp"
-#include "events.hpp"
+#include <fge/sys_animation.hpp>
+#include <fge/sys_render.hpp>
+#include <fge/events.hpp>
+#include <fge/systems.hpp>
+
+using fge::EntityId;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::SysAnimation;
 
 namespace
 {
@@ -16,7 +24,7 @@ enum class WandererState
   Inactive
 };
 
-class BWanderer : public BehaviourData
+class BWanderer : public fge::BehaviourData
 {
   public:
     BWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId);
@@ -71,7 +79,7 @@ void BWanderer::makeMove()
   }
 
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   auto pos = sysGrid.entityPos(m_entityId);
   auto entities = sysGrid.getEntities(pos[0], pos[1]);
@@ -133,7 +141,7 @@ void BWanderer::processEvent(const Event& event)
 
   constexpr int sqActivationDist = 36;
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
 
   if (m_state == WandererState::Active) {
     if (event.name == g_strPlayerMove) {
@@ -141,7 +149,7 @@ void BWanderer::processEvent(const Event& event)
         auto& playerPos = sysGrid.entityPos(m_playerId);
         auto& pos = sysGrid.entityPos(m_entityId);
         if (playerPos == pos) {
-          m_eventSystem.raiseEvent(EAttack{m_entityId, EntityIdSet{ m_playerId }});
+          m_eventSystem.raiseEvent(EAttack{m_entityId, fge::EntityIdSet{ m_playerId }});
         }
       }
     }
@@ -149,7 +157,7 @@ void BWanderer::processEvent(const Event& event)
       auto& e = dynamic_cast<const EEntityExplode&>(event);
 
       if (e.pos == sysGrid.entityPos(m_entityId)) {
-        m_eventSystem.raiseEvent(ERequestDeletion{ m_entityId });
+        m_eventSystem.raiseEvent(fge::ERequestDeletion{ m_entityId });
         m_state = WandererState::Inactive;
         return;
       }
@@ -166,7 +174,7 @@ void BWanderer::processEvent(const Event& event)
 
         if (sqDist <= sqActivationDist) {
           m_state = WandererState::Active;
-          m_ecs.componentStore().component<CRender>(m_entityId).visible = true;
+          m_ecs.componentStore().component<fge::CRender>(m_entityId).visible = true;
           sysAnimation.playAnimation(m_entityId, strFadeIn, [this]() { makeMove(); });
         }
       }
@@ -176,7 +184,7 @@ void BWanderer::processEvent(const Event& event)
 
 } // namespace
 
-BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId)
 {
   return std::make_unique<BWanderer>(ecs, eventSystem, entityId, playerId);

@@ -1,11 +1,13 @@
-#include "file_system.hpp"
-#include "exception.hpp"
-#include "utils.hpp"
-#include "platform_paths.hpp"
+#include <fge/file_system.hpp>
+#include <fge/exception.hpp>
+#include <fge/utils.hpp>
+#include <fge/platform_paths.hpp>
 #include <fstream>
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
 namespace
 {
 
@@ -123,3 +125,5 @@ FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths)
 {
   return std::make_unique<DefaultFileSystem>(platformPaths);
 }
+
+} // namespace fge

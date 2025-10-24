@@ -1,10 +1,12 @@
-#include "sys_behaviour.hpp"
-#include "event_system.hpp"
-#include "sys_spatial.hpp"
+#include "fge/sys_behaviour.hpp"
+#include "fge/event_system.hpp"
+#include "fge/sys_spatial.hpp"
 #include <vector>
 #include <map>
 #include <cassert>
 
+namespace fge
+{
 namespace
 {
 
@@ -106,3 +108,5 @@ SysBehaviourPtr createSysBehaviour(ComponentStore& componentStore)
 {
   return std::make_unique<SysBehaviourImpl>(componentStore);
 }
+
+} // namespace fge

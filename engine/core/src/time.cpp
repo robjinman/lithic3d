@@ -1,4 +1,4 @@
-#include "time.hpp"
+#include "fge/time.hpp"
 #include <thread>
 
 #ifdef _WIN32
@@ -8,6 +8,9 @@ static bool init = []() {
   return true;
 }();
 #endif
+
+namespace fge
+{
 
 using namespace std::chrono_literals;
 
@@ -54,3 +57,5 @@ void Timer::reset()
 {
   m_start = std::chrono::high_resolution_clock::now();
 }
+
+} // namespace fge

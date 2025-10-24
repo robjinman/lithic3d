@@ -1,18 +1,18 @@
 #pragma once
 
-#include "event_system.hpp"
+#include <fge/event_system.hpp>
 
-const HashedString g_strMenuItemActivate = hashString("menu_item_activate");
-const HashedString g_strSubmenuExit = hashString("submenu_exit");
+const fge::HashedString g_strMenuItemActivate = fge::hashString("menu_item_activate");
+const fge::HashedString g_strSubmenuExit = fge::hashString("submenu_exit");
 
-class EMenuItemActivate : public Event
+class EMenuItemActivate : public fge::Event
 {
   public:
-    EMenuItemActivate(EntityId entityId)
+    EMenuItemActivate(fge::EntityId entityId)
       : Event(g_strMenuItemActivate)
       , entityId(entityId) {}
 
-    EMenuItemActivate(EntityId entityId, const EntityIdSet& targets)
+    EMenuItemActivate(fge::EntityId entityId, const fge::EntityIdSet& targets)
       : Event(g_strMenuItemActivate, targets)
       , entityId(entityId) {}
 
@@ -21,10 +21,10 @@ class EMenuItemActivate : public Event
       return STR(Event::toString() << " (" << "entityId = " << entityId << ")");
     }
 
-    EntityId entityId;
+    fge::EntityId entityId;
 };
 
-class ESubmenuExit : public Event
+class ESubmenuExit : public fge::Event
 {
   public:
     ESubmenuExit()
@@ -36,17 +36,17 @@ struct InputState;
 class MenuSystem
 {
   public:
-    virtual EntityId root() const = 0;
+    virtual fge::EntityId root() const = 0;
 
     virtual void showMainMenu() = 0;
     virtual void showPauseMenu() = 0;
 
     virtual void update() = 0;
 
-    virtual EntityId startGameBtn() const = 0;
-    virtual EntityId resumeBtn() const = 0;
-    virtual EntityId quitToMainMenuBtn() const = 0;
-    virtual EntityId quitGameBtn() const = 0;
+    virtual fge::EntityId startGameBtn() const = 0;
+    virtual fge::EntityId resumeBtn() const = 0;
+    virtual fge::EntityId quitToMainMenuBtn() const = 0;
+    virtual fge::EntityId quitGameBtn() const = 0;
 
     virtual float sfxVolume() const = 0;
     virtual float musicVolume() const = 0;
@@ -57,10 +57,14 @@ class MenuSystem
 
 using MenuSystemPtr = std::unique_ptr<MenuSystem>;
 
+namespace fge
+{
 class Ecs;
 class EventSystem;
-class GameOptionsManager;
 class Logger;
+}
 
-MenuSystemPtr createMenuSystem(Ecs& ecs, EventSystem& eventSystem, const GameOptionsManager& optons,
-  Logger& logger, bool hasQuitButton);
+class GameOptionsManager;
+
+MenuSystemPtr createMenuSystem(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+  const GameOptionsManager& optons, fge::Logger& logger, bool hasQuitButton);

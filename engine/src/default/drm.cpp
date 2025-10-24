@@ -1,7 +1,7 @@
-#include "drm.hpp"
-#include "file_system.hpp"
-#include "utils.hpp"
-#include "exception.hpp"
+#include <fge/drm.hpp>
+#include <fge/file_system.hpp>
+#include <fge/utils.hpp>
+#include <fge/exception.hpp>
 #include <openssl/sha.h>
 #include <fstream>
 #include <cstring>
@@ -9,6 +9,8 @@
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
 namespace
 {
 
@@ -149,3 +151,5 @@ DrmPtr createDrm(FileSystem& fileSystem)
 {
   return std::make_unique<DrmImpl>(fileSystem);
 }
+
+} // namespace fge

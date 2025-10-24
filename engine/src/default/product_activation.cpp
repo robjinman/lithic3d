@@ -1,11 +1,13 @@
-#include "product_activation.hpp"
-#include "drm.hpp"
-#include "logger.hpp"
-#include "sys_spatial.hpp"
-#include "systems.hpp"
-#include "sys_render.hpp"
-#include "sys_ui.hpp"
+#include <fge/product_activation.hpp>
+#include <fge/drm.hpp>
+#include <fge/logger.hpp>
+#include <fge/sys_spatial.hpp>
+#include <fge/systems.hpp>
+#include <fge/sys_render.hpp>
+#include <fge/sys_ui.hpp>
 
+namespace fge
+{
 namespace
 {
 
@@ -92,7 +94,7 @@ EntityId ProductActivationImpl::constructPrompt()
   sysSpatial.addEntity(id, spatial);
 
   TextData render{
-    .scissor = MAIN_SCISSOR,
+    .scissor = 1, // TODO
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -143,7 +145,7 @@ EntityId ProductActivationImpl::constructTextbox()
   sysSpatial.addEntity(id, spatial);
 
   DynamicTextData render{
-    .scissor = MAIN_SCISSOR,
+    .scissor = 1, // TODO
     .textureRect = {
       .x = pxToUvX(256.f),
       .y = pxToUvY(64.f, 192.f),
@@ -209,3 +211,5 @@ ProductActivationPtr createProductActivation(Ecs& ecs, EventSystem& eventSystem,
 {
   return std::make_unique<ProductActivationImpl>(ecs, eventSystem, drm, logger);
 }
+
+} // namespace fge

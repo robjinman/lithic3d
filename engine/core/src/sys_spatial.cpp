@@ -1,8 +1,10 @@
-#include "sys_spatial.hpp"
-#include "graph.hpp"
+#include "fge/sys_spatial.hpp"
+#include "fge/graph.hpp"
 #include <unordered_map>
 #include <cstring>
 
+namespace fge
+{
 namespace
 {
 
@@ -125,3 +127,5 @@ SysSpatialPtr createSysSpatial(ComponentStore& componentStore, EventSystem& even
 {
   return std::make_unique<SysSpatialImpl>(componentStore, eventSystem);
 }
+
+} // namespace fge

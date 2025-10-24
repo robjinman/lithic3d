@@ -1,9 +1,17 @@
 #include "b_player.hpp"
 #include "game_events.hpp"
-#include "events.hpp"
-#include "systems.hpp"
 #include "sys_grid.hpp"
-#include "sys_animation.hpp"
+#include <fge/events.hpp>
+#include <fge/systems.hpp>
+#include <fge/sys_animation.hpp>
+
+using fge::EntityId;
+using fge::HashedString;
+using fge::hashString;
+using fge::Event;
+using fge::EventSystem;
+using fge::Ecs;
+using fge::SysAnimation;
 
 namespace
 {
@@ -80,7 +88,7 @@ void BPlayerImpl::postMove()
 
 bool BPlayerImpl::move(int dx, int dy, HashedString animation)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
 
   // We remove ourselves from the grid when we die
@@ -124,7 +132,7 @@ bool BPlayerImpl::moveLeft()
 
 void BPlayerImpl::processEvent(const Event& event)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
   auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
 
   if (event.name == g_strEntityExplode) {
@@ -132,18 +140,18 @@ void BPlayerImpl::processEvent(const Event& event)
 
     if (sysGrid.entityPos(m_entityId) == e.pos) {
       m_eventSystem.raiseEvent(EPlayerDeath{});
-      m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+      m_eventSystem.raiseEvent(fge::ERequestDeletion{m_entityId});
     }
   }
   else if (event.name == g_strAttack) {
     sysGrid.removeEntity(m_entityId);
     m_eventSystem.scheduleEvent(15,
-      std::make_unique<Event>(strDelayDeath, EntityIdSet{ m_entityId }));
+      std::make_unique<Event>(strDelayDeath, fge::EntityIdSet{ m_entityId }));
   }
   else if (event.name == g_strTimeout) {
     sysAnimation.stopAnimation(m_entityId);
     sysAnimation.playAnimation(m_entityId, strDie, [this]() {
-      m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+      m_eventSystem.raiseEvent(fge::ERequestDeletion{m_entityId});
     });
     m_eventSystem.raiseEvent(EPlayerDeath{});
   }
@@ -151,7 +159,7 @@ void BPlayerImpl::processEvent(const Event& event)
     m_eventSystem.raiseEvent(EWandererAttack{});
 
     sysAnimation.queueAnimation(m_entityId, strDie, [this]() {
-      m_eventSystem.raiseEvent(ERequestDeletion{m_entityId});
+      m_eventSystem.raiseEvent(fge::ERequestDeletion{m_entityId});
     });
 
     m_eventSystem.raiseEvent(EPlayerDeath{});

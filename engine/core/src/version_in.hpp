@@ -1,6 +1,3 @@
-#define Minefield_VERSION_MAJOR @VERSION_MAJOR@
-#define Minefield_VERSION_MINOR @VERSION_MINOR@
-#define BUILD_ID "@BUILD_ID@"
-
-#define STRINGIFY(x) #x
-#define TO_STRING(x) STRINGIFY(x)
+#define FGE_VERSION_MAJOR @VERSION_MAJOR@
+#define FGE_VERSION_MINOR @VERSION_MINOR@
+//#define BUILD_ID "@BUILD_ID@"

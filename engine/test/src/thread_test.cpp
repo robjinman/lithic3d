@@ -1,5 +1,7 @@
-#include <thread.hpp>
+#include <fge/thread.hpp>
 #include <gtest/gtest.h>
+
+using namespace fge;
 
 class ThreadTest : public testing::Test
 {
