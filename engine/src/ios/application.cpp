@@ -11,17 +11,12 @@
 
 namespace fs = std::filesystem;
 
-using fge::Vec2f;
-using fge::Vec2i;
-
 namespace fge
 {
 
 PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath,
   const fs::path& appSupportPath);
 FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
-
-}
 
 namespace
 {
@@ -30,42 +25,42 @@ class ApplicationImpl : public Application
 {
   public:
     ApplicationImpl(const char* bundlePath, const char* appSupportPath,
-      fge::WindowDelegatePtr windowDelegate);
+      WindowDelegatePtr windowDelegate);
 
     void onViewResize(float w, float h) override;
     bool update() override;
     void onTouchBegin(float x, float y) override;
     void onTouchMove(float x, float y) override;
     void onTouchEnd(float x, float y) override;
-    void onButtonDown(fge::GamepadButton button) override;
-    void onButtonUp(fge::GamepadButton button) override;
+    void onButtonDown(GamepadButton button) override;
+    void onButtonUp(GamepadButton button) override;
     void onLeftStickMove(float x, float y) override;
     void onRightStickMove(float x, float y) override;
     void hideMobileControls() override;
 
   private:
-    fge::WindowDelegatePtr m_windowDelegate;
-    fge::LoggerPtr m_logger;
-    fge::PlatformPathsPtr m_platformPaths;
-    fge::FileSystemPtr m_fileSystem;
-    fge::AudioSystemPtr m_audioSystem;
-    fge::render::RendererPtr m_renderer;
-    fge::GamePtr m_game;
+    WindowDelegatePtr m_windowDelegate;
+    LoggerPtr m_logger;
+    PlatformPathsPtr m_platformPaths;
+    FileSystemPtr m_fileSystem;
+    AudioSystemPtr m_audioSystem;
+    render::RendererPtr m_renderer;
+    GamePtr m_game;
     Vec2i m_screenSize;
     Vec2f m_leftStickDelta;
     Vec2f m_rightStickDelta;
 };
 
 ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportPath,
-  fge::WindowDelegatePtr windowDelegate)
+  WindowDelegatePtr windowDelegate)
   : m_windowDelegate(std::move(windowDelegate))
 {
-  m_logger = fge::createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_platformPaths = fge::createPlatformPaths(bundlePath, appSupportPath);
-  m_fileSystem = fge::createDefaultFileSystem(*m_platformPaths);
-  m_audioSystem = fge::createAudioSystem(*m_fileSystem);
+  m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  m_platformPaths = createPlatformPaths(bundlePath, appSupportPath);
+  m_fileSystem = createDefaultFileSystem(*m_platformPaths);
+  m_audioSystem = createAudioSystem(*m_fileSystem);
 
-  fge::render::ScreenMargins margins{
+  render::ScreenMargins margins{
     .left = 50,
     .bottom = 50
   };
@@ -99,12 +94,12 @@ void ApplicationImpl::hideMobileControls()
   m_game->hideMobileControls();
 }
 
-void ApplicationImpl::onButtonDown(fge::GamepadButton button)
+void ApplicationImpl::onButtonDown(GamepadButton button)
 {
   m_game->onButtonDown(button);
 }
 
-void ApplicationImpl::onButtonUp(fge::GamepadButton button)
+void ApplicationImpl::onButtonUp(GamepadButton button)
 {
   m_game->onButtonUp(button);
 }
@@ -152,7 +147,9 @@ void ApplicationImpl::onTouchEnd(float x, float y)
 }
 
 ApplicationPtr createApplication(const char* bundlePath, const char* appSupportPath,
-  fge::WindowDelegatePtr windowDelegate)
+  WindowDelegatePtr windowDelegate)
 {
   return std::make_unique<ApplicationImpl>(bundlePath, appSupportPath, std::move(windowDelegate));
 }
+
+} // namespace fge

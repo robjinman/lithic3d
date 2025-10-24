@@ -154,8 +154,6 @@ GameImpl::GameImpl(fge::render::Renderer& renderer, fge::AudioSystem& audioSyste
   , m_audioSystem(audioSystem)
   , m_renderer(renderer)
 {
-  m_logger.info(STR("Minefield version " << getVersionString()));
-
   m_audioSystem.addMusic("sounds/music.ogg");
   m_audioSystem.addSound(strBang, "sounds/bang.wav");
   m_audioSystem.addSound(strCollect, "sounds/collect.wav");

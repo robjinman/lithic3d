@@ -12,12 +12,7 @@ namespace fge
 std::string getVersionString()
 {
   static std::string s = []() {
-    return STR(FGE_VERSION_MAJOR << "." << FGE_VERSION_MINOR
-      << "-" << PLATFORM_NAME
-#ifdef DRM
-      << "-drm"
-#endif
-      << "");
+    return STR(FGE_VERSION_MAJOR << "." << FGE_VERSION_MINOR << "-" << PLATFORM_NAME);
   }();
 
   return s;

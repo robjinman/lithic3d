@@ -1,5 +1,5 @@
-#include "vulkan/vulkan_window_delegate.hpp"
-#include "vulkan/vulkan_utils.hpp"
+#include <fge/vulkan/vulkan_window_delegate.hpp>
+#include <fge/exception.hpp>
 #include <vulkan/vulkan_android.h>
 #include <android/native_window.h>
 
@@ -46,8 +46,9 @@ VkSurfaceKHR AndroidWindowDelegateImpl::createSurface(VkInstance instance)
     .window = &m_window
   };
 
-  VK_CHECK(vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface),
-    "Failed to create surface");
+  if (vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface) != VK_SUCCESS) {
+    EXCEPTION("Failed to create surface");
+  }
 
   return surface;
 }

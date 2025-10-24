@@ -1,12 +1,12 @@
-#include "logger.hpp"
-#include "game.hpp"
-#include "renderer.hpp"
-#include "time.hpp"
-#include "utils.hpp"
-#include "units.hpp"
-#include "window_delegate.hpp"
-#include "file_system.hpp"
-#include "audio_system.hpp"
+#include <fge/logger.hpp>
+#include <fge/game.hpp>
+#include <fge/renderer.hpp>
+#include <fge/time.hpp>
+#include <fge/utils.hpp>
+#include <fge/units.hpp>
+#include <fge/window_delegate.hpp>
+#include <fge/file_system.hpp>
+#include <fge/audio_system.hpp>
 #include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <android/log.h>
@@ -398,23 +398,23 @@ int32_t handleInput(android_app* state, AInputEvent* event)
   return reinterpret_cast<EventHandler*>(state->userData)->onInputEvent(*event);
 }
 
-} // namespace
 } // namespace fge
+} // namespace
 
 void android_main(android_app* state)
 {
-  autoHideNavBar(state);
+  fge::autoHideNavBar(state);
 
   auto logger = fge::createAndroidLogger();
   logger->info("Starting Minefield");
 
   fge::EventHandler handler{*logger};
 
-  state->onAppCmd = handleCommand;
-  state->onInputEvent = handleInput;
+  state->onAppCmd = fge::handleCommand;
+  state->onInputEvent = fge::handleInput;
   state->userData = &handler;
 
-  if (!waitForWindow(*state, handler)) {
+  if (!fge::waitForWindow(*state, handler)) {
     return;
   }
 

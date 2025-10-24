@@ -70,7 +70,7 @@ find_package(fmt REQUIRED)  # For OpenAL
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/version_in.hpp"
-  "${PROJECT_BINARY_DIR}/include/version.hpp"
+  "${CMAKE_CURRENT_BINARY_DIR}/include/version.hpp"
 )
 
 file(GLOB CPP_SOURCES
@@ -131,9 +131,9 @@ elseif(PLATFORM_ANDROID)
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/application.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/file_system.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/vulkan_window_delegate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/stb_vorbis.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/vulkan_window_delegate.cpp"
   )
   # game will depend on core
   target_link_libraries(app PUBLIC
@@ -180,7 +180,7 @@ endif()
 
 target_include_directories(${ENGINE_LIB_TARGET}
   PRIVATE
-    "${PROJECT_BINARY_DIR}/include" # Location of version.hpp
+    "${CMAKE_CURRENT_BINARY_DIR}/include" # Location of version.hpp
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${Stb_INCLUDE_DIR}"
   PUBLIC

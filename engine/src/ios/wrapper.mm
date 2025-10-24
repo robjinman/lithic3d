@@ -106,7 +106,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
 
 @implementation ViewController
 {
-  ApplicationPtr _application;
+  fge::ApplicationPtr _application;
 }
 
 - (void)loadView
@@ -150,7 +150,7 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
     inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:&err];
   const char* appSupportPathStr = [[appSupport path] UTF8String];
 
-  _application = createApplication(bundlePathCStr, appSupportPathStr,
+  _application = fge::createApplication(bundlePathCStr, appSupportPathStr,
     fge::createWindowDelegate(metalLayer));
   [self MF_onViewResize];
 

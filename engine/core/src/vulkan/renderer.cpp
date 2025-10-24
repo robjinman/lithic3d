@@ -333,6 +333,8 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
 {
   DBG_TRACE(m_logger);
 
+  m_logger.info(STR("Freehold Game Engine " << getVersionString()));
+
   m_viewParams = ViewParams{
     .hFov = 0.f,
     .vFov = degreesToRadians(45.f),
