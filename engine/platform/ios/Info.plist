@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>minefield</string>
+    <string>myapp</string>
 
     <key>CFBundleIdentifier</key>
-    <string>com.freeholdapps.minefield</string>
+    <string>com.example.myapp</string>
 
     <key>CFBundleName</key>
-    <string>Minefield</string>
+    <string>MyApp</string>
 
     <key>CFBundleVersion</key>
     <string>0.1</string>
@@ -18,7 +18,7 @@
     <string>0.1</string>
 
     <key>CFBundleDisplayName</key>
-    <string>Minefield</string>
+    <string>MyApp</string>
 
     <key>CFBundlePackageType</key>
     <string>APPL</string>

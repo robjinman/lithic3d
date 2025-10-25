@@ -406,7 +406,7 @@ void android_main(android_app* state)
   fge::autoHideNavBar(state);
 
   auto logger = fge::createAndroidLogger();
-  logger->info("Starting Minefield");
+  logger->info("Starting Freehold Game Engine Application");
 
   fge::EventHandler handler{*logger};
 

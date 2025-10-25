@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FreeholdGameEngine" // TODO
+rootProject.name = "FreeholdGameEngine"
 
 include ':app'
 project(':app').projectDir = new File('../../src/android')

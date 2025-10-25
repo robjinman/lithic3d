@@ -121,7 +121,7 @@ elseif(PLATFORM_ANDROID)
     OpenAL::OpenAL
     fmt::fmt
   )
-  set(GAME_PROJECT_DIRECTORY "${REPO_ROOT}/minefield") # TODO
+  include("${GAME_PROJECT_DIRECTORY}/game.cmake")
   add_subdirectory("${GAME_PROJECT_DIRECTORY}" "game")
   # Export ANativeActivity_onCreate(),
   # Refer to: https://github.com/android-ndk/ndk/issues/381.

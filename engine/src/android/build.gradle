@@ -4,12 +4,15 @@ plugins {
 
 layout.buildDirectory.set(file("$rootDir/../../../build/android/gradle_output"))
 
+def bundleId = gradle.startParameter.projectProperties['bundleId']
+def gameProjectDir = gradle.startParameter.projectProperties['gameProjectDir']
+
 android {
-    namespace 'com.freeholdapps.minefield' // TODO
+    namespace bundleId
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.freeholdapps.minefield" // TODO
+        applicationId bundleId
         minSdk 24
         targetSdk 35
         versionCode 1
@@ -21,7 +24,7 @@ android {
             debuggable true
             externalNativeBuild {
                 cmake {
-                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
+                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DGAME_PROJECT_DIRECTORY=${gameProjectDir}"
                     targets "app"
                 }
             }
@@ -29,7 +32,7 @@ android {
         release {
             externalNativeBuild {
                 cmake {
-                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON"
+                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DGAME_PROJECT_DIRECTORY=${gameProjectDir}"
                     targets "app"
                 }
             }
