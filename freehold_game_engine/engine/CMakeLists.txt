@@ -29,14 +29,14 @@ if(PLATFORM_ANDROID)
   )
 
   add_custom_target(android_bundle ALL
-    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}" "-PgameShortName${GAME_SHORT_NAME}" "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}" "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
+    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}" "-PgameShortName=${GAME_SHORT_NAME}" "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}" "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
     COMMENT "Running Gradle build..."
   )
 else()
   add_subdirectory("core")
-  add_subdirectory("${GAME_PROJECT_DIRECTORY}" "game")
+  add_subdirectory("${GAME_PROJECT_DIRECTORY}" "${GAME_SHORT_NAME}")
 
   set(EXE_TARGET "${GAME_SHORT_NAME}")
 
@@ -193,11 +193,18 @@ else()
     )
   endif()
 
+  set_target_properties(${EXE_TARGET}
+    PROPERTIES
+      ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${GAME_SHORT_NAME}"
+      LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${GAME_SHORT_NAME}"
+      RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${GAME_SHORT_NAME}"
+  )
+
   target_link_libraries(${EXE_TARGET} PRIVATE game)
 
   add_custom_target(
     link_data ALL
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/data ${PROJECT_BINARY_DIR}/data
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/data ${PROJECT_BINARY_DIR}/${GAME_SHORT_NAME}/data
   )
 
   set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
