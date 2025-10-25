@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/build/linux/vcpkg_installed/x64-linux/include",
+                "${workspaceFolder}/engine/core/src",
+                "${workspaceFolder}/engine/src"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "cppStandard": "c++20"
+        }
+    ],
+    "version": 4
+}

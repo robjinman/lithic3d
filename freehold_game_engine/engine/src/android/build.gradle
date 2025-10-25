@@ -2,17 +2,18 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-layout.buildDirectory.set(file("$rootDir/../../../build/android/gradle_output"))
-
-def bundleId = gradle.startParameter.projectProperties['bundleId']
+def gameShortName = gradle.startParameter.projectProperties['gameShortName']
 def gameProjectDir = gradle.startParameter.projectProperties['gameProjectDir']
+def gameBundleId = gradle.startParameter.projectProperties['gameBundleId']
+
+layout.buildDirectory.set(file("$rootDir/../../../build/android/gradle_output/${gameShortName}"))
 
 android {
-    namespace bundleId
+    namespace gameBundleId
     compileSdk 35
 
     defaultConfig {
-        applicationId bundleId
+        applicationId gameBundleId
         minSdk 24
         targetSdk 35
         versionCode 1

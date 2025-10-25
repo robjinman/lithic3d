@@ -23,15 +23,19 @@ if(DEFINED IOS_SIMULATOR)
 endif()
 
 if(PLATFORM_ANDROID)
-  message("Yeah ${GAME_BUNDLE_IDENTIFIER}")
+  add_custom_target(
+    link_data_to_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/data "${PROJECT_SOURCE_DIR}/platform/android/data/src/main/assets"
+  )
+
   add_custom_target(android_bundle ALL
-    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}" "-PbundleId=${GAME_BUNDLE_IDENTIFIER}" "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
+    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}" "-PgameShortName${GAME_SHORT_NAME}" "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}" "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
     COMMENT "Running Gradle build..."
   )
 else()
-  add_subdirectory("core" "core")
+  add_subdirectory("core")
   add_subdirectory("${GAME_PROJECT_DIRECTORY}" "game")
 
   set(EXE_TARGET "${GAME_SHORT_NAME}")
