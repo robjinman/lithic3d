@@ -271,7 +271,7 @@ void Application::toggleFullScreen()
     glfwSetWindowMonitor(m_window, monitor, 0, 0, FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H,
       mode->refreshRate);
 
-    //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
     m_game->onWindowResize(FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H);
 
@@ -310,7 +310,7 @@ void Application::onMouseClick()
 
 void Application::enterInputCapture()
 {
-  //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetKeyCallback(m_window, Application::onKeyboardInput);
   glfwSetCursorPosCallback(m_window, Application::onMouseMove);
   glfwSetJoystickCallback(Application::onJoystickEvent);

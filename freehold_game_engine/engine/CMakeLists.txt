@@ -28,8 +28,17 @@ if(PLATFORM_ANDROID)
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/data "${PROJECT_SOURCE_DIR}/platform/android/data/src/main/assets"
   )
 
+  add_custom_target(
+    link_icons_android ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/icons/android "${PROJECT_SOURCE_DIR}/src/android/src/main/res"
+  )
+
   add_custom_target(android_bundle ALL
-    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}" "-PgameShortName=${GAME_SHORT_NAME}" "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}" "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
+    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew"
+      "--info" "bundle${CMAKE_BUILD_TYPE}"
+      "-PgameShortName=${GAME_SHORT_NAME}"
+      "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}"
+      "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
     COMMENT "Running Gradle build..."
@@ -114,7 +123,7 @@ else()
       glfw
       "-framework OpenAL"
     )
-  elseif(PLATFORM_IOS) 
+  elseif(PLATFORM_IOS)
     set(LAUNCH_STORYBOARD ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/LaunchScreen.storyboard)
     set(LAUNCH_STORYBOARDC ${CMAKE_CURRENT_BINARY_DIR}/LaunchScreen.storyboardc)
 
@@ -147,13 +156,13 @@ else()
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
-      "${PROJECT_SOURCE_DIR}/platform/ios/Assets.xcassets"
+      "${GAME_PROJECT_DIRECTORY}/icons/ios/Assets.xcassets/AppIcon.appiconset"
     )
     set_source_files_properties(
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${GAME_PROJECT_DIRECTORY}/data"
       "${LAUNCH_STORYBOARDC}"
-      "${PROJECT_SOURCE_DIR}/platform/ios/Assets.xcassets"
+      "${GAME_PROJECT_DIRECTORY}/icons/ios/Assets.xcassets/AppIcon.appiconset"
       PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources
     )
