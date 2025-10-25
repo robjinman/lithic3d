@@ -122,6 +122,15 @@
       }
     },
     {
+      "name": "ios-sim",
+      "inherits": "ios-default",
+      "binaryDir": "${sourceDir}/build/ios/sim",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "IOS_SIMULATOR": "TRUE"
+      }
+    },
+    {
       "name": "windows-default",
       "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build/windows/debug",
@@ -340,6 +349,16 @@
         {
           "type": "build",
           "name": "ios-release"
+        }
+      ]
+    },
+    {
+      "description": "iOS sim configure (build in XCode)",
+      "name": "ios-sim",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ios-sim"
         }
       ]
     },

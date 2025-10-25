@@ -18,6 +18,10 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(DEFINED IOS_SIMULATOR)
+  message("Configuring project for iOS Simulator")
+endif()
+
 if(PLATFORM_ANDROID)
   add_custom_target(android_bundle ALL
     COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew" "--info" "bundle${CMAKE_BUILD_TYPE}"
@@ -111,8 +115,9 @@ else()
     set(MACOSX_BUNDLE_LONG_VERSION_STRING "${GAME_VERSION_MAJOR}.${GAME_VERSION_MINOR}")
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_MAJOR}.${GAME_VERSION_MINOR}")
     set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp")
-    # Uncomment for iOS simulator
-    #set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/src/ios_sim/audio_system.cpp")
+    if(DEFINED IOS_SIMULATOR)
+      set(AUDIO_SYSTEM_CPP "${PROJECT_SOURCE_DIR}/src/ios_sim/audio_system.cpp")
+    endif()
     add_executable(${EXE_TARGET} MACOSX_BUNDLE
       "${PROJECT_SOURCE_DIR}/src/ios/wrapper.mm"
       "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"

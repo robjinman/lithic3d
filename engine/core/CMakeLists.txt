@@ -174,8 +174,9 @@ elseif(PLATFORM_IOS)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::MoltenVK)
 
-  # Comment out for iOS simulator
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)
+  if(NOT DEFINED IOS_SIMULATOR)
+    target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)
+  endif()
 endif()
 
 target_include_directories(${ENGINE_LIB_TARGET}
