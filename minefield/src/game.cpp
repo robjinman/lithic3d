@@ -829,7 +829,9 @@ bool GameImpl::update()
 fge::GameConfig getGameConfig()
 {
   return {
-    .name = "Minefield",
+    .appDisplayName = "Minefield",
+    .appShortName = "minefield",
+    .vendorShortName = "freeholdapps",
     .windowW = 630,
     .windowH = 480,
     .fullscreenResolutionW = 1920,

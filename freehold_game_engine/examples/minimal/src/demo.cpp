@@ -134,7 +134,9 @@ bool Demo::update()
 fge::GameConfig getGameConfig()
 {
   return {
-    .name = "FGE Minimal Example",
+    .appDisplayName = "FGE Minimal Example",
+    .appShortName = "minimal",
+    .vendorShortName = "freeholdapps",
     .windowW = 640,
     .windowH = 480,
     .fullscreenResolutionW = 1920,

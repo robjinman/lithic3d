@@ -18,7 +18,7 @@ namespace fge
 {
 
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
-PlatformPathsPtr createPlatformPaths();
+PlatformPathsPtr createPlatformPaths(const std::string& appName, const std::string& vendorName);
 FileSystemPtr createDefaultFileSystem(PlatformPathsPtr platformPaths);
 
 namespace
@@ -145,8 +145,8 @@ Application::Application()
 
   m_config = getGameConfig();
 
-  m_window = glfwCreateWindow(m_config.windowW, m_config.windowH, m_config.name.c_str(), nullptr,
-    nullptr);
+  m_window = glfwCreateWindow(m_config.windowW, m_config.windowH, m_config.appDisplayName.c_str(),
+    nullptr, nullptr);
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
 
@@ -156,7 +156,7 @@ Application::Application()
     ControlMode::Gamepad :
     ControlMode::KeyboardMouse;
 
-  auto platformPaths = createPlatformPaths();
+  auto platformPaths = createPlatformPaths(m_config.appShortName, m_config.vendorShortName);
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
   auto windowDelegate = createWindowDelegate(*m_window);
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);

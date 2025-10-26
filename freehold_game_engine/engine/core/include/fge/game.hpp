@@ -9,7 +9,9 @@ namespace fge
 
 struct GameConfig
 {
-  std::string name;
+  std::string appDisplayName;
+  std::string appShortName;
+  std::string vendorShortName;
   uint32_t windowW = 0;
   uint32_t windowH = 0;
   uint32_t fullscreenResolutionW = 0;

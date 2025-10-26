@@ -7,13 +7,10 @@ namespace fge
 namespace
 {
 
-const std::string vendorName = "freeholdapps";
-const std::string appName = "minefield";
-
 class PlatformPathsImpl : public PlatformPaths
 {
   public:
-    PlatformPathsImpl();
+    PlatformPathsImpl(const std::string& appName, const std::string& vendorName);
 
     const std::filesystem::path& appData() const override;
     const std::filesystem::path& userData() const override;
@@ -23,13 +20,13 @@ class PlatformPathsImpl : public PlatformPaths
     fs::path m_userDataPath;
 
     void determineAppDataPath();
-    void determineUserDataPath();
+    void determineUserDataPath(const std::string& appName, const std::string& vendorName);
 };
 
-PlatformPathsImpl::PlatformPathsImpl()
+PlatformPathsImpl::PlatformPathsImpl(const std::string& appName, const std::string& vendorName)
 {
   determineAppDataPath();
-  determineUserDataPath();
+  determineUserDataPath(appName, vendorName);
 }
 
 void PlatformPathsImpl::determineAppDataPath()
@@ -37,7 +34,8 @@ void PlatformPathsImpl::determineAppDataPath()
   m_appDataPath = std::filesystem::current_path() / "data";
 }
 
-void PlatformPathsImpl::determineUserDataPath()
+void PlatformPathsImpl::determineUserDataPath(const std::string& appName,
+  const std::string& vendorName)
 {
   const char* home = std::getenv("HOME");
   fs::path base = home ? fs::path(home) : fs::path(".");
@@ -56,9 +54,9 @@ const std::filesystem::path& PlatformPathsImpl::userData() const
 
 } // namespace
 
-PlatformPathsPtr createPlatformPaths()
+PlatformPathsPtr createPlatformPaths(const std::string& appName, const std::string& vendorName)
 {
-  return std::make_unique<PlatformPathsImpl>();
+  return std::make_unique<PlatformPathsImpl>(appName, vendorName);
 }
 
 } // namespace fge
