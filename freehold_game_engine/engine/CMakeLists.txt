@@ -156,13 +156,13 @@ else()
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
-      "${GAME_PROJECT_DIRECTORY}/icons/ios/Assets.xcassets/AppIcon.appiconset"
+      "${GAME_PROJECT_DIRECTORY}/icons/ios/Assets.xcassets"
     )
     set_source_files_properties(
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${GAME_PROJECT_DIRECTORY}/data"
       "${LAUNCH_STORYBOARDC}"
-      "${GAME_PROJECT_DIRECTORY}/icons/ios/Assets.xcassets/AppIcon.appiconset"
+      "${GAME_PROJECT_DIRECTORY}/icons/ios/Assets.xcassets"
       PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources
     )
@@ -190,7 +190,7 @@ else()
       #XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO" # Comment out for simulator
       MACOSX_BUNDLE_SHORT_VERSION_STRING "${GAME_VERSION_MAJOR}.${GAME_VERSION_MINOR}"
       MACOSX_BUNDLE_BUNDLE_VERSION "${GAME_VERSION_MAJOR}.${GAME_VERSION_MINOR}"
-      MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/Info.plist
+      #MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/Info.plist
       XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "LW57Q4U5U7"
       XCODE_EMBED_FRAMEWORKS "${Vulkan_MoltenVK_LIBRARY};${Vulkan_LIBRARY}" #${Vulkan_Layer_VALIDATION}
       XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY "YES"
@@ -204,11 +204,11 @@ else()
       XCODE_ATTRIBUTE_MARKETING_VERSION         "${GAME_VERSION_MAJOR}.${GAME_VERSION_MINOR}"
       XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION   "${GAME_VERSION_MAJOR}.${GAME_VERSION_MINOR}"
       XCODE_ATTRIBUTE_GENERATE_INFOPLIST_FILE   YES
-      XCODE_ATTRIBUTE_INFOPLIST_FILE            ""
+      XCODE_ATTRIBUTE_INFOPLIST_FILE            "${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/Info.plist"
       XCODE_ATTRIBUTE_INFOPLIST_KEY_CFBundleDisplayName       "${GAME_DISPLAY_NAME}"
       XCODE_ATTRIBUTE_INFOPLIST_KEY_LSApplicationCategoryType "public.app-category.games"
-      XCODE_ATTRIBUTE_INFOPLIST_KEY_NSPrincipalClass          "NSApplication"
-      XCODE_ATTRIBUTE_INFOPLIST_KEY_NSMainStoryboardFile      "LaunchScreen"
+      #XCODE_ATTRIBUTE_INFOPLIST_KEY_NSPrincipalClass          "NSApplication"
+      #XCODE_ATTRIBUTE_INFOPLIST_KEY_NSMainStoryboardFile      "LaunchScreen"
       XCODE_ATTRIBUTE_INFOPLIST_KEY_NSHumanReadableCopyright  "(c) 2025 Freehold Apps Ltd" # TODO
     )
   endif()
