@@ -5,8 +5,9 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/build/linux/vcpkg_installed/x64-linux/include",
-                "${workspaceFolder}/engine/core/src",
-                "${workspaceFolder}/engine/src"
+                "${workspaceFolder}/freehold_game_engine/engine/core/include",
+                "${workspaceFolder}/freehold_game_engine/engine/core/src",
+                "${workspaceFolder}/freehold_game_engine/engine/src"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

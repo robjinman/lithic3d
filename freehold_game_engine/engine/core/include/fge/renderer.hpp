@@ -2,6 +2,7 @@
 
 #include "renderables.hpp"
 #include "work_queue.hpp"
+#include "window_delegate.hpp"
 
 namespace fge
 {
@@ -116,10 +117,9 @@ using RendererPtr = std::unique_ptr<Renderer>;
 } // namespace render
 
 class FileSystem;
-class WindowDelegate;
 class Logger;
 
-render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
+render::RendererPtr createRenderer(WindowDelegatePtr window, const FileSystem& fileSystem,
   Logger& logger, const render::ScreenMargins& margins);
 
 } // namespace fge

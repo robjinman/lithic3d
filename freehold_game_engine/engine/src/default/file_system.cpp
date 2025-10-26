@@ -76,7 +76,7 @@ Directory::Iterator DefaultDirectoryImpl::end() const
 class DefaultFileSystem : public FileSystem
 {
   public:
-    DefaultFileSystem(const PlatformPaths& platformPaths);
+    DefaultFileSystem(PlatformPathsPtr platformPaths);
 
     std::vector<char> readAppDataFile(const fs::path& path) const override;
     DirectoryPtr appDataDirectory(const fs::path& path) const override;
@@ -86,44 +86,44 @@ class DefaultFileSystem : public FileSystem
     void writeUserDataFile(const fs::path& path, const char* data, size_t size) override;
 
   private:
-    const PlatformPaths& m_paths;
+    PlatformPathsPtr m_paths;
 };
 
-DefaultFileSystem::DefaultFileSystem(const PlatformPaths& platformPaths)
-  : m_paths(platformPaths)
+DefaultFileSystem::DefaultFileSystem(PlatformPathsPtr platformPaths)
+  : m_paths(std::move(platformPaths))
 {
 }
 
 std::vector<char> DefaultFileSystem::readAppDataFile(const fs::path& path) const
 {
-  return readBinaryFile((m_paths.appData() / path).string());
+  return readBinaryFile((m_paths->appData() / path).string());
 }
 
 DirectoryPtr DefaultFileSystem::appDataDirectory(const fs::path& path) const
 {
-  return std::make_unique<DefaultDirectoryImpl>(m_paths.appData() / path);
+  return std::make_unique<DefaultDirectoryImpl>(m_paths->appData() / path);
 }
 
 bool DefaultFileSystem::userDataFileExists(const std::filesystem::path& path) const
 {
-  return std::filesystem::exists(m_paths.userData() / path);
+  return std::filesystem::exists(m_paths->userData() / path);
 }
 
 std::vector<char> DefaultFileSystem::readUserDataFile(const fs::path& path) const
 {
-  return readBinaryFile((m_paths.userData() / path).string());
+  return readBinaryFile((m_paths->userData() / path).string());
 }
 
 void DefaultFileSystem::writeUserDataFile(const fs::path& path, const char* data, size_t size)
 {
-  writeBinaryFile(m_paths.userData() / path, data, size);
+  writeBinaryFile(m_paths->userData() / path, data, size);
 }
 
 } // namespace
 
-FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths)
+FileSystemPtr createDefaultFileSystem(PlatformPathsPtr platformPaths)
 {
-  return std::make_unique<DefaultFileSystem>(platformPaths);
+  return std::make_unique<DefaultFileSystem>(std::move(platformPaths));
 }
 
 } // namespace fge

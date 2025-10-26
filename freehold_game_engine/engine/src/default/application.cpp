@@ -1,3 +1,4 @@
+#include <fge/engine.hpp>
 #include <fge/logger.hpp>
 #include <fge/game.hpp>
 #include <fge/renderer.hpp>
@@ -13,17 +14,12 @@
 #endif
 #include <iostream>
 
-const int WINDOWED_RESOLUTION_W = 630;
-const int WINDOWED_RESOLUTION_H = 480;
-const int FULLSCREEN_RESOLUTION_W = 1920;
-const int FULLSCREEN_RESOLUTION_H = 1080;
-
 namespace fge
 {
 
 WindowDelegatePtr createWindowDelegate(GLFWwindow& window);
 PlatformPathsPtr createPlatformPaths();
-FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
+FileSystemPtr createDefaultFileSystem(PlatformPathsPtr platformPaths);
 
 namespace
 {
@@ -83,12 +79,8 @@ class Application
     static void onWindowResize(GLFWwindow* window, int w, int h);
 
     GLFWwindow* m_window;
-    PlatformPathsPtr m_platformPaths;
-    FileSystemPtr m_fileSystem;
-    WindowDelegatePtr m_windowDelegate;
-    LoggerPtr m_logger;
-    AudioSystemPtr m_audioSystem;
-    render::RendererPtr m_renderer;
+    GameConfig m_config;
+    EnginePtr m_engine;
     GamePtr m_game;
 
     bool m_fullscreen = false;
@@ -151,7 +143,9 @@ Application::Application()
 
   m_instance = this;
 
-  m_window = glfwCreateWindow(WINDOWED_RESOLUTION_W, WINDOWED_RESOLUTION_H, "Minefield", nullptr,
+  m_config = getGameConfig();
+
+  m_window = glfwCreateWindow(m_config.windowW, m_config.windowH, m_config.name.c_str(), nullptr,
     nullptr);
   glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
   glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
@@ -162,14 +156,17 @@ Application::Application()
     ControlMode::Gamepad :
     ControlMode::KeyboardMouse;
 
-  m_platformPaths = createPlatformPaths();
-  m_fileSystem = createDefaultFileSystem(*m_platformPaths);
-  m_windowDelegate = createWindowDelegate(*m_window);
-  m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, {});
+  auto platformPaths = createPlatformPaths();
+  auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
+  auto windowDelegate = createWindowDelegate(*m_window);
+  auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  auto audioSystem = createAudioSystem(*fileSystem);
+  auto renderer = createRenderer(std::move(windowDelegate), *fileSystem, *logger, {});
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
+  m_engine = createEngine(std::move(renderer), std::move(audioSystem), std::move(fileSystem),
+    std::move(logger));
+
+  m_game = createGame(*m_engine);
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 
@@ -204,7 +201,7 @@ Vec2i Application::windowSize() const
 
 void Application::onJoystickEvent(int event)
 {
-  m_logger->info(STR("Received joystick event: " << event));
+  m_engine->logger().info(STR("Received joystick event: " << event));
 
   switch (event) {
     case GLFW_CONNECTED:
@@ -232,7 +229,7 @@ void Application::onKeyboardInput(int code, int action)
         //exitInputCapture();
         break;
       case KeyboardKey::F:
-        m_logger->info(STR("Renderer frame rate: " << m_renderer->frameRate()));
+        m_engine->logger().info(STR("Renderer frame rate: " << m_engine->renderer().frameRate()));
         break;
 #ifdef __APPLE__
       case KeyboardKey::F12:
@@ -268,12 +265,12 @@ void Application::toggleFullScreen()
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-    glfwSetWindowMonitor(m_window, monitor, 0, 0, FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H,
-      mode->refreshRate);
+    glfwSetWindowMonitor(m_window, monitor, 0, 0, m_config.fullscreenResolutionW,
+      m_config.fullscreenResolutionH, mode->refreshRate);
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    m_game->onWindowResize(FULLSCREEN_RESOLUTION_W, FULLSCREEN_RESOLUTION_H);
+    m_game->onWindowResize(m_config.fullscreenResolutionW, m_config.fullscreenResolutionH);
 
     m_fullscreen = true;
   }
@@ -310,7 +307,7 @@ void Application::onMouseClick()
 
 void Application::enterInputCapture()
 {
-  glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetKeyCallback(m_window, Application::onKeyboardInput);
   glfwSetCursorPosCallback(m_window, Application::onMouseMove);
   glfwSetJoystickCallback(Application::onJoystickEvent);
@@ -360,7 +357,7 @@ void Application::exitInputCapture()
 
 Application::~Application()
 {
-  m_renderer.reset();
+  m_engine.reset();
   glfwDestroyWindow(m_window);
   glfwTerminate();
 }

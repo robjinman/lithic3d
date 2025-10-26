@@ -122,7 +122,7 @@ ScreenMargins rotateMargins(const ScreenMargins& margins)
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
+    RendererImpl(WindowDelegatePtr window, const FileSystem& fileSystem, Logger& logger,
       const ScreenMargins& margins);
 
     void start() override;
@@ -239,7 +239,7 @@ class RendererImpl : public Renderer
     const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
     ViewParams m_viewParams;
-    VulkanWindowDelegate& m_window;
+    std::unique_ptr<VulkanWindowDelegate> m_window;
     Logger& m_logger;
     VkInstance m_instance;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -324,14 +324,16 @@ class RendererImpl : public Renderer
     WorkQueue m_workQueue;
 };
 
-RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& window, Logger& logger,
+RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSystem, Logger& logger,
   const ScreenMargins& margins)
   : m_fileSystem(fileSystem)
   , m_margins(margins)
-  , m_window(window)
   , m_logger(logger)
 {
   DBG_TRACE(m_logger);
+
+  m_window =
+    std::unique_ptr<VulkanWindowDelegate>(dynamic_cast<VulkanWindowDelegate*>(window.release()));
 
   m_logger.info(STR("Freehold Game Engine " << getVersionString()));
 
@@ -351,7 +353,7 @@ RendererImpl::RendererImpl(const FileSystem& fileSystem, VulkanWindowDelegate& w
     setupDebugMessenger();
 #endif
   }).get();
-  m_surface = m_window.createSurface(m_instance);
+  m_surface = m_window->createSurface(m_instance);
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
@@ -932,7 +934,7 @@ VkExtent2D RendererImpl::chooseSwapChainExtent(
   if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width = 0;
     int height = 0;
-    m_window.getFrameBufferSize(width, height);
+    m_window->getFrameBufferSize(width, height);
 
     VkExtent2D extent = {
       static_cast<uint32_t>(width),
@@ -1136,7 +1138,7 @@ void RendererImpl::recreateSwapChain()
 {
   int width = 0;
   int height = 0;
-  m_window.getFrameBufferSize(width, height);
+  m_window->getFrameBufferSize(width, height);
 
   VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 
@@ -1232,7 +1234,7 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const
 #if defined(PLATFORM_OSX)
   extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
-  auto windowExtensions = m_window.getRequiredExtensions();
+  auto windowExtensions = m_window->getRequiredExtensions();
   extensions.insert(extensions.end(), windowExtensions.begin(), windowExtensions.end());
 
 #ifdef USE_VALIDATION_LAYERS
@@ -2093,11 +2095,10 @@ RendererImpl::~RendererImpl()
 } // namespace
 } // namespace render
 
-render::RendererPtr createRenderer(const FileSystem& fileSystem, WindowDelegate& window,
+render::RendererPtr createRenderer(WindowDelegatePtr window, const FileSystem& fileSystem,
   Logger& logger, const render::ScreenMargins& margins)
 {
-  return std::make_unique<render::RendererImpl>(fileSystem,
-    dynamic_cast<VulkanWindowDelegate&>(window), logger, margins);
+  return std::make_unique<render::RendererImpl>(std::move(window), fileSystem, logger, margins);
 }
 
 } // namespace fge

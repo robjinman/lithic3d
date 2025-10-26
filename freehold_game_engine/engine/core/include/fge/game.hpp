@@ -7,6 +7,15 @@
 namespace fge
 {
 
+struct GameConfig
+{
+  std::string name;
+  uint32_t windowW = 0;
+  uint32_t windowH = 0;
+  uint32_t fullscreenResolutionW = 0;
+  uint32_t fullscreenResolutionH = 0;
+};
+
 class Game
 {
   public:
@@ -30,13 +39,10 @@ class Game
 
 using GamePtr = std::unique_ptr<Game>;
 
-namespace render { class Renderer; }
-class AudioSystem;
-class FileSystem;
-class Logger;
+class Engine;
 
 } // namespace fge
 
-// Implemented in game code
-fge::GamePtr createGame(fge::render::Renderer& renderer, fge::AudioSystem& audioSystem,
-  fge::FileSystem& fileSystem, fge::Logger& logger);
+// Game must define
+fge::GameConfig getGameConfig();
+fge::GamePtr createGame(fge::Engine& engine);
