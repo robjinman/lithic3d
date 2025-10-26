@@ -1,5 +1,6 @@
 #include <fge/logger.hpp>
 #include <fge/game.hpp>
+#include <fge/engine.hpp>
 #include <fge/renderer.hpp>
 #include <fge/time.hpp>
 #include <fge/utils.hpp>
@@ -94,7 +95,7 @@ KeyboardKey keyCode(int32_t key)
 class Application
 {
   public:
-    Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem, Logger& logger);
+    Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem, LoggerPtr logger);
 
     bool update();
     void onConfigChange();
@@ -110,11 +111,7 @@ class Application
     void hideMobileControls();
 
   private:
-    Logger& m_logger;
-    WindowDelegatePtr m_windowDelegate;
-    FileSystemPtr m_fileSystem;
-    AudioSystemPtr m_audioSystem;
-    render::RendererPtr m_renderer;
+    EnginePtr m_engine;
     GamePtr m_game;
     Vec2f m_leftStickDelta;
     Vec2f m_rightStickDelta;
@@ -123,21 +120,23 @@ class Application
 
 using ApplicationPtr = std::unique_ptr<Application>;
 
-Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem, Logger& logger)
-  : m_logger(logger)
-  , m_windowDelegate(std::move(windowDelegate))
-  , m_fileSystem(std::move(fileSystem))
+Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem,
+  LoggerPtr logger)
 {
-  m_audioSystem = createAudioSystem(*m_fileSystem);
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, m_logger, {});
-  m_screenSize = m_renderer->getScreenSize();
+  auto audioSystem = createAudioSystem(*fileSystem);
+  auto renderer = createRenderer(std::move(windowDelegate), *fileSystem, *logger, {});
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, m_logger);
+  m_screenSize = renderer->getScreenSize();
+
+  m_engine = createEngine(std::move(renderer), std::move(audioSystem), std::move(fileSystem),
+    std::move(logger));
+
+  m_game = createGame(*m_engine);
 }
 
 bool Application::update()
 {
-  auto screenSize = m_renderer->getScreenSize();
+  auto screenSize = m_engine->renderer().getScreenSize();
   if (screenSize != m_screenSize) {
     m_game->onWindowResize(screenSize[0], screenSize[1]);
     m_screenSize = screenSize;
@@ -155,7 +154,7 @@ void Application::hideMobileControls()
 
 void Application::onConfigChange()
 {
-  m_renderer->onResize();
+  m_engine->renderer().onResize();
 }
 
 void Application::onLeftStickMove(float x, float y)
@@ -183,7 +182,7 @@ void Application::onButtonDown(GamepadButton button)
   m_game->onButtonDown(button);
 
   if (button == GamepadButton::Y) {
-    m_logger.info(STR("Renderer frame rate: " << m_renderer->frameRate()));
+    m_engine->logger().info(STR("Renderer frame rate: " << m_engine->renderer().frameRate()));
   }
 }
 
@@ -201,7 +200,7 @@ void Application::onMouseButtonDown(float x, float)
 {
   auto aspect = m_game->gameViewportAspectRatio();
 
-  auto viewport = m_renderer->getViewportSize();
+  auto viewport = m_engine->renderer().getViewportSize();
   float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
 
   float xNorm = x / viewport[1];
@@ -220,14 +219,15 @@ void Application::onMouseButtonUp()
   m_game->onMouseButtonUp();
 }
 
-ApplicationPtr createApplication(android_app& state, Logger& logger)
+ApplicationPtr createApplication(android_app& state, LoggerPtr logger)
 {
   ASSERT(state.window != nullptr, "Window is NULL");
 
   auto windowDelegate = createWindowDelegate(*state.window);
   FileSystemPtr fileSystem = createAndroidFileSystem(state.activity->internalDataPath,
     *state.activity->assetManager);
-  return std::make_unique<Application>(std::move(windowDelegate), std::move(fileSystem), logger);
+  return std::make_unique<Application>(std::move(windowDelegate), std::move(fileSystem),
+    std::move(logger));
 }
 
 class EventHandler
@@ -418,7 +418,7 @@ void android_main(android_app* state)
     return;
   }
 
-  auto application = fge::createApplication(*state, *logger);
+  auto application = fge::createApplication(*state, std::move(logger));
   handler.setApplication(application.get());
 
   fge::FrameRateLimiter frameRateLimiter{fge::TICKS_PER_SECOND};
