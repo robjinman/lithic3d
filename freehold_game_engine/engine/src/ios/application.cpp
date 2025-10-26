@@ -1,6 +1,7 @@
 #include "application.hpp"
 #include <fge/logger.hpp>
 #include <fge/game.hpp>
+#include <fge/engine.hpp>
 #include <fge/renderer.hpp>
 #include <fge/time.hpp>
 #include <fge/window_delegate.hpp>
@@ -14,9 +15,8 @@ namespace fs = std::filesystem;
 namespace fge
 {
 
-PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath,
-  const fs::path& appSupportPath);
-FileSystemPtr createDefaultFileSystem(const PlatformPaths& platformPaths);
+PlatformPathsPtr createPlatformPaths(const fs::path& bundlePath, const fs::path& appSupportPath);
+FileSystemPtr createDefaultFileSystem(PlatformPathsPtr platformPaths);
 
 namespace
 {
@@ -39,12 +39,7 @@ class ApplicationImpl : public Application
     void hideMobileControls() override;
 
   private:
-    WindowDelegatePtr m_windowDelegate;
-    LoggerPtr m_logger;
-    PlatformPathsPtr m_platformPaths;
-    FileSystemPtr m_fileSystem;
-    AudioSystemPtr m_audioSystem;
-    render::RendererPtr m_renderer;
+    EnginePtr m_engine;
     GamePtr m_game;
     Vec2i m_screenSize;
     Vec2f m_leftStickDelta;
@@ -53,20 +48,22 @@ class ApplicationImpl : public Application
 
 ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportPath,
   WindowDelegatePtr windowDelegate)
-  : m_windowDelegate(std::move(windowDelegate))
 {
-  m_logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  m_platformPaths = createPlatformPaths(bundlePath, appSupportPath);
-  m_fileSystem = createDefaultFileSystem(*m_platformPaths);
-  m_audioSystem = createAudioSystem(*m_fileSystem);
+  auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  auto platformPaths = createPlatformPaths(bundlePath, appSupportPath);
+  auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
+  auto audioSystem = createAudioSystem(*fileSystem);
 
   render::ScreenMargins margins{
     .left = 50,
     .bottom = 50
   };
-  m_renderer = createRenderer(*m_fileSystem, *m_windowDelegate, *m_logger, margins);
+  auto renderer = createRenderer(std::move(windowDelegate), *fileSystem, *logger, margins);
 
-  m_game = createGame(*m_renderer, *m_audioSystem, *m_fileSystem, *m_logger);
+  m_engine = createEngine(std::move(renderer), std::move(audioSystem), std::move(fileSystem),
+    std::move(logger));
+
+  m_game = createGame(*m_engine);
 }
 
 void ApplicationImpl::onViewResize(float w, float h)
@@ -77,7 +74,7 @@ void ApplicationImpl::onViewResize(float w, float h)
 
 bool ApplicationImpl::update()
 {
-  auto screenSize = m_renderer->getScreenSize();
+  auto screenSize = m_engine->renderer().getScreenSize();
   if (screenSize != m_screenSize) {
     m_game->onWindowResize(screenSize[0], screenSize[1]);
     m_screenSize = screenSize;
@@ -118,7 +115,7 @@ void ApplicationImpl::onTouchBegin(float x, float y)
 {
   static auto aspect = m_game->gameViewportAspectRatio();
 
-  auto viewport = m_renderer->getViewportSize();
+  auto viewport = m_engine->renderer().getViewportSize();
   float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
 
   float xNorm = x / viewport[1];
