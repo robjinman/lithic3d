@@ -31,6 +31,7 @@ struct QuadPushConstants
 
   // Frag shader
   Vec4f colour;               // 16 bytes
+  float radius;               // 4 bytes
 };
 
 struct SpritePushConstants
@@ -69,7 +70,7 @@ constexpr size_t SPRITE_PUSH_CONSTANTS_FRAG_SIZE = 16;
 constexpr size_t QUAD_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t QUAD_PUSH_CONSTANTS_VERT_SIZE = 64;
 constexpr size_t QUAD_PUSH_CONSTANTS_FRAG_OFFSET = 64;
-constexpr size_t QUAD_PUSH_CONSTANTS_FRAG_SIZE = 16;
+constexpr size_t QUAD_PUSH_CONSTANTS_FRAG_SIZE = 20;
 
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE = 96;
@@ -694,7 +695,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
 
     QuadPushConstants constants{
       .modelMatrix = quadNode.modelMatrix,
-      .colour = quadNode.colour
+      .colour = quadNode.colour,
+      .radius = quadNode.radius
     };
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,

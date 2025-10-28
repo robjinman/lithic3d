@@ -81,6 +81,7 @@ struct QuadNode : public RenderNode
   {}
 
   Mat4x4f modelMatrix;
+  float radius = 0.f;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 

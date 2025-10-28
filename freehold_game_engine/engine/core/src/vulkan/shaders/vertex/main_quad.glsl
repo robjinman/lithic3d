@@ -14,8 +14,9 @@ layout(push_constant) uniform PushConstants
   mat4 modelMatrix;
 } constants;
 
-layout(location = 0) out vec3 outWorldPos;
-layout(location = 1) out vec3 outNormal;
+layout(location = 0) out vec2 outTexCoord;
+layout(location = 1) out vec3 outWorldPos;
+layout(location = 2) out vec3 outNormal;
 
 vec4 computeVertexPosition(mat4 modelMatrix)
 {
@@ -29,6 +30,12 @@ void main()
   vec4 worldPos = computeVertexPosition(modelMatrix);
   gl_Position = camera.projMatrix * camera.viewMatrix * worldPos;
 
+  switch (gl_VertexIndex) {
+    case 0: outTexCoord = vec2(0.0, 0.0); break;
+    case 1: outTexCoord = vec2(1.0, 0.0); break;
+    case 2: outTexCoord = vec2(1.0, 1.0); break;
+    case 3: outTexCoord = vec2(0.0, 1.0); break;
+  }
   outWorldPos = worldPos.xyz;
   outNormal = mat3(modelMatrix) * inNormal;
 }

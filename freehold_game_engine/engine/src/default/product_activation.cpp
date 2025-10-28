@@ -55,7 +55,7 @@ EntityId ProductActivationImpl::root() const
 
 EntityId ProductActivationImpl::constructRoot()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -74,8 +74,8 @@ EntityId ProductActivationImpl::constructRoot()
 
 EntityId ProductActivationImpl::constructPrompt()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -120,9 +120,9 @@ struct CTextbox
 
 EntityId ProductActivationImpl::constructTextbox()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   auto& store = m_ecs.componentStore();
 

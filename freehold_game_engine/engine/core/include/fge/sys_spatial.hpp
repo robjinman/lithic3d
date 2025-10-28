@@ -3,6 +3,7 @@
 #include "ecs.hpp"
 #include "component_types.hpp"
 #include "event_system.hpp"
+#include "systems.hpp"
 
 namespace fge
 {
@@ -64,6 +65,10 @@ class SysSpatial : public System
     virtual EntityId root() const = 0;
     virtual void addEntity(EntityId entityId, const SpatialData& data) = 0;
     virtual void setEnabled(EntityId entityId, bool enabled) = 0;
+
+    virtual ~SysSpatial() = default;
+
+    static const SystemId id = SPATIAL_SYSTEM;
 };
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;

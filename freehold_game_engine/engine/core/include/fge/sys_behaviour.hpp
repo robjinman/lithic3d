@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ecs.hpp"
+#include "systems.hpp"
 
 namespace fge
 {
@@ -23,6 +24,10 @@ class SysBehaviour : public System
     virtual void addBehaviour(EntityId entityId, BehaviourDataPtr behaviour) = 0;
     virtual BehaviourData& getBehaviour(EntityId entityId, HashedString name) = 0;
     virtual const BehaviourData& getBehaviour(EntityId entityId, HashedString name) const = 0;
+
+    virtual ~SysBehaviour() = default;
+
+    static const SystemId id = BEHAVIOUR_SYSTEM;
 };
 
 using SysBehaviourPtr = std::unique_ptr<SysBehaviour>;

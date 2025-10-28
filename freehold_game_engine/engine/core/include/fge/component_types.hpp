@@ -13,8 +13,9 @@ enum ComponentTypeId : ComponentType
   CRenderTypeId           = 1u << 3,
   CSpriteTypeId           = 1u << 4,
   CDynamicTextTypeId      = 1u << 5,
-  CUiTypeId               = 1u << 6,
-  CTextboxTypeId          = 1u << 7 // TODO: Remove?
+  CQuadId                 = 1u << 6,
+  CUiTypeId               = 1u << 7,
+  CTextboxTypeId          = 1u << 8 // TODO: Remove?
 };
 
 } // namespace fge

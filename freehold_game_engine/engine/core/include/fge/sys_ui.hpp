@@ -4,6 +4,7 @@
 #include "input.hpp"
 #include "utils.hpp"
 #include "component_types.hpp"
+#include "systems.hpp"
 #include <functional>
 
 namespace fge
@@ -36,6 +37,8 @@ class SysUi : public System
       static GroupId nextId = 1;
       return nextId++;
     }
+
+    static const SystemId id = UI_SYSTEM;
 };
 
 using SysUiPtr = std::unique_ptr<SysUi>;

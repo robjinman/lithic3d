@@ -78,8 +78,8 @@ void BWanderer::makeMove()
     return;
   }
 
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto pos = sysGrid.entityPos(m_entityId);
   auto entities = sysGrid.getEntities(pos[0], pos[1]);
@@ -140,8 +140,8 @@ void BWanderer::processEvent(const Event& event)
   const static HashedString strFadeIn = hashString("fade_in");
 
   constexpr int sqActivationDist = 36;
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   if (m_state == WandererState::Active) {
     if (event.name == g_strPlayerMove) {

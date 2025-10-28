@@ -33,14 +33,20 @@ class Ecs
 {
   public:
     virtual void addSystem(SystemId id, SystemPtr system) = 0;
-    virtual System& system(SystemId id) = 0;
-    virtual const System& system(SystemId id) const = 0;
+    virtual System& getSystem(SystemId id) = 0;
+    virtual const System& getSystem(SystemId id) const = 0;
     virtual void update(Tick tick, const InputState& inputState) = 0;
     virtual void processEvent(const Event& event) = 0;
     // Warning: This will immediately delete the entity. Consider raising ERequestDeletion instead.
     virtual void removeEntity(EntityId entityId) = 0;
     virtual ComponentStore& componentStore() = 0;
     virtual const ComponentStore& componentStore() const = 0;
+
+    template<std::derived_from<System> T>
+    T& system()
+    {
+      return dynamic_cast<T&>(getSystem(T::id));
+    }
 
     virtual ~Ecs() = default;
 };

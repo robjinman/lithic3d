@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "math.hpp"
 #include "component_types.hpp"
+#include "systems.hpp"
 
 namespace fge
 {
@@ -29,11 +30,13 @@ struct SpriteData
 //   CGlobalTransform
 //   CSpatialFlags
 //   CRender
+//   CQuad
 struct QuadData
 {
   ScissorId scissor = 0;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+  float radius = 0.f;
 };
 
 // Requires components:
@@ -93,6 +96,13 @@ struct CDynamicText
   static constexpr ComponentType TypeId = ComponentTypeId::CDynamicTextTypeId;
 };
 
+struct CQuad
+{
+  float radius = 0.f; // For rounded corners
+
+  static constexpr ComponentType TypeId = ComponentTypeId::CQuadId;
+};
+
 class Camera;
 
 class SysRender : public System
@@ -120,6 +130,8 @@ class SysRender : public System
     virtual void updateDynamicText(EntityId entityId, const std::string& text) = 0;
 
     virtual ~SysRender() {}
+
+    static const SystemId id = RENDER_SYSTEM;
 };
 
 using SysRenderPtr = std::unique_ptr<SysRender>;

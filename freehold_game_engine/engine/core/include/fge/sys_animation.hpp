@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "math.hpp"
 #include "component_types.hpp"
+#include "systems.hpp"
 #include <functional>
 
 namespace fge
@@ -71,6 +72,8 @@ class SysAnimation : public System
     virtual void finishAnimation(EntityId entityId) = 0;
 
     virtual ~SysAnimation() = default;
+
+    static const SystemId id = ANIMATION_SYSTEM;
 };
 
 using SysAnimationPtr = std::unique_ptr<SysAnimation>;

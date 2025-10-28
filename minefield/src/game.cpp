@@ -153,6 +153,8 @@ GameImpl::GameImpl(fge::Engine& engine)
 
   m_sceneBuilder = createSceneBuilder(m_engine.eventSystem(), m_engine.ecs(), *m_options);
 
+  m_engine.ecs().system<SysRender>().setClearColour({ 0.01f, 0.01f, 0.02f, 1.f });
+
   auto viewport = m_engine.renderer().getViewportSize();
 
   MobileControlsCallbacks callbacks{
@@ -185,7 +187,7 @@ GameImpl::GameImpl(fge::Engine& engine)
   if (!m_drm->isActivated()) {
     m_productActivation = fge::createProductActivation(m_engine.ecs(), m_engine.eventSystem(),
       *m_drm, m_engine.logger());
-    dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM))
+    m_engine.ecs().system<SysSpatial>()
       .setEnabled(m_productActivation->root(), true);
     m_gameState = GameState::ProductActivation;
 
@@ -193,7 +195,7 @@ GameImpl::GameImpl(fge::Engine& engine)
   }
 #endif
 
-  dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM))
+  m_engine.ecs().system<SysSpatial>()
     .setEnabled(m_menuSystem->root(), true);
 
   m_menuSystem->showMainMenu();
@@ -254,7 +256,7 @@ Rectf GameImpl::calculateGameArea(uint32_t viewportW, uint32_t viewportH) const
 
 void GameImpl::setMobileControlsScissor(uint32_t viewportW, uint32_t viewportH)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_engine.ecs().system(fge::RENDER_SYSTEM));
+  auto& sysRender = m_engine.ecs().system<SysRender>();
 
   Recti fullScreen{
     .x = 0,
@@ -276,7 +278,7 @@ void GameImpl::setScissor(uint32_t viewportW, uint32_t viewportH)
     .w = static_cast<int>(gameAreaWidth),
     .h = static_cast<int>(viewportH)
   };
-  dynamic_cast<SysRender&>(m_engine.ecs().system(fge::RENDER_SYSTEM))
+  m_engine.ecs().system<SysRender>()
     .addScissor(MAIN_SCISSOR, scissor);
 
   auto& margins = m_engine.renderer().getMargins();
@@ -308,12 +310,12 @@ void GameImpl::onWindowResize(uint32_t w, uint32_t h)
 
   m_mobileControls->setGameArea(gameArea);
 
-  dynamic_cast<SysRender&>(m_engine.ecs().system(fge::RENDER_SYSTEM)).onResize();
+  m_engine.ecs().system<SysRender>().onResize();
 }
 
 void GameImpl::handleMenuEvent(const Event& event)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM));
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
   if (event.name == g_strMenuItemActivate) {
     auto& e = dynamic_cast<const EMenuItemActivate&>(event);
@@ -377,7 +379,7 @@ void GameImpl::handleEvent(const Event& event)
   }
 #ifdef DRM
   else if (event.name == fge::g_strProductActivate) {
-    auto& sysSpatial = dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM));
+    auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
     
     sysSpatial.setEnabled(m_productActivation->root(), false);
     sysSpatial.setEnabled(m_menuSystem->root(), true);
@@ -430,7 +432,7 @@ void GameImpl::onPlayerDeath()
 
 void GameImpl::onPlayerVictorious()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM));
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
   auto level = m_menuSystem->difficultyLevel();
   uint32_t seconds = static_cast<uint32_t>(m_timeSinceStart / TICKS_PER_SECOND);
@@ -511,7 +513,7 @@ void GameImpl::onKeyDown(KeyboardKey key)
       break;
     }
     case KeyboardKey::Escape: {
-      auto& sysSpatial = dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM));
+      auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
       if (m_gameState == GameState::Dead || m_gameState == GameState::Playing) {
         sysSpatial.setEnabled(m_menuSystem->root(), true);
@@ -672,7 +674,7 @@ void GameImpl::processKeyboardInput()
 {
   static auto strPlayer = hashString("player");
 
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_engine.ecs().system(fge::BEHAVIOUR_SYSTEM));
+  auto& sysBehaviour = m_engine.ecs().system<SysBehaviour>();
 
   if (m_gameState == GameState::Playing) {
     auto& player = dynamic_cast<BPlayer&>(sysBehaviour.getBehaviour(m_scene.player, strPlayer));
@@ -702,13 +704,13 @@ void GameImpl::processKeyboardInput()
 
 void GameImpl::throwStick(float x, float y)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_engine.ecs().system(fge::ANIMATION_SYSTEM));
+  auto& sysAnimation = m_engine.ecs().system<SysAnimation>();
 
   if (sysAnimation.hasAnimationPlaying(m_stickId)) {
     return;
   }
 
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_engine.ecs().system(GRID_SYSTEM));
+  auto& sysGrid = m_engine.ecs().system<SysGrid>();
 
   Vec2i dest{ static_cast<int>(x / GRID_CELL_W), static_cast<int>(y / GRID_CELL_H) };
 
@@ -810,7 +812,7 @@ bool GameImpl::update()
 
   if (m_gameState == GameState::Dead || m_gameState == GameState::DeadPaused) {
     if (m_currentTick - m_timeOfDeath >= deathPromptDelay) {
-      dynamic_cast<SysSpatial&>(m_engine.ecs().system(fge::SPATIAL_SYSTEM))
+      m_engine.ecs().system<SysSpatial>()
         .setEnabled(m_scene.restartGamePrompt, true);
     }
   }

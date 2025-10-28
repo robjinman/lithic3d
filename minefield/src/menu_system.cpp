@@ -34,11 +34,6 @@ using fge::SysAnimation;
 using fge::SysRender;
 using fge::SysSpatial;
 using fge::SysBehaviour;
-using fge::RENDER_SYSTEM;
-using fge::SPATIAL_SYSTEM;
-using fge::ANIMATION_SYSTEM;
-using fge::BEHAVIOUR_SYSTEM;
-using fge::UI_SYSTEM;
 using fge::AnimationId;
 using fge::Animation;
 using fge::AnimationFrame;
@@ -53,6 +48,7 @@ using fge::CLocalTransform;
 using fge::CGlobalTransform;
 using fge::CSpatialFlags;
 using fge::CDynamicText;
+using fge::CQuad;
 using fge::CRender;
 using fge::CSprite;
 using fge::CUi;
@@ -271,7 +267,7 @@ uint32_t MenuSystemImpl::difficultyLevel() const
 
 void MenuSystemImpl::setDifficulty(int level)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
 
   m_difficultyLevel = level;
 
@@ -318,7 +314,7 @@ void MenuSystemImpl::update()
 
 void MenuSystemImpl::createAnimations()
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto makeFrame = [](const Vec4f& colour) {
     return AnimationFrame{
@@ -384,8 +380,8 @@ EntityId MenuSystemImpl::root() const
 
 void MenuSystemImpl::showPauseMenu()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   sysSpatial.setEnabled(m_mainMenu.entityId, false);
   sysSpatial.setEnabled(m_pauseMenuId, true);
@@ -397,8 +393,8 @@ void MenuSystemImpl::showPauseMenu()
 
 void MenuSystemImpl::showMainMenu()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   sysSpatial.setEnabled(m_pauseMenuId, false);
   sysSpatial.setEnabled(m_mainMenu.entityId, true);
@@ -408,7 +404,7 @@ void MenuSystemImpl::showMainMenu()
 
 void MenuSystemImpl::constructRoot()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   m_root = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -425,8 +421,8 @@ void MenuSystemImpl::constructRoot()
 
 void MenuSystemImpl::constructBackdrop()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -459,9 +455,9 @@ void MenuSystemImpl::constructBackdrop()
 
 void MenuSystemImpl::constructFlare()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto animRotate = std::unique_ptr<Animation>(new Animation{
     .name = hashString("rotate"),
@@ -524,9 +520,9 @@ EntityId MenuSystemImpl::newMenuItemId()
 
 void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const Sprite& sprite)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   SpatialData spatial{
     .transform = spriteTransform(sprite.pos, sprite.size),
@@ -554,8 +550,8 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
 void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::GroupId groupId,
   const Sprite& sprite, const ItemSlots& slots)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   constructMenuItemBase(id, parentId, sprite);
 
@@ -608,8 +604,8 @@ void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::Gr
 void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::GroupId groupId,
   const Sprite& sprite, const ItemSlots& slots, const SelectorFunctions& functions)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   constructMenuItemBase(id, parentId, sprite);
 
@@ -740,11 +736,11 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
 EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, const Vec2f& size,
   const Vec4f& colour)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CQuad
   >();
 
   SpatialData spatial{
@@ -758,7 +754,8 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
   QuadData render{
     .scissor = MAIN_SCISSOR,
     .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
-    .colour = colour
+    .colour = colour,
+    .radius = 0.f
   };
 
   sysRender.addEntity(id, render);
@@ -801,10 +798,10 @@ Slider MenuSystemImpl::constructSlider(EntityId parentId, const Vec2f& pos,
 
 Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& prevMenu)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -959,9 +956,9 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
 void MenuSystemImpl::constructMainMenu(bool hasQuitButton)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   m_mainMenu.entityId = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -1115,8 +1112,8 @@ void MenuSystemImpl::constructMainMenu(bool hasQuitButton)
 EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
   const Vec2f& charSize, const std::string& text, const Vec4f& colour)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -1155,7 +1152,7 @@ void MenuSystemImpl::addFadeInAnimForEntity(EntityId entityId)
   // Fade-in animations for each colour
   static std::map<Vec4f, AnimationId> animations;
 
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto makeFrame = [](const Vec4f& colour) {
     return AnimationFrame{
@@ -1207,11 +1204,11 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 {
   static const HashedString strFadeIn = hashString("fade_in");
 
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysUi = m_ecs.system<SysUi>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -1326,8 +1323,8 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec2f& pos,
   const std::string& text, uint32_t value)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   Vec2f charSize{ 0.022f, 0.044f };
   Vec4f colour{ 0.f, 0.f, 0.f, 1.f };
@@ -1369,9 +1366,9 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
 
 Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
@@ -1468,9 +1465,9 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
 
 void MenuSystemImpl::constructPauseMenu()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
   m_pauseMenuId = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags

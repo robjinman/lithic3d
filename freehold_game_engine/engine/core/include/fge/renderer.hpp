@@ -92,15 +92,16 @@ class Renderer
       const Mat4x4f& viewMatrix) = 0;
     virtual void setOrderKey(uint32_t order) = 0;
     virtual void setScissor(const Recti& scissor) = 0;
-    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const Vec4f& colour) = 0;
-    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const Vec4f& colour, const std::vector<Mat4x4f>& jointTransforms) = 0;
+    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+      const Mat4x4f& transform) = 0;
+    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+      const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms) = 0;
     virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
       const Mat4x4f& transform) = 0;
     virtual void drawSprite(MeshHandle mesh, MaterialHandle material,
       const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
-    virtual void drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform) = 0;
+    virtual void drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
+      const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
       const Mat4x4f& transform) = 0;  // TODO: Replace matrix with screen-space coords?
     virtual void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,

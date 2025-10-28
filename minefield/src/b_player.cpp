@@ -72,7 +72,7 @@ const std::set<HashedString>& BPlayerImpl::subscriptions() const
 
 void BPlayerImpl::postMove()
 {
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysGrid = m_ecs.system<SysGrid>();
 
   // We remove ourselves from the grid when we die
   if (!sysGrid.hasEntity(m_entityId)) {
@@ -88,8 +88,8 @@ void BPlayerImpl::postMove()
 
 bool BPlayerImpl::move(int dx, int dy, HashedString animation)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
 
   // We remove ourselves from the grid when we die
   if (!sysGrid.hasEntity(m_entityId)) {
@@ -132,8 +132,8 @@ bool BPlayerImpl::moveLeft()
 
 void BPlayerImpl::processEvent(const Event& event)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
 
   if (event.name == g_strEntityExplode) {
     auto& e = dynamic_cast<const EEntityExplode&>(event);

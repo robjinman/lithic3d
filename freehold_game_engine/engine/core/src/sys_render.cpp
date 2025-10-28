@@ -418,12 +418,17 @@ void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CQuad>(m_componentStore, entityId);
 
   m_componentStore.component<CRender>(entityId) = CRender{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
     .scissor = data.scissor
+  };
+
+  m_componentStore.component<CQuad>(entityId) = CQuad{
+    .radius = data.radius
   };
 }
 
@@ -522,6 +527,7 @@ void SysRenderImpl::update(Tick, const InputState&)
       auto globalTs = group.components<CGlobalTransform>();
       auto flags = group.components<CSpatialFlags>();
       auto dynamicTextComps = group.components<CDynamicText>();
+      auto quadComps = group.components<CQuad>();
       auto& entityIds = group.entityIds();
 
       for (size_t i = 0; i < n; ++i) {
@@ -555,7 +561,7 @@ void SysRenderImpl::update(Tick, const InputState&)
             }
             else {
               auto& mesh = m_textItems.at(entityIds[i]);
-              m_renderer.drawModel(mesh, m_textureAtlas, screenSpaceTransform, renderComp.colour);
+              m_renderer.drawModel(mesh, m_textureAtlas, renderComp.colour, screenSpaceTransform);
             }
           }
           else {
@@ -573,7 +579,7 @@ void SysRenderImpl::update(Tick, const InputState&)
           }
         }
         else {
-          m_renderer.drawQuad(m_mesh, renderComp.colour, screenSpaceTransform);
+          m_renderer.drawQuad(m_mesh, quadComps[i].radius, renderComp.colour, screenSpaceTransform);
         }
       }
     }

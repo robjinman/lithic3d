@@ -72,7 +72,7 @@ const std::set<HashedString>& BNumericTile::subscriptions() const
 
 void BNumericTile::processEvent(const Event& event)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(fge::RENDER_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
 
   if (event.name == g_strEntityExplode) {
     auto& e = dynamic_cast<const EEntityExplode&>(event);

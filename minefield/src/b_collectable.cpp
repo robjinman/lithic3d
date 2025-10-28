@@ -60,7 +60,7 @@ const std::set<HashedString>& BCollectable::subscriptions() const
 void BCollectable::processEvent(const Event& event)
 {
   static HashedString strCollect = hashString("collect");
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   if (event.name == g_strEntityEnter) {
     auto& e = dynamic_cast<const EEntityEnter&>(event);

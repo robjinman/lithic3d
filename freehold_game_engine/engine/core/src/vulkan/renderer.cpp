@@ -168,13 +168,14 @@ class RendererImpl : public Renderer
     void setOrderKey(uint32_t order) override;
     void setScissor(const Recti& scissor) override;
     void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
-    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const Vec4f& colour) override;
-    void drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const Vec4f& colour, const std::vector<Mat4x4f>& jointTransforms) override;
+    void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+      const Mat4x4f& transform) override;
+    void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+      const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms) override;
     void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
       const Vec4f& colour, const Mat4x4f& transform) override;
-    void drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform) override;
+    void drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
+      const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
       const Mat4x4f& transform) override;
     void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
@@ -558,7 +559,8 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f& transform)
+void RendererImpl::drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
+  const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -569,6 +571,7 @@ void RendererImpl::drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f&
   auto node = std::make_unique<QuadNode>();
   node->mesh = mesh;
   node->modelMatrix = transform;
+  node->radius = radius;
   node->colour = colour;
   node->scissorId = frameState.currentScissor;
 
@@ -578,14 +581,14 @@ void RendererImpl::drawQuad(MeshHandle mesh, const Vec4f& colour, const Mat4x4f&
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-  const Vec4f& colour, const std::vector<Mat4x4f>& jointTransforms)
+void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+  const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms)
 {
   drawModelInternal(mesh, material, transform, colour, jointTransforms);
 }
 
-void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-  const Vec4f& colour)
+void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+  const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 

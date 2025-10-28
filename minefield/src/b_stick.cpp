@@ -72,8 +72,8 @@ const std::set<HashedString>& BStick::subscriptions() const
 
 void BStick::onLand()
 {
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
 
@@ -89,8 +89,8 @@ void BStick::onLand()
 
 void BStick::throwStick()
 {
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto& pos = sysGrid.entityPos(m_entityId);
 

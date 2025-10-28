@@ -24,12 +24,10 @@ using fge::CGlobalTransform;
 using fge::CSprite;
 using fge::CUi;
 using fge::CRender;
+using fge::CQuad;
 using fge::SysSpatial;
 using fge::SysRender;
 using fge::SysUi;
-using fge::SPATIAL_SYSTEM;
-using fge::RENDER_SYSTEM;
-using fge::UI_SYSTEM;
 using fge::UserInput;
 using fge::MouseButton;
 
@@ -120,13 +118,13 @@ void MobileControlsImpl::positionButtons(const Rectf& gameArea)
 
 void MobileControlsImpl::show()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
   sysSpatial.setEnabled(m_rootId, true);
 }
 
 void MobileControlsImpl::hide()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
   sysSpatial.setEnabled(m_rootId, false);
 }
 
@@ -137,7 +135,7 @@ void MobileControlsImpl::setGameArea(const Rectf& gameArea)
 
 EntityId MobileControlsImpl::constructRoot()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto id = m_ecs.componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform
@@ -156,8 +154,8 @@ EntityId MobileControlsImpl::constructRoot()
 
 EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, EntityId parentId)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto labelId = m_ecs.componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CSprite
@@ -182,7 +180,7 @@ EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, Enti
     },
     .text = label,
     .zIndex = zIndex + 1,
-    .colour = { 0.2f, 0.9f, 0.2f, 1.f }
+    .colour = { 0.f, 0.f, 0.f, 1.f }
   };
 
   sysRender.addEntity(labelId, render);
@@ -193,15 +191,15 @@ EntityId MobileControlsImpl::constructButtonLabel(const std::string& label, Enti
 EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPress,
   const std::function<void()>& onRelease, const std::string& label)
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysUi = dynamic_cast<SysUi&>(m_ecs.system(UI_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysUi = m_ecs.system<SysUi>();
 
-  const Vec4f colourPressed{ 0.25f, 0.f, 0.f, 1.f };
-  const Vec4f colourUnpressed{ 0.1f, 0.1f, 0.2f, 1.f };
+  const Vec4f colourPressed{ 1.f, 0.5f, 0.5f, 1.f };
+  const Vec4f colourUnpressed{ 0.9f, 0.9f, 0.9f, 1.f };
 
   auto id = m_ecs.componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CUi
+    CSpatialFlags, CLocalTransform, CGlobalTransform, CRender, CQuad, CUi
   >();
 
   SpatialData spatial{
@@ -215,7 +213,8 @@ EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPres
   QuadData render{
     .scissor = MOBILE_CONTROLS_SCISSOR,
     .zIndex = zIndex,
-    .colour = colourUnpressed
+    .colour = colourUnpressed,
+    .radius = 0.2f
   };
 
   sysRender.addEntity(id, render);

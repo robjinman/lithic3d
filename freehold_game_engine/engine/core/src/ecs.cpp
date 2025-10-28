@@ -16,8 +16,8 @@ class EcsImpl : public Ecs
     explicit EcsImpl(Logger& logger);
 
     void addSystem(SystemId id, SystemPtr system) override;
-    System& system(SystemId id) override;
-    const System& system(SystemId id) const override;
+    System& getSystem(SystemId id) override;
+    const System& getSystem(SystemId id) const override;
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override;
     void removeEntity(EntityId entityId) override;
@@ -45,12 +45,12 @@ void EcsImpl::addSystem(SystemId id, SystemPtr system)
   m_systems.insert({ id, std::move(system) });
 }
 
-System& EcsImpl::system(SystemId id)
+System& EcsImpl::getSystem(SystemId id)
 {
   return *m_systems.at(id);
 }
 
-const System& EcsImpl::system(SystemId id) const
+const System& EcsImpl::getSystem(SystemId id) const
 {
   return *m_systems.at(id);
 }

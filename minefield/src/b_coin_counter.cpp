@@ -61,7 +61,7 @@ void BCoinCounter::processEvent(const Event& event)
 
     m_remaining = std::max(0, m_remaining - static_cast<int>(e.value));
 
-    auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(fge::RENDER_SYSTEM));
+    auto& sysRender = m_ecs.system<SysRender>();
     sysRender.updateDynamicText(m_entityId, std::to_string(m_remaining));
 
     if (m_remaining == 0) {

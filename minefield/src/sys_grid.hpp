@@ -9,7 +9,7 @@ const float GRID_CELL_W = 0.0625;
 const float GRID_CELL_H = 0.0625;
 
 // TODO: Move all system IDs to same file
-const uint32_t GRID_SYSTEM = fge::LAST_SYSTEM_ID + 1;
+const fge::SystemId GRID_SYSTEM = fge::LAST_SYSTEM_ID + 1;
 
 class SysGrid : public fge::System
 {
@@ -22,6 +22,10 @@ class SysGrid : public fge::System
     virtual bool tryMove(fge::EntityId entityId, int dx, int dy) = 0;
     virtual bool goTo(fge::EntityId entityId, int x, int y) = 0;
     virtual bool isInRange(int x, int y) const = 0;
+
+    virtual ~SysGrid() = default;
+
+    static const fge::SystemId id = GRID_SYSTEM;
 };
 
 using SysGridPtr = std::unique_ptr<SysGrid>;

@@ -39,11 +39,6 @@ using fge::SysAnimation;
 using fge::SysRender;
 using fge::SysSpatial;
 using fge::SysBehaviour;
-using fge::RENDER_SYSTEM;
-using fge::SPATIAL_SYSTEM;
-using fge::ANIMATION_SYSTEM;
-using fge::BEHAVIOUR_SYSTEM;
-using fge::UI_SYSTEM;
 using fge::AnimationId;
 using fge::Animation;
 using fge::AnimationFrame;
@@ -56,6 +51,7 @@ using fge::AnimationData;
 using fge::CLocalTransform;
 using fge::CGlobalTransform;
 using fge::CSpatialFlags;
+using fge::CQuad;
 using fge::CDynamicText;
 using fge::CRender;
 using fge::CSprite;
@@ -69,6 +65,7 @@ namespace
 
 enum class ZIndex : uint32_t
 {
+  Background,
   NumericTile,
   Mine,
   Nugget,
@@ -141,6 +138,7 @@ class SceneBuilderImpl : public SceneBuilder
       uint32_t zIndex);
     EntityId constructWorldRoot();
     EntityId constructPlayer();
+    void constructBackQuad();
     void constructSky();
     void constructClouds();
     void constructTrees();
@@ -185,6 +183,7 @@ Scene SceneBuilderImpl::buildScene(uint32_t level)
 
   m_worldRoot = constructWorldRoot();
   m_playerId = constructPlayer();
+  constructBackQuad();
   constructSky();
   constructClouds();
   constructTrees();
@@ -219,7 +218,7 @@ EntityId SceneBuilderImpl::constructWorldRoot()
 
   //m_entities.insert(id);
 
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   sysSpatial.addEntity(id, SpatialData{
     .transform = identityMatrix<float, 4>(),
@@ -232,11 +231,11 @@ EntityId SceneBuilderImpl::constructWorldRoot()
 
 EntityId SceneBuilderImpl::constructPlayer()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -392,8 +391,8 @@ EntityId SceneBuilderImpl::constructPlayer()
 
 void SceneBuilderImpl::constructSky()
 {
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -430,9 +429,9 @@ void SceneBuilderImpl::constructClouds()
 {
   static auto strIdle = hashString("idle");
 
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   const Vec4f colour{ 1.f, 0.8f, 0.5f, 0.6f };
   long animationDuration = 18000;
@@ -538,8 +537,8 @@ void SceneBuilderImpl::constructClouds()
 
 void SceneBuilderImpl::constructTrees()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -574,8 +573,8 @@ void SceneBuilderImpl::constructTrees()
 
 void SceneBuilderImpl::constructFakeSoil()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   for (size_t i = 0; i < GRID_W; ++i) {
     auto id = m_ecs.componentStore().allocate<
@@ -615,11 +614,11 @@ void SceneBuilderImpl::constructFakeSoil()
 
 void SceneBuilderImpl::constructSoil()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto makeFrame = [](float tx, float ty, float a) {
     return AnimationFrame{
@@ -717,11 +716,11 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
 {
   static auto strExplode = hashString("explode");
 
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto makeFrame = [](float tx, float ty) {
     return AnimationFrame{
@@ -834,10 +833,10 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
 
 void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>& mines)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   std::array<std::array<int, GRID_W>, GRID_H> numbers{};
 
@@ -907,8 +906,8 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
 
 void SceneBuilderImpl::constructGradient()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -941,13 +940,45 @@ void SceneBuilderImpl::constructGradient()
   sysRender.addEntity(id, render);
 }
 
+void SceneBuilderImpl::constructBackQuad()
+{
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+
+  auto id = m_ecs.componentStore().allocate<
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CQuad
+  >();
+
+  m_entities.insert(id);
+
+  Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * (GRID_H + 4)};
+  Vec2f pos{ 0.f, 0.f };
+
+  SpatialData spatial{
+    .transform = spriteTransform(pos, size),
+    .parent = m_worldRoot,
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  QuadData render{
+    .scissor = MAIN_SCISSOR,
+    .zIndex = static_cast<uint32_t>(ZIndex::Background),
+    .colour = { 0.f, 0.f, 0.f, 1.f },
+    .radius = 0.f
+  };
+
+  sysRender.addEntity(id, render);
+}
+
 void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto makeFrame = [](float tx, float ty, float a) {
     return AnimationFrame{
@@ -1063,11 +1094,11 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
   const std::set<std::pair<int, int>>& mines)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto makeFrame = [](float tx, float ty, float a) {
     return AnimationFrame{
@@ -1185,11 +1216,11 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
 void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
   const std::set<std::pair<int, int>>& mines)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto makeFrame = [](float x, float y, float tx, float ty, float a) {
     return AnimationFrame{
@@ -1347,11 +1378,11 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
 void SceneBuilderImpl::constructSticks(uint32_t numSticks,
   const std::set<std::pair<int, int>>& mines)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto animThrow = std::unique_ptr<Animation>(new Animation{
     .name = hashString("throw"),
@@ -1446,11 +1477,11 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 
 void SceneBuilderImpl::constructExit()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysGrid = dynamic_cast<SysGrid&>(m_ecs.system(GRID_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(ANIMATION_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysGrid = m_ecs.system<SysGrid>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   auto makeFrame = [](float tx, float ty) {
     return AnimationFrame{
@@ -1534,9 +1565,9 @@ void SceneBuilderImpl::constructTimeLabel()
 
 void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
@@ -1601,9 +1632,9 @@ void SceneBuilderImpl::constructCoinLabel()
 
 void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
-  auto& sysBehaviour = dynamic_cast<SysBehaviour&>(m_ecs.system(BEHAVIOUR_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
@@ -1645,8 +1676,8 @@ void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
 EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& size,
   const Rectf& texRect, uint32_t zIndex)
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -1689,8 +1720,8 @@ EntityId SceneBuilderImpl::constructThrowingModeIndicator()
 
 EntityId SceneBuilderImpl::constructRestartGamePrompt()
 {
-  auto& sysSpatial = dynamic_cast<SysSpatial&>(m_ecs.system(SPATIAL_SYSTEM));
-  auto& sysRender = dynamic_cast<SysRender&>(m_ecs.system(RENDER_SYSTEM));
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender = m_ecs.system<SysRender>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite

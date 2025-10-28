@@ -56,7 +56,7 @@ const std::set<HashedString>& BExit::subscriptions() const
 
 void BExit::processEvent(const Event& event)
 {
-  auto& sysAnimation = dynamic_cast<SysAnimation&>(m_ecs.system(fge::ANIMATION_SYSTEM));
+  auto& sysAnimation = m_ecs.system<SysAnimation>();
 
   if (event.name == g_strGoldTargetAttained) {
     sysAnimation.playAnimation(m_entityId, hashString("idle"), true);
