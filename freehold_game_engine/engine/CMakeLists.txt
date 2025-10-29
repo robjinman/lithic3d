@@ -39,6 +39,8 @@ if(PLATFORM_ANDROID)
       "-PgameShortName=${GAME_SHORT_NAME}"
       "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}"
       "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
+      "-PgameVersionMajor=${GAME_VERSION_MAJOR}"
+      "-PgameVersionMinor=${GAME_VERSION_MINOR}"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
     COMMENT "Running Gradle build..."

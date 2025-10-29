@@ -5,6 +5,10 @@ plugins {
 def gameShortName = gradle.startParameter.projectProperties['gameShortName']
 def gameProjectDir = gradle.startParameter.projectProperties['gameProjectDir']
 def gameBundleId = gradle.startParameter.projectProperties['gameBundleId']
+def gameVersionMajor = gradle.startParameter.projectProperties['gameVersionMajor']
+def gameVersionMinor = gradle.startParameter.projectProperties['gameVersionMinor']
+
+def uniqueInt = ((System.currentTimeMillis() / 1000) - 1700000000).intValue()
 
 layout.buildDirectory.set(file("$rootDir/../../../build/android/gradle_output/${gameShortName}"))
 
@@ -16,8 +20,8 @@ android {
         applicationId gameBundleId
         minSdk 24
         targetSdk 35
-        versionCode 1
-        versionName "2.0"
+        versionCode uniqueInt
+        versionName "${gameVersionMajor}.${gameVersionMinor}"
     }
 
     buildTypes {
