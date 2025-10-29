@@ -104,6 +104,16 @@ You can obtain the device ID with
     xcrun devicectl list devices
 ```
 
+To publish to the App Store
+
+```
+    xcodebuild -project ./build/ios/release/engine/FreeholdGameEngine.xcodeproj -scheme ALL_BUILD -configuration Release -sdk iphoneos -archivePath ./build/ios/minefield.xcarchive clean archive
+
+    xcodebuild -exportArchive -archivePath ./build/ios/minefield.xcarchive -exportPath ./build/ios/export -exportOptionsPlist ./engine/platform/ios/ExportOptions.plist -allowProvisioningUpdates
+```
+
+Then use the Transporter app to perform the upload.
+
 ### Creating deployables
 
 #### OS X
