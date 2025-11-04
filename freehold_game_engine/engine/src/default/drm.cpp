@@ -5,10 +5,17 @@
 #include <fge/exception.hpp>
 #include <fge/utils.hpp>
 #include <fge/strings.hpp>
+#include <fge/platform.hpp>
 #include <openssl/sha.h>
 #include <fstream>
 #include <cstring>
 #include <chrono>
+#ifdef PLATFORM_OSX
+#include <ifaddrs.h>
+#include <net/if_dl.h>
+#include <sys/socket.h>
+#include <IOKit/IOKitLib.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -52,6 +59,11 @@ class DrmImpl : public Drm
     void writeActivationFile();
     std::string secret(int dayOffset) const;
     std::string getSystemId() const;
+
+#ifdef PLATFORM_OSX
+    std::string getMacAddress() const;
+    std::string getPlatformUuid() const;
+#endif
 };
 
 DrmImpl::DrmImpl(const std::string& productName, FileSystem& fileSystem, Logger& logger)
@@ -134,16 +146,69 @@ void DrmImpl::writeActivationFile()
   m_fileSystem.writeUserDataFile(activationFile, hash.c_str(), hash.size());
 }
 
-#ifdef __WIN32
+#ifdef PLATFORM_WINDOWS
 
 // TODO
 
-#elif defined(__APPLE__)
+#elif defined(PLATFORM_OSX)
 
-std::string getSystemId()
+std::string DrmImpl::getPlatformUuid() const
 {
-  // TODO
-  return "aaaaaaaaaabbbbbbbbbbcccccccccc12";
+  io_registry_entry_t root = IORegistryEntryFromPath(kIOMainPortDefault, "IOService:/");
+  CFStringRef id = reinterpret_cast<CFStringRef>(IORegistryEntryCreateCFProperty(root,
+    CFSTR(kIOPlatformUUIDKey), kCFAllocatorDefault, 0));
+  IOObjectRelease(root);
+
+  char buffer[256];
+  CFStringGetCString(id, buffer, sizeof(buffer), kCFStringEncodingMacRoman);
+  CFRelease(id);
+
+  return std::string{buffer};
+}
+
+std::string DrmImpl::getMacAddress() const
+{
+  ifaddrs* interfaceAddrs = nullptr;
+  if (getifaddrs(&interfaceAddrs) != 0) {
+    return "";
+  }
+
+  std::string macAddress;
+  for (auto* addr = interfaceAddrs; addr != nullptr; addr = addr->ifa_next) {
+    if (!addr->ifa_addr || addr->ifa_addr->sa_family != AF_LINK) {
+      continue;
+    }
+
+    sockaddr_dl* socketAddr = reinterpret_cast<sockaddr_dl*>(addr->ifa_addr);
+    auto base = reinterpret_cast<unsigned char*>(LLADDR(socketAddr));
+    if (socketAddr->sdl_alen == 6 && strncmp(addr->ifa_name, "en", 2) == 0) {
+      char buffer[18];
+      snprintf(buffer, sizeof(buffer), "%02x:%02x:%02x:%02x:%02x:%02x", base[0], base[1], base[2],
+        base[3], base[4], base[5]);
+      macAddress = buffer;
+      break;
+    }
+  }
+
+  freeifaddrs(interfaceAddrs);
+  return macAddress;
+}
+
+std::string DrmImpl::getSystemId() const
+{
+  auto macAddress = getMacAddress();
+
+  if (!macAddress.empty()) {
+    DBG_LOG(m_logger, STR("Found MAC address: " << macAddress));
+    return macAddress;
+  }
+
+  DBG_LOG(m_logger, "No suitable MAC address found. Falling back to platform UUID");
+
+  auto id = getPlatformUuid();
+  DBG_LOG(m_logger, STR("Using platform UUID: " << id));
+
+  return id;
 }
 
 #else
