@@ -7,6 +7,7 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <map>
+#include <array>
 
 namespace fge
 {

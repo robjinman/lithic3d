@@ -1,10 +1,12 @@
-#include "platform_paths.hpp"
+#include <fge/platform_paths.hpp>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shlobj.h>
 
 namespace fs = std::filesystem;
 
+namespace fge
+{
 namespace
 {
 
@@ -68,3 +70,5 @@ PlatformPathsPtr createPlatformPaths(const std::string& appName, const std::stri
 {
   return std::make_unique<PlatformPathsImpl>(appName, vendorName);
 }
+
+} // namespace fge

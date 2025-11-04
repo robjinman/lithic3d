@@ -148,7 +148,11 @@ void DrmImpl::writeActivationFile()
 
 #ifdef PLATFORM_WINDOWS
 
-// TODO
+std::string DrmImpl::getSystemId() const
+{
+  // TODO
+  return "abc123";
+}
 
 #elif defined(PLATFORM_OSX)
 
