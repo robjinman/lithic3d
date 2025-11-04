@@ -182,7 +182,7 @@ GameImpl::GameImpl(fge::Engine& engine)
   setMobileControlsScissor(viewport[0], viewport[1]);
 
 #ifdef DRM
-  m_drm = fge::createDrm(m_engine.fileSystem());
+  m_drm = fge::createDrm("minefield", m_engine.fileSystem(), m_engine.logger());
 
   if (!m_drm->isActivated()) {
     m_productActivation = fge::createProductActivation(m_engine.ecs(), m_engine.eventSystem(),

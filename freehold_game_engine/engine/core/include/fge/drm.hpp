@@ -17,7 +17,8 @@ class Drm
 using DrmPtr = std::unique_ptr<Drm>;
 
 class FileSystem;
+class Logger;
 
-DrmPtr createDrm(FileSystem& fileSystem);
+DrmPtr createDrm(const std::string& productName, FileSystem& fileSystem, Logger& logger);
 
 } // namespace fge
