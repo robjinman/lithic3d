@@ -237,7 +237,7 @@ else()
     )
     install(DIRECTORY "${GAME_PROJECT_DIRECTORY}/data"
       DESTINATION "${EXE_TARGET}.app/Contents/Resources")
-    install(FILES "${PROJECT_SOURCE_DIR}/platform/osx/app.icns"
+    install(FILES "${GAME_PROJECT_DIRECTORY}/icons/osx/app.icns"
       DESTINATION "${EXE_TARGET}.app/Contents/Resources")
     install(FILES "/usr/local/lib/libMoltenVK.dylib"
       DESTINATION "${EXE_TARGET}.app/Contents/Frameworks")

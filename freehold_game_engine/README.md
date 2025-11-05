@@ -129,8 +129,10 @@ Build icon set for OSX
     brew install imagemagick
 
     cd ./platform/osx
-    ./build_icon_set ./icon.png
+    ./build_icon_set ./path/to/icon.png ./destination/directory
 ```
+
+You should put the icon set in $FGE_PROJECT/icons/osx.
 
 After running the osx-release preset, create an .app bundle with
 
