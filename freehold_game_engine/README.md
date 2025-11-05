@@ -38,13 +38,6 @@ Linux host with the same prerequisites as above, plus
 
 Make sure environment variables ANDROID_HOME and ANDROID_NDK_HOME are set.
 
-Build shaderc. You only need to do this once.
-
-```
-    cd ~/Android/Sdk/ndk/27.0.12077973/sources/third_party/shaderc
-    ../../../ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_STL:=c++_static APP_ABI=all libshaderc_combined
-```
-
 ### Build
 
 To build, just run the relevant workflow from the project root.
@@ -82,6 +75,18 @@ Install the APKs
 
 ```
     java -jar ~/Downloads/bundletool-all-1.18.1.jar install-apks --apks=output.apks
+```
+
+Before uploading to the Play Store, sign the bundle
+
+```
+    jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore ~/path/to/upload-keystore.jks app-release.aab upload
+```
+
+To generate the keys, run
+
+```
+    keytool -genkeypair -v -keystore upload-keystore.jks -alias upload -keyalg RSA -keysize 4096 -validity 20000
 ```
 
 #### iOS

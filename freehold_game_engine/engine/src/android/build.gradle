@@ -52,5 +52,9 @@ android {
         }
     }
 
+    packagingOptions {
+        excludes += "lib/*/libVkLayer_khronos_validation.so"
+    }
+
     assetPacks = [":data"]
 }
