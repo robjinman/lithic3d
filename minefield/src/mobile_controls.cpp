@@ -39,8 +39,7 @@ const uint32_t zIndex = 199;
 class MobileControlsImpl : public MobileControls
 {
   public:
-    MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
-      const MobileControlsCallbacks& callbacks, const Rectf& gameArea);
+    MobileControlsImpl(Ecs& ecs, const MobileControlsCallbacks& callbacks, const Rectf& gameArea);
 
     void hide() override;
     void show() override;
@@ -48,7 +47,6 @@ class MobileControlsImpl : public MobileControls
 
   private:
     Ecs& m_ecs;
-    EventSystem& m_eventSystem;
     MobileControlsCallbacks m_callbacks;
     EntityId m_rootId;
     EntityId m_leftBtnId;
@@ -65,10 +63,9 @@ class MobileControlsImpl : public MobileControls
     void positionButtons(const Rectf& gameArea);
 };
 
-MobileControlsImpl::MobileControlsImpl(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, const Rectf& gameArea)
+MobileControlsImpl::MobileControlsImpl(Ecs& ecs, const MobileControlsCallbacks& callbacks,
+  const Rectf& gameArea)
   : m_ecs(ecs)
-  , m_eventSystem(eventSystem)
   , m_callbacks(callbacks)
 {
   m_rootId = constructRoot();
@@ -246,8 +243,8 @@ EntityId MobileControlsImpl::constructButton(const std::function<void()>& onPres
 
 } // namespace
 
-MobileControlsPtr createMobileControls(Ecs& ecs, EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, const Rectf& gameArea)
+MobileControlsPtr createMobileControls(Ecs& ecs, const MobileControlsCallbacks& callbacks,
+  const Rectf& gameArea)
 {
-  return std::make_unique<MobileControlsImpl>(ecs, eventSystem, callbacks, gameArea);
+  return std::make_unique<MobileControlsImpl>(ecs, callbacks, gameArea);
 }

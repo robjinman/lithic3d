@@ -971,9 +971,9 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
   const std::vector<VkSurfaceFormatKHR>& availableFormats) const
 {
-  m_logger.debug("Available surface formats:");
+  DBG_LOG(m_logger, "Available surface formats:");
   for (const auto& format : availableFormats) {
-    m_logger.debug(STR("Format = " << format.format << ", colourSpace = " << format.colorSpace));
+    DBG_LOG(m_logger, STR("Format = " << format.format << ", colourSpace = " << format.colorSpace));
   }
 
   for (const auto& format : availableFormats) {

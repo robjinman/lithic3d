@@ -666,6 +666,13 @@ struct Rect
   }
 };
 
+template<typename T>
+std::ostream& operator<<(std::ostream& stream, const Rect<T>& r)
+{
+  stream << "{ x: " << r.x << ", y: " << r.y << ", w: " << r.w << ", h: " << r.h << " }";
+  return stream;
+}
+
 using Rectf = Rect<float>;
 using Recti = Rect<int>;
 

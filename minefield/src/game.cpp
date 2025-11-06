@@ -158,6 +158,8 @@ GameImpl::GameImpl(fge::Engine& engine)
 
   auto viewport = m_engine.renderer().getViewportSize();
 
+  m_engine.logger().info(STR("Initial viewport: " << viewport));
+
   MobileControlsCallbacks callbacks{
     .onLeftButtonPress = [this]() { onKeyDown(KeyboardKey::Left); },
     .onLeftButtonRelease = [this]() { onKeyUp(KeyboardKey::Left); },
@@ -172,7 +174,7 @@ GameImpl::GameImpl(fge::Engine& engine)
     .onEscapeButtonPress = [this]() { onKeyDown(KeyboardKey::Escape); },
     .onEscapeButtonRelease = [this]() { onKeyUp(KeyboardKey::Escape); }
   };
-  m_mobileControls = createMobileControls(m_engine.ecs(), m_engine.eventSystem(), callbacks,
+  m_mobileControls = createMobileControls(m_engine.ecs(), callbacks,
     calculateGameArea(viewport[0], viewport[1]));
 
   m_engine.eventSystem().listen([this](const Event& event) { handleEvent(event); });
@@ -289,10 +291,14 @@ void GameImpl::setScissor(uint32_t viewportW, uint32_t viewportH)
 
   auto& margins = m_engine.renderer().getMargins();
 
+  m_engine.logger().info(STR("Setting scissor " << MAIN_SCISSOR << ": " << scissor));
+
   m_viewportOffset = {
     scissor.x + static_cast<int>(margins.left),
     scissor.y + static_cast<int>(margins.top)
   };
+
+  m_engine.logger().info(STR("Viewport offset: " << m_viewportOffset));
 }
 
 void GameImpl::onWindowResize(uint32_t w, uint32_t h)

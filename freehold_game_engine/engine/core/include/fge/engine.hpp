@@ -5,7 +5,7 @@
 namespace fge
 {
 
-class GameConfig;
+struct GameConfig;
 class Game;
 class Logger;
 class FileSystem;

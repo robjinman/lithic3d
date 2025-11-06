@@ -35,8 +35,7 @@ using MobileControlsPtr = std::unique_ptr<MobileControls>;
 namespace fge
 {
 class Ecs;
-class EventSystem;
 }
 
-MobileControlsPtr createMobileControls(fge::Ecs& ecs, fge::EventSystem& eventSystem,
-  const MobileControlsCallbacks& callbacks, const fge::Rectf& gameArea);
+MobileControlsPtr createMobileControls(fge::Ecs& ecs, const MobileControlsCallbacks& callbacks,
+  const fge::Rectf& gameArea);

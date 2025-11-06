@@ -249,6 +249,8 @@ void Application::onKeyboardInput(int code, int action)
 void Application::toggleFullScreen()
 {
   if (m_fullscreen) {
+    m_engine->logger().info("Toggling fullscreen mode OFF");
+
     glfwSetWindowMonitor(m_window, NULL, m_initialWindowState.posX, m_initialWindowState.posY,
       m_initialWindowState.width, m_initialWindowState.height, 0);
 
@@ -259,6 +261,8 @@ void Application::toggleFullScreen()
     m_fullscreen = false;
   }
   else {
+    m_engine->logger().info("Toggling fullscreen mode ON");
+
     glfwGetWindowPos(m_window, &m_initialWindowState.posX, &m_initialWindowState.posY);
     glfwGetWindowSize(m_window, &m_initialWindowState.width, &m_initialWindowState.height);
 
