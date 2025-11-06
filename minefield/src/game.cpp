@@ -138,6 +138,7 @@ class GameImpl : public fge::Game
     bool isInsideGameArea(float x, float y) const;
     Vec2f throwingIndicatorPosition() const;
     Rectf calculateGameArea(uint32_t viewportW, uint32_t viewportH) const;
+    bool showActivationScreenIfNotActivated();
 };
 
 GameImpl::GameImpl(fge::Engine& engine)
@@ -181,30 +182,6 @@ GameImpl::GameImpl(fge::Engine& engine)
   setScissor(viewport[0], viewport[1]);
   setMobileControlsScissor(viewport[0], viewport[1]);
 
-#ifdef DRM
-  m_drm = fge::createDrm("minefield", m_engine.fileSystem(), m_engine.logger());
-
-  if (!m_drm->isActivated()) {
-    m_productActivation = fge::createProductActivation(m_engine.ecs(), m_engine.eventSystem(),
-      *m_drm, m_engine.logger());
-    m_engine.ecs().system<SysSpatial>()
-      .setEnabled(m_productActivation->root(), true);
-    m_gameState = GameState::ProductActivation;
-
-    return;
-  }
-#endif
-
-  m_engine.ecs().system<SysSpatial>()
-    .setEnabled(m_menuSystem->root(), true);
-
-  m_menuSystem->showMainMenu();
-  m_gameState = GameState::MainMenu;
-
-  if (fge::MOBILE_PLATFORM) {
-    showMobileControls();
-  }
-
   m_engine.audioSystem().addMusic("sounds/music.ogg");
   m_engine.audioSystem().addSound(strBang, "sounds/bang.wav");
   m_engine.audioSystem().addSound(strCollect, "sounds/collect.wav");
@@ -213,7 +190,36 @@ GameImpl::GameImpl(fge::Engine& engine)
   m_engine.audioSystem().addSound(strThrow, "sounds/throw.wav");
   m_engine.audioSystem().addSound(strTick, "sounds/tick.wav");
 
-  m_engine.audioSystem().playMusic();
+  if (showActivationScreenIfNotActivated()) {
+    m_engine.ecs().system<SysSpatial>().setEnabled(m_menuSystem->root(), true);
+
+    m_menuSystem->showMainMenu();
+    m_gameState = GameState::MainMenu;
+
+    if (fge::MOBILE_PLATFORM) {
+      showMobileControls();
+    }
+
+    m_engine.audioSystem().playMusic();
+  }
+}
+
+bool GameImpl::showActivationScreenIfNotActivated()
+{
+#ifdef DRM
+  m_drm = fge::createDrm("minefield", m_engine.fileSystem(), m_engine.logger());
+
+  if (!m_drm->isActivated()) {
+    m_productActivation = fge::createProductActivation(m_engine.ecs(), m_engine.eventSystem(),
+      *m_drm, m_engine.logger());
+    m_engine.ecs().system<SysSpatial>().setEnabled(m_productActivation->root(), true);
+    m_gameState = GameState::ProductActivation;
+
+    return false;
+  }
+#endif
+
+  return true;
 }
 
 float GameImpl::gameViewportAspectRatio() const
