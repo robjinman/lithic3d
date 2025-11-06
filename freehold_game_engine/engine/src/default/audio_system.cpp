@@ -16,6 +16,8 @@ namespace
 
 constexpr int NUM_SOURCES = 4;
 
+// TODO: We still have problems playing MONO sounds
+
 ALenum chooseFormat(ALuint channels)
 {
   if (channels == 1) {
@@ -114,11 +116,23 @@ void AudioSystemImpl::addSound(HashedString name, const std::string& path)
   std::vector<int16_t> pcmData;
   pcmData.resize(static_cast<size_t>(wav.totalPCMFrameCount) * wav.channels);
 
-  drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, pcmData.data());
+  if (drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, pcmData.data())
+    != wav.totalPCMFrameCount) {
+
+    EXCEPTION(STR("Error loading sound effect: " << path));
+  }
+
+  alGetError();
 
   ALuint buffer = 0;
   alGenBuffers(1, &buffer);
   alBufferData(buffer, format, pcmData.data(), pcmData.size() * sizeof(int16_t), wav.sampleRate);
+
+  if (alGetError() != AL_NO_ERROR) {
+    alDeleteBuffers(1, &buffer);
+    drwav_uninit(&wav);
+    EXCEPTION(STR("Error loading sound effect: " << path));
+  }
 
   m_buffers.insert({ name, buffer });
 
