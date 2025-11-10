@@ -4,6 +4,7 @@
 #include "component_types.hpp"
 #include "event_system.hpp"
 #include "systems.hpp"
+#include <unordered_set>
 
 namespace fge
 {
@@ -30,7 +31,7 @@ class EEntityEnable : public Event
 //   CSpatialFlags
 //   CLocalTransform
 //   CGlobalTransform
-struct SpatialData
+struct DSpatial
 {
   Mat4x4f transform = identityMatrix<float, 4>();
   EntityId parent = NULL_ENTITY;
@@ -63,8 +64,11 @@ class SysSpatial : public System
 {
   public:
     virtual EntityId root() const = 0;
-    virtual void addEntity(EntityId entityId, const SpatialData& data) = 0;
+    virtual void addEntity(EntityId entityId, const DSpatial& data) = 0;
     virtual void setEnabled(EntityId entityId, bool enabled) = 0;
+
+    // TODO: Replace with proper frustum culling
+    virtual std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const = 0;
 
     virtual ~SysSpatial() = default;
 

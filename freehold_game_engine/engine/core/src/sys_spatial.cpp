@@ -18,7 +18,9 @@ class SysSpatialImpl : public SysSpatial
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
-    void addEntity(EntityId entityId, const SpatialData& data) override;
+    std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const override;
+
+    void addEntity(EntityId entityId, const DSpatial& data) override;
     EntityId root() const override;
     void setEnabled(EntityId entityId, bool enabled) override;
 
@@ -36,12 +38,26 @@ SysSpatialImpl::SysSpatialImpl(ComponentStore& componentStore, EventSystem& even
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY>>(root);
 }
 
+// TODO: Replace with proper frustum culling
+std::unordered_set<EntityId> SysSpatialImpl::getIntersecting(const std::vector<Vec2f>& poly) const
+{
+  // Just return all entities
+
+  std::unordered_set<EntityId> entities;
+
+  for (auto id : m_sceneGraph->dfs) {
+    entities.insert(id);
+  }
+
+  return entities;
+}
+
 EntityId SysSpatialImpl::root() const
 {
   return m_sceneGraph->dfs[0];
 }
 
-void SysSpatialImpl::addEntity(EntityId entityId, const SpatialData& data)
+void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
   auto& parentFlags = m_componentStore.component<CSpatialFlags>(data.parent);
 

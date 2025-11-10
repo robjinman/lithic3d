@@ -21,17 +21,17 @@ class SysBehaviourImpl : public SysBehaviour
     void update(Tick, const InputState&) override {}
     void processEvent(const Event& event) override;
 
-    void addBehaviour(EntityId entityId, BehaviourDataPtr behaviour) override;
-    BehaviourData& getBehaviour(EntityId entityId, HashedString name) override;
-    const BehaviourData& getBehaviour(EntityId entityId, HashedString name) const override;
+    void addBehaviour(EntityId entityId, DBehaviourPtr behaviour) override;
+    DBehaviour& getBehaviour(EntityId entityId, HashedString name) override;
+    const DBehaviour& getBehaviour(EntityId entityId, HashedString name) const override;
 
   private:
     ComponentStore& m_componentStore;
-    std::map<EntityId, std::map<HashedString, BehaviourDataPtr>> m_behaviours;
+    std::map<EntityId, std::map<HashedString, DBehaviourPtr>> m_behaviours;
     std::map<HashedString, std::set<EntityId>> m_subscriptions;
 };
 
-void SysBehaviourImpl::addBehaviour(EntityId entityId, BehaviourDataPtr behaviour)
+void SysBehaviourImpl::addBehaviour(EntityId entityId, DBehaviourPtr behaviour)
 {
   auto name = behaviour->name();
 
@@ -42,12 +42,12 @@ void SysBehaviourImpl::addBehaviour(EntityId entityId, BehaviourDataPtr behaviou
   m_behaviours[entityId].insert({ name, std::move(behaviour) });
 }
 
-BehaviourData& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name)
+DBehaviour& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name)
 {
   return *m_behaviours.at(entityId).at(name);
 }
 
-const BehaviourData& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name) const
+const DBehaviour& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name) const
 {
   return *m_behaviours.at(entityId).at(name);
 }

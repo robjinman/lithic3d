@@ -3,7 +3,7 @@
 #include <fge/logger.hpp>
 #include <fge/sys_spatial.hpp>
 #include <fge/systems.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/sys_ui.hpp>
 
 namespace fge
@@ -61,7 +61,7 @@ EntityId ProductActivationImpl::constructRoot()
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = identityMatrix<float, 4>(),
     .parent = sysSpatial.root(),
     .enabled = false
@@ -75,7 +75,7 @@ EntityId ProductActivationImpl::constructRoot()
 EntityId ProductActivationImpl::constructPrompt()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
@@ -84,7 +84,7 @@ EntityId ProductActivationImpl::constructPrompt()
   Vec2f pos{ 0.3f, 0.7f };
   Vec2f size{ 0.022f, 0.044f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
       scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f }),
     .parent = m_rootId,
@@ -93,7 +93,7 @@ EntityId ProductActivationImpl::constructPrompt()
 
   sysSpatial.addEntity(id, spatial);
 
-  TextData render{
+  DText render{
     .scissor = 1, // TODO
     .textureRect = {
       .x = pxToUvX(256.f),
@@ -121,7 +121,7 @@ struct CTextbox
 EntityId ProductActivationImpl::constructTextbox()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysUi = m_ecs.system<SysUi>();
 
   auto& store = m_ecs.componentStore();
@@ -135,7 +135,7 @@ EntityId ProductActivationImpl::constructTextbox()
   Vec2f pos{ 0.3f, 0.5f };
   Vec2f size{ 0.05f, 0.1f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
       scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f }),
     .parent = m_rootId,
@@ -144,7 +144,7 @@ EntityId ProductActivationImpl::constructTextbox()
 
   sysSpatial.addEntity(id, spatial);
 
-  DynamicTextData render{
+  DDynamicText render{
     .scissor = 1, // TODO
     .textureRect = {
       .x = pxToUvX(256.f),
@@ -160,7 +160,7 @@ EntityId ProductActivationImpl::constructTextbox()
 
   sysRender.addEntity(id, render);
 
-  UiData ui{};
+  DUi ui{};
   ui.group = SysUi::nextGroupId();
   ui.canReceiveFocus = true;
   ui.inputFilter = hexFilter,

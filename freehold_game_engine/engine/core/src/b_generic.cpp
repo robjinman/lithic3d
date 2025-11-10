@@ -5,7 +5,7 @@ namespace fge
 namespace
 {
 
-class BGeneric : public BehaviourData
+class BGeneric : public DBehaviour
 {
   public:
     BGeneric(HashedString name, const std::set<HashedString>& subscriptions, const BehaviourFn& fn);
@@ -44,7 +44,7 @@ void BGeneric::processEvent(const Event& event)
 
 }
 
-BehaviourDataPtr createBGeneric(HashedString name, const std::set<HashedString>& subscriptions,
+DBehaviourPtr createBGeneric(HashedString name, const std::set<HashedString>& subscriptions,
   const BehaviourFn& fn)
 {
   return std::make_unique<BGeneric>(name, subscriptions, fn);

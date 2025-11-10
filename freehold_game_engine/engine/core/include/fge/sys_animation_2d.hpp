@@ -10,7 +10,7 @@
 namespace fge
 {
 
-struct AnimationFrame
+struct Animation2dFrame
 {
   Vec2f pos{ 0.f, 0.f };
   float rotation = 0.f;
@@ -20,33 +20,33 @@ struct AnimationFrame
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
-struct Animation
+struct Animation2d
 {
   HashedString name = 0;
   Tick duration = 1;
   Vec2f startPos{ 0.f, 0.f };
-  std::vector<AnimationFrame> frames;
+  std::vector<Animation2dFrame> frames;
 };
 
-using AnimationPtr = std::unique_ptr<Animation>;
+using Animation2dPtr = std::unique_ptr<Animation2d>;
 
-using AnimationId = size_t;
+using Animation2dId = size_t;
 
 // Requires components:
 //   CSpatialFlags
 //   CLocalTransform
 //   CRender
-struct AnimationData
+struct Animation2dData
 {
-  std::set<AnimationId> animations;
+  std::set<Animation2dId> animations;
 };
 
-class SysAnimation : public System
+class SysAnimation2d : public System
 {
   public:
-    virtual void addEntity(EntityId entityId, const AnimationData& data) = 0;
-    virtual AnimationId addAnimation(AnimationPtr animation) = 0;
-    virtual void replaceAnimation(AnimationId animationId, AnimationPtr animation) = 0;
+    virtual void addEntity(EntityId entityId, const Animation2dData& data) = 0;
+    virtual Animation2dId addAnimation(Animation2dPtr animation) = 0;
+    virtual void replaceAnimation(Animation2dId animationId, Animation2dPtr animation) = 0;
 
     // Throws exception if an animation is already playing
     virtual void playAnimation(EntityId entityId, HashedString name, bool repeat = false) = 0;
@@ -71,15 +71,15 @@ class SysAnimation : public System
     // Finishes the current animation and starts any queued animation
     virtual void finishAnimation(EntityId entityId) = 0;
 
-    virtual ~SysAnimation() = default;
+    virtual ~SysAnimation2d() = default;
 
-    static const SystemId id = ANIMATION_SYSTEM;
+    static const SystemId id = ANIMATION_2D_SYSTEM;
 };
 
-using SysAnimationPtr = std::unique_ptr<SysAnimation>;
+using SysAnimation2dPtr = std::unique_ptr<SysAnimation2d>;
 
 class Logger;
 
-SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger);
+SysAnimation2dPtr createSysAnimation2d(ComponentStore& componentStore, Logger& logger);
 
 } // namespace fge

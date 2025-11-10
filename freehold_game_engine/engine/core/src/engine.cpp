@@ -6,9 +6,10 @@
 #include "fge/ecs.hpp"
 #include "fge/event_system.hpp"
 #include "fge/systems.hpp"
-#include "fge/sys_animation.hpp"
+#include "fge/sys_animation_2d.hpp"
 #include "fge/sys_behaviour.hpp"
-#include "fge/sys_render.hpp"
+#include "fge/sys_render_2d.hpp"
+#include "fge/sys_render_3d.hpp"
 #include "fge/sys_spatial.hpp"
 #include "fge/sys_ui.hpp"
 
@@ -49,17 +50,21 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
-  auto sysRender = createSysRender(m_ecs->componentStore(), *m_renderer, *m_fileSystem, *m_logger);
+  auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer, *m_fileSystem,
+    *m_logger);
+  auto sysRender3d = createSysRender3d(*m_ecs, *m_renderer, *m_logger);
   auto sysSpatial = createSysSpatial(m_ecs->componentStore(), *m_eventSystem);
-  auto sysAnimation = createSysAnimation(m_ecs->componentStore(), *m_logger);
+  auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysUi = createSysUi(*m_ecs, *m_logger);
 
-  sysRender->setClearColour({ 0.f, 0.f, 0.f, 1.f });
+  sysRender2d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
+  //sysRender3d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
 
-  m_ecs->addSystem(RENDER_SYSTEM, std::move(sysRender));
+  m_ecs->addSystem(RENDER_2D_SYSTEM, std::move(sysRender2d));
+  m_ecs->addSystem(RENDER_3D_SYSTEM, std::move(sysRender3d));
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
-  m_ecs->addSystem(ANIMATION_SYSTEM, std::move(sysAnimation));
+  m_ecs->addSystem(ANIMATION_2D_SYSTEM, std::move(sysAnimation2d));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 

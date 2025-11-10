@@ -5,7 +5,6 @@
 #include "fge/renderer.hpp"
 #include "fge/exception.hpp"
 #include "fge/logger.hpp"
-#include "fge/camera.hpp"
 #include "fge/utils.hpp"
 #include "fge/time.hpp"
 #include "fge/thread.hpp"

@@ -1,5 +1,5 @@
-#include "fge/sys_animation.hpp"
-#include "fge/sys_render.hpp"
+#include "fge/sys_animation_2d.hpp"
+#include "fge/sys_render_2d.hpp"
 #include "fge/sys_spatial.hpp"
 #include <chrono>
 #include <map>
@@ -19,7 +19,7 @@ struct QueuedAnimation
 
 struct AnimationState
 {
-  AnimationId id = 0;
+  Animation2dId id = 0;
   HashedString name = 0;
   Tick tick = 0;
   Mat4x4f initialT;
@@ -29,26 +29,26 @@ struct AnimationState
   std::optional<QueuedAnimation> next;
 };
 
-struct CAnimation
+struct CAnimation2d
 {
-  std::map<HashedString, AnimationId> animations;
+  std::map<HashedString, Animation2dId> animations;
 };
 
-using CAnimationPtr = std::unique_ptr<CAnimation>;
+using CAnimation2dPtr = std::unique_ptr<CAnimation2d>;
 
-class SysAnimationImpl : public SysAnimation
+class SysAnimation2dImpl : public SysAnimation2d
 {
   public:
-    SysAnimationImpl(ComponentStore& componentStore, Logger& logger);
+    SysAnimation2dImpl(ComponentStore& componentStore, Logger& logger);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event&) override {}
 
-    void addEntity(EntityId entityId, const AnimationData& data) override;
-    AnimationId addAnimation(AnimationPtr animation) override;
-    void replaceAnimation(AnimationId animationId, AnimationPtr animation) override;
+    void addEntity(EntityId entityId, const Animation2dData& data) override;
+    Animation2dId addAnimation(Animation2dPtr animation) override;
+    void replaceAnimation(Animation2dId animationId, Animation2dPtr animation) override;
 
     void playAnimation(EntityId entityId, HashedString name, bool repeat) override;
     void playAnimation(EntityId entityId, HashedString name,
@@ -67,11 +67,11 @@ class SysAnimationImpl : public SysAnimation
   private:
     Logger& m_logger;
     ComponentStore& m_componentStore;
-    std::map<EntityId, CAnimationPtr> m_components;
+    std::map<EntityId, CAnimation2dPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimations;
-    std::map<AnimationId, AnimationPtr> m_animations;
+    std::map<Animation2dId, Animation2dPtr> m_animations;
 
-    static AnimationId m_nextId;
+    static Animation2dId m_nextId;
 
     bool updateAnimation(EntityId entityId, AnimationState& animState,
       std::vector<std::tuple<EntityId, QueuedAnimation>>& queue);
@@ -85,9 +85,9 @@ class SysAnimationImpl : public SysAnimation
     void playQueuedAnimation(EntityId entityId, const QueuedAnimation& anim);
 };
 
-AnimationId SysAnimationImpl::m_nextId = 0;
+Animation2dId SysAnimation2dImpl::m_nextId = 0;
 
-SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logger)
+SysAnimation2dImpl::SysAnimation2dImpl(ComponentStore& componentStore, Logger& logger)
   : m_logger(logger)
   , m_componentStore(componentStore)
 {
@@ -98,7 +98,7 @@ SysAnimationImpl::SysAnimationImpl(ComponentStore& componentStore, Logger& logge
 //   * The finishing animation repeats
 //   * The finishing animation has a queued animation - this takes precedence over a repeating
 //     animation
-bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animState,
+bool SysAnimation2dImpl::updateAnimation(EntityId entityId, AnimationState& animState,
   std::vector<std::tuple<EntityId, QueuedAnimation>>& queue)
 {
   auto& anim = *m_animations.at(animState.id);
@@ -199,7 +199,7 @@ bool SysAnimationImpl::updateAnimation(EntityId entityId, AnimationState& animSt
   return false;
 }
 
-void SysAnimationImpl::update(Tick, const InputState&)
+void SysAnimation2dImpl::update(Tick, const InputState&)
 {
   std::vector<std::tuple<EntityId, QueuedAnimation>> queue;
   std::vector<std::function<void()>> callbacks;
@@ -236,7 +236,7 @@ void SysAnimationImpl::update(Tick, const InputState&)
   }
 }
 
-void SysAnimationImpl::playQueuedAnimation(EntityId entityId, const QueuedAnimation& anim)
+void SysAnimation2dImpl::playQueuedAnimation(EntityId entityId, const QueuedAnimation& anim)
 {
   if (anim.onFinish.has_value()) {
     playAnimation(entityId, anim.name, anim.onFinish.value());
@@ -246,7 +246,7 @@ void SysAnimationImpl::playQueuedAnimation(EntityId entityId, const QueuedAnimat
   }
 }
 
-void SysAnimationImpl::stopAnimation(EntityId entityId)
+void SysAnimation2dImpl::stopAnimation(EntityId entityId)
 {
   auto i = m_activeAnimations.find(entityId);
   if (i == m_activeAnimations.end()) {
@@ -263,7 +263,7 @@ void SysAnimationImpl::stopAnimation(EntityId entityId)
   }
 }
 
-void SysAnimationImpl::finishAnimation(EntityId entityId)
+void SysAnimation2dImpl::finishAnimation(EntityId entityId)
 {
   auto i = m_activeAnimations.find(entityId);
   if (i == m_activeAnimations.end()) {
@@ -294,13 +294,13 @@ void SysAnimationImpl::finishAnimation(EntityId entityId)
   }
 }
 
-void SysAnimationImpl::addEntity(EntityId entityId, const AnimationData& comp)
+void SysAnimation2dImpl::addEntity(EntityId entityId, const Animation2dData& comp)
 {
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CLocalTransform>(m_componentStore, entityId);
   assertHasComponent<CRender>(m_componentStore, entityId);
 
-  auto data = std::make_unique<CAnimation>();
+  auto data = std::make_unique<CAnimation2d>();
 
   for (auto animId : comp.animations) {
     auto& anim = *m_animations.at(animId);
@@ -310,7 +310,7 @@ void SysAnimationImpl::addEntity(EntityId entityId, const AnimationData& comp)
   m_components.insert({ entityId, std::move(data) });
 }
 
-void SysAnimationImpl::removeEntity(EntityId entityId)
+void SysAnimation2dImpl::removeEntity(EntityId entityId)
 {
   m_activeAnimations.erase(entityId);
   m_components.erase(entityId);
@@ -318,12 +318,12 @@ void SysAnimationImpl::removeEntity(EntityId entityId)
   // No need to erase from m_callbacks. Update function will check entity exists before invoking.
 }
 
-bool SysAnimationImpl::hasEntity(EntityId entityId) const
+bool SysAnimation2dImpl::hasEntity(EntityId entityId) const
 {
   return m_components.contains(entityId);
 }
 
-AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
+Animation2dId SysAnimation2dImpl::addAnimation(Animation2dPtr animation)
 {
   auto id = m_nextId++;
 
@@ -333,25 +333,25 @@ AnimationId SysAnimationImpl::addAnimation(AnimationPtr animation)
   return id;
 }
 
-void SysAnimationImpl::replaceAnimation(AnimationId animationId, AnimationPtr animation)
+void SysAnimation2dImpl::replaceAnimation(Animation2dId animationId, Animation2dPtr animation)
 {
   ASSERT(animation->duration > 0, "Animation must have duration > 0");
   m_animations.erase(animationId);
   m_animations.insert({ animationId, std::move(animation) });
 }
 
-void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
+void SysAnimation2dImpl::playAnimation(EntityId entityId, HashedString name, bool repeat)
 {
   playAnimation(entityId, name, repeat, std::nullopt);
 }
 
-void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name,
+void SysAnimation2dImpl::playAnimation(EntityId entityId, HashedString name,
   const std::function<void()>& onFinish)
 {
   playAnimation(entityId, name, false, onFinish);
 }
 
-void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool repeat,
+void SysAnimation2dImpl::playAnimation(EntityId entityId, HashedString name, bool repeat,
   const std::optional<std::function<void()>>& onFinish)
 {
   auto& renderComp = m_componentStore.component<CRender>(entityId);
@@ -373,18 +373,18 @@ void SysAnimationImpl::playAnimation(EntityId entityId, HashedString name, bool 
   }});
 }
 
-void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name, bool repeat)
+void SysAnimation2dImpl::queueAnimation(EntityId entityId, HashedString name, bool repeat)
 {
   queueAnimation(entityId, name, repeat, std::nullopt);
 }
 
-void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name,
+void SysAnimation2dImpl::queueAnimation(EntityId entityId, HashedString name,
   const std::function<void()>& onFinish)
 {
   queueAnimation(entityId, name, false, onFinish);
 }
 
-void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name, bool repeat,
+void SysAnimation2dImpl::queueAnimation(EntityId entityId, HashedString name, bool repeat,
   const std::optional<std::function<void()>>& onFinish)
 {
   auto i = m_activeAnimations.find(entityId);
@@ -401,7 +401,7 @@ void SysAnimationImpl::queueAnimation(EntityId entityId, HashedString name, bool
   };
 }
 
-void SysAnimationImpl::seek(EntityId entityId, Tick tick)
+void SysAnimation2dImpl::seek(EntityId entityId, Tick tick)
 {
   auto i = m_activeAnimations.find(entityId);
   if (i == m_activeAnimations.end()) {
@@ -414,12 +414,12 @@ void SysAnimationImpl::seek(EntityId entityId, Tick tick)
   animState.tick = tick % (anim.duration + 1);
 }
 
-bool SysAnimationImpl::hasAnimation(EntityId entityId, HashedString name) const
+bool SysAnimation2dImpl::hasAnimation(EntityId entityId, HashedString name) const
 {
   return m_components.at(entityId)->animations.contains(name);
 }
 
-bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
+bool SysAnimation2dImpl::hasAnimationPlaying(EntityId entityId) const
 {
   auto i = m_activeAnimations.find(entityId);
   return i != m_activeAnimations.end();
@@ -427,9 +427,9 @@ bool SysAnimationImpl::hasAnimationPlaying(EntityId entityId) const
 
 } // namespace
 
-SysAnimationPtr createSysAnimation(ComponentStore& componentStore, Logger& logger)
+SysAnimation2dPtr createSysAnimation2d(ComponentStore& componentStore, Logger& logger)
 {
-  return std::make_unique<SysAnimationImpl>(componentStore, logger);
+  return std::make_unique<SysAnimation2dImpl>(componentStore, logger);
 }
 
 } // namespace fge

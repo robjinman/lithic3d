@@ -6,6 +6,17 @@
 #include <set>
 #include <memory>
 
+// Naming conventions
+//
+// Systems inherit System and are prefixed with Sys, e.g. SysRender. They should define a static
+// data member of type SystemId that is unique to the class.
+// Components stored in the component store are prefixed with C and should be plain-old-data.
+// Components should define a static TypeId data member of type ComponentType unique to the class.
+// The component store is used to facilitate fast iteration over components within a system's
+// update() method. Systems don't have to use the component store at all.
+// Entity data passed into the system (and possibly used to populate component store components)
+// are prefixed with D, e.g. DSpatial.
+
 namespace fge
 {
 
@@ -46,6 +57,12 @@ class Ecs
     T& system()
     {
       return dynamic_cast<T&>(getSystem(T::id));
+    }
+
+    template<std::derived_from<System> T>
+    const T& system() const
+    {
+      return dynamic_cast<const T&>(getSystem(T::id));
     }
 
     virtual ~Ecs() = default;

@@ -1,5 +1,5 @@
 #include <fge/component_store.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <gtest/gtest.h>
 #include <vector>
 

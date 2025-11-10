@@ -2,7 +2,7 @@
 #include <fge/game.hpp>
 #include <fge/renderer.hpp>
 #include <fge/ecs.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/sys_spatial.hpp>
 #include <fge/logger.hpp>
 
@@ -38,13 +38,15 @@ class Demo : public fge::Game
     fge::Engine& m_engine;
     fge::InputState m_inputState;
 
-    Tick m_currentTick = 0; // TODO: Remvoe
+    Tick m_currentTick = 0; // TODO: Remove
 };
 
 Demo::Demo(fge::Engine& engine)
   : m_engine(engine)
 {
   m_engine.renderer().start(); // TODO: Move to engine?
+
+
 }
 
 float Demo::gameViewportAspectRatio() const

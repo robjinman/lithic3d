@@ -1,7 +1,7 @@
-#include "fge/sys_render.hpp"
+#include "fge/sys_render_2d.hpp"
 #include "fge/renderer.hpp"
 #include "fge/logger.hpp"
-#include "fge/camera.hpp"
+#include "fge/camera_2d.hpp"
 #include "fge/exception.hpp"
 #include "fge/utils.hpp"
 #include "fge/time.hpp"
@@ -175,22 +175,22 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
   return mesh;
 }
 
-class SysRenderImpl : public SysRender
+class SysRender2dImpl : public SysRender2d
 {
   public:
-    SysRenderImpl(ComponentStore& componentStore, Renderer& renderer, const FileSystem& fileSystem,
+    SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer, const FileSystem& fileSystem,
       Logger& logger);
 
     void start() override;
     double frameRate() const override;
 
-    Camera& camera() override;
-    const Camera& camera() const override;
+    Camera2d& camera() override;
+    const Camera2d& camera() const override;
 
-    void addEntity(EntityId entityId, const SpriteData& data) override;
-    void addEntity(EntityId entityId, const TextData& data) override;
-    void addEntity(EntityId entityId, const DynamicTextData& data) override;
-    void addEntity(EntityId entityId, const QuadData& data) override;
+    void addEntity(EntityId entityId, const DSprite& data) override;
+    void addEntity(EntityId entityId, const DText& data) override;
+    void addEntity(EntityId entityId, const DDynamicText& data) override;
+    void addEntity(EntityId entityId, const DQuad& data) override;
 
     void addScissor(ScissorId id, const Recti& scissor) override;
     void setClearColour(const Vec4f& colour) override;
@@ -210,7 +210,7 @@ class SysRenderImpl : public SysRender
   private:
     Logger& m_logger;
     ComponentStore& m_componentStore;
-    Camera m_camera;
+    Camera2d m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
     MaterialHandle m_textureAtlas;
@@ -220,7 +220,7 @@ class SysRenderImpl : public SysRender
     Vec4f m_clearColour{ 0.f, 0.f, 0.f, 1.f };
 };
 
-SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
+SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
   const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
   , m_componentStore(componentStore)
@@ -303,34 +303,34 @@ SysRenderImpl::SysRenderImpl(ComponentStore& componentStore, Renderer& renderer,
   m_mesh = m_renderer.addMesh(quad());
 }
 
-void SysRenderImpl::start()
+void SysRender2dImpl::start()
 {
   m_renderer.start();
 }
 
-double SysRenderImpl::frameRate() const
+double SysRender2dImpl::frameRate() const
 {
   return m_renderer.frameRate();
 }
 
-void SysRenderImpl::addScissor(ScissorId id, const Recti& scissor)
+void SysRender2dImpl::addScissor(ScissorId id, const Recti& scissor)
 {
   ASSERT(id != 0, "Scissor ID 0 is reserved; choose a different number");
 
   m_scissors[id] = scissor;
 }
 
-void SysRenderImpl::setClearColour(const Vec4f& colour)
+void SysRender2dImpl::setClearColour(const Vec4f& colour)
 {
   m_clearColour = colour;
 }
 
-void SysRenderImpl::onResize()
+void SysRender2dImpl::onResize()
 {
   m_renderer.onResize();  // Async
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
+void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
   ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
@@ -366,7 +366,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const TextData& data)
   m_textItems.insert({ entityId, meshHandle });
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
+void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
   ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
@@ -411,7 +411,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const DynamicTextData& data)
   m_textItems.insert({ entityId, meshHandle });
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
+void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
 {
   ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
@@ -432,7 +432,7 @@ void SysRenderImpl::addEntity(EntityId entityId, const QuadData& data)
   };
 }
 
-void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
+void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
 {
   ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
@@ -454,31 +454,31 @@ void SysRenderImpl::addEntity(EntityId entityId, const SpriteData& data)
   };
 }
 
-void SysRenderImpl::setZIndex(EntityId entityId, uint32_t zIndex)
+void SysRender2dImpl::setZIndex(EntityId entityId, uint32_t zIndex)
 {
   auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.zIndex = zIndex;
 }
 
-void SysRenderImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
+void SysRender2dImpl::setTextureRect(EntityId entityId, const Rectf& textureRect)
 {
   auto& renderComp = m_componentStore.component<CSprite>(entityId);
   renderComp.textureRect = textureRect;
 }
 
-void SysRenderImpl::setVisible(EntityId entityId, bool visible)
+void SysRender2dImpl::setVisible(EntityId entityId, bool visible)
 {
   auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.visible = visible;
 }
 
-void SysRenderImpl::setColour(EntityId entityId, const Vec4f& colour)
+void SysRender2dImpl::setColour(EntityId entityId, const Vec4f& colour)
 {
   auto& renderComp = m_componentStore.component<CRender>(entityId);
   renderComp.colour = colour;
 }
 
-void SysRenderImpl::updateDynamicText(EntityId entityId, const std::string& text)
+void SysRender2dImpl::updateDynamicText(EntityId entityId, const std::string& text)
 {
   ASSERT(text.size() <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text exceeds maximum");
 
@@ -487,29 +487,29 @@ void SysRenderImpl::updateDynamicText(EntityId entityId, const std::string& text
   memcpy(buffer, text.data(), text.size());
 }
 
-void SysRenderImpl::removeEntity(EntityId entityId)
+void SysRender2dImpl::removeEntity(EntityId entityId)
 {
   m_textItems.erase(entityId);
 
   // TODO: Delete meshes from renderer
 }
 
-bool SysRenderImpl::hasEntity(EntityId entityId) const
+bool SysRender2dImpl::hasEntity(EntityId entityId) const
 {
   return m_componentStore.hasComponentForEntity<CSprite>(entityId);
 }
 
-Camera& SysRenderImpl::camera()
+Camera2d& SysRender2dImpl::camera()
 {
   return m_camera;
 }
 
-const Camera& SysRenderImpl::camera() const
+const Camera2d& SysRender2dImpl::camera() const
 {
   return m_camera;
 }
 
-void SysRenderImpl::update(Tick, const InputState&)
+void SysRender2dImpl::update(Tick, const InputState&)
 {
   try {
     auto screenAspect = m_renderer.getViewParams().aspectRatio;
@@ -595,10 +595,10 @@ void SysRenderImpl::update(Tick, const InputState&)
 
 } // namespace
 
-SysRenderPtr createSysRender(ComponentStore& componentStore, Renderer& renderer,
+SysRender2dPtr createSysRender2d(ComponentStore& componentStore, Renderer& renderer,
   const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<SysRenderImpl>(componentStore, renderer, fileSystem, logger);
+  return std::make_unique<SysRender2dImpl>(componentStore, renderer, fileSystem, logger);
 }
 
 } // namespace fge

@@ -10,7 +10,7 @@
 namespace fge
 {
 
-struct UiData;
+struct DUi;
 
 // Requires components:
 //   CSpatialFlags
@@ -21,7 +21,7 @@ class SysUi : public System
   public:
     using GroupId = uint32_t;
 
-    virtual void addEntity(EntityId id, const UiData& data) = 0;
+    virtual void addEntity(EntityId id, const DUi& data) = 0;
     virtual void setActiveGroup(GroupId id, EntityId focusedItem = NULL_ENTITY) = 0;
 
     virtual void sendInputEnd(EntityId id, UserInput input) = 0;
@@ -50,7 +50,7 @@ struct CUi
   static constexpr ComponentType TypeId = CUiTypeId;
 };
 
-struct UiData
+struct DUi
 {
   bool canReceiveFocus = true;
   SysUi::GroupId group = 0;

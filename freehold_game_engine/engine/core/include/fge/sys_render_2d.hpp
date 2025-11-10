@@ -5,6 +5,7 @@
 #include "math.hpp"
 #include "component_types.hpp"
 #include "systems.hpp"
+#include "renderables.hpp"
 
 namespace fge
 {
@@ -18,7 +19,7 @@ using ScissorId = size_t;
 //   CSpatialFlags
 //   CRender
 //   CSprite
-struct SpriteData
+struct DSprite
 {
   ScissorId scissor = 0;
   Rectf textureRect;
@@ -31,7 +32,7 @@ struct SpriteData
 //   CSpatialFlags
 //   CRender
 //   CQuad
-struct QuadData
+struct DQuad
 {
   ScissorId scissor = 0;
   uint32_t zIndex = 0;
@@ -44,7 +45,7 @@ struct QuadData
 //   CSpatialFlags
 //   CRender
 //   CSprite
-struct TextData
+struct DText
 {
   ScissorId scissor = 0;
   Rectf textureRect;
@@ -59,7 +60,7 @@ struct TextData
 //   CRender
 //   CSprite
 //   CDynamicText
-struct DynamicTextData
+struct DDynamicText
 {
   ScissorId scissor = 0;
   Rectf textureRect;
@@ -103,25 +104,25 @@ struct CQuad
   static constexpr ComponentType TypeId = ComponentTypeId::CQuadId;
 };
 
-class Camera;
+class Camera2d;
 
-class SysRender : public System
+class SysRender2d : public System
 {
   public:
     virtual void start() = 0;
     virtual double frameRate() const = 0;
 
-    virtual Camera& camera() = 0;
-    virtual const Camera& camera() const = 0;
+    virtual Camera2d& camera() = 0;
+    virtual const Camera2d& camera() const = 0;
 
     virtual void setClearColour(const Vec4f& colour) = 0;
     virtual void addScissor(ScissorId id, const Recti& scissor) = 0;
     virtual void onResize() = 0;
 
-    virtual void addEntity(EntityId entityId, const SpriteData& data) = 0;
-    virtual void addEntity(EntityId entityId, const TextData& data) = 0;
-    virtual void addEntity(EntityId entityId, const DynamicTextData& data) = 0;
-    virtual void addEntity(EntityId entityId, const QuadData& data) = 0;
+    virtual void addEntity(EntityId entityId, const DSprite& data) = 0;
+    virtual void addEntity(EntityId entityId, const DText& data) = 0;
+    virtual void addEntity(EntityId entityId, const DDynamicText& data) = 0;
+    virtual void addEntity(EntityId entityId, const DQuad& data) = 0;
 
     virtual void setZIndex(EntityId entityId, uint32_t zIndex) = 0;
     virtual void setTextureRect(EntityId entityId, const Rectf& textureRect) = 0;
@@ -129,18 +130,18 @@ class SysRender : public System
     virtual void setColour(EntityId entityId, const Vec4f& colour) = 0;
     virtual void updateDynamicText(EntityId entityId, const std::string& text) = 0;
 
-    virtual ~SysRender() {}
+    virtual ~SysRender2d() {}
 
-    static const SystemId id = RENDER_SYSTEM;
+    static const SystemId id = RENDER_2D_SYSTEM;
 };
 
-using SysRenderPtr = std::unique_ptr<SysRender>;
+using SysRender2dPtr = std::unique_ptr<SysRender2d>;
 
 namespace render { class Renderer; }
 class FileSystem;
 class Logger;
 
-SysRenderPtr createSysRender(ComponentStore& componentStore, render::Renderer& renderer,
+SysRender2dPtr createSysRender2d(ComponentStore& componentStore, render::Renderer& renderer,
   const FileSystem& fileSystem, Logger& logger);
 
 } // namespace fge

@@ -53,7 +53,7 @@ class SysUiImpl : public SysUi
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event&) override {}
 
-    void addEntity(EntityId id, const UiData& data) override;
+    void addEntity(EntityId id, const DUi& data) override;
     void setActiveGroup(GroupId id, EntityId focusedItem) override;
 
     void sendInputEnd(EntityId id, UserInput input) override;
@@ -81,7 +81,7 @@ SysUiImpl::SysUiImpl(Ecs& ecs, Logger& logger)
   , m_ecs(ecs)
 {}
 
-void SysUiImpl::addEntity(EntityId id, const UiData& data)
+void SysUiImpl::addEntity(EntityId id, const DUi& data)
 {
   assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
   assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
