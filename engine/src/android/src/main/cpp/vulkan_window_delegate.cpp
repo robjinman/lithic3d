@@ -1,0 +1,69 @@
+#include <lithic3d/vulkan/vulkan_window_delegate.hpp>
+#include <lithic3d/exception.hpp>
+#include <vulkan/vulkan_android.h>
+#include <android/native_window.h>
+
+namespace lithic3d
+{
+namespace
+{
+
+class AndroidWindowDelegateImpl : public VulkanWindowDelegate
+{
+  public:
+    AndroidWindowDelegateImpl(ANativeWindow& window);
+
+    const std::vector<const char*>& getRequiredExtensions() const;
+    VkSurfaceKHR createSurface(VkInstance instance);
+    void getFrameBufferSize(int& width, int& height) const;
+
+  private:
+    ANativeWindow& m_window;
+    std::vector<const char*> m_extensions;
+};
+
+AndroidWindowDelegateImpl::AndroidWindowDelegateImpl(ANativeWindow& window)
+  : m_window(window)
+{
+  m_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+  m_extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+  m_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+}
+
+const std::vector<const char*>& AndroidWindowDelegateImpl::getRequiredExtensions() const
+{
+  return m_extensions;
+}
+
+VkSurfaceKHR AndroidWindowDelegateImpl::createSurface(VkInstance instance)
+{
+  VkSurfaceKHR surface{};
+
+  VkAndroidSurfaceCreateInfoKHR info{
+    .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+    .pNext = nullptr,
+    .flags = 0,
+    .window = &m_window
+  };
+
+  if (vkCreateAndroidSurfaceKHR(instance, &info, nullptr, &surface) != VK_SUCCESS) {
+    EXCEPTION("Failed to create surface");
+  }
+
+  return surface;
+}
+
+void AndroidWindowDelegateImpl::getFrameBufferSize(int& width, int& height) const
+{
+  width = ANativeWindow_getWidth(&m_window);
+  height = ANativeWindow_getHeight(&m_window);
+}
+
+}
+
+WindowDelegatePtr createWindowDelegate(ANativeWindow& window)
+{
+  return std::make_unique<AndroidWindowDelegateImpl>(window);
+}
+
+} // namespace lithic3d
