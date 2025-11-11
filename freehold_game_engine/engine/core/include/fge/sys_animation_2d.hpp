@@ -36,7 +36,7 @@ using Animation2dId = size_t;
 //   CSpatialFlags
 //   CLocalTransform
 //   CRender2d
-struct Animation2dData
+struct DAnimation2d
 {
   std::set<Animation2dId> animations;
 };
@@ -44,7 +44,7 @@ struct Animation2dData
 class SysAnimation2d : public System
 {
   public:
-    virtual void addEntity(EntityId entityId, const Animation2dData& data) = 0;
+    virtual void addEntity(EntityId entityId, const DAnimation2d& data) = 0;
     virtual Animation2dId addAnimation(Animation2dPtr animation) = 0;
     virtual void replaceAnimation(Animation2dId animationId, Animation2dPtr animation) = 0;
 

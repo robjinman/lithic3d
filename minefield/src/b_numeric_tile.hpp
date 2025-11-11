@@ -8,5 +8,5 @@ class Ecs;
 class EventSystem;
 }
 
-fge::BehaviourDataPtr createBNumericTile(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+fge::DBehaviourPtr createBNumericTile(fge::Ecs& ecs, fge::EventSystem& eventSystem,
   fge::EntityId entityId, const fge::Vec2i& pos, int value);

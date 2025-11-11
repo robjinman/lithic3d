@@ -1,6 +1,6 @@
 #include "b_numeric_tile.hpp"
 #include "game_events.hpp"
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/event_system.hpp>
 #include <fge/events.hpp>
 #include <fge/systems.hpp>
@@ -11,7 +11,7 @@ using fge::hashString;
 using fge::Event;
 using fge::EventSystem;
 using fge::Ecs;
-using fge::SysRender;
+using fge::SysRender2d;
 using fge::Vec2i;
 using fge::Rectf;
 
@@ -28,7 +28,7 @@ struct EDelayUpdate : Event {
   bool makeVisible;
 };
 
-class BNumericTile : public fge::BehaviourData
+class BNumericTile : public fge::DBehaviour
 {
   public:
     BNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, const Vec2i& pos,
@@ -72,7 +72,7 @@ const std::set<HashedString>& BNumericTile::subscriptions() const
 
 void BNumericTile::processEvent(const Event& event)
 {
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   if (event.name == g_strEntityExplode) {
     auto& e = dynamic_cast<const EEntityExplode&>(event);
@@ -109,7 +109,7 @@ void BNumericTile::processEvent(const Event& event)
 
 } // namespace
 
-fge::BehaviourDataPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::DBehaviourPtr createBNumericTile(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   const Vec2i& pos, int value)
 {
   return std::make_unique<BNumericTile>(ecs, eventSystem, entityId, pos, value);

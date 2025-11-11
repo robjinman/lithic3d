@@ -46,7 +46,7 @@ class SysAnimation2dImpl : public SysAnimation2d
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event&) override {}
 
-    void addEntity(EntityId entityId, const Animation2dData& data) override;
+    void addEntity(EntityId entityId, const DAnimation2d& data) override;
     Animation2dId addAnimation(Animation2dPtr animation) override;
     void replaceAnimation(Animation2dId animationId, Animation2dPtr animation) override;
 
@@ -294,7 +294,7 @@ void SysAnimation2dImpl::finishAnimation(EntityId entityId)
   }
 }
 
-void SysAnimation2dImpl::addEntity(EntityId entityId, const Animation2dData& comp)
+void SysAnimation2dImpl::addEntity(EntityId entityId, const DAnimation2d& comp)
 {
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CLocalTransform>(m_componentStore, entityId);

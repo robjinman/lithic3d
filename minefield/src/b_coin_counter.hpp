@@ -8,5 +8,5 @@ class Ecs;
 class EventSystem;
 }
 
-fge::BehaviourDataPtr createBCoinCounter(uint32_t coinsRequired, fge::Ecs& ecs,
+fge::DBehaviourPtr createBCoinCounter(uint32_t coinsRequired, fge::Ecs& ecs,
   fge::EventSystem& eventSystem, fge::EntityId entityId);

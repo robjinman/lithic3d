@@ -1,6 +1,6 @@
 #include "b_coin_counter.hpp"
 #include "game_events.hpp"
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/systems.hpp>
 
 using fge::EntityId;
@@ -9,12 +9,12 @@ using fge::hashString;
 using fge::Event;
 using fge::EventSystem;
 using fge::Ecs;
-using fge::SysRender;
+using fge::SysRender2d;
 
 namespace
 {
 
-class BCoinCounter : public fge::BehaviourData
+class BCoinCounter : public fge::DBehaviour
 {
   public:
     BCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventSystem,
@@ -61,7 +61,7 @@ void BCoinCounter::processEvent(const Event& event)
 
     m_remaining = std::max(0, m_remaining - static_cast<int>(e.value));
 
-    auto& sysRender = m_ecs.system<SysRender>();
+    auto& sysRender = m_ecs.system<SysRender2d>();
     sysRender.updateDynamicText(m_entityId, std::to_string(m_remaining));
 
     if (m_remaining == 0) {
@@ -72,7 +72,7 @@ void BCoinCounter::processEvent(const Event& event)
 
 } // namespace
 
-fge::BehaviourDataPtr createBCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventSystem,
+fge::DBehaviourPtr createBCoinCounter(uint32_t coinsRequired, Ecs& ecs, EventSystem& eventSystem,
   EntityId entityId)
 {
   return std::make_unique<BCoinCounter>(coinsRequired, ecs, eventSystem, entityId);

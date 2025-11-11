@@ -11,9 +11,9 @@
 #include "b_exit.hpp"
 #include "game_events.hpp"
 #include <fge/b_generic.hpp>
-#include <fge/sys_animation.hpp>
+#include <fge/sys_animation_2d.hpp>
 #include <fge/sys_behaviour.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/sys_spatial.hpp>
 #include <fge/ecs.hpp>
 #include <fge/systems.hpp>
@@ -35,25 +35,25 @@ using fge::Vec4f;
 using fge::Rectf;
 using fge::Mat4x4f;
 using fge::identityMatrix;
-using fge::SysAnimation;
-using fge::SysRender;
+using fge::SysAnimation2d;
+using fge::SysRender2d;
 using fge::SysSpatial;
 using fge::SysBehaviour;
-using fge::AnimationId;
-using fge::Animation;
-using fge::AnimationFrame;
-using fge::SpriteData;
-using fge::SpatialData;
-using fge::DynamicTextData;
-using fge::QuadData;
-using fge::TextData;
-using fge::AnimationData;
+using fge::Animation2dId;
+using fge::Animation2d;
+using fge::Animation2dFrame;
+using fge::DSprite;
+using fge::DSpatial;
+using fge::DDynamicText;
+using fge::DQuad;
+using fge::DText;
+using fge::DAnimation2d;
 using fge::CLocalTransform;
 using fge::CGlobalTransform;
 using fge::CSpatialFlags;
 using fge::CQuad;
 using fge::CDynamicText;
-using fge::CRender;
+using fge::CRender2d;
 using fge::CSprite;
 using fge::pxToUvX;
 using fge::pxToUvY;
@@ -220,7 +220,7 @@ EntityId SceneBuilderImpl::constructWorldRoot()
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
-  sysSpatial.addEntity(id, SpatialData{
+  sysSpatial.addEntity(id, DSpatial{
     .transform = identityMatrix<float, 4>(),
     .parent = sysSpatial.root(),
     .enabled = true
@@ -232,13 +232,13 @@ EntityId SceneBuilderImpl::constructWorldRoot()
 EntityId SceneBuilderImpl::constructPlayer()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   m_entities.insert(id);
@@ -248,7 +248,7 @@ EntityId SceneBuilderImpl::constructPlayer()
   Vec2f size{ 0.0625f, 0.0625f };
   Vec2f pos{ 0.f, 0.f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -256,7 +256,7 @@ EntityId SceneBuilderImpl::constructPlayer()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(384.f),
@@ -275,7 +275,7 @@ EntityId SceneBuilderImpl::constructPlayer()
   auto makeFrame = [](const Vec2f& pos, float tx, float ty, const Vec4f& col,
     float scale = 1.f) {
 
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = pos,
       .scale = { scale, scale },
       .textureRect = Rectf{
@@ -290,7 +290,7 @@ EntityId SceneBuilderImpl::constructPlayer()
 
   const Vec4f white{ 1.f, 1.f, 1.f, 1.f };
 
-  auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
+  auto animMoveLeft = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
@@ -301,7 +301,7 @@ EntityId SceneBuilderImpl::constructPlayer()
     }
   });
 
-  auto animMoveRight = std::unique_ptr<Animation>(new Animation{
+  auto animMoveRight = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_right"),
     .duration = animationDuration,
     .frames = {
@@ -312,7 +312,7 @@ EntityId SceneBuilderImpl::constructPlayer()
     }
   });
 
-  auto animMoveUp = std::unique_ptr<Animation>(new Animation{
+  auto animMoveUp = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_up"),
     .duration = animationDuration,
     .frames = {
@@ -323,7 +323,7 @@ EntityId SceneBuilderImpl::constructPlayer()
     }
   });
 
-  auto animMoveDown = std::unique_ptr<Animation>(new Animation{
+  auto animMoveDown = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_down"),
     .duration = animationDuration,
     .frames = {
@@ -334,7 +334,7 @@ EntityId SceneBuilderImpl::constructPlayer()
     }
   });
 
-  auto animDie = std::unique_ptr<Animation>(new Animation{
+  auto animDie = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("die"),
     .duration = 24,
     .frames = {
@@ -352,7 +352,7 @@ EntityId SceneBuilderImpl::constructPlayer()
     return Vec2f{ w - w_, h - h_ } * 0.5f;
   };
 
-  auto animEnterPortal = std::unique_ptr<Animation>(new Animation{
+  auto animEnterPortal = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("enter_portal"),
     .duration = 30,
     .frames = {
@@ -372,7 +372,7 @@ EntityId SceneBuilderImpl::constructPlayer()
     }
   });
 
-  sysAnimation.addEntity(id, AnimationData{
+  sysAnimation.addEntity(id, DAnimation2d{
     .animations = {
       sysAnimation.addAnimation(std::move(animMoveLeft)),
       sysAnimation.addAnimation(std::move(animMoveRight)),
@@ -391,11 +391,11 @@ EntityId SceneBuilderImpl::constructPlayer()
 
 void SceneBuilderImpl::constructSky()
 {
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   m_entities.insert(id);
@@ -403,7 +403,7 @@ void SceneBuilderImpl::constructSky()
   Vec2f size{ GRID_CELL_W * GRID_W, 4.5f * GRID_CELL_H };
   Vec2f pos{ 0.f, 11.5f * GRID_CELL_H };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -411,7 +411,7 @@ void SceneBuilderImpl::constructSky()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
@@ -430,17 +430,17 @@ void SceneBuilderImpl::constructClouds()
   static auto strIdle = hashString("idle");
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   const Vec4f colour{ 1.f, 0.8f, 0.5f, 0.6f };
   long animationDuration = 18000;
 
-  auto animIdle = std::unique_ptr<Animation>(new Animation{
+  auto animIdle = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("idle"),
     .duration = animationDuration,
     .frames = {
-      AnimationFrame{
+      Animation2dFrame{
         .pos = Vec2f{ -2.f * GRID_W * GRID_CELL_W, 0.f },
         .scale = Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
@@ -453,7 +453,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -461,7 +461,7 @@ void SceneBuilderImpl::constructClouds()
     Vec2f size{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H };
     Vec2f pos{ GRID_CELL_W * GRID_W, 0.8f };
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -469,7 +469,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
@@ -483,7 +483,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysRender.addEntity(id, render);
 
-    AnimationData animation{
+    DAnimation2d animation{
       .animations = { animIdleId }
     };
 
@@ -495,7 +495,7 @@ void SceneBuilderImpl::constructClouds()
 
   {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -503,7 +503,7 @@ void SceneBuilderImpl::constructClouds()
     Vec2f size{ GRID_CELL_W * GRID_W, 4.f * GRID_CELL_H };
     Vec2f pos{ GRID_CELL_W * GRID_W, 0.8f };
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -511,7 +511,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(256.f),
@@ -525,7 +525,7 @@ void SceneBuilderImpl::constructClouds()
 
     sysRender.addEntity(id, render);
 
-    AnimationData animation{
+    DAnimation2d animation{
       .animations = { animIdleId }
     };
 
@@ -538,10 +538,10 @@ void SceneBuilderImpl::constructClouds()
 void SceneBuilderImpl::constructTrees()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
   
   m_entities.insert(id);
@@ -549,7 +549,7 @@ void SceneBuilderImpl::constructTrees()
   Vec2f size{ GRID_CELL_W * GRID_W, 3.f * GRID_CELL_H };
   Vec2f pos{ 0.f, 11.f * GRID_CELL_H };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -557,7 +557,7 @@ void SceneBuilderImpl::constructTrees()
 
   sysSpatial.addEntity(id, spatial);
   
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
@@ -574,11 +574,11 @@ void SceneBuilderImpl::constructTrees()
 void SceneBuilderImpl::constructFakeSoil()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   for (size_t i = 0; i < GRID_W; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
     
     m_entities.insert(id);
@@ -588,7 +588,7 @@ void SceneBuilderImpl::constructFakeSoil()
     Vec2f size{ GRID_CELL_W, GRID_CELL_H };
     Vec2f pos{ x, 11.f * GRID_CELL_H };
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -596,7 +596,7 @@ void SceneBuilderImpl::constructFakeSoil()
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(384.f),
@@ -615,13 +615,13 @@ void SceneBuilderImpl::constructFakeSoil()
 void SceneBuilderImpl::constructSoil()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto makeFrame = [](float tx, float ty, float a) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
       .textureRect = Rectf{
@@ -634,7 +634,7 @@ void SceneBuilderImpl::constructSoil()
     };
   };
 
-  auto animCollect = std::unique_ptr<Animation>(new Animation{
+  auto animCollect = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("collect"),
     .duration = 15,
     .frames = {
@@ -652,7 +652,7 @@ void SceneBuilderImpl::constructSoil()
       }
 
       auto id = m_ecs.componentStore().allocate<
-        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
       >();
       
       m_entities.insert(id);
@@ -665,7 +665,7 @@ void SceneBuilderImpl::constructSoil()
       Vec2f size{ GRID_CELL_W, GRID_CELL_H };
       Vec2f pos{ x, y };
 
-      SpatialData spatial{
+      DSpatial spatial{
         .transform = spriteTransform(pos, size),
         .parent = m_worldRoot,
         .enabled = true
@@ -673,7 +673,7 @@ void SceneBuilderImpl::constructSoil()
 
       sysSpatial.addEntity(id, spatial);
 
-      SpriteData render{
+      DSprite render{
         .scissor = MAIN_SCISSOR,
         .textureRect = Rectf{
           .x = pxToUvX(384.f),
@@ -687,7 +687,7 @@ void SceneBuilderImpl::constructSoil()
 
       sysRender.addEntity(id, render);
 
-      sysAnimation.addEntity(id, AnimationData{
+      sysAnimation.addEntity(id, DAnimation2d{
         .animations = { animCollectId }
       });
 
@@ -717,13 +717,13 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
   static auto strExplode = hashString("explode");
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto makeFrame = [](float tx, float ty) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
       .scale = Vec2f{ 2.f, 2.f },
       .textureRect = Rectf{
@@ -736,7 +736,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
     };
   };
 
-  auto animExplode = std::unique_ptr<Animation>(new Animation{
+  auto animExplode = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("explode"),
     .duration = 30,
     .startPos{ -GRID_CELL_W * 0.5f, -GRID_CELL_H * 0.5f },
@@ -766,7 +766,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
   std::set<std::pair<int, int>> mines;
   for (size_t i = 0; i < numMines; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -779,7 +779,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
     Vec2f size{ GRID_CELL_W, GRID_CELL_H };
     Vec2f pos{ GRID_CELL_W * x, GRID_CELL_H * y };
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -787,7 +787,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(672.f),
@@ -821,7 +821,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
     auto behaviour = fge::createBGeneric(strExplode, { g_strEntityLandOn }, onEvent);
     sysBehaviour.addBehaviour(id, std::move(behaviour));
 
-    sysAnimation.addEntity(id, AnimationData{
+    sysAnimation.addEntity(id, DAnimation2d{
       .animations = { animExplodeId }
     });
 
@@ -834,7 +834,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
 void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
@@ -865,7 +865,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       }
 
       auto id = m_ecs.componentStore().allocate<
-        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+        CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
       >();
 
       m_entities.insert(id);
@@ -875,7 +875,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       Vec2f size{ GRID_CELL_W, GRID_CELL_H };
       Vec2f pos{ GRID_CELL_W * i, GRID_CELL_H * j };
 
-      SpatialData spatial{
+      DSpatial spatial{
         .transform = spriteTransform(pos, size),
         .parent = m_worldRoot,
         .enabled = true
@@ -883,7 +883,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
 
       sysSpatial.addEntity(id, spatial);
 
-      SpriteData render{
+      DSprite render{
         .scissor = MAIN_SCISSOR,
         .textureRect = Rectf{
           .x = pxToUvX(16.f * (value - 1)),
@@ -907,10 +907,10 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
 void SceneBuilderImpl::constructGradient()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   m_entities.insert(id);
@@ -918,7 +918,7 @@ void SceneBuilderImpl::constructGradient()
   Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * static_cast<float>(GRID_H + 0.5f) };
   Vec2f pos{ 0.f, 0.f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -926,7 +926,7 @@ void SceneBuilderImpl::constructGradient()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(512.f),
@@ -943,10 +943,10 @@ void SceneBuilderImpl::constructGradient()
 void SceneBuilderImpl::constructBackQuad()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CQuad
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CQuad
   >();
 
   m_entities.insert(id);
@@ -954,7 +954,7 @@ void SceneBuilderImpl::constructBackQuad()
   Vec2f size{ GRID_CELL_W * GRID_W, GRID_CELL_H * (GRID_H + 4)};
   Vec2f pos{ 0.f, 0.f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -962,7 +962,7 @@ void SceneBuilderImpl::constructBackQuad()
 
   sysSpatial.addEntity(id, spatial);
 
-  QuadData render{
+  DQuad render{
     .scissor = MAIN_SCISSOR,
     .zIndex = static_cast<uint32_t>(ZIndex::Background),
     .colour = { 0.f, 0.f, 0.f, 1.f },
@@ -975,13 +975,13 @@ void SceneBuilderImpl::constructBackQuad()
 void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto makeFrame = [](float tx, float ty, float a) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
       // Tweak the size and position a bit
@@ -995,7 +995,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
     };
   };
 
-  auto animIdle = std::unique_ptr<Animation>(new Animation{
+  auto animIdle = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("idle"),
     .duration = 60,
     .frames = {
@@ -1020,7 +1020,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 
   auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
 
-  auto animCollect = std::unique_ptr<Animation>(new Animation{
+  auto animCollect = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("collect"),
     .duration = 12,
     .frames = {
@@ -1044,7 +1044,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 
   for (size_t i = 0; i < numCoins; ++i) {
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -1058,7 +1058,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
     Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -1066,7 +1066,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
@@ -1079,7 +1079,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
 
     sysRender.addEntity(id, render);
 
-    sysAnimation.addEntity(id, AnimationData{
+    sysAnimation.addEntity(id, DAnimation2d{
       .animations = { animIdleId, animCollectId }
     });
 
@@ -1095,13 +1095,13 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
   const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto makeFrame = [](float tx, float ty, float a) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
       .textureRect = Rectf{
@@ -1114,7 +1114,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     };
   };
 
-  auto animIdle = std::unique_ptr<Animation>(new Animation{
+  auto animIdle = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("idle"),
     .duration = 120,
     .frames = {
@@ -1138,7 +1138,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
 
   auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
 
-  auto animCollect = std::unique_ptr<Animation>(new Animation{
+  auto animCollect = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("collect"),
     .duration = 12,
     .frames = {
@@ -1167,7 +1167,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     }
 
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -1178,7 +1178,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -1186,7 +1186,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
@@ -1199,7 +1199,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
 
     sysRender.addEntity(id, render);
 
-    sysAnimation.addEntity(id, AnimationData{
+    sysAnimation.addEntity(id, DAnimation2d{
       .animations = { animIdleId, animCollectId }
     });
 
@@ -1217,13 +1217,13 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
   const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto makeFrame = [](float x, float y, float tx, float ty, float a) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ x, y },
       .scale = Vec2f{ 1.f, 1.f },
       .textureRect = Rectf{
@@ -1236,7 +1236,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
     };
   };
 
-  auto animFadeIn = std::unique_ptr<Animation>(new Animation{
+  auto animFadeIn = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("fade_in"),
     .duration = 30,
     .frames = {
@@ -1250,7 +1250,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
   long animationDuration = 32;
   float delta = 0.015625f;
 
-  auto animMoveLeft = std::unique_ptr<Animation>(new Animation{
+  auto animMoveLeft = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_left"),
     .duration = animationDuration,
     .frames = {
@@ -1263,7 +1263,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
 
   auto animMoveLeftId = sysAnimation.addAnimation(std::move(animMoveLeft));
 
-  auto animMoveRight = std::unique_ptr<Animation>(new Animation{
+  auto animMoveRight = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_right"),
     .duration = animationDuration,
     .frames = {
@@ -1276,7 +1276,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
 
   auto animMoveRightId = sysAnimation.addAnimation(std::move(animMoveRight));
 
-  auto animMoveUp = std::unique_ptr<Animation>(new Animation{
+  auto animMoveUp = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_up"),
     .duration = animationDuration,
     .frames = {
@@ -1289,7 +1289,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
 
   auto animMoveUpId = sysAnimation.addAnimation(std::move(animMoveUp));
 
-  auto animMoveDown = std::unique_ptr<Animation>(new Animation{
+  auto animMoveDown = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("move_down"),
     .duration = animationDuration,
     .frames = {
@@ -1324,7 +1324,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
     }
 
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -1335,7 +1335,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
     Vec2f offset{ (GRID_CELL_W - size[0]) * 0.5f, (GRID_CELL_H - size[1]) * 0.5f };
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
@@ -1343,7 +1343,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
       .x = pxToUvX(256.f),
@@ -1358,7 +1358,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
     sysRender.addEntity(id, render);
     sysRender.setVisible(id, false);
 
-    sysAnimation.addEntity(id, AnimationData{
+    sysAnimation.addEntity(id, DAnimation2d{
       .animations = {
         animFadeInId,
         animMoveLeftId,
@@ -1379,16 +1379,16 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
   const std::set<std::pair<int, int>>& mines)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
-  auto animThrow = std::unique_ptr<Animation>(new Animation{
+  auto animThrow = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("throw"),
     .duration = 30,
     .frames = {
-      AnimationFrame{
+      Animation2dFrame{
         .pos = Vec2f{ 0.f, 0.f },
         .scale = Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
@@ -1399,11 +1399,11 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 
   auto animThrowId = sysAnimation.addAnimation(std::move(animThrow));
 
-  auto animFade = std::unique_ptr<Animation>(new Animation{
+  auto animFade = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("fade"),
     .duration = 30,
     .frames = {
-      AnimationFrame{
+      Animation2dFrame{
         .pos = Vec2f{ 0.f, 0.f },
         .scale = Vec2f{ 1.f, 1.f },
         .textureRect = std::nullopt,
@@ -1432,7 +1432,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     }
 
     auto id = m_ecs.componentStore().allocate<
-      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+      CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
     >();
 
     m_entities.insert(id);
@@ -1443,7 +1443,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     Vec2f offset{ 0.5f * GRID_CELL_W, 0.f };
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
-    SpatialData spatial{
+    DSpatial spatial{
       .transform = spriteTransform(pos, size, fge::PIf / 4.f, { 0.f, 0.5f }),
       .parent = m_worldRoot,
       .enabled = true
@@ -1451,7 +1451,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 
     sysSpatial.addEntity(id, spatial);
 
-    SpriteData render{
+    DSprite render{
       .scissor = MAIN_SCISSOR,
       .textureRect = Rectf{
         .x = pxToUvX(960.f),
@@ -1464,7 +1464,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 
     sysRender.addEntity(id, render);
 
-    sysAnimation.addEntity(id, AnimationData{
+    sysAnimation.addEntity(id, DAnimation2d{
       .animations = { animThrowId, animFadeId }
     });
 
@@ -1478,13 +1478,13 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
 void SceneBuilderImpl::constructExit()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto makeFrame = [](float tx, float ty) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
       .textureRect = Rectf{
@@ -1497,7 +1497,7 @@ void SceneBuilderImpl::constructExit()
     };
   };
 
-  auto animIdle = std::unique_ptr<Animation>(new Animation{
+  auto animIdle = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("idle"),
     .duration = 32,
     .frames = {
@@ -1515,7 +1515,7 @@ void SceneBuilderImpl::constructExit()
   auto animIdleId = sysAnimation.addAnimation(std::move(animIdle));
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   m_entities.insert(id);
@@ -1525,7 +1525,7 @@ void SceneBuilderImpl::constructExit()
 
   sysGrid.addEntity(id, (GRID_W - 1), (GRID_H - 1));
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -1533,7 +1533,7 @@ void SceneBuilderImpl::constructExit()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(128.f),
@@ -1546,7 +1546,7 @@ void SceneBuilderImpl::constructExit()
 
   sysRender.addEntity(id, render);
 
-  sysAnimation.addEntity(id, AnimationData{ .animations = { animIdleId } });
+  sysAnimation.addEntity(id, DAnimation2d{ .animations = { animIdleId } });
 
   auto behaviour = createBExit(m_ecs, m_eventSystem, id,  m_playerId);
 
@@ -1566,11 +1566,11 @@ void SceneBuilderImpl::constructTimeLabel()
 void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText
   >();
 
   m_entities.insert(id);
@@ -1578,7 +1578,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
   Vec2f size{ 0.035f, 0.035f };
   Vec2f pos{ 0.07f, 0.94f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -1586,7 +1586,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
 
   sysSpatial.addEntity(id, spatial);
 
-  DynamicTextData render{
+  DDynamicText render{
     .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
@@ -1611,7 +1611,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
       sysRender.updateDynamicText(id, std::to_string(event.timeRemaining));
 
       if (event.timeRemaining == 10) {
-        m_ecs.componentStore().component<CRender>(id).colour = { 1.f, 0.f, 0.f, 1.f };
+        m_ecs.componentStore().component<CRender2d>(id).colour = { 1.f, 0.f, 0.f, 1.f };
         m_eventSystem.raiseEvent(ETenSecondsRemaining{});
       }
     }
@@ -1633,11 +1633,11 @@ void SceneBuilderImpl::constructCoinLabel()
 void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText
   >();
 
   m_entities.insert(id);
@@ -1645,7 +1645,7 @@ void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
   Vec2f size{ 0.035f, 0.035f };
   Vec2f pos{ 0.27f, 0.94f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -1653,7 +1653,7 @@ void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
 
   sysSpatial.addEntity(id, spatial);
 
-  DynamicTextData render{
+  DDynamicText render{
     .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
@@ -1677,15 +1677,15 @@ EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& 
   const Rectf& texRect, uint32_t zIndex)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   m_entities.insert(id);
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
@@ -1693,7 +1693,7 @@ EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& 
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = texRect,
     .zIndex = zIndex
@@ -1713,7 +1713,7 @@ EntityId SceneBuilderImpl::constructThrowingModeIndicator()
     .h = pxToUvH(32.f)
   }, static_cast<uint32_t>(ZIndex::Hud));
 
-  m_ecs.componentStore().component<CRender>(id).visible = false;
+  m_ecs.componentStore().component<CRender2d>(id).visible = false;
 
   return id;
 }
@@ -1721,10 +1721,10 @@ EntityId SceneBuilderImpl::constructThrowingModeIndicator()
 EntityId SceneBuilderImpl::constructRestartGamePrompt()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   m_entities.insert(id);
@@ -1732,7 +1732,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
   Vec2f pos{ 0.15f, 0.01f };
   Vec2f charSize{ 0.024f, 0.04f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, charSize),
     .parent = m_worldRoot,
     .enabled = false
@@ -1740,7 +1740,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
 
   sysSpatial.addEntity(id, spatial);
 
-  TextData render{
+  DText render{
     .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),

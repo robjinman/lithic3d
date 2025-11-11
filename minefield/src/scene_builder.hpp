@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fge/ecs.hpp>
-#include <fge/sys_animation.hpp>
+#include <fge/sys_animation_2d.hpp>
 #include <memory>
 
 struct Scene

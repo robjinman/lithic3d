@@ -3,7 +3,7 @@
 #include "sys_grid.hpp"
 #include <fge/events.hpp>
 #include <fge/systems.hpp>
-#include <fge/sys_animation.hpp>
+#include <fge/sys_animation_2d.hpp>
 
 using fge::EntityId;
 using fge::HashedString;
@@ -11,7 +11,7 @@ using fge::hashString;
 using fge::Event;
 using fge::EventSystem;
 using fge::Ecs;
-using fge::SysAnimation;
+using fge::SysAnimation2d;
 
 namespace
 {
@@ -88,7 +88,7 @@ void BPlayerImpl::postMove()
 
 bool BPlayerImpl::move(int dx, int dy, HashedString animation)
 {
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
 
   // We remove ourselves from the grid when we die
@@ -132,7 +132,7 @@ bool BPlayerImpl::moveLeft()
 
 void BPlayerImpl::processEvent(const Event& event)
 {
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysGrid = m_ecs.system<SysGrid>();
 
   if (event.name == g_strEntityExplode) {

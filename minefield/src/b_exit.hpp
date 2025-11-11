@@ -8,5 +8,5 @@ class Ecs;
 class EventSystem;
 }
 
-fge::BehaviourDataPtr createBExit(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+fge::DBehaviourPtr createBExit(fge::Ecs& ecs, fge::EventSystem& eventSystem,
   fge::EntityId entityId, fge::EntityId playerId);

@@ -2,7 +2,7 @@
 
 #include <fge/sys_behaviour.hpp>
 
-class BPlayer : public fge::BehaviourData
+class BPlayer : public fge::DBehaviour
 {
   public:
     virtual bool moveUp() = 0;

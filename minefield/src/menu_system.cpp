@@ -7,10 +7,10 @@
 #include <fge/ecs.hpp>
 #include <fge/event_system.hpp>
 #include <fge/logger.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/sys_spatial.hpp>
 #include <fge/sys_behaviour.hpp>
-#include <fge/sys_animation.hpp>
+#include <fge/sys_animation_2d.hpp>
 #include <fge/sys_ui.hpp>
 #include <fge/systems.hpp>
 #include <fge/input.hpp>
@@ -30,26 +30,26 @@ using fge::Rectf;
 using fge::Mat4x4f;
 using fge::identityMatrix;
 using fge::SysUi;
-using fge::SysAnimation;
-using fge::SysRender;
+using fge::SysAnimation2d;
+using fge::SysRender2d;
 using fge::SysSpatial;
 using fge::SysBehaviour;
-using fge::AnimationId;
-using fge::Animation;
-using fge::AnimationFrame;
-using fge::SpriteData;
-using fge::SpatialData;
-using fge::DynamicTextData;
-using fge::QuadData;
-using fge::TextData;
-using fge::UiData;
-using fge::AnimationData;
+using fge::Animation2dId;
+using fge::Animation2d;
+using fge::Animation2dFrame;
+using fge::DSprite;
+using fge::DSpatial;
+using fge::DDynamicText;
+using fge::DQuad;
+using fge::DText;
+using fge::DUi;
+using fge::DAnimation2d;
 using fge::CLocalTransform;
 using fge::CGlobalTransform;
 using fge::CSpatialFlags;
 using fge::CDynamicText;
 using fge::CQuad;
-using fge::CRender;
+using fge::CRender2d;
 using fge::CSprite;
 using fge::CUi;
 using fge::KeyboardKey;
@@ -166,10 +166,10 @@ class MenuSystemImpl : public MenuSystem
     EntityId m_resumeBtnId;
     EntityId m_quitToMainBtnId;
     EntityId m_quitGameBtnId;
-    AnimationId m_animIdle;
-    AnimationId m_animIdleFocused;
-    AnimationId m_animPrime;
-    AnimationId m_animActivate;
+    Animation2dId m_animIdle;
+    Animation2dId m_animIdleFocused;
+    Animation2dId m_animPrime;
+    Animation2dId m_animActivate;
 
     // Because settings menu is duplicated
     Slider m_musicVolumeSlider1;
@@ -267,7 +267,7 @@ uint32_t MenuSystemImpl::difficultyLevel() const
 
 void MenuSystemImpl::setDifficulty(int level)
 {
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   m_difficultyLevel = level;
 
@@ -314,10 +314,10 @@ void MenuSystemImpl::update()
 
 void MenuSystemImpl::createAnimations()
 {
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto makeFrame = [](const Vec4f& colour) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
       .textureRect = std::nullopt,
@@ -325,7 +325,7 @@ void MenuSystemImpl::createAnimations()
     };
   };
 
-  auto animIdle = std::unique_ptr<Animation>(new Animation{
+  auto animIdle = std::unique_ptr<Animation2d>(new Animation2d{
     .name = strIdle,
     .duration = 20,
     .frames = {
@@ -338,7 +338,7 @@ void MenuSystemImpl::createAnimations()
 
   m_animIdle = sysAnimation.addAnimation(std::move(animIdle));
 
-  auto animIdleFocused = std::unique_ptr<Animation>(new Animation{
+  auto animIdleFocused = std::unique_ptr<Animation2d>(new Animation2d{
     .name = strIdleFocused,
     .duration = 20,
     .frames = {
@@ -351,7 +351,7 @@ void MenuSystemImpl::createAnimations()
 
   m_animIdleFocused = sysAnimation.addAnimation(std::move(animIdleFocused));
 
-  auto animPrime = std::unique_ptr<Animation>(new Animation{
+  auto animPrime = std::unique_ptr<Animation2d>(new Animation2d{
     .name = strPrime,
     .duration = 1,
     .frames = {
@@ -361,7 +361,7 @@ void MenuSystemImpl::createAnimations()
 
   m_animPrime = sysAnimation.addAnimation(std::move(animPrime));
 
-  auto animActivate = std::unique_ptr<Animation>(new Animation{
+  auto animActivate = std::unique_ptr<Animation2d>(new Animation2d{
     .name = strActivate,
     .duration = 4,
     .frames = {
@@ -410,7 +410,7 @@ void MenuSystemImpl::constructRoot()
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = identityMatrix<float, 4>(),
     .parent = sysSpatial.root(),
     .enabled = false
@@ -421,17 +421,17 @@ void MenuSystemImpl::constructRoot()
 
 void MenuSystemImpl::constructBackdrop()
 {
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   Vec2f size{ GRID_CELL_W * GRID_W, (5.f + GRID_H) * GRID_CELL_H };
   Vec2f pos{ 0.f, 0.f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_root,
     .enabled = true
@@ -439,7 +439,7 @@ void MenuSystemImpl::constructBackdrop()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
@@ -455,15 +455,15 @@ void MenuSystemImpl::constructBackdrop()
 
 void MenuSystemImpl::constructFlare()
 {
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
-  auto animRotate = std::unique_ptr<Animation>(new Animation{
+  auto animRotate = std::unique_ptr<Animation2d>(new Animation2d{
     .name = hashString("rotate"),
     .duration = TICKS_PER_SECOND * 650,
     .frames = {
-      AnimationFrame{
+      Animation2dFrame{
         .pos = Vec2f{ 0.f, 0.f },
         .rotation = 360.f,
         .pivot = Vec2f{ 0.5f, 0.5f },
@@ -475,13 +475,13 @@ void MenuSystemImpl::constructFlare()
   });
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   Vec2f size{ 1.5f, 1.5f };
   Vec2f pos{ 0.145f, -0.05f };
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = m_root,
     .enabled = true
@@ -489,7 +489,7 @@ void MenuSystemImpl::constructFlare()
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(704.f),
@@ -502,7 +502,7 @@ void MenuSystemImpl::constructFlare()
 
   sysRender.addEntity(id, render);
 
-  sysAnimation.addEntity(id, AnimationData{
+  sysAnimation.addEntity(id, DAnimation2d{
     .animations = {
       sysAnimation.addAnimation(std::move(animRotate))
     }
@@ -514,17 +514,17 @@ void MenuSystemImpl::constructFlare()
 EntityId MenuSystemImpl::newMenuItemId()
 {
   return m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CUi
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CUi
   >();
 }
 
 void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const Sprite& sprite)
 {
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(sprite.pos, sprite.size),
     .parent = parentId,
     .enabled = true
@@ -532,7 +532,7 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
 
   sysSpatial.addEntity(id, spatial);
 
-  SpriteData render{
+  DSprite render{
     .scissor = MAIN_SCISSOR,
     .textureRect = sprite.texRect,
     .zIndex = static_cast<uint32_t>(ZIndex::MenuItem)
@@ -540,7 +540,7 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
 
   sysRender.addEntity(id, render);
 
-  sysAnimation.addEntity(id, AnimationData{
+  sysAnimation.addEntity(id, DAnimation2d{
     .animations = { m_animIdle, m_animIdleFocused, m_animPrime, m_animActivate }
   });
   sysAnimation.playAnimation(id, strIdle, true);
@@ -550,12 +550,12 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
 void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::GroupId groupId,
   const Sprite& sprite, const ItemSlots& slots)
 {
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysUi = m_ecs.system<SysUi>();
 
   constructMenuItemBase(id, parentId, sprite);
 
-  UiData ui{};
+  DUi ui{};
   ui.group = groupId;
   ui.topSlot = slots.top;
   ui.bottomSlot = slots.bottom;
@@ -604,7 +604,7 @@ void MenuSystemImpl::constructMenuItem(EntityId id, EntityId parentId, SysUi::Gr
 void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::GroupId groupId,
   const Sprite& sprite, const ItemSlots& slots, const SelectorFunctions& functions)
 {
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
   auto& sysUi = m_ecs.system<SysUi>();
 
   constructMenuItemBase(id, parentId, sprite);
@@ -661,7 +661,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
     KeyboardKey::Right, KeyboardKey::Escape
   };
 
-  UiData ui{};
+  DUi ui{};
   ui.group = groupId;
   ui.inputFilter = filter;
   ui.topSlot = slots.top;
@@ -708,7 +708,7 @@ void MenuSystemImpl::constructSelector(EntityId id, EntityId parentId, SysUi::Gr
       onBtnUp();
     };
 
-    UiData btnUi{};
+    DUi btnUi{};
     btnUi.group = groupId;
     btnUi.inputFilter = filter;
     btnUi.onGainFocus = [&sysUi, id]() {
@@ -737,13 +737,13 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
   const Vec4f& colour)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CQuad
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CQuad
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, size),
     .parent = parentId,
     .enabled = true
@@ -751,7 +751,7 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
 
   sysSpatial.addEntity(id, spatial);
 
-  QuadData render{
+  DQuad render{
     .scissor = MAIN_SCISSOR,
     .zIndex = static_cast<uint32_t>(ZIndex::MenuItem),
     .colour = colour,
@@ -799,7 +799,7 @@ Slider MenuSystemImpl::constructSlider(EntityId parentId, const Vec2f& pos,
 Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& prevMenu)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
   auto& sysUi = m_ecs.system<SysUi>();
 
@@ -807,7 +807,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = identityMatrix<float, 4>(),
     .parent = parentId,
     .enabled = false
@@ -864,10 +864,10 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
     sfxVolumeFunctions);
 
   auto musicIconId = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
-  SpatialData musicIconSpatial{
+  DSpatial musicIconSpatial{
     .transform = spriteTransform({ 0.75f, 0.55f }, { 0.05f, 0.1f }),
     .parent = id,
     .enabled = true
@@ -875,7 +875,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
   sysSpatial.addEntity(musicIconId, musicIconSpatial);
 
-  SpriteData musicIconRender{
+  DSprite musicIconRender{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(96.f),
@@ -889,10 +889,10 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   sysRender.addEntity(musicIconId, musicIconRender);
 
   auto sfxIconId = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
-  SpatialData sfxIconSpatial{
+  DSpatial sfxIconSpatial{
     .transform = spriteTransform({ 0.975f, 0.55f }, { 0.1f, 0.066f }),
     .parent = id,
     .enabled = true
@@ -900,7 +900,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
 
   sysSpatial.addEntity(sfxIconId, sfxIconSpatial);
 
-  SpriteData sfxIconRender{
+  DSprite sfxIconRender{
     .scissor = MAIN_SCISSOR,
     .textureRect = Rectf{
       .x = pxToUvX(0.f),
@@ -964,7 +964,7 @@ void MenuSystemImpl::constructMainMenu(bool hasQuitButton)
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData mainMenuRootSpatial{
+  DSpatial mainMenuRootSpatial{
     .transform = identityMatrix<float, 4>(),
     .parent = m_root,
     .enabled = false
@@ -976,7 +976,7 @@ void MenuSystemImpl::constructMainMenu(bool hasQuitButton)
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData mainMenuMainSpatial{
+  DSpatial mainMenuMainSpatial{
     .transform = identityMatrix<float, 4>(),
     .parent = m_mainMenu.entityId,
     .enabled = true
@@ -1113,13 +1113,13 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
   const Vec2f& charSize, const std::string& text, const Vec4f& colour)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(pos, charSize),
     .parent = parentId,
     .enabled = true
@@ -1127,7 +1127,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
 
   sysSpatial.addEntity(id, spatial);
 
-  TextData render{
+  DText render{
     .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
@@ -1150,12 +1150,12 @@ void MenuSystemImpl::addFadeInAnimForEntity(EntityId entityId)
   static const HashedString strFadeIn = hashString("fade_in");
 
   // Fade-in animations for each colour
-  static std::map<Vec4f, AnimationId> animations;
+  static std::map<Vec4f, Animation2dId> animations;
 
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto makeFrame = [](const Vec4f& colour) {
-    return AnimationFrame{
+    return Animation2dFrame{
       .pos = Vec2f{ 0.f, 0.f },
       .scale = Vec2f{ 1.f, 1.f },
       .textureRect = std::nullopt,
@@ -1169,14 +1169,14 @@ void MenuSystemImpl::addFadeInAnimForEntity(EntityId entityId)
     return copy;
   };
 
-  const Vec4f& colour = m_ecs.componentStore().component<CRender>(entityId).colour;
+  const Vec4f& colour = m_ecs.componentStore().component<CRender2d>(entityId).colour;
 
-  AnimationId animFadeInId = 0;
+  Animation2dId animFadeInId = 0;
   if (animations.contains(colour)) {
     animFadeInId = animations.at(colour);
   }
   else {
-    auto anim = std::unique_ptr<Animation>(new Animation{
+    auto anim = std::unique_ptr<Animation2d>(new Animation2d{
       .name = strFadeIn,
       .duration = 60,
       .frames = {
@@ -1195,7 +1195,7 @@ void MenuSystemImpl::addFadeInAnimForEntity(EntityId entityId)
     animFadeInId = sysAnimation.addAnimation(std::move(anim));
   }
 
-  sysAnimation.addEntity(entityId, AnimationData{
+  sysAnimation.addEntity(entityId, DAnimation2d{
     .animations{ animFadeInId }
   });
 }
@@ -1207,14 +1207,14 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysBehaviour = m_ecs.system<SysBehaviour>();
   auto& sysUi = m_ecs.system<SysUi>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = identityMatrix<float, 4>(),
     .parent = m_mainMenu.entityId,
     .enabled = false
@@ -1223,13 +1223,13 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   sysSpatial.addEntity(id, spatial);
 
   auto logoId = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   float h = 0.26f;
   float w = 1.f * h;
 
-  SpatialData logoSpatial{
+  DSpatial logoSpatial{
     .transform = spriteTransform({ 0.765f, 0.55f }, { w, h }),
     .parent = id,
     .enabled = true
@@ -1237,7 +1237,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
 
   sysSpatial.addEntity(logoId, logoSpatial);
 
-  SpriteData logoRender{
+  DSprite logoRender{
     .scissor = MAIN_SCISSOR,
     .textureRect{
       .x = pxToUvX(512.f),
@@ -1324,7 +1324,7 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
   const std::string& text, uint32_t value)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender = m_ecs.system<SysRender>();
+  auto& sysRender = m_ecs.system<SysRender2d>();
 
   Vec2f charSize{ 0.022f, 0.044f };
   Vec4f colour{ 0.f, 0.f, 0.f, 1.f };
@@ -1332,12 +1332,12 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
   constructTextItem(parentId, pos, charSize, text, colour);
 
   auto counterId = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText
   >();
 
   float margin = 0.35f;
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = spriteTransform(Vec2f{ pos[0] + margin, pos[1] }, charSize),
     .parent = parentId,
     .enabled = true
@@ -1345,7 +1345,7 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
 
   sysSpatial.addEntity(counterId, spatial);
 
-  DynamicTextData render{
+  DDynamicText render{
     .scissor = MAIN_SCISSOR,
     .textureRect = {
       .x = pxToUvX(256.f),
@@ -1374,7 +1374,7 @@ Menu MenuSystemImpl::constructGameOptionsSubmenu(const Menu& prevMenu)
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData spatial{
+  DSpatial spatial{
     .transform = identityMatrix<float, 4>(),
     .parent = m_mainMenu.entityId,
     .enabled = false
@@ -1473,7 +1473,7 @@ void MenuSystemImpl::constructPauseMenu()
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData pauseMenuRootSpatial{
+  DSpatial pauseMenuRootSpatial{
     .transform = identityMatrix<float, 4>(),
     .parent = m_root,
     .enabled = false
@@ -1485,7 +1485,7 @@ void MenuSystemImpl::constructPauseMenu()
     CLocalTransform, CGlobalTransform, CSpatialFlags
   >();
 
-  SpatialData pauseMenuMainSpatial{
+  DSpatial pauseMenuMainSpatial{
     .transform = identityMatrix<float, 4>(),
     .parent = m_pauseMenuId,
     .enabled = true

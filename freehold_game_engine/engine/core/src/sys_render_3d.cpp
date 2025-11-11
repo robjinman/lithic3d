@@ -603,13 +603,13 @@ void SysRender3dImpl::update(Tick, const InputState&)
   try {
     updateAnimations();
 
-    m_renderer.beginFrame(m_clearColour);
+    //m_renderer.beginFrame(m_clearColour);
 
-    doShadowPass();
-    doMainPass();
+    //doShadowPass();
+    //doMainPass();
 
-    m_renderer.endFrame();
-    m_renderer.checkError();
+    //m_renderer.endFrame();
+    //m_renderer.checkError();
   }
   catch(const std::exception& e) {
     EXCEPTION(STR("Error rendering scene; " << e.what()));

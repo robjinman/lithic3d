@@ -106,7 +106,7 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
   std::vector<Vec2f> uVs;
   std::vector<uint16_t> indices;
 
-  for (int i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     float a = i;
     float b = i + 1;
 
@@ -204,7 +204,7 @@ class SysRender2dImpl : public SysRender2d
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
-    void processEvent(const Event& event) override {}
+    void processEvent(const Event&) override {}
 
   private:
     Logger& m_logger;
@@ -505,7 +505,6 @@ const Camera2d& SysRender2dImpl::camera() const
 
 void SysRender2dImpl::update(Tick, const InputState&)
 {
-/*
   try {
     auto screenAspect = m_renderer.getViewParams().aspectRatio;
     float gameAspect = 630.f / 480.f;  // TODO
@@ -585,7 +584,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
   }
   catch (const std::exception& e) {
     EXCEPTION(STR("Error rendering scene; " << e.what()));
-  }*/
+  }
 }
 
 } // namespace

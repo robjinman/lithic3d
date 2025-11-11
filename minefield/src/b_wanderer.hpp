@@ -8,5 +8,5 @@ class Ecs;
 class EventSystem;
 }
 
-fge::BehaviourDataPtr createBWanderer(fge::Ecs& ecs, fge::EventSystem& eventSystem,
+fge::DBehaviourPtr createBWanderer(fge::Ecs& ecs, fge::EventSystem& eventSystem,
   fge::EntityId entityId, fge::EntityId playerId);

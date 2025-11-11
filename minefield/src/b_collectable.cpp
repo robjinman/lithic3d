@@ -1,7 +1,7 @@
 #include "b_collectable.hpp"
 #include "game_events.hpp"
 #include <fge/event_system.hpp>
-#include <fge/sys_animation.hpp>
+#include <fge/sys_animation_2d.hpp>
 #include <fge/systems.hpp>
 #include <fge/events.hpp>
 
@@ -11,12 +11,12 @@ using fge::hashString;
 using fge::Event;
 using fge::EventSystem;
 using fge::Ecs;
-using fge::SysAnimation;
+using fge::SysAnimation2d;
 
 namespace
 {
 
-class BCollectable : public fge::BehaviourData
+class BCollectable : public fge::DBehaviour
 {
   public:
     BCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
@@ -60,7 +60,7 @@ const std::set<HashedString>& BCollectable::subscriptions() const
 void BCollectable::processEvent(const Event& event)
 {
   static HashedString strCollect = hashString("collect");
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   if (event.name == g_strEntityEnter) {
     auto& e = dynamic_cast<const EEntityEnter&>(event);
@@ -79,7 +79,7 @@ void BCollectable::processEvent(const Event& event)
 
 } // namespace
 
-fge::BehaviourDataPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::DBehaviourPtr createBCollectable(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId, int value)
 {
   return std::make_unique<BCollectable>(ecs, eventSystem, entityId, playerId, value);

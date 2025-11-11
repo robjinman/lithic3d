@@ -14,9 +14,9 @@
 #include <fge/logger.hpp>
 #include <fge/audio_system.hpp>
 #include <fge/renderer.hpp>
-#include <fge/sys_animation.hpp>
+#include <fge/sys_animation_2d.hpp>
 #include <fge/sys_behaviour.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/sys_spatial.hpp>
 #include <fge/sys_ui.hpp>
 #include <fge/ecs.hpp>
@@ -43,9 +43,9 @@ using fge::Vec2f;
 using fge::Vec2i;
 using fge::Rectf;
 using fge::Recti;
-using fge::SysRender;
+using fge::SysRender2d;
 using fge::SysSpatial;
-using fge::SysAnimation;
+using fge::SysAnimation2d;
 using fge::SysBehaviour;
 
 namespace
@@ -154,7 +154,7 @@ GameImpl::GameImpl(fge::Engine& engine)
 
   m_sceneBuilder = createSceneBuilder(m_engine.eventSystem(), m_engine.ecs(), *m_options);
 
-  m_engine.ecs().system<SysRender>().setClearColour({ 0.01f, 0.01f, 0.02f, 1.f });
+  m_engine.ecs().system<SysRender2d>().setClearColour({ 0.01f, 0.01f, 0.02f, 1.f });
 
   auto viewport = m_engine.renderer().getViewportSize();
 
@@ -264,7 +264,7 @@ Rectf GameImpl::calculateGameArea(uint32_t viewportW, uint32_t viewportH) const
 
 void GameImpl::setMobileControlsScissor(uint32_t viewportW, uint32_t viewportH)
 {
-  auto& sysRender = m_engine.ecs().system<SysRender>();
+  auto& sysRender = m_engine.ecs().system<SysRender2d>();
 
   Recti fullScreen{
     .x = 0,
@@ -286,7 +286,7 @@ void GameImpl::setScissor(uint32_t viewportW, uint32_t viewportH)
     .w = static_cast<int>(gameAreaWidth),
     .h = static_cast<int>(viewportH)
   };
-  m_engine.ecs().system<SysRender>()
+  m_engine.ecs().system<SysRender2d>()
     .addScissor(MAIN_SCISSOR, scissor);
 
   auto& margins = m_engine.renderer().getMargins();
@@ -322,7 +322,7 @@ void GameImpl::onWindowResize(uint32_t w, uint32_t h)
 
   m_mobileControls->setGameArea(gameArea);
 
-  m_engine.ecs().system<SysRender>().onResize();
+  m_engine.ecs().system<SysRender2d>().onResize();
 }
 
 void GameImpl::handleMenuEvent(const Event& event)
@@ -365,7 +365,7 @@ void GameImpl::toggleThrowingMode(bool on, EntityId stickId)
 {
   m_throwingMode = on;
   m_engine.ecs().componentStore()
-    .component<fge::CRender>(m_scene.throwingModeIndicator).visible = on;
+    .component<fge::CRender2d>(m_scene.throwingModeIndicator).visible = on;
 
   if (on) {
     float x = GRID_W * GRID_CELL_W * 0.5f;
@@ -716,7 +716,7 @@ void GameImpl::processKeyboardInput()
 
 void GameImpl::throwStick(float x, float y)
 {
-  auto& sysAnimation = m_engine.ecs().system<SysAnimation>();
+  auto& sysAnimation = m_engine.ecs().system<SysAnimation2d>();
 
   if (sysAnimation.hasAnimationPlaying(m_stickId)) {
     return;

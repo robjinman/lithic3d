@@ -1,8 +1,8 @@
 #include "b_wanderer.hpp"
 #include "game_events.hpp"
 #include "sys_grid.hpp"
-#include <fge/sys_animation.hpp>
-#include <fge/sys_render.hpp>
+#include <fge/sys_animation_2d.hpp>
+#include <fge/sys_render_2d.hpp>
 #include <fge/events.hpp>
 #include <fge/systems.hpp>
 
@@ -12,7 +12,7 @@ using fge::hashString;
 using fge::Event;
 using fge::EventSystem;
 using fge::Ecs;
-using fge::SysAnimation;
+using fge::SysAnimation2d;
 
 namespace
 {
@@ -24,7 +24,7 @@ enum class WandererState
   Inactive
 };
 
-class BWanderer : public fge::BehaviourData
+class BWanderer : public fge::DBehaviour
 {
   public:
     BWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId);
@@ -79,7 +79,7 @@ void BWanderer::makeMove()
   }
 
   auto& sysGrid = m_ecs.system<SysGrid>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto pos = sysGrid.entityPos(m_entityId);
   auto entities = sysGrid.getEntities(pos[0], pos[1]);
@@ -141,7 +141,7 @@ void BWanderer::processEvent(const Event& event)
 
   constexpr int sqActivationDist = 36;
   auto& sysGrid = m_ecs.system<SysGrid>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   if (m_state == WandererState::Active) {
     if (event.name == g_strPlayerMove) {
@@ -174,7 +174,7 @@ void BWanderer::processEvent(const Event& event)
 
         if (sqDist <= sqActivationDist) {
           m_state = WandererState::Active;
-          m_ecs.componentStore().component<fge::CRender>(m_entityId).visible = true;
+          m_ecs.componentStore().component<fge::CRender2d>(m_entityId).visible = true;
           sysAnimation.playAnimation(m_entityId, strFadeIn, [this]() { makeMove(); });
         }
       }
@@ -184,7 +184,7 @@ void BWanderer::processEvent(const Event& event)
 
 } // namespace
 
-fge::BehaviourDataPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+fge::DBehaviourPtr createBWanderer(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
   EntityId playerId)
 {
   return std::make_unique<BWanderer>(ecs, eventSystem, entityId, playerId);

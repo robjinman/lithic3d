@@ -11,10 +11,10 @@ using fge::hashString;
 using fge::Event;
 using fge::EventSystem;
 using fge::Ecs;
-using fge::SysAnimation;
-using fge::AnimationId;
-using fge::Animation;
-using fge::AnimationFrame;
+using fge::SysAnimation2d;
+using fge::Animation2dId;
+using fge::Animation2d;
+using fge::Animation2dFrame;
 
 namespace
 {
@@ -22,11 +22,11 @@ namespace
 static const auto strThrow = hashString("throw");
 static const auto strFade = hashString("fade");
 
-class BStick : public fge::BehaviourData
+class BStick : public fge::DBehaviour
 {
   public:
     BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
-      AnimationId throwAnimation);
+      Animation2dId throwAnimation);
 
     HashedString name() const override;
     const std::set<HashedString>& subscriptions() const override;
@@ -37,7 +37,7 @@ class BStick : public fge::BehaviourData
     EventSystem& m_eventSystem;
     EntityId m_entityId;
     EntityId m_playerId;
-    AnimationId m_throwAnimation;
+    Animation2dId m_throwAnimation;
     int m_destX = -1;
     int m_destY = -1;
 
@@ -46,7 +46,7 @@ class BStick : public fge::BehaviourData
 };
 
 BStick::BStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId, EntityId playerId,
-  AnimationId throwAnimation)
+  Animation2dId throwAnimation)
   : m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_entityId(entityId)
@@ -73,7 +73,7 @@ const std::set<HashedString>& BStick::subscriptions() const
 void BStick::onLand()
 {
   auto& sysGrid = m_ecs.system<SysGrid>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   assert(sysGrid.goTo(m_entityId, m_destX, m_destY));
 
@@ -90,7 +90,7 @@ void BStick::onLand()
 void BStick::throwStick()
 {
   auto& sysGrid = m_ecs.system<SysGrid>();
-  auto& sysAnimation = m_ecs.system<SysAnimation>();
+  auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   auto& pos = sysGrid.entityPos(m_entityId);
 
@@ -99,11 +99,11 @@ void BStick::throwStick()
     static_cast<float>(m_destY - pos[1]) * GRID_CELL_H
   };
 
-  auto anim = std::unique_ptr<Animation>(new Animation{
+  auto anim = std::unique_ptr<Animation2d>(new Animation2d{
     .name = strThrow,
     .duration = 30,
     .frames = {
-      AnimationFrame{
+      Animation2dFrame{
         .pos = delta,
         .rotation = 360.f,
         .pivot = fge::Vec2f{ 0.f, 0.5f },
@@ -141,8 +141,8 @@ void BStick::processEvent(const Event& event)
 
 } // namespace
 
-fge::BehaviourDataPtr createBStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
-  EntityId playerId, AnimationId throwAnimation)
+fge::DBehaviourPtr createBStick(Ecs& ecs, EventSystem& eventSystem, EntityId entityId,
+  EntityId playerId, Animation2dId throwAnimation)
 {
   return std::make_unique<BStick>(ecs, eventSystem, entityId, playerId, throwAnimation);
 }
