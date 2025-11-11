@@ -1,5 +1,7 @@
-Freehold Game Engine
-====================
+Lithic 3D
+=========
+
+Cross platform game engine.
 
 Building from source
 --------------------
@@ -40,7 +42,7 @@ Make sure environment variables ANDROID_HOME and ANDROID_NDK_HOME are set.
 
 ### Build
 
-To build, just run the relevant workflow from the project root.
+To build, just run the relevant workflow from the project root, specifying your project location in the environment variable LITHIC3D_PROJECT.
 
 To see the list of workflows
 
@@ -51,7 +53,7 @@ To see the list of workflows
 For example, to make a debug build on linux
 
 ```
-    cmake --workflow --preset=linux-debug
+    LITHIC3D_PROJECT=../game cmake --workflow --preset=linux-debug
 ```
 
 You can also run the configure/build steps separately
@@ -100,7 +102,7 @@ If Vulkan isn't found, source the setup-env.sh file before building for iOS
 To install on the device
 
 ```
-    xcrun devicectl device install app --device <id> ./build/ios/debug/Debug-iphoneos/minefield.app
+    xcrun devicectl device install app --device <id> ./build/ios/debug/Debug-iphoneos/game.app
 ```
 
 You can obtain the device ID with
@@ -112,9 +114,9 @@ You can obtain the device ID with
 To publish to the App Store
 
 ```
-    xcodebuild -project ./build/ios/release/engine/Lithic3D.xcodeproj -scheme ALL_BUILD -configuration Release -sdk iphoneos -archivePath ./build/ios/minefield.xcarchive clean archive
+    xcodebuild -project ./build/ios/release/engine/Lithic3D.xcodeproj -scheme ALL_BUILD -configuration Release -sdk iphoneos -archivePath ./build/ios/game.xcarchive clean archive
 
-    xcodebuild -exportArchive -archivePath ./build/ios/minefield.xcarchive -exportPath ./build/ios/export -exportOptionsPlist ./engine/platform/ios/ExportOptions.plist -allowProvisioningUpdates
+    xcodebuild -exportArchive -archivePath ./build/ios/game.xcarchive -exportPath ./build/ios/export -exportOptionsPlist ./engine/platform/ios/ExportOptions.plist -allowProvisioningUpdates
 ```
 
 Then use the Transporter app to perform the upload.
