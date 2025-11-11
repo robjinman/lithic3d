@@ -12,8 +12,6 @@ namespace fge
 
 const size_t DYNAMIC_TEXT_MAX_LEN = 31;
 
-using ScissorId = size_t;
-
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags

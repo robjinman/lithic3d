@@ -275,4 +275,16 @@ void Transform::mix(const Transform& T)
   }
 }
 
+Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation, Vec2f pivot)
+{
+  Vec3f scaledPivot{ size[0] * pivot[0], size[1] * pivot[1], 0.f };
+
+  return
+    translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
+    translationMatrix4x4(scaledPivot) *
+    rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation }) *
+    translationMatrix4x4(-scaledPivot) *
+    scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+}
+
 } // namespace fge

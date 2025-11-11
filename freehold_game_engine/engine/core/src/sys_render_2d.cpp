@@ -320,7 +320,6 @@ void SysRender2dImpl::onResize()
 void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
-  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -400,8 +399,6 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
 {
-  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
-
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender2d>(m_componentStore, entityId);
@@ -421,8 +418,6 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
 {
-  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
-
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender2d>(m_componentStore, entityId);
@@ -504,7 +499,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
 
   m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-  ScissorId scissor = 0;
+  ScissorId scissor = std::numeric_limits<ScissorId>::max();
   for (auto& group : m_componentStore.components<CRender2d>()) {
     size_t n = group.numEntities();
     auto renderComps = group.components<CRender2d>();
@@ -532,7 +527,10 @@ void SysRender2dImpl::update(Tick, const InputState&)
 
       if (renderComp.scissor != scissor) {
         scissor = renderComp.scissor;
-        m_renderer.setScissor(m_scissors.at(scissor));
+
+        if (scissor != 0) {
+          m_renderer.setScissor(m_scissors.at(scissor));
+        }
       }
 
       if (!spriteComps.empty()) {

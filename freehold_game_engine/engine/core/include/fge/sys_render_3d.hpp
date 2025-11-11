@@ -119,6 +119,8 @@ class SysRender3d : public System
     virtual void addEntity(EntityId id, DLightPtr light) = 0;
     virtual void addEntity(EntityId id, DSkyboxPtr skybox) = 0;
 
+    // TODO: Implement scissors?
+
     // Animations
     //
     virtual RenderItemId addAnimations(AnimationSetPtr animations) = 0;

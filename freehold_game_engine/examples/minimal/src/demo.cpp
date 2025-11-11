@@ -41,6 +41,7 @@ class Demo : public Game
     Tick m_currentTick = 0; // TODO: Remove
 
     EntityId constructCube();
+    EntityId constructCaption();
     void rotateCube();
 };
 
@@ -48,6 +49,7 @@ Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
   m_cube = constructCube();
+  constructCaption();
 
   m_engine.renderer().start(); // TODO: Move to engine?
 }
@@ -101,6 +103,42 @@ EntityId Demo::constructCube()
   );
 
   sysRender3d.addEntity(id, std::move(model));
+
+  return id;
+}
+
+EntityId Demo::constructCaption()
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender2d = m_engine.ecs().system<SysRender2d>();
+
+  EntityId id = m_engine.ecs().componentStore().allocate<
+    CSpatialFlags, CLocalTransform, CGlobalTransform, CRender2d, CSprite
+  >();
+
+  DSpatial spatial{
+    .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
+    .parent = sysSpatial.root(),
+    .enabled = true
+  };
+  spatial.parent = sysSpatial.root();
+
+  sysSpatial.addEntity(id, spatial);
+
+  DText render{
+    .scissor = 0,
+    .textureRect = {
+      .x = pxToUvX(256.f),
+      .y = pxToUvY(64.f, 192.f),
+      .w = pxToUvW(192.f),
+      .h = pxToUvH(192.f)
+    },
+    .text = "Welcome to Lithic3D!",
+    .zIndex = 0,
+    .colour = { 1.f, 1.f, 1.f, 1.f }
+  };
+
+  sysRender2d.addEntity(id, render);
 
   return id;
 }

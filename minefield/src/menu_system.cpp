@@ -59,6 +59,7 @@ using fge::pxToUvX;
 using fge::pxToUvY;
 using fge::pxToUvW;
 using fge::pxToUvH;
+using fge::screenSpaceTransform;
 
 namespace
 {
@@ -77,13 +78,6 @@ static const HashedString strIdleFocused = hashString("idle_focused");
 static const HashedString strPrime = hashString("prime");
 static const HashedString strActivate = hashString("activate");
 static const HashedString strCancel = hashString("cancel");
-
-// TODO: Move this
-Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size)
-{
-  return fge::translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
-    fge::scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
-}
 
 struct Menu
 {
@@ -432,7 +426,7 @@ void MenuSystemImpl::constructBackdrop()
   Vec2f pos{ 0.f, 0.f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_root,
     .enabled = true
   };
@@ -482,7 +476,7 @@ void MenuSystemImpl::constructFlare()
   Vec2f pos{ 0.145f, -0.05f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_root,
     .enabled = true
   };
@@ -525,7 +519,7 @@ void MenuSystemImpl::constructMenuItemBase(EntityId id, EntityId parentId, const
   auto& sysAnimation = m_ecs.system<SysAnimation2d>();
 
   DSpatial spatial{
-    .transform = spriteTransform(sprite.pos, sprite.size),
+    .transform = screenSpaceTransform(sprite.pos, sprite.size),
     .parent = parentId,
     .enabled = true
   };
@@ -744,7 +738,7 @@ EntityId MenuSystemImpl::constructQuad(EntityId parentId, const Vec2f& pos, cons
   >();
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = parentId,
     .enabled = true
   };
@@ -868,7 +862,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   >();
 
   DSpatial musicIconSpatial{
-    .transform = spriteTransform({ 0.75f, 0.55f }, { 0.05f, 0.1f }),
+    .transform = screenSpaceTransform({ 0.75f, 0.55f }, { 0.05f, 0.1f }),
     .parent = id,
     .enabled = true
   };
@@ -893,7 +887,7 @@ Menu MenuSystemImpl::constructSettingsSubmenu(EntityId parentId, const Menu& pre
   >();
 
   DSpatial sfxIconSpatial{
-    .transform = spriteTransform({ 0.975f, 0.55f }, { 0.1f, 0.066f }),
+    .transform = screenSpaceTransform({ 0.975f, 0.55f }, { 0.1f, 0.066f }),
     .parent = id,
     .enabled = true
   };
@@ -1120,7 +1114,7 @@ EntityId MenuSystemImpl::constructTextItem(EntityId parentId, const Vec2f& pos,
   >();
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, charSize),
+    .transform = screenSpaceTransform(pos, charSize),
     .parent = parentId,
     .enabled = true
   };
@@ -1230,7 +1224,7 @@ Menu MenuSystemImpl::constructCreditsSubmenu(const Menu& prevMenu)
   float w = 1.f * h;
 
   DSpatial logoSpatial{
-    .transform = spriteTransform({ 0.765f, 0.55f }, { w, h }),
+    .transform = screenSpaceTransform({ 0.765f, 0.55f }, { w, h }),
     .parent = id,
     .enabled = true
   };
@@ -1338,7 +1332,7 @@ EntityId MenuSystemImpl::constructGameOptionCounter(EntityId parentId, const Vec
   float margin = 0.35f;
 
   DSpatial spatial{
-    .transform = spriteTransform(Vec2f{ pos[0] + margin, pos[1] }, charSize),
+    .transform = screenSpaceTransform(Vec2f{ pos[0] + margin, pos[1] }, charSize),
     .parent = parentId,
     .enabled = true
   };

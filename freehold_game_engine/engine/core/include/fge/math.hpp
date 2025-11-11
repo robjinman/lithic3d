@@ -685,5 +685,11 @@ bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, fl
 bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
 std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);
 Mat2x2f inverse(const Mat2x2f& M);
+Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation, Vec2f pivot);
+
+inline Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size)
+{
+  return screenSpaceTransform(pos, size, 0.f, Vec2f{});
+}
 
 } // namespace fge

@@ -59,6 +59,7 @@ using fge::pxToUvX;
 using fge::pxToUvY;
 using fge::pxToUvW;
 using fge::pxToUvH;
+using fge::screenSpaceTransform;
 
 namespace
 {
@@ -82,20 +83,6 @@ enum class ZIndex : uint32_t
   Explosion,
   Hud
 };
-
-// TODO: Move this
-Mat4x4f spriteTransform(const Vec2f& pos, const Vec2f& size, float rotation = 0.f,
-  Vec2f pivot = Vec2f{})
-{
-  Vec3f scaledPivot{ size[0] * pivot[0], size[1] * pivot[1], 0.f };
-
-  return
-    translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
-    translationMatrix4x4(scaledPivot) *
-    rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation }) *
-    translationMatrix4x4(-scaledPivot) *
-    scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
-}
 
 std::vector<Vec2i> randomGridCoords()
 {
@@ -249,7 +236,7 @@ EntityId SceneBuilderImpl::constructPlayer()
   Vec2f pos{ 0.f, 0.f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -404,7 +391,7 @@ void SceneBuilderImpl::constructSky()
   Vec2f pos{ 0.f, 11.5f * GRID_CELL_H };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -462,7 +449,7 @@ void SceneBuilderImpl::constructClouds()
     Vec2f pos{ GRID_CELL_W * GRID_W, 0.8f };
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -504,7 +491,7 @@ void SceneBuilderImpl::constructClouds()
     Vec2f pos{ GRID_CELL_W * GRID_W, 0.8f };
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -550,7 +537,7 @@ void SceneBuilderImpl::constructTrees()
   Vec2f pos{ 0.f, 11.f * GRID_CELL_H };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -589,7 +576,7 @@ void SceneBuilderImpl::constructFakeSoil()
     Vec2f pos{ x, 11.f * GRID_CELL_H };
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -666,7 +653,7 @@ void SceneBuilderImpl::constructSoil()
       Vec2f pos{ x, y };
 
       DSpatial spatial{
-        .transform = spriteTransform(pos, size),
+        .transform = screenSpaceTransform(pos, size),
         .parent = m_worldRoot,
         .enabled = true
       };
@@ -780,7 +767,7 @@ std::set<std::pair<int, int>> SceneBuilderImpl::constructMines(uint32_t numMines
     Vec2f pos{ GRID_CELL_W * x, GRID_CELL_H * y };
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -876,7 +863,7 @@ void SceneBuilderImpl::constructNumericTiles(const std::set<std::pair<int, int>>
       Vec2f pos{ GRID_CELL_W * i, GRID_CELL_H * j };
 
       DSpatial spatial{
-        .transform = spriteTransform(pos, size),
+        .transform = screenSpaceTransform(pos, size),
         .parent = m_worldRoot,
         .enabled = true
       };
@@ -919,7 +906,7 @@ void SceneBuilderImpl::constructGradient()
   Vec2f pos{ 0.f, 0.f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -955,7 +942,7 @@ void SceneBuilderImpl::constructBackQuad()
   Vec2f pos{ 0.f, 0.f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -1059,7 +1046,7 @@ void SceneBuilderImpl::constructCoins(uint32_t numCoins)
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -1179,7 +1166,7 @@ void SceneBuilderImpl::constructGoldNuggets(uint32_t numNuggets,
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -1336,7 +1323,7 @@ void SceneBuilderImpl::constructWanderers(uint32_t numWanderers,
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size),
+      .transform = screenSpaceTransform(pos, size),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -1444,7 +1431,7 @@ void SceneBuilderImpl::constructSticks(uint32_t numSticks,
     Vec2f pos = Vec2f{ GRID_CELL_W * x, GRID_CELL_H * y } + offset;
 
     DSpatial spatial{
-      .transform = spriteTransform(pos, size, fge::PIf / 4.f, { 0.f, 0.5f }),
+      .transform = screenSpaceTransform(pos, size, fge::PIf / 4.f, { 0.f, 0.5f }),
       .parent = m_worldRoot,
       .enabled = true
     };
@@ -1526,7 +1513,7 @@ void SceneBuilderImpl::constructExit()
   sysGrid.addEntity(id, (GRID_W - 1), (GRID_H - 1));
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -1579,7 +1566,7 @@ void SceneBuilderImpl::constructTimeCounter(uint32_t timeAvailable)
   Vec2f pos{ 0.07f, 0.94f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -1646,7 +1633,7 @@ void SceneBuilderImpl::constructCoinCounter(uint32_t goldRequired)
   Vec2f pos{ 0.27f, 0.94f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -1686,7 +1673,7 @@ EntityId SceneBuilderImpl::constructStaticEntity(const Vec2f& pos, const Vec2f& 
   m_entities.insert(id);
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, size),
+    .transform = screenSpaceTransform(pos, size),
     .parent = m_worldRoot,
     .enabled = true
   };
@@ -1733,7 +1720,7 @@ EntityId SceneBuilderImpl::constructRestartGamePrompt()
   Vec2f charSize{ 0.024f, 0.04f };
 
   DSpatial spatial{
-    .transform = spriteTransform(pos, charSize),
+    .transform = screenSpaceTransform(pos, charSize),
     .parent = m_worldRoot,
     .enabled = false
   };

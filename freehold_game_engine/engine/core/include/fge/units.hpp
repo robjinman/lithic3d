@@ -27,6 +27,8 @@ Vector<float, N> metresToWorldUnits(const Vector<float, N>& v)
   return k;
 }
 
+using ScissorId = size_t;
+
 // TODO: Remove
 const uint32_t ATLAS_WIDTH_PX = 1024;
 const uint32_t ATLAS_HEIGHT_PX = 512;
