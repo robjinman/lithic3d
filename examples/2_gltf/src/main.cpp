@@ -7,8 +7,10 @@
 #include <lithic3d/sys_render_3d.hpp>
 #include <lithic3d/sys_spatial.hpp>
 #include <lithic3d/logger.hpp>
+#include <lithic3d/model_loader.hpp>
 
 using namespace lithic3d;
+using namespace lithic3d::render;
 
 namespace
 {
@@ -36,30 +38,75 @@ class Demo : public Game
   private:
     Engine& m_engine;
     InputState m_inputState;
-    EntityId m_cube = NULL_ENTITY;
+    EntityId m_model = NULL_ENTITY;
 
-    Tick m_currentTick = 0; // TODO: Remove
+    Tick m_currentTick = 0;
 
-    EntityId constructCube();
+    EntityId constructLight();
+    EntityId constructModel();
     EntityId constructCaption();
-    void rotateCube();
+    void rotateModel();
 };
 
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_cube = constructCube();
+  constructLight();
+  m_model = constructModel();
   constructCaption();
 
   m_engine.renderer().start(); // TODO: Move to engine?
 }
 
-EntityId Demo::constructCube()
+EntityId Demo::constructLight()
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  EntityId id = m_engine.ecs().componentStore().allocate<
+  auto id = m_engine.ecs().componentStore().allocate<
+    CSpatialFlags, CLocalTransform, CGlobalTransform
+  >();
+
+  DSpatial spatial{
+    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, 2.f }),
+    .parent = sysSpatial.root(),
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  float_t size = metresToWorldUnits(0.2);
+  Vec3f colour{ 1.f, 0.9f, 0.9f };
+
+  auto light = std::make_unique<DLight>();
+  light->colour = colour;
+  light->ambient = 0.4f;
+  light->specular = 0.9f;
+/*
+  auto mesh = cuboid(size, size, size, {});
+  mesh->attributeBuffers.resize(2);
+  mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
+  mesh->featureSet.flags.set(MeshFeatures::CastsShadow, false);
+  MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
+  material->colour = { colour[0], colour[1], colour[2], 1.f };
+
+  light->submodels.push_back(Submodel{
+    .mesh = sysRender3d.addMesh(std::move(mesh)),
+    .material = sysRender3d.addMaterial(std::move(material)),
+    .skin = {}
+  });
+*/
+  sysRender3d.addEntity(id, std::move(light));
+
+  return id;
+}
+
+EntityId Demo::constructModel()
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+
+  auto id = m_engine.ecs().componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform
   >();
 
@@ -68,41 +115,15 @@ EntityId Demo::constructCube()
 
   sysSpatial.addEntity(id, spatial);
 
-  auto mesh = render::cuboid(1.f, 1.f, 1.f, { 1.f, 1.f });
+  auto modelData = m_engine.modelLoader().loadModelData("models/monkey.gltf");
+  auto render = m_engine.modelLoader().createRenderComponent(std::move(modelData), false);
 
-  mesh->featureSet = render::MeshFeatureSet{
-    .vertexLayout = {
-      render::BufferUsage::AttrPosition,
-      render::BufferUsage::AttrNormal,
-      render::BufferUsage::AttrTexCoord
-    },
-    .flags{}
-  };
+  for (auto& submodel : render->submodels) {
+    submodel.mesh.features.flags.set(MeshFeatures::CastsShadow, false);
+    sysRender3d.compileShader(submodel.mesh.features, submodel.material.features);
+  }
 
-  render::MaterialFeatures::Flags materialFlags{};
-  materialFlags.set(render::MaterialFeatures::HasTexture);
-
-  render::MaterialFeatureSet materialFeatures{
-    .flags = materialFlags
-  };
-
-  m_engine.renderer().compileShader(false, mesh->featureSet, materialFeatures);
-
-  auto texture = render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
-  auto material = std::make_unique<render::Material>(materialFeatures);
-  material->texture.id = sysRender3d.addTexture(std::move(texture));
-
-  auto model = std::make_unique<DModel>();
-
-  model->submodels.push_back(
-    Submodel{
-      .mesh = sysRender3d.addMesh(std::move(mesh)),
-      .material = sysRender3d.addMaterial(std::move(material)),
-      .skin = nullptr
-    }
-  );
-
-  sysRender3d.addEntity(id, std::move(model));
+  sysRender3d.addEntity(id, std::move(render));
 
   return id;
 }
@@ -121,7 +142,6 @@ EntityId Demo::constructCaption()
     .parent = sysSpatial.root(),
     .enabled = true
   };
-  spatial.parent = sysSpatial.root();
 
   sysSpatial.addEntity(id, spatial);
 
@@ -215,19 +235,19 @@ void Demo::showMobileControls()
   m_engine.logger().info("Show mobile controls");
 }
 
-void Demo::rotateCube()
+void Demo::rotateModel()
 {
   float a = (2 * PIf / 360.f) * (m_currentTick % 360);
   float b = (2 * PIf / 720.f) * (m_currentTick % 720);
 
-  m_engine.ecs().componentStore().component<CLocalTransform>(m_cube).transform =
+  m_engine.ecs().componentStore().component<CLocalTransform>(m_model).transform =
     translationMatrix4x4(Vec3f{ 0.f, 0.f, -5.f }) *
     rotationMatrix4x4(Vec3f{ b, a, 0.f });
 }
 
 bool Demo::update()
 {
-  rotateCube();
+  rotateModel();
   m_engine.update(m_currentTick++, m_inputState);
 
   return true;
@@ -238,8 +258,8 @@ bool Demo::update()
 GameConfig getGameConfig()
 {
   return {
-    .appDisplayName = "Lithic3D Demo - Cube",
-    .appShortName = "cube",
+    .appDisplayName = "Lithic3D Demo - GLTF",
+    .appShortName = "gltf",
     .vendorShortName = "freeholdapps",
     .windowW = 640,
     .windowH = 480,

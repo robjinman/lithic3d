@@ -233,7 +233,7 @@ ShaderSource ShaderCompiler::loadFragShaderSource(const ShaderProgramSpec& spec)
     source.defines.push_back("FEATURE_MATERIALS");
 
     if (spec.renderPass == RenderPass::Main) {
-      //source.defines.push_back("FEATURE_LIGHTING");
+      source.defines.push_back("FEATURE_LIGHTING");
     }
 
     if (spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
@@ -393,6 +393,27 @@ const std::vector<ShaderProgramSpec> specs{
     .materialFeatures = MaterialFeatureSet{
       .flags{
         bitflag(MaterialFeatures::HasTexture)
+      }
+    }
+  },
+  // Textured, normal mapped 3D model
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Main,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord,
+        BufferUsage::AttrTangent
+      },
+      .flags{
+        bitflag(MeshFeatures::HasTangents)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{
+        bitflag(MaterialFeatures::HasTexture) |
+        bitflag(MaterialFeatures::HasNormalMap)
       }
     }
   }

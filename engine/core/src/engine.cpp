@@ -12,6 +12,7 @@
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_ui.hpp"
+#include "lithic3d/model_loader.hpp"
 
 namespace lithic3d
 {
@@ -34,6 +35,7 @@ class EngineImpl : public Engine
     render::Renderer& renderer() override;
     AudioSystem& audioSystem() override;
     Ecs& ecs() override;
+    ModelLoader& modelLoader() override;
 
   private:
     render::RendererPtr m_renderer;
@@ -42,6 +44,7 @@ class EngineImpl : public Engine
     LoggerPtr m_logger;
     EventSystemPtr m_eventSystem;
     EcsPtr m_ecs;
+    ModelLoaderPtr m_modelLoader;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
 };
 
@@ -69,6 +72,8 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_ecs->addSystem(ANIMATION_2D_SYSTEM, std::move(sysAnimation2d));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
+
+  m_modelLoader = createModelLoader(*m_ecs, *m_fileSystem, *m_logger);
 
   //m_renderer->start();
 }
@@ -123,6 +128,11 @@ AudioSystem& EngineImpl::audioSystem()
 Ecs& EngineImpl::ecs()
 {
   return *m_ecs;
+}
+
+ModelLoader& EngineImpl::modelLoader()
+{
+  return *m_modelLoader;
 }
 
 } // namespace

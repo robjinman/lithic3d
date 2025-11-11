@@ -27,7 +27,7 @@ class ModelLoader
 {
   public:
     virtual ModelDataPtr loadModelData(const std::string& filePath) const = 0;
-    //virtual CRenderModelPtr createRenderComponent(ModelDataPtr modelData, bool isInstanced) = 0;
+    virtual DModelPtr createRenderComponent(ModelDataPtr modelData, bool isInstanced) = 0;
 
     virtual ~ModelLoader() {}
 };
@@ -37,7 +37,6 @@ using ModelLoaderPtr = std::unique_ptr<ModelLoader>;
 class FileSystem;
 class Logger;
 
-ModelLoaderPtr createModelLoader(SysRender3d& sysRender, const FileSystem& fileSystem,
-  Logger& logger);
+ModelLoaderPtr createModelLoader(Ecs& ecs, const FileSystem& fileSystem, Logger& logger);
 
 } // namespace lithic3d

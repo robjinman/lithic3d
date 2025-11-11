@@ -15,6 +15,7 @@ class AudioSystem;
 namespace render { class Renderer; }
 class Ecs;
 struct InputState;
+class ModelLoader;
 
 class Engine
 {
@@ -28,6 +29,7 @@ class Engine
     virtual render::Renderer& renderer() = 0;
     virtual AudioSystem& audioSystem() = 0;
     virtual Ecs& ecs() = 0;
+    virtual ModelLoader& modelLoader() = 0;
 
     virtual ~Engine() = default;
 };

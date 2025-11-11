@@ -289,38 +289,40 @@ render::MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
 class ModelLoaderImpl : public ModelLoader
 {
   public:
-    ModelLoaderImpl(SysRender3d& sysRender3d, const FileSystem& fileSystem, Logger& logger);
+    ModelLoaderImpl(Ecs& ecs, const FileSystem& fileSystem, Logger& logger);
 
     ModelDataPtr loadModelData(const std::string& filePath) const override;
-    //CRenderModelPtr createRenderComponent(ModelDataPtr modelData, bool isInstanced) override;
+    DModelPtr createRenderComponent(ModelDataPtr modelData, bool isInstanced) override;
 
   private:
     Logger& m_logger;
-    SysRender3d& m_sysRender3d;
+    Ecs& m_ecs;
     const FileSystem& m_fileSystem;
     std::map<std::string, RenderItemId> m_materials;
 
     MaterialHandle loadMaterial(MaterialPtr material);
 };
 
-ModelLoaderImpl::ModelLoaderImpl(SysRender3d& sysRender3d, const FileSystem& fileSystem,
+ModelLoaderImpl::ModelLoaderImpl(Ecs& ecs, const FileSystem& fileSystem,
   Logger& logger)
   : m_logger(logger)
-  , m_sysRender3d(sysRender3d)
+  , m_ecs(ecs)
   , m_fileSystem(fileSystem)
 {
 }
 
 MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
 {
+  auto& sysRender3d = m_ecs.system<SysRender3d>();
+
   auto textureFileName = material->texture.fileName;
   if (textureFileName != "") {
-    auto texturePath = STR("resources/textures/" << textureFileName);
+    auto texturePath = STR("textures/" << textureFileName);
 
     auto i = m_materials.find(textureFileName);
     if (i == m_materials.end()) {
       auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-      material->texture.id = m_sysRender3d.addTexture(std::move(texture));
+      material->texture.id = sysRender3d.addTexture(std::move(texture));
       m_materials[textureFileName] = material->texture.id;
     }
     else {
@@ -331,12 +333,12 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
   // TODO: Remove duplication
   auto normalMapFileName = material->normalMap.fileName;
   if (normalMapFileName != "") {
-    auto texturePath = STR("resources/textures/" << normalMapFileName);
+    auto texturePath = STR("textures/" << normalMapFileName);
 
     auto i = m_materials.find(normalMapFileName);
     if (i == m_materials.end()) {
       auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-      material->normalMap.id = m_sysRender3d.addNormalMap(std::move(texture));
+      material->normalMap.id = sysRender3d.addNormalMap(std::move(texture));
       m_materials[normalMapFileName] = material->normalMap.id;
     }
     else {
@@ -345,7 +347,7 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
   }
   // TODO: Repeat the above for cube maps
 
-  return m_sysRender3d.addMaterial(std::move(material));
+  return sysRender3d.addMaterial(std::move(material));
 }
 
 SkeletonPtr extractSkeleton(const gltf::ArmatureDesc& armature)
@@ -481,19 +483,17 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
 
   return model;
 }
-/*
-CRenderModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool isInstanced)
+
+DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool isInstanced)
 {
-  auto id = System::nextId();
-  CRenderModelPtr model = std::make_unique<CRenderModel>(id);
+  auto& sysRender3d = m_ecs.system<SysRender3d>();
+
+  DModelPtr model = std::make_unique<DModel>();
   model->isInstanced = isInstanced;
 
   for (auto& submodelData : modelData->submodels) {
-    m_sysRender3d.compileShader(submodelData->mesh->featureSet,
-      submodelData->material->featureSet);
-
     Submodel submodel{
-      .mesh = m_sysRender3d.addMesh(std::move(submodelData->mesh)),
+      .mesh = sysRender3d.addMesh(std::move(submodelData->mesh)),
       .material = loadMaterial(std::move(submodelData->material)),
       .skin = std::move(submodelData->skin)
     };
@@ -501,17 +501,16 @@ CRenderModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, b
     model->submodels.push_back(std::move(submodel));
   }
 
-  model->animations = m_sysRender3d.addAnimations(std::move(modelData->animations));
+  model->animations = sysRender3d.addAnimations(std::move(modelData->animations));
 
   return model;
-}*/
+}
 
 } // namespace
 
-ModelLoaderPtr createModelLoader(SysRender3d& sysRender3d, const FileSystem& fileSystem,
-  Logger& logger)
+ModelLoaderPtr createModelLoader(Ecs& ecs, const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<ModelLoaderImpl>(sysRender3d, fileSystem, logger);
+  return std::make_unique<ModelLoaderImpl>(ecs, fileSystem, logger);
 }
 
 } // namespace lithic3d
