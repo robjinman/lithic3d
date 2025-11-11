@@ -412,7 +412,8 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
-  m_depthStencilStateInfo = disabledDepthStencilState();// defaultDepthStencilState();
+  m_depthStencilStateInfo = spec.renderPass == RenderPass::Overlay ?
+    disabledDepthStencilState() : defaultDepthStencilState();
 
   m_descriptorSetLayouts = {
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),

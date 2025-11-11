@@ -102,7 +102,7 @@ bool SysAnimation2dImpl::updateAnimation(EntityId entityId, AnimationState& anim
   std::vector<std::tuple<EntityId, QueuedAnimation>>& queue)
 {
   auto& anim = *m_animations.at(animState.id);
-  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  auto& renderComp = m_componentStore.component<CRender2d>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
 
   size_t numFrames = anim.frames.size();
@@ -298,7 +298,7 @@ void SysAnimation2dImpl::addEntity(EntityId entityId, const Animation2dData& com
 {
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CLocalTransform>(m_componentStore, entityId);
-  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CRender2d>(m_componentStore, entityId);
 
   auto data = std::make_unique<CAnimation2d>();
 
@@ -354,7 +354,7 @@ void SysAnimation2dImpl::playAnimation(EntityId entityId, HashedString name,
 void SysAnimation2dImpl::playAnimation(EntityId entityId, HashedString name, bool repeat,
   const std::optional<std::function<void()>>& onFinish)
 {
-  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  auto& renderComp = m_componentStore.component<CRender2d>(entityId);
   auto& localTComp = m_componentStore.component<CLocalTransform>(entityId);
   auto& animComp = *m_components.at(entityId);
   auto animId = animComp.animations.at(name);

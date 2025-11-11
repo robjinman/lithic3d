@@ -70,20 +70,6 @@ struct Submodel
 // TODO: List required components
 struct DModel
 {
-  // TODO: Where is this used?
-  DModel(const DModel& cpy)
-  {
-    isInstanced = cpy.isInstanced;
-    animations = cpy.animations;
-    for (auto& m : cpy.submodels) {
-      submodels.push_back(Submodel{
-        .mesh = m.mesh,
-        .material = m.material,
-        .skin = m.skin == nullptr ? nullptr : std::make_unique<Skin>(*m.skin)
-      });
-    }
-  }
-
   bool isInstanced = false;
   RenderItemId animations = NULL_ID;
   std::vector<Submodel> submodels;
@@ -124,7 +110,6 @@ class Camera3d;
 class SysRender3d : public System
 {
   public:
-    virtual void start() = 0;
     virtual double frameRate() const = 0;
 
     virtual Camera3d& camera() = 0;
@@ -133,6 +118,8 @@ class SysRender3d : public System
     virtual void addEntity(EntityId id, DModelPtr model) = 0;
     virtual void addEntity(EntityId id, DLightPtr light) = 0;
     virtual void addEntity(EntityId id, DSkyboxPtr skybox) = 0;
+
+    virtual void setClearColour(const Vec4f& colour) = 0;
 
     // Animations
     //

@@ -181,7 +181,6 @@ class SysRender2dImpl : public SysRender2d
     SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer, const FileSystem& fileSystem,
       Logger& logger);
 
-    void start() override;
     double frameRate() const override;
 
     Camera2d& camera() override;
@@ -239,7 +238,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     };
     MaterialFeatureSet materialFeatures{};
     materialFeatures.flags.set(MaterialFeatures::HasTexture);
-    m_renderer.compileShader(meshFeatures, materialFeatures);
+    m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
   // Sprites
@@ -255,7 +254,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     meshFeatures.flags.set(MeshFeatures::IsQuad);
     MaterialFeatureSet materialFeatures{};
     materialFeatures.flags.set(MaterialFeatures::HasTexture);
-    m_renderer.compileShader(meshFeatures, materialFeatures);
+    m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
   // Quads
@@ -270,7 +269,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     };
     meshFeatures.flags.set(MeshFeatures::IsQuad);
     MaterialFeatureSet materialFeatures{};
-    m_renderer.compileShader(meshFeatures, materialFeatures);
+    m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
   // Dynamic text
@@ -286,7 +285,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     meshFeatures.flags.set(MeshFeatures::IsDynamicText);
     MaterialFeatureSet materialFeatures{};
     materialFeatures.flags.set(MaterialFeatures::HasTexture);
-    m_renderer.compileShader(meshFeatures, materialFeatures);
+    m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
   // TODO
@@ -301,11 +300,6 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
   m_textureAtlas = m_renderer.addMaterial(std::move(atlasMaterial));
 
   m_mesh = m_renderer.addMesh(quad());
-}
-
-void SysRender2dImpl::start()
-{
-  m_renderer.start();
 }
 
 double SysRender2dImpl::frameRate() const
@@ -337,10 +331,10 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
-  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CSprite>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender>(entityId) = CRender{
+  m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
@@ -373,11 +367,11 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
-  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CSprite>(m_componentStore, entityId);
   assertHasComponent<CDynamicText>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender>(entityId) = CRender{
+  m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
@@ -417,10 +411,10 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
-  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CQuad>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender>(entityId) = CRender{
+  m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
@@ -438,10 +432,10 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
-  assertHasComponent<CRender>(m_componentStore, entityId);
+  assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CSprite>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender>(entityId) = CRender{
+  m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
@@ -456,7 +450,7 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
 
 void SysRender2dImpl::setZIndex(EntityId entityId, uint32_t zIndex)
 {
-  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  auto& renderComp = m_componentStore.component<CRender2d>(entityId);
   renderComp.zIndex = zIndex;
 }
 
@@ -468,13 +462,13 @@ void SysRender2dImpl::setTextureRect(EntityId entityId, const Rectf& textureRect
 
 void SysRender2dImpl::setVisible(EntityId entityId, bool visible)
 {
-  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  auto& renderComp = m_componentStore.component<CRender2d>(entityId);
   renderComp.visible = visible;
 }
 
 void SysRender2dImpl::setColour(EntityId entityId, const Vec4f& colour)
 {
-  auto& renderComp = m_componentStore.component<CRender>(entityId);
+  auto& renderComp = m_componentStore.component<CRender2d>(entityId);
   renderComp.colour = colour;
 }
 
@@ -511,6 +505,7 @@ const Camera2d& SysRender2dImpl::camera() const
 
 void SysRender2dImpl::update(Tick, const InputState&)
 {
+/*
   try {
     auto screenAspect = m_renderer.getViewParams().aspectRatio;
     float gameAspect = 630.f / 480.f;  // TODO
@@ -520,9 +515,9 @@ void SysRender2dImpl::update(Tick, const InputState&)
     m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
     ScissorId scissor = 0;
-    for (auto& group : m_componentStore.components<CRender>()) {
+    for (auto& group : m_componentStore.components<CRender2d>()) {
       size_t n = group.numEntities();
-      auto renderComps = group.components<CRender>();
+      auto renderComps = group.components<CRender2d>();
       auto spriteComps = group.components<CSprite>();
       auto globalTs = group.components<CGlobalTransform>();
       auto flags = group.components<CSpatialFlags>();
@@ -590,7 +585,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
   }
   catch (const std::exception& e) {
     EXCEPTION(STR("Error rendering scene; " << e.what()));
-  }
+  }*/
 }
 
 } // namespace

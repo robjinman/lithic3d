@@ -343,7 +343,7 @@ class ComponentStore
     template<typename T>
     const T& component(EntityId entityId) const
     {
-      return component<T>(entityId);
+      return (const_cast<ComponentStore*>(this)->component<T>(entityId));
     }
 
     bool hasEntity(EntityId entityId) const

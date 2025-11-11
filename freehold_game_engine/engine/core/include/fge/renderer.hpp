@@ -61,7 +61,7 @@ class Renderer
 
     // Initialisation
     //
-    virtual void compileShader(const MeshFeatureSet& meshFeatures,
+    virtual void compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures) = 0;
 
     // Textures

@@ -163,7 +163,7 @@ MeshPtr cuboid(float W, float H, float D, const Vec2f& textureSize)
         // Bottom face
         { 0, 0 },         // A  0
         { W / u, 0 },     // B  1
-        { W /u, D / v },  // C  2
+        { W / u, D / v }, // C  2
         { 0, D / v },     // D  3
 
         // Top face

@@ -54,7 +54,6 @@ class SysRender3dImpl : public SysRender3d
   public:
     SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger);
 
-    void start() override;
     double frameRate() const override;
 
     Camera3d& camera() override;
@@ -68,6 +67,8 @@ class SysRender3dImpl : public SysRender3d
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
+
+    void setClearColour(const Vec4f& colour) override;
 
     // Animations
     //
@@ -108,14 +109,13 @@ class SysRender3dImpl : public SysRender3d
     Camera3d m_camera;
     const Ecs& m_ecs;
     Renderer& m_renderer;
-    //std::map<EntityId, CRenderPtr> m_components;
     // TODO: Use component store
     std::map<EntityId, DLightPtr> m_lights;
     std::map<EntityId, DModelPtr> m_models;
     DSkyboxPtr m_skybox;
-    //std::set<EntityId> m_lights;
     std::map<RenderItemId, AnimationSetPtr> m_animationSets;
     std::map<EntityId, AnimationState> m_animationStates;
+    Vec4f m_clearColour;
 
     using DrawFilter = std::function<bool(const Submodel&)>;
 
@@ -141,7 +141,12 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& log
 void SysRender3dImpl::compileShader(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
 {
-  m_renderer.compileShader(meshFeatures, materialFeatures);
+  m_renderer.compileShader(false, meshFeatures, materialFeatures);
+}
+
+void SysRender3dImpl::setClearColour(const Vec4f& colour)
+{
+  m_clearColour = colour;
 }
 
 // TODO: Remove
@@ -184,11 +189,6 @@ std::vector<Vec2f> SysRender3dImpl::computeOrthographicFrustumPerimeter(const Ve
   };
 
   return std::vector<Vec2f>{(m * A).sub<2>(), (m * B).sub<2>(), (m * C).sub<2>(), (m * D).sub<2>()};
-}
-
-void SysRender3dImpl::start()
-{
-  m_renderer.start();
 }
 
 double SysRender3dImpl::frameRate() const
@@ -603,7 +603,7 @@ void SysRender3dImpl::update(Tick, const InputState&)
   try {
     updateAnimations();
 
-    m_renderer.beginFrame({ 0.f, 0.f, 0.f, 1.f }); // TODO: Clear colour
+    m_renderer.beginFrame(m_clearColour);
 
     doShadowPass();
     doMainPass();

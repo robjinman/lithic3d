@@ -137,7 +137,7 @@ class RendererImpl : public Renderer
 
     // Initialisation
     //
-    void compileShader(const MeshFeatureSet& meshFeatures,
+    void compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures) override;
 
     // Resources
@@ -392,7 +392,7 @@ void RendererImpl::checkError() const
   }
 }
 
-void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
+void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
 {
   ASSERT(!m_running, "Renderer already started");
@@ -412,26 +412,27 @@ void RendererImpl::compileShader(const MeshFeatureSet& meshFeatures,
       }
     };
 
-    // TODO: Bit wasteful creating identical pipelines for main and overlay
-/*
-    addPipeline(PipelineKey{
-      .renderPass = RenderPass::Main,
-      .meshFeatures = meshFeatures,
-      .materialFeatures = materialFeatures
-    }, m_swapchainExtent);*/
-
-    addPipeline(PipelineKey{
-      .renderPass = RenderPass::Overlay,
-      .meshFeatures = meshFeatures,
-      .materialFeatures = materialFeatures
-    }, m_swapchainExtent);
-
-    if (meshFeatures.flags.test(MeshFeatures::CastsShadow)) {
-       addPipeline(PipelineKey{
-        .renderPass = RenderPass::Shadow,
+    if (overlay) {
+      addPipeline(PipelineKey{
+        .renderPass = RenderPass::Overlay,
         .meshFeatures = meshFeatures,
-        .materialFeatures = {}
-      }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
+        .materialFeatures = materialFeatures
+      }, m_swapchainExtent);
+    }
+    else {
+      addPipeline(PipelineKey{
+        .renderPass = RenderPass::Main,
+        .meshFeatures = meshFeatures,
+        .materialFeatures = materialFeatures
+      }, m_swapchainExtent);
+
+      if (meshFeatures.flags.test(MeshFeatures::CastsShadow)) {
+        addPipeline(PipelineKey{
+          .renderPass = RenderPass::Shadow,
+          .meshFeatures = meshFeatures,
+          .materialFeatures = {}
+        }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
+      }
     }
   }).get();
 }

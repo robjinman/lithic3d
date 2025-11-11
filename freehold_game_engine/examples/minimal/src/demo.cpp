@@ -2,22 +2,21 @@
 #include <fge/game.hpp>
 #include <fge/renderer.hpp>
 #include <fge/ecs.hpp>
+#include <fge/file_system.hpp>
 #include <fge/sys_render_2d.hpp>
+#include <fge/sys_render_3d.hpp>
 #include <fge/sys_spatial.hpp>
 #include <fge/logger.hpp>
 
-using fge::KeyboardKey;
-using fge::GamepadButton;
-using fge::Vec2f;
-using fge::Tick;
+using namespace fge;
 
 namespace
 {
 
-class Demo : public fge::Game
+class Demo : public Game
 {
   public:
-    Demo(fge::Engine& engine);
+    Demo(Engine& engine);
 
     float gameViewportAspectRatio() const override;
     void onKeyDown(KeyboardKey key) override;
@@ -35,18 +34,75 @@ class Demo : public fge::Game
     bool update() override;
 
   private:
-    fge::Engine& m_engine;
-    fge::InputState m_inputState;
+    Engine& m_engine;
+    InputState m_inputState;
+    EntityId m_cube = NULL_ENTITY;
 
     Tick m_currentTick = 0; // TODO: Remove
+
+    EntityId constructCube();
+    void rotateCube();
 };
 
-Demo::Demo(fge::Engine& engine)
+Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
+  m_cube = constructCube();
+
   m_engine.renderer().start(); // TODO: Move to engine?
+}
 
+EntityId Demo::constructCube()
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
+  EntityId id = m_engine.ecs().componentStore().allocate<
+    CSpatialFlags, CLocalTransform, CGlobalTransform
+  >();
+
+  DSpatial spatial{};
+  spatial.parent = sysSpatial.root();
+
+  sysSpatial.addEntity(id, spatial);
+
+  auto mesh = render::cuboid(1.f, 1.f, 1.f, { 1.f, 1.f });
+
+  mesh->featureSet = render::MeshFeatureSet{
+    .vertexLayout = {
+      render::BufferUsage::AttrPosition,
+      render::BufferUsage::AttrNormal,
+      render::BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+
+  render::MaterialFeatures::Flags materialFlags{};
+  materialFlags.set(render::MaterialFeatures::HasTexture);
+
+  render::MaterialFeatureSet materialFeatures{
+    .flags = materialFlags
+  };
+
+  m_engine.renderer().compileShader(false, mesh->featureSet, materialFeatures);
+
+  auto texture = render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
+  auto material = std::make_unique<render::Material>(materialFeatures);
+  material->texture.id = sysRender3d.addTexture(std::move(texture));
+
+  auto model = std::make_unique<DModel>();
+
+  model->submodels.push_back(
+    Submodel{
+      .mesh = sysRender3d.addMesh(std::move(mesh)),
+      .material = sysRender3d.addMaterial(std::move(material)),
+      .skin = nullptr
+    }
+  );
+
+  sysRender3d.addEntity(id, std::move(model));
+
+  return id;
 }
 
 float Demo::gameViewportAspectRatio() const
@@ -81,18 +137,17 @@ void Demo::onButtonUp(GamepadButton button)
 void Demo::onMouseButtonDown()
 {
   m_engine.logger().info("Mouse button down");
-  m_inputState.mouseButtonsPressed.insert(fge::MouseButton::Left);
+  m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
 }
 
 void Demo::onMouseButtonUp()
 {
   m_engine.logger().info("Mouse button up");
-  m_inputState.mouseButtonsPressed.erase(fge::MouseButton::Left);
+  m_inputState.mouseButtonsPressed.erase(MouseButton::Left);
 }
 
 void Demo::onMouseMove(const Vec2f& pos, const Vec2f& delta)
 {
-  m_engine.logger().info("Mouse move");
   m_inputState.mouseX = pos[0];
   m_inputState.mouseY = pos[1];
 }
@@ -122,18 +177,30 @@ void Demo::showMobileControls()
   m_engine.logger().info("Show mobile controls");
 }
 
+void Demo::rotateCube()
+{
+  float a = (2 * PIf / 360.f) * (m_currentTick % 360);
+  float b = (2 * PIf / 720.f) * (m_currentTick % 720);
+
+  m_engine.ecs().componentStore().component<CLocalTransform>(m_cube).transform =
+    translationMatrix4x4(Vec3f{ 0.f, 0.f, -5.f }) *
+    rotationMatrix4x4(Vec3f{ b, a, 0.f });
+}
+
 bool Demo::update()
 {
   // TODO: Replace with m_engine.update()
   m_engine.ecs().update(m_currentTick++, m_inputState);
   m_engine.eventSystem().processEvents();
 
+  rotateCube();
+
   return true;
 }
 
 } // namespace
 
-fge::GameConfig getGameConfig()
+GameConfig getGameConfig()
 {
   return {
     .appDisplayName = "FGE Minimal Example",
@@ -146,7 +213,7 @@ fge::GameConfig getGameConfig()
   };
 }
 
-fge::GamePtr createGame(fge::Engine& engine)
+GamePtr createGame(Engine& engine)
 {
   return std::make_unique<Demo>(engine);
 }

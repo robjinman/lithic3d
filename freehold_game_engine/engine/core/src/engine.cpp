@@ -59,7 +59,7 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   auto sysUi = createSysUi(*m_ecs, *m_logger);
 
   sysRender2d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
-  //sysRender3d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
+  sysRender3d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
 
   m_ecs->addSystem(RENDER_2D_SYSTEM, std::move(sysRender2d));
   m_ecs->addSystem(RENDER_3D_SYSTEM, std::move(sysRender3d));

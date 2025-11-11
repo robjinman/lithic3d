@@ -17,7 +17,7 @@ using ScissorId = size_t;
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags
-//   CRender
+//   CRender2d
 //   CSprite
 struct DSprite
 {
@@ -30,7 +30,7 @@ struct DSprite
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags
-//   CRender
+//   CRender2d
 //   CQuad
 struct DQuad
 {
@@ -43,7 +43,7 @@ struct DQuad
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags
-//   CRender
+//   CRender2d
 //   CSprite
 struct DText
 {
@@ -57,7 +57,7 @@ struct DText
 // Requires components:
 //   CGlobalTransform
 //   CSpatialFlags
-//   CRender
+//   CRender2d
 //   CSprite
 //   CDynamicText
 struct DDynamicText
@@ -72,14 +72,14 @@ struct DDynamicText
 
 const size_t POLYGON_MAX_VERTICES = 8;
 
-struct CRender
+struct CRender2d
 {
   Vec4f colour;
   uint32_t zIndex = 0;
   bool visible = true;
   ScissorId scissor = 0;
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CRenderTypeId;
+  static constexpr ComponentType TypeId = ComponentTypeId::CRender2dTypeId;
 };
 
 struct CSprite
@@ -109,7 +109,6 @@ class Camera2d;
 class SysRender2d : public System
 {
   public:
-    virtual void start() = 0;
     virtual double frameRate() const = 0;
 
     virtual Camera2d& camera() = 0;

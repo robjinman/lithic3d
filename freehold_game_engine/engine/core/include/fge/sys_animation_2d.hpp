@@ -35,7 +35,7 @@ using Animation2dId = size_t;
 // Requires components:
 //   CSpatialFlags
 //   CLocalTransform
-//   CRender
+//   CRender2d
 struct Animation2dData
 {
   std::set<Animation2dId> animations;

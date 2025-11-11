@@ -78,7 +78,7 @@ EntityId ProductActivationImpl::constructPrompt()
   auto& sysRender = m_ecs.system<SysRender2d>();
 
   auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
   >();
 
   Vec2f pos{ 0.3f, 0.7f };
@@ -127,7 +127,7 @@ EntityId ProductActivationImpl::constructTextbox()
   auto& store = m_ecs.componentStore();
 
   auto id = store.allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender, CSprite, CDynamicText, CUi, CTextbox
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText, CUi, CTextbox
   >();
 
   store.component<CTextbox>(id) = CTextbox{};
