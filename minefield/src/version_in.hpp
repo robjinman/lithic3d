@@ -1,2 +1,0 @@
-#define Minefield_VERSION_MAJOR @GAME_VERSION_MAJOR@
-#define Minefield_VERSION_MINOR @GAME_VERSION_MINOR@

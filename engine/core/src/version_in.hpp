@@ -1,0 +1,3 @@
+#define Lithic3D_VERSION_MAJOR @VERSION_MAJOR@
+#define Lithic3D_VERSION_MINOR @VERSION_MINOR@
+//#define BUILD_ID "@BUILD_ID@"
