@@ -154,7 +154,7 @@ GameImpl::GameImpl(fge::Engine& engine)
 
   m_sceneBuilder = createSceneBuilder(m_engine.eventSystem(), m_engine.ecs(), *m_options);
 
-  m_engine.ecs().system<SysRender2d>().setClearColour({ 0.01f, 0.01f, 0.02f, 1.f });
+  m_engine.setClearColour({ 0.01f, 0.01f, 0.02f, 1.f });
 
   auto viewport = m_engine.renderer().getViewportSize();
 
@@ -829,8 +829,7 @@ bool GameImpl::update()
     }
   }
 
-  m_engine.ecs().update(m_currentTick, m_inputState);
-  m_engine.eventSystem().processEvents();
+  m_engine.update(m_currentTick, m_inputState);
   m_menuSystem->update();
 
   adjustVolume();

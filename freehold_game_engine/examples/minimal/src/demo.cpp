@@ -189,11 +189,8 @@ void Demo::rotateCube()
 
 bool Demo::update()
 {
-  // TODO: Replace with m_engine.update()
-  m_engine.ecs().update(m_currentTick++, m_inputState);
-  m_engine.eventSystem().processEvents();
-
   rotateCube();
+  m_engine.update(m_currentTick++, m_inputState);
 
   return true;
 }

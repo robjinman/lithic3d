@@ -217,9 +217,9 @@ class RendererImpl : public Renderer
     void createDepthResources();
     void createCommandBuffers();
     void doShadowRenderPass(VkCommandBuffer commandBuffer);
-    void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    void doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
+    void doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
+    void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
     void updateLightingUbo(RenderPass renderPass);
     void updateLightTransformsUbo();
     void updateCameraTransformsUbo(RenderPass renderPass);
@@ -788,17 +788,21 @@ void RendererImpl::renderLoop()
         "Failed to begin recording command buffer");
 
       auto& frameState = m_frameStates.getReadable();
+      bool shouldClear = true;
       if (frameState.renderPasses.contains(RenderPass::Shadow)) {
         doShadowRenderPass(commandBuffer);
       }
       if (frameState.renderPasses.contains(RenderPass::Main)) {
-        doMainRenderPass(commandBuffer, m_imageIndex);
+        doMainRenderPass(commandBuffer, m_imageIndex, shouldClear);
+        shouldClear = false;
       }
       if (frameState.renderPasses.contains(RenderPass::Ssr)) {
-        doSsrRenderPass(commandBuffer, m_imageIndex);
+        doSsrRenderPass(commandBuffer, m_imageIndex, shouldClear);
+        shouldClear = false;
       }
       if (frameState.renderPasses.contains(RenderPass::Overlay)) {
-        doOverlayRenderPass(commandBuffer, m_imageIndex);
+        doOverlayRenderPass(commandBuffer, m_imageIndex, shouldClear);
+        shouldClear = false;
       }
 
       VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
@@ -827,12 +831,20 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
   auto& frameState = m_frameStates.getReadable();
   auto& renderPassState = frameState.renderPasses.at(renderPass);
 
-  CameraTransformsUbo cameraTransformsUbo{
-    .viewMatrix = renderPassState.viewMatrix,
-    .projMatrix = renderPass == RenderPass::Overlay ? m_orthographicMatrix : m_perspectiveMatrix
-  };
-
-  m_resources->updateCameraTransformsUbo(cameraTransformsUbo, m_currentFrame);
+  if (renderPass == RenderPass::Overlay) {
+    CameraTransformsUbo cameraTransformsUbo{
+      .viewMatrix = renderPassState.viewMatrix,
+      .projMatrix = m_orthographicMatrix
+    };
+    m_resources->updateOverlayCameraUbo(cameraTransformsUbo, m_currentFrame);
+  }
+  else {
+    CameraTransformsUbo cameraTransformsUbo{
+      .viewMatrix = renderPassState.viewMatrix,
+      .projMatrix = m_perspectiveMatrix
+    };
+    m_resources->updateMainCameraUbo(cameraTransformsUbo, m_currentFrame);
+  }
 }
 
 void RendererImpl::updateLightTransformsUbo()
@@ -1552,7 +1564,8 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
-void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
+  bool shouldClear)
 {
   updateCameraTransformsUbo(RenderPass::Main);
   updateLightingUbo(RenderPass::Main);
@@ -1590,7 +1603,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .loadOp = shouldClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .clearValue = VkClearValue{
       .color = VkClearColorValue{ .float32 = { colour[0], colour[1], colour[2], colour[3] }}
@@ -1660,7 +1673,8 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
-void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
+  bool shouldClear)
 {
   updateCameraTransformsUbo(RenderPass::Overlay);
 
@@ -1697,7 +1711,7 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .loadOp = shouldClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .clearValue = VkClearValue{
       .color = VkClearColorValue{ .float32 = { colour[0], colour[1], colour[2], colour[3] }}
@@ -1749,7 +1763,8 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
     VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
-void RendererImpl::doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void RendererImpl::doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
+  bool shouldClear)
 {
   // TODO
 }

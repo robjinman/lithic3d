@@ -1,5 +1,6 @@
 #pragma once
 
+#include "units.hpp"
 #include <memory>
 
 namespace fge
@@ -13,10 +14,14 @@ class EventSystem;
 class AudioSystem;
 namespace render { class Renderer; }
 class Ecs;
+struct InputState;
 
 class Engine
 {
   public:
+    virtual void setClearColour(const Vec4f& colour) = 0;
+    virtual void update(Tick tick, const InputState& inputState) = 0;
+
     virtual Logger& logger() = 0;
     virtual FileSystem& fileSystem() = 0;
     virtual EventSystem& eventSystem() = 0;

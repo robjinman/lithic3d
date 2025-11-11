@@ -8,14 +8,14 @@ struct Light
   float specular;
 };
 
-layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 0) uniform LightingUbo
+layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 1) uniform LightingUbo
 {
   vec3 viewPos;
   int numLights;
   Light lights[MAX_LIGHTS];
 } lighting;
 
-layout(set = DESCRIPTOR_SET_RENDER_PASS, binding = 1) uniform sampler2D shadowMapSampler;
+layout(set = DESCRIPTOR_SET_RENDER_PASS, binding = 2) uniform sampler2D shadowMapSampler;
 
 float sampleShadowMap(vec2 uv)
 {

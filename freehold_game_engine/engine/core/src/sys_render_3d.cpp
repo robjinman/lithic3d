@@ -68,8 +68,6 @@ class SysRender3dImpl : public SysRender3d
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
-    void setClearColour(const Vec4f& colour) override;
-
     // Animations
     //
     RenderItemId addAnimations(AnimationSetPtr animations) override;
@@ -115,7 +113,6 @@ class SysRender3dImpl : public SysRender3d
     DSkyboxPtr m_skybox;
     std::map<RenderItemId, AnimationSetPtr> m_animationSets;
     std::map<EntityId, AnimationState> m_animationStates;
-    Vec4f m_clearColour;
 
     using DrawFilter = std::function<bool(const Submodel&)>;
 
@@ -142,11 +139,6 @@ void SysRender3dImpl::compileShader(const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
 {
   m_renderer.compileShader(false, meshFeatures, materialFeatures);
-}
-
-void SysRender3dImpl::setClearColour(const Vec4f& colour)
-{
-  m_clearColour = colour;
 }
 
 // TODO: Remove
@@ -600,20 +592,10 @@ void SysRender3dImpl::updateAnimations()
 // TODO: Hot path. Optimise
 void SysRender3dImpl::update(Tick, const InputState&)
 {
-  try {
-    updateAnimations();
+  updateAnimations();
 
-    //m_renderer.beginFrame(m_clearColour);
-
-    //doShadowPass();
-    //doMainPass();
-
-    //m_renderer.endFrame();
-    //m_renderer.checkError();
-  }
-  catch(const std::exception& e) {
-    EXCEPTION(STR("Error rendering scene; " << e.what()));
-  }
+  doShadowPass();
+  doMainPass();
 }
 
 } // namespace

@@ -24,6 +24,10 @@ class EngineImpl : public Engine
     EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
       LoggerPtr logger);
 
+    void setClearColour(const Vec4f& colour) override;
+
+    void update(Tick tick, const InputState& inputState) override;
+
     Logger& logger() override;
     FileSystem& fileSystem() override;
     EventSystem& eventSystem() override;
@@ -38,6 +42,7 @@ class EngineImpl : public Engine
     LoggerPtr m_logger;
     EventSystemPtr m_eventSystem;
     EcsPtr m_ecs;
+    Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
 };
 
 EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
@@ -58,9 +63,6 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysUi = createSysUi(*m_ecs, *m_logger);
 
-  sysRender2d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
-  sysRender3d->setClearColour({ 0.f, 0.f, 0.f, 1.f });
-
   m_ecs->addSystem(RENDER_2D_SYSTEM, std::move(sysRender2d));
   m_ecs->addSystem(RENDER_3D_SYSTEM, std::move(sysRender3d));
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
@@ -69,6 +71,28 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
   //m_renderer->start();
+}
+
+void EngineImpl::setClearColour(const Vec4f& colour)
+{
+  m_clearColour = colour;
+}
+
+void EngineImpl::update(Tick tick, const InputState& inputState)
+{
+  try {
+    m_renderer->beginFrame(m_clearColour);
+
+    m_ecs->update(tick, inputState);
+
+    m_renderer->endFrame();
+    m_renderer->checkError();
+  }
+  catch(const std::exception& e) {
+    EXCEPTION(STR("Error rendering scene; " << e.what()));
+  }
+
+  m_eventSystem->processEvents();
 }
 
 Logger& EngineImpl::logger()

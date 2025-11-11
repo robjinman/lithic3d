@@ -192,7 +192,6 @@ class SysRender2dImpl : public SysRender2d
     void addEntity(EntityId entityId, const DQuad& data) override;
 
     void addScissor(ScissorId id, const Recti& scissor) override;
-    void setClearColour(const Vec4f& colour) override;
     void onResize() override;
 
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
@@ -216,7 +215,6 @@ class SysRender2dImpl : public SysRender2d
     MeshHandle m_mesh;
     std::unordered_map<EntityId, MeshHandle> m_textItems;
     std::unordered_map<ScissorId, Recti> m_scissors;
-    Vec4f m_clearColour{ 0.f, 0.f, 0.f, 1.f };
 };
 
 SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
@@ -312,11 +310,6 @@ void SysRender2dImpl::addScissor(ScissorId id, const Recti& scissor)
   ASSERT(id != 0, "Scissor ID 0 is reserved; choose a different number");
 
   m_scissors[id] = scissor;
-}
-
-void SysRender2dImpl::setClearColour(const Vec4f& colour)
-{
-  m_clearColour = colour;
 }
 
 void SysRender2dImpl::onResize()
@@ -505,86 +498,78 @@ const Camera2d& SysRender2dImpl::camera() const
 
 void SysRender2dImpl::update(Tick, const InputState&)
 {
-  try {
-    auto screenAspect = m_renderer.getViewParams().aspectRatio;
-    float gameAspect = 630.f / 480.f;  // TODO
-    m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
+  auto screenAspect = m_renderer.getViewParams().aspectRatio;
+  float gameAspect = 630.f / 480.f;  // TODO
+  m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
 
-    m_renderer.beginFrame(m_clearColour);
-    m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
+  m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
 
-    ScissorId scissor = 0;
-    for (auto& group : m_componentStore.components<CRender2d>()) {
-      size_t n = group.numEntities();
-      auto renderComps = group.components<CRender2d>();
-      auto spriteComps = group.components<CSprite>();
-      auto globalTs = group.components<CGlobalTransform>();
-      auto flags = group.components<CSpatialFlags>();
-      auto dynamicTextComps = group.components<CDynamicText>();
-      auto quadComps = group.components<CQuad>();
-      auto& entityIds = group.entityIds();
+  ScissorId scissor = 0;
+  for (auto& group : m_componentStore.components<CRender2d>()) {
+    size_t n = group.numEntities();
+    auto renderComps = group.components<CRender2d>();
+    auto spriteComps = group.components<CSprite>();
+    auto globalTs = group.components<CGlobalTransform>();
+    auto flags = group.components<CSpatialFlags>();
+    auto dynamicTextComps = group.components<CDynamicText>();
+    auto quadComps = group.components<CQuad>();
+    auto& entityIds = group.entityIds();
 
-      for (size_t i = 0; i < n; ++i) {
-        auto& renderComp = renderComps[i];
+    for (size_t i = 0; i < n; ++i) {
+      auto& renderComp = renderComps[i];
 
-        if (!renderComp.visible) {
-          continue;
-        }
-        if (!(flags[i].enabled && flags[i].parentEnabled)) {
-          continue;
-        }
+      if (!renderComp.visible) {
+        continue;
+      }
+      if (!(flags[i].enabled && flags[i].parentEnabled)) {
+        continue;
+      }
 
-        auto& t = globalTs[i].transform;
-        auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
+      auto& t = globalTs[i].transform;
+      auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
 
-        m_renderer.setOrderKey(renderComp.zIndex);
+      m_renderer.setOrderKey(renderComp.zIndex);
 
-        if (renderComp.scissor != scissor) {
-          scissor = renderComp.scissor;
-          m_renderer.setScissor(m_scissors.at(scissor));
-        }
+      if (renderComp.scissor != scissor) {
+        scissor = renderComp.scissor;
+        m_renderer.setScissor(m_scissors.at(scissor));
+      }
 
-        if (!spriteComps.empty()) {
-          auto& spriteComp = spriteComps[i];
+      if (!spriteComps.empty()) {
+        auto& spriteComp = spriteComps[i];
 
-          if (spriteComp.isText) {
-            if (!dynamicTextComps.empty()) {
-              auto& mesh = m_textItems.at(entityIds[i]);
-              m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text,
-                renderComp.colour, screenSpaceTransform);
-            }
-            else {
-              auto& mesh = m_textItems.at(entityIds[i]);
-              m_renderer.drawModel(mesh, m_textureAtlas, renderComp.colour, screenSpaceTransform);
-            }
+        if (spriteComp.isText) {
+          if (!dynamicTextComps.empty()) {
+            auto& mesh = m_textItems.at(entityIds[i]);
+            m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text,
+              renderComp.colour, screenSpaceTransform);
           }
           else {
-            Rectf& r = spriteComp.textureRect;
-
-            std::array<Vec2f, 4> uvCoords{
-              Vec2f{ r.x, r.y + r.h },
-              Vec2f{ r.x + r.w, r.y + r.h },
-              Vec2f{ r.x + r.w, r.y },
-              Vec2f{ r.x, r.y }
-            };
-
-            m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, renderComp.colour,
-              screenSpaceTransform);
+            auto& mesh = m_textItems.at(entityIds[i]);
+            m_renderer.drawModel(mesh, m_textureAtlas, renderComp.colour, screenSpaceTransform);
           }
         }
         else {
-          m_renderer.drawQuad(m_mesh, quadComps[i].radius, renderComp.colour, screenSpaceTransform);
+          Rectf& r = spriteComp.textureRect;
+
+          std::array<Vec2f, 4> uvCoords{
+            Vec2f{ r.x, r.y + r.h },
+            Vec2f{ r.x + r.w, r.y + r.h },
+            Vec2f{ r.x + r.w, r.y },
+            Vec2f{ r.x, r.y }
+          };
+
+          m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, renderComp.colour,
+            screenSpaceTransform);
         }
       }
+      else {
+        m_renderer.drawQuad(m_mesh, quadComps[i].radius, renderComp.colour, screenSpaceTransform);
+      }
     }
+  }
 
-    m_renderer.endPass();
-    m_renderer.endFrame();
-    m_renderer.checkError();
-  }
-  catch (const std::exception& e) {
-    EXCEPTION(STR("Error rendering scene; " << e.what()));
-  }
+  m_renderer.endPass();
 }
 
 } // namespace

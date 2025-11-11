@@ -3,7 +3,7 @@
 #include "common.glsl"
 #include "vertex/attributes.glsl"
 
-layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 0) uniform CameraTransformsUbo
+layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 0) uniform CameraTransformsUbo
 {
   mat4 viewMatrix;
   mat4 projMatrix;

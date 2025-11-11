@@ -121,7 +121,8 @@ class RenderResources
     // Transforms
     //
     // > Camera
-    virtual void updateCameraTransformsUbo(const CameraTransformsUbo& ubo, size_t currentFrame) = 0;
+    virtual void updateMainCameraUbo(const CameraTransformsUbo& ubo, size_t currentFrame) = 0;
+    virtual void updateOverlayCameraUbo(const CameraTransformsUbo& ubo, size_t currentFrame) = 0;
     // > Light
     virtual void updateLightTransformsUbo(const LightTransformsUbo& ubo, size_t currentFrame) = 0;
 

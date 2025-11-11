@@ -3,17 +3,17 @@
 #include "common.glsl"
 #include "vertex/attributes.glsl"
 
-layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 0) uniform CameraTransformsUbo
-{
-  mat4 viewMatrix;
-  mat4 projMatrix;
-} camera;
-
-layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 1) uniform LightTransformsUbo
+layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 0) uniform LightTransformsUbo
 {
   mat4 viewMatrix;
   mat4 projMatrix;
 } light;
+
+layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 0) uniform CameraTransformsUbo
+{
+  mat4 viewMatrix;
+  mat4 projMatrix;
+} camera;
 
 #ifdef FEATURE_VERTEX_SKINNING
 #define MAX_JOINTS 128

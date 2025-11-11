@@ -114,7 +114,6 @@ class SysRender2d : public System
     virtual Camera2d& camera() = 0;
     virtual const Camera2d& camera() const = 0;
 
-    virtual void setClearColour(const Vec4f& colour) = 0;
     virtual void addScissor(ScissorId id, const Recti& scissor) = 0;
     virtual void onResize() = 0;
 

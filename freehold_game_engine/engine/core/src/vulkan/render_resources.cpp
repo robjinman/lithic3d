@@ -64,14 +64,14 @@ using MaterialDataPtr = std::unique_ptr<MaterialData>;
 
 enum class GlobalDescriptorSetBindings : uint32_t
 {
-  CameraTransformsUbo = 0,
-  LightTransformsUbo = 1
+  LightTransformsUbo = 0
 };
 
 enum class RenderPassDescriptorSetBindings : uint32_t
 {
-  LightingUbo = 0,
-  ShadowMap = 1
+  CameraTransformsUbo = 0,
+  LightingUbo = 1,
+  ShadowMap = 2
 };
 
 enum class MaterialDescriptorSetBindings : uint32_t
@@ -129,7 +129,8 @@ class RenderResourcesImpl : public RenderResources
     // Transforms
     //
     // > Camera
-    void updateCameraTransformsUbo(const CameraTransformsUbo& ubo, size_t currentFrame) override;
+    void updateMainCameraUbo(const CameraTransformsUbo& ubo, size_t currentFrame) override;
+    void updateOverlayCameraUbo(const CameraTransformsUbo& ubo, size_t currentFrame) override;
     // > Light
     void updateLightTransformsUbo(const LightTransformsUbo& ubo, size_t currentFrame) override;
 
@@ -164,9 +165,11 @@ class RenderResourcesImpl : public RenderResources
 
     std::vector<VkDescriptorSet> m_globalDescriptorSets;
     std::vector<VkDescriptorSet> m_mainPassDescriptorSets;
-    //VkDescriptorSet m_shadowPassDescriptorSet;
+    std::vector<VkDescriptorSet> m_overlayPassDescriptorSets;
+    //std::vector<VkDescriptorSet> m_shadowPassDescriptorSets;
 
-    BufferedUbo m_cameraTransformsUbo;
+    BufferedUbo m_mainCameraUbo;
+    BufferedUbo m_overlayCameraUbo;
     BufferedUbo m_lightTransformsUbo;
     BufferedUbo m_lightingUbo;
 
@@ -205,6 +208,7 @@ class RenderResourcesImpl : public RenderResources
 
     void createGlobalDescriptorSet();
     void createMainPassDescriptorSet();
+    void createOverlayPassDescriptorSet();
     //void createShadowPassDescriptorSet();
 
     void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
@@ -220,7 +224,8 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
   , m_device(device)
   , m_graphicsQueue(graphicsQueue)
   , m_commandPool(commandPool)
-  , m_cameraTransformsUbo(physicalDevice, device, sizeof(CameraTransformsUbo))
+  , m_mainCameraUbo(physicalDevice, device, sizeof(CameraTransformsUbo))
+  , m_overlayCameraUbo(physicalDevice, device, sizeof(CameraTransformsUbo))
   , m_lightTransformsUbo(physicalDevice, device, sizeof(LightTransformsUbo))
   , m_lightingUbo(physicalDevice, device, sizeof(LightingUbo))
 {
@@ -231,6 +236,7 @@ RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevi
   createGlobalDescriptorSet();
   createRenderPassDescriptorSetLayout();
   createMainPassDescriptorSet();
+  createOverlayPassDescriptorSet();
   //createShadowPassDescriptorSet();
   createObjectDescriptorSetLayout();
 }
@@ -643,10 +649,16 @@ const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId 
   return m_materials.at(id)->material->featureSet;
 }
 
-void RenderResourcesImpl::updateCameraTransformsUbo(const CameraTransformsUbo& ubo,
+void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_cameraTransformsUbo.write(currentFrame, &ubo, sizeof(ubo));
+  m_mainCameraUbo.write(currentFrame, &ubo, sizeof(ubo));
+}
+
+void RenderResourcesImpl::updateOverlayCameraUbo(const CameraTransformsUbo& ubo,
+  size_t currentFrame)
+{
+  m_overlayCameraUbo.write(currentFrame, &ubo, sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateLightTransformsUbo(const LightTransformsUbo& ubo,
@@ -679,12 +691,11 @@ void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t curre
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,
   size_t currentFrame) const
 {
-  // TODO: Only main pass has per-pass resources currently
   switch (renderPass) {
     case RenderPass::Main: return m_mainPassDescriptorSets[currentFrame];
-    case RenderPass::Shadow: return m_mainPassDescriptorSets[currentFrame];
-    case RenderPass::Ssr: return m_mainPassDescriptorSets[currentFrame];
-    case RenderPass::Overlay: return m_mainPassDescriptorSets[currentFrame];
+    case RenderPass::Shadow: return m_mainPassDescriptorSets[currentFrame]; // TODO
+    case RenderPass::Ssr: return m_mainPassDescriptorSets[currentFrame];    // TODO
+    case RenderPass::Overlay: return m_overlayPassDescriptorSets[currentFrame];
   }
   EXCEPTION("Unknown render pass");
 }
@@ -919,14 +930,6 @@ void RenderResourcesImpl::createGlobalDescriptorSetLayout()
 {
   DBG_TRACE(m_logger);
 
-  VkDescriptorSetLayoutBinding cameraLayoutBinding{
-    .binding = static_cast<uint32_t>(GlobalDescriptorSetBindings::CameraTransformsUbo),
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-    .pImmutableSamplers = nullptr
-  };
-
   VkDescriptorSetLayoutBinding lightLayoutBinding{
     .binding = static_cast<uint32_t>(GlobalDescriptorSetBindings::LightTransformsUbo),
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -936,7 +939,6 @@ void RenderResourcesImpl::createGlobalDescriptorSetLayout()
   };
 
   std::vector<VkDescriptorSetLayoutBinding> bindings{
-    cameraLayoutBinding,
     lightLayoutBinding
     // ...
   };
@@ -959,6 +961,14 @@ void RenderResourcesImpl::createRenderPassDescriptorSetLayout()
 {
   DBG_TRACE(m_logger);
 
+  VkDescriptorSetLayoutBinding cameraLayoutBinding{
+    .binding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::CameraTransformsUbo),
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
   VkDescriptorSetLayoutBinding lightingUboLayoutBinding{
     .binding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::LightingUbo),
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -976,6 +986,7 @@ void RenderResourcesImpl::createRenderPassDescriptorSetLayout()
   };
 
   std::vector<VkDescriptorSetLayoutBinding> bindings{
+    cameraLayoutBinding,
     lightingUboLayoutBinding,
     shadowMapLayoutBinding
     // ...
@@ -1122,12 +1133,6 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
     "Failed to allocate descriptor sets");
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    VkDescriptorBufferInfo cameraBufferInfo{
-      .buffer = m_cameraTransformsUbo.buffer(i),
-      .offset = 0,
-      .range = sizeof(CameraTransformsUbo)
-    };
-
     VkDescriptorBufferInfo lightBufferInfo{
       .buffer = m_lightTransformsUbo.buffer(i),
       .offset = 0,
@@ -1135,18 +1140,6 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
     };
 
     std::vector<VkWriteDescriptorSet> descriptorWrites{
-      VkWriteDescriptorSet{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-        .dstSet = m_globalDescriptorSets[i],
-        .dstBinding = static_cast<uint32_t>(GlobalDescriptorSetBindings::CameraTransformsUbo),
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .pImageInfo = nullptr,
-        .pBufferInfo = &cameraBufferInfo,
-        .pTexelBufferView = nullptr
-      },
       VkWriteDescriptorSet{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
@@ -1217,7 +1210,13 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
     "Failed to allocate descriptor sets");
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    VkDescriptorBufferInfo bufferInfo{
+    VkDescriptorBufferInfo cameraBufferInfo{
+      .buffer = m_mainCameraUbo.buffer(i),
+      .offset = 0,
+      .range = sizeof(CameraTransformsUbo)
+    };
+
+    VkDescriptorBufferInfo lightingBufferInfo{
       .buffer = m_lightingUbo.buffer(i),
       .offset = 0,
       .range = sizeof(LightingUbo)
@@ -1229,7 +1228,19 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
       .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
     };
 
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{
+    std::vector<VkWriteDescriptorSet> descriptorWrites{
+      VkWriteDescriptorSet{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = m_mainPassDescriptorSets[i],
+        .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::CameraTransformsUbo),
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pImageInfo = nullptr,
+        .pBufferInfo = &cameraBufferInfo,
+        .pTexelBufferView = nullptr
+      },
       VkWriteDescriptorSet{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
@@ -1239,7 +1250,7 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
         .descriptorCount = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .pImageInfo = nullptr,
-        .pBufferInfo = &bufferInfo,
+        .pBufferInfo = &lightingBufferInfo,
         .pTexelBufferView = nullptr
       },
       VkWriteDescriptorSet{
@@ -1260,6 +1271,59 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
       descriptorWrites.data(), 0, nullptr);
 
     m_logger.info(STR("Main pass descriptor set: " << m_mainPassDescriptorSets[i]));
+  }
+}
+
+void RenderResourcesImpl::createOverlayPassDescriptorSet()
+{
+  VkFormat depthFormat = findDepthFormat(m_physicalDevice);
+
+  std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_renderPassDescriptorSetLayout);
+
+  VkDescriptorSetAllocateInfo allocInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .pNext = nullptr,
+    .descriptorPool = m_descriptorPool,
+    .descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT),
+    .pSetLayouts = layouts.data()
+  };
+
+  m_overlayPassDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+  VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, m_overlayPassDescriptorSets.data()),
+    "Failed to allocate descriptor sets");
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    VkDescriptorBufferInfo cameraBufferInfo{
+      .buffer = m_overlayCameraUbo.buffer(i),
+      .offset = 0,
+      .range = sizeof(CameraTransformsUbo)
+    };
+
+    VkDescriptorImageInfo imageInfo{
+      .sampler = m_shadowMapSampler,
+      .imageView = m_shadowMapImageView,
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+    };
+
+    std::vector<VkWriteDescriptorSet> descriptorWrites{
+      VkWriteDescriptorSet{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = m_overlayPassDescriptorSets[i],
+        .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::CameraTransformsUbo),
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pImageInfo = nullptr,
+        .pBufferInfo = &cameraBufferInfo,
+        .pTexelBufferView = nullptr
+      }
+    };
+  
+    vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(descriptorWrites.size()),
+      descriptorWrites.data(), 0, nullptr);
+
+    m_logger.info(STR("Render pass descriptor set: " << m_overlayPassDescriptorSets[i]));
   }
 }
 
