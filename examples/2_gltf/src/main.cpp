@@ -20,24 +20,23 @@ class Demo : public Game
   public:
     Demo(Engine& engine);
 
-    float gameViewportAspectRatio() const override;
-    void onKeyDown(KeyboardKey key) override;
-    void onKeyUp(KeyboardKey key) override;
-    void onButtonDown(GamepadButton button) override;
-    void onButtonUp(GamepadButton button) override;
-    void onMouseButtonDown() override;
-    void onMouseButtonUp() override;
-    void onMouseMove(const Vec2f& pos, const Vec2f& delta) override;
-    void onLeftStickMove(const Vec2f& delta) override;
-    void onRightStickMove(const Vec2f& delta) override;
-    void onWindowResize(uint32_t w, uint32_t h) override;
-    void hideMobileControls() override;
-    void showMobileControls() override;
+    float gameViewportAspectRatio() const override { return 1.4f; }
+    void onKeyDown(KeyboardKey) override {}
+    void onKeyUp(KeyboardKey) override {}
+    void onButtonDown(GamepadButton) override {}
+    void onButtonUp(GamepadButton) override {}
+    void onMouseButtonDown() override {}
+    void onMouseButtonUp() override {}
+    void onMouseMove(const Vec2f&, const Vec2f&) override {}
+    void onLeftStickMove(const Vec2f&) override {}
+    void onRightStickMove(const Vec2f&) override {}
+    void onWindowResize(uint32_t, uint32_t) override {}
+    void hideMobileControls() override {}
+    void showMobileControls() override {}
     bool update() override;
 
   private:
     Engine& m_engine;
-    InputState m_inputState;
     EntityId m_model = NULL_ENTITY;
 
     Tick m_currentTick = 0;
@@ -60,43 +59,24 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructLight()
 {
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-
   auto id = m_engine.ecs().componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform
   >();
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, 2.f }),
-    .parent = sysSpatial.root(),
+    .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
 
-  sysSpatial.addEntity(id, spatial);
-
-  float_t size = metresToWorldUnits(0.2);
-  Vec3f colour{ 1.f, 0.9f, 0.9f };
+  m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
   auto light = std::make_unique<DLight>();
-  light->colour = colour;
+  light->colour = { 1.f, 0.9f, 0.9f };
   light->ambient = 0.4f;
   light->specular = 0.9f;
-/*
-  auto mesh = cuboid(size, size, size, {});
-  mesh->attributeBuffers.resize(2);
-  mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrNormal };
-  mesh->featureSet.flags.set(MeshFeatures::CastsShadow, false);
-  MaterialPtr material = std::make_unique<Material>(MaterialFeatureSet{});
-  material->colour = { colour[0], colour[1], colour[2], 1.f };
 
-  light->submodels.push_back(Submodel{
-    .mesh = sysRender3d.addMesh(std::move(mesh)),
-    .material = sysRender3d.addMaterial(std::move(material)),
-    .skin = {}
-  });
-*/
-  sysRender3d.addEntity(id, std::move(light));
+  m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
   return id;
 }
@@ -120,7 +100,7 @@ EntityId Demo::constructModel()
 
   for (auto& submodel : render->submodels) {
     submodel.mesh.features.flags.set(MeshFeatures::CastsShadow, false);
-    sysRender3d.compileShader(submodel.mesh.features, submodel.material.features);
+    sysRender3d.renderer().compileShader(false, submodel.mesh.features, submodel.material.features);
   }
 
   sysRender3d.addEntity(id, std::move(render));
@@ -163,78 +143,6 @@ EntityId Demo::constructCaption()
   return id;
 }
 
-float Demo::gameViewportAspectRatio() const
-{
-  return 1.4;
-}
-
-void Demo::onKeyDown(KeyboardKey key)
-{
-  m_engine.logger().info("Key down");
-  m_inputState.keysPressed.insert(key);
-}
-
-void Demo::onKeyUp(KeyboardKey key)
-{
-  m_engine.logger().info("Key up");
-  m_inputState.keysPressed.erase(key);
-}
-
-void Demo::onButtonDown(GamepadButton button)
-{
-  m_engine.logger().info("Button down");
-  // Map to KeyboardKey
-}
-
-void Demo::onButtonUp(GamepadButton button)
-{
-  m_engine.logger().info("Button up");
-  // Map to KeyboardKey
-}
-
-void Demo::onMouseButtonDown()
-{
-  m_engine.logger().info("Mouse button down");
-  m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
-}
-
-void Demo::onMouseButtonUp()
-{
-  m_engine.logger().info("Mouse button up");
-  m_inputState.mouseButtonsPressed.erase(MouseButton::Left);
-}
-
-void Demo::onMouseMove(const Vec2f& pos, const Vec2f& delta)
-{
-  m_inputState.mouseX = pos[0];
-  m_inputState.mouseY = pos[1];
-}
-
-void Demo::onLeftStickMove(const Vec2f& delta)
-{
-  m_engine.logger().info("Left stick move");
-}
-
-void Demo::onRightStickMove(const Vec2f& delta)
-{
-  m_engine.logger().info("Right stick move");
-}
-
-void Demo::onWindowResize(uint32_t w, uint32_t h)
-{
-  m_engine.logger().info("Window resize");
-}
-
-void Demo::hideMobileControls()
-{
-  m_engine.logger().info("Hide mobile controls");
-}
-
-void Demo::showMobileControls()
-{
-  m_engine.logger().info("Show mobile controls");
-}
-
 void Demo::rotateModel()
 {
   float a = (2 * PIf / 360.f) * (m_currentTick % 360);
@@ -248,7 +156,7 @@ void Demo::rotateModel()
 bool Demo::update()
 {
   rotateModel();
-  m_engine.update(m_currentTick++, m_inputState);
+  m_engine.update(m_currentTick++, {});
 
   return true;
 }

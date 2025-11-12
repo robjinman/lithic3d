@@ -2,6 +2,7 @@
 #include "lithic3d/gltf.hpp"
 #include "lithic3d/file_system.hpp"
 #include "lithic3d/utils.hpp"
+#include "lithic3d/renderer.hpp"
 #include <set>
 
 namespace lithic3d
@@ -322,7 +323,7 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
     auto i = m_materials.find(textureFileName);
     if (i == m_materials.end()) {
       auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-      material->texture.id = sysRender3d.addTexture(std::move(texture));
+      material->texture.id = sysRender3d.renderer().addTexture(std::move(texture));
       m_materials[textureFileName] = material->texture.id;
     }
     else {
@@ -338,7 +339,7 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
     auto i = m_materials.find(normalMapFileName);
     if (i == m_materials.end()) {
       auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-      material->normalMap.id = sysRender3d.addNormalMap(std::move(texture));
+      material->normalMap.id = sysRender3d.renderer().addNormalMap(std::move(texture));
       m_materials[normalMapFileName] = material->normalMap.id;
     }
     else {
@@ -347,7 +348,7 @@ MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
   }
   // TODO: Repeat the above for cube maps
 
-  return sysRender3d.addMaterial(std::move(material));
+  return sysRender3d.renderer().addMaterial(std::move(material));
 }
 
 SkeletonPtr extractSkeleton(const gltf::ArmatureDesc& armature)
@@ -493,9 +494,10 @@ DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool is
 
   for (auto& submodelData : modelData->submodels) {
     Submodel submodel{
-      .mesh = sysRender3d.addMesh(std::move(submodelData->mesh)),
+      .mesh = sysRender3d.renderer().addMesh(std::move(submodelData->mesh)),
       .material = loadMaterial(std::move(submodelData->material)),
-      .skin = std::move(submodelData->skin)
+      .skin = std::move(submodelData->skin),
+      .jointTransforms{}
     };
 
     model->submodels.push_back(std::move(submodel));

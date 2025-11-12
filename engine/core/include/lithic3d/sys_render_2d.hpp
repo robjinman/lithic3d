@@ -103,6 +103,7 @@ struct CQuad
 };
 
 class Camera2d;
+namespace render { class Renderer; }
 
 class SysRender2d : public System
 {
@@ -111,6 +112,8 @@ class SysRender2d : public System
 
     virtual Camera2d& camera() = 0;
     virtual const Camera2d& camera() const = 0;
+
+    virtual render::Renderer& renderer() = 0;
 
     virtual void addScissor(ScissorId id, const Recti& scissor) = 0;
     virtual void onResize() = 0;
@@ -133,7 +136,6 @@ class SysRender2d : public System
 
 using SysRender2dPtr = std::unique_ptr<SysRender2d>;
 
-namespace render { class Renderer; }
 class FileSystem;
 class Logger;
 

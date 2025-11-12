@@ -106,6 +106,7 @@ struct DParticleEmitter
 using DParticleEmitterPtr = std::unique_ptr<DParticleEmitter>;
 
 class Camera3d;
+namespace render { class Renderer; }
 
 class SysRender3d : public System
 {
@@ -114,6 +115,8 @@ class SysRender3d : public System
 
     virtual Camera3d& camera() = 0;
     virtual const Camera3d& camera() const = 0;
+
+    virtual render::Renderer& renderer() = 0;
 
     virtual void addEntity(EntityId id, DModelPtr model) = 0;
     virtual void addEntity(EntityId id, DLightPtr light) = 0;
@@ -129,40 +132,11 @@ class SysRender3d : public System
 
     virtual ~SysRender3d() {}
 
-    //
-    // Pass through to Renderer
-    // ------------------------
-
-    // Initialisation
-    //
-    virtual void compileShader(const render::MeshFeatureSet& meshFeatures,
-      const render::MaterialFeatureSet& materialFeatures) = 0;
-
-    // Resources
-    //
-    virtual RenderItemId addTexture(render::TexturePtr texture) = 0;
-    virtual RenderItemId addNormalMap(render::TexturePtr texture) = 0;
-    virtual RenderItemId addCubeMap(std::array<render::TexturePtr, 6>&& textures) = 0;
-
-    virtual void removeTexture(RenderItemId id) = 0;
-    virtual void removeCubeMap(RenderItemId id) = 0;
-
-    // Meshes
-    //
-    virtual render::MeshHandle addMesh(render::MeshPtr mesh) = 0;
-    virtual void removeMesh(RenderItemId id) = 0;
-
-    // Materials
-    //
-    virtual render::MaterialHandle addMaterial(render::MaterialPtr material) = 0;
-    virtual void removeMaterial(RenderItemId id) = 0;
-
     static const SystemId id = RENDER_3D_SYSTEM;
 };
 
 using SysRender3dPtr = std::unique_ptr<SysRender3d>;
 
-namespace render { class Renderer; }
 class Logger;
 
 SysRender3dPtr createSysRender3d(const Ecs& ecs, render::Renderer& renderer, Logger& logger);

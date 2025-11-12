@@ -186,6 +186,8 @@ class SysRender2dImpl : public SysRender2d
     Camera2d& camera() override;
     const Camera2d& camera() const override;
 
+    render::Renderer& renderer() override;
+
     void addEntity(EntityId entityId, const DSprite& data) override;
     void addEntity(EntityId entityId, const DText& data) override;
     void addEntity(EntityId entityId, const DDynamicText& data) override;
@@ -298,6 +300,11 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
   m_textureAtlas = m_renderer.addMaterial(std::move(atlasMaterial));
 
   m_mesh = m_renderer.addMesh(quad());
+}
+
+render::Renderer& SysRender2dImpl::renderer()
+{
+  return m_renderer;
 }
 
 double SysRender2dImpl::frameRate() const

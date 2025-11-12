@@ -1,14 +1,15 @@
 #include <lithic3d/engine.hpp>
 #include <lithic3d/game.hpp>
-#include <lithic3d/renderer.hpp>
 #include <lithic3d/ecs.hpp>
-#include <lithic3d/file_system.hpp>
 #include <lithic3d/sys_render_2d.hpp>
 #include <lithic3d/sys_render_3d.hpp>
 #include <lithic3d/sys_spatial.hpp>
+#include <lithic3d/factory.hpp>
+#include <lithic3d/renderer.hpp>
 #include <lithic3d/logger.hpp>
 
 using namespace lithic3d;
+using namespace lithic3d::render;
 
 namespace
 {
@@ -18,24 +19,24 @@ class Demo : public Game
   public:
     Demo(Engine& engine);
 
-    float gameViewportAspectRatio() const override;
-    void onKeyDown(KeyboardKey key) override;
-    void onKeyUp(KeyboardKey key) override;
-    void onButtonDown(GamepadButton button) override;
-    void onButtonUp(GamepadButton button) override;
-    void onMouseButtonDown() override;
-    void onMouseButtonUp() override;
-    void onMouseMove(const Vec2f& pos, const Vec2f& delta) override;
-    void onLeftStickMove(const Vec2f& delta) override;
-    void onRightStickMove(const Vec2f& delta) override;
-    void onWindowResize(uint32_t w, uint32_t h) override;
-    void hideMobileControls() override;
-    void showMobileControls() override;
+    float gameViewportAspectRatio() const override { return 1.4f; }
+    void onKeyDown(KeyboardKey) override {}
+    void onKeyUp(KeyboardKey) override {}
+    void onButtonDown(GamepadButton) override {}
+    void onButtonUp(GamepadButton) override {}
+    void onMouseButtonDown() override {}
+    void onMouseButtonUp() override {}
+    void onMouseMove(const Vec2f&, const Vec2f&) override {}
+    void onLeftStickMove(const Vec2f&) override {}
+    void onRightStickMove(const Vec2f&) override {}
+    void onWindowResize(uint32_t, uint32_t) override {}
+    void hideMobileControls() override {}
+    void showMobileControls() override {}
     bool update() override;
 
   private:
     Engine& m_engine;
-    InputState m_inputState;
+    FactoryPtr m_factory;
     EntityId m_cube = NULL_ENTITY;
 
     Tick m_currentTick = 0;
@@ -49,6 +50,8 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
+  m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
+
   constructLight();
   m_cube = constructCube();
   constructCaption();
@@ -56,105 +59,55 @@ Demo::Demo(Engine& engine)
   m_engine.renderer().start(); // TODO: Move to engine?
 }
 
+EntityId Demo::constructCube()
+{
+  EntityId id = m_engine.ecs().componentStore().allocate<
+    CSpatialFlags, CLocalTransform, CGlobalTransform
+  >();
+
+  auto material = m_factory->constructMaterial("textures/bricks.png");
+  m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f });
+
+  return id;
+}
+
 EntityId Demo::constructLight()
 {
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-
   auto id = m_engine.ecs().componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform
   >();
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, 2.f }),
-    .parent = sysSpatial.root(),
+    .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
 
-  sysSpatial.addEntity(id, spatial);
-
-  float_t size = metresToWorldUnits(0.2);
-  Vec3f colour{ 1.f, 0.9f, 0.9f };
+  m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
   auto light = std::make_unique<DLight>();
-  light->colour = colour;
+  light->colour = { 1.f, 0.9f, 0.9f };
   light->ambient = 0.4f;
   light->specular = 0.9f;
 
-  sysRender3d.addEntity(id, std::move(light));
-
-  return id;
-}
-
-EntityId Demo::constructCube()
-{
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-
-  EntityId id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
-
-  DSpatial spatial{};
-  spatial.parent = sysSpatial.root();
-
-  sysSpatial.addEntity(id, spatial);
-
-  auto mesh = render::cuboid(1.f, 1.f, 1.f, { 1.f, 1.f });
-
-  mesh->featureSet = render::MeshFeatureSet{
-    .vertexLayout = {
-      render::BufferUsage::AttrPosition,
-      render::BufferUsage::AttrNormal,
-      render::BufferUsage::AttrTexCoord
-    },
-    .flags{}
-  };
-
-  render::MaterialFeatures::Flags materialFlags{};
-  materialFlags.set(render::MaterialFeatures::HasTexture);
-
-  render::MaterialFeatureSet materialFeatures{
-    .flags = materialFlags
-  };
-
-  m_engine.renderer().compileShader(false, mesh->featureSet, materialFeatures);
-
-  auto texture = render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
-  auto material = std::make_unique<render::Material>(materialFeatures);
-  material->texture.id = sysRender3d.addTexture(std::move(texture));
-
-  auto model = std::make_unique<DModel>();
-
-  model->submodels.push_back(
-    Submodel{
-      .mesh = sysRender3d.addMesh(std::move(mesh)),
-      .material = sysRender3d.addMaterial(std::move(material)),
-      .skin = nullptr
-    }
-  );
-
-  sysRender3d.addEntity(id, std::move(model));
+  m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
   return id;
 }
 
 EntityId Demo::constructCaption()
 {
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto& sysRender2d = m_engine.ecs().system<SysRender2d>();
-
   EntityId id = m_engine.ecs().componentStore().allocate<
     CSpatialFlags, CLocalTransform, CGlobalTransform, CRender2d, CSprite
   >();
 
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
-    .parent = sysSpatial.root(),
+    .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
 
-  sysSpatial.addEntity(id, spatial);
+  m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
   DText render{
     .scissor = 0,
@@ -169,81 +122,9 @@ EntityId Demo::constructCaption()
     .colour = { 1.f, 1.f, 1.f, 1.f }
   };
 
-  sysRender2d.addEntity(id, render);
+  m_engine.ecs().system<SysRender2d>().addEntity(id, render);
 
   return id;
-}
-
-float Demo::gameViewportAspectRatio() const
-{
-  return 1.4;
-}
-
-void Demo::onKeyDown(KeyboardKey key)
-{
-  m_engine.logger().info("Key down");
-  m_inputState.keysPressed.insert(key);
-}
-
-void Demo::onKeyUp(KeyboardKey key)
-{
-  m_engine.logger().info("Key up");
-  m_inputState.keysPressed.erase(key);
-}
-
-void Demo::onButtonDown(GamepadButton button)
-{
-  m_engine.logger().info("Button down");
-  // Map to KeyboardKey
-}
-
-void Demo::onButtonUp(GamepadButton button)
-{
-  m_engine.logger().info("Button up");
-  // Map to KeyboardKey
-}
-
-void Demo::onMouseButtonDown()
-{
-  m_engine.logger().info("Mouse button down");
-  m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
-}
-
-void Demo::onMouseButtonUp()
-{
-  m_engine.logger().info("Mouse button up");
-  m_inputState.mouseButtonsPressed.erase(MouseButton::Left);
-}
-
-void Demo::onMouseMove(const Vec2f& pos, const Vec2f& delta)
-{
-  m_inputState.mouseX = pos[0];
-  m_inputState.mouseY = pos[1];
-}
-
-void Demo::onLeftStickMove(const Vec2f& delta)
-{
-  m_engine.logger().info("Left stick move");
-}
-
-void Demo::onRightStickMove(const Vec2f& delta)
-{
-  m_engine.logger().info("Right stick move");
-}
-
-void Demo::onWindowResize(uint32_t w, uint32_t h)
-{
-  m_engine.logger().info("Window resize");
-}
-
-void Demo::hideMobileControls()
-{
-  m_engine.logger().info("Hide mobile controls");
-}
-
-void Demo::showMobileControls()
-{
-  m_engine.logger().info("Show mobile controls");
 }
 
 void Demo::rotateCube()
@@ -259,7 +140,7 @@ void Demo::rotateCube()
 bool Demo::update()
 {
   rotateCube();
-  m_engine.update(m_currentTick++, m_inputState);
+  m_engine.update(m_currentTick++, {});
 
   return true;
 }

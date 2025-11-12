@@ -59,6 +59,8 @@ class SysRender3dImpl : public SysRender3d
     Camera3d& camera() override;
     const Camera3d& camera() const override;
 
+    render::Renderer& renderer() override;
+
     void addEntity(EntityId id, DModelPtr model) override;
     void addEntity(EntityId id, DLightPtr light) override;
     void addEntity(EntityId id, DSkyboxPtr skybox) override;
@@ -73,34 +75,6 @@ class SysRender3dImpl : public SysRender3d
     RenderItemId addAnimations(AnimationSetPtr animations) override;
     void removeAnimations(RenderItemId id) override;
     void playAnimation(EntityId entityId, const std::string& name) override;
-
-    //
-    // Pass through to Renderer
-    // ------------------------
-
-    // Initialisation
-    //
-    void compileShader(const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures) override;
-
-    // Resources
-    //
-    RenderItemId addTexture(TexturePtr texture) override;
-    RenderItemId addNormalMap(TexturePtr texture) override;
-    RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
-
-    void removeTexture(RenderItemId id) override;
-    void removeCubeMap(RenderItemId id) override;
-
-    // Meshes
-    //
-    MeshHandle addMesh(MeshPtr mesh) override;
-    void removeMesh(RenderItemId id) override;
-
-    // Materials
-    //
-    MaterialHandle addMaterial(MaterialPtr material) override;
-    void removeMaterial(RenderItemId id) override;
 
   private:
     Logger& m_logger;
@@ -135,10 +109,9 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& log
 {
 }
 
-void SysRender3dImpl::compileShader(const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures)
+render::Renderer& SysRender3dImpl::renderer()
 {
-  m_renderer.compileShader(false, meshFeatures, materialFeatures);
+  return m_renderer;
 }
 
 // TODO: Remove
@@ -215,54 +188,6 @@ void SysRender3dImpl::addEntity(EntityId id, DLightPtr light)
 void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
 {
   m_skybox = std::move(skybox);
-}
-
-RenderItemId SysRender3dImpl::addTexture(TexturePtr texture)
-{
-  return m_renderer.addTexture(std::move(texture));
-}
-
-RenderItemId SysRender3dImpl::addNormalMap(TexturePtr texture)
-{
-  return m_renderer.addNormalMap(std::move(texture));
-}
-
-RenderItemId SysRender3dImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
-{
-  return m_renderer.addCubeMap(std::move(textures));
-}
-
-MaterialHandle SysRender3dImpl::addMaterial(MaterialPtr material)
-{
-  return m_renderer.addMaterial(std::move(material));
-}
-
-MeshHandle SysRender3dImpl::addMesh(MeshPtr mesh)
-{
-  auto handle = m_renderer.addMesh(std::move(mesh));
-
-
-  return handle;
-}
-
-void SysRender3dImpl::removeTexture(RenderItemId id)
-{
-  m_renderer.removeTexture(id);
-}
-
-void SysRender3dImpl::removeCubeMap(RenderItemId id)
-{
-  m_renderer.removeCubeMap(id);
-}
-
-void SysRender3dImpl::removeMaterial(RenderItemId id)
-{
-  m_renderer.removeMaterial(id);
-}
-
-void SysRender3dImpl::removeMesh(RenderItemId id)
-{
-  m_renderer.removeMesh(id);
 }
 
 RenderItemId SysRender3dImpl::addAnimations(AnimationSetPtr animations)
