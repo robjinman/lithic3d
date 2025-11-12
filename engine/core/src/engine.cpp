@@ -26,8 +26,8 @@ class EngineImpl : public Engine
       LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
-
     void update(Tick tick, const InputState& inputState) override;
+    void onWindowResize() override;
 
     Logger& logger() override;
     FileSystem& fileSystem() override;
@@ -98,6 +98,11 @@ void EngineImpl::update(Tick tick, const InputState& inputState)
   }
 
   m_eventSystem->processEvents();
+}
+
+void EngineImpl::onWindowResize()
+{
+  m_renderer->onResize();
 }
 
 Logger& EngineImpl::logger()

@@ -69,6 +69,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
 void ApplicationImpl::onViewResize(float w, float h)
 {
   m_screenSize = { static_cast<int>(w), static_cast<int>(h) };
+  m_engine->onWindowResize();
   m_game->onWindowResize(w, h);
 }
 
@@ -76,6 +77,7 @@ bool ApplicationImpl::update()
 {
   auto screenSize = m_engine->renderer().getScreenSize();
   if (screenSize != m_screenSize) {
+    m_engine->onWindowResize();
     m_game->onWindowResize(screenSize[0], screenSize[1]);
     m_screenSize = screenSize;
   }

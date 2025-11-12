@@ -139,7 +139,7 @@ Application::Application()
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
   m_instance = this;
 
@@ -256,6 +256,7 @@ void Application::toggleFullScreen()
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
+    m_engine->onWindowResize();
     m_game->onWindowResize(m_initialWindowState.width, m_initialWindowState.height);
 
     m_fullscreen = false;
@@ -274,6 +275,7 @@ void Application::toggleFullScreen()
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
+    m_engine->onWindowResize();
     m_game->onWindowResize(m_config.fullscreenResolutionW, m_config.fullscreenResolutionH);
 
     m_fullscreen = true;
@@ -282,6 +284,7 @@ void Application::toggleFullScreen()
 
 void Application::onWindowResize(int w, int h)
 {
+  m_engine->onWindowResize();
   m_game->onWindowResize(w, h);
 }
 

@@ -1,1 +1,2 @@
 src/main/jniLibs/**/* filter=lfs diff=lfs merge=lfs -text
+src/debug/jniLibs/**/* filter=lfs diff=lfs merge=lfs -text

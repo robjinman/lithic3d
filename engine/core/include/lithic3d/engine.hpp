@@ -22,6 +22,7 @@ class Engine
   public:
     virtual void setClearColour(const Vec4f& colour) = 0;
     virtual void update(Tick tick, const InputState& inputState) = 0;
+    virtual void onWindowResize() = 0;
 
     virtual Logger& logger() = 0;
     virtual FileSystem& fileSystem() = 0;

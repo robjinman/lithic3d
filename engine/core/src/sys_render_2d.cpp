@@ -178,8 +178,8 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
 class SysRender2dImpl : public SysRender2d
 {
   public:
-    SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer, const FileSystem& fileSystem,
-      Logger& logger);
+    SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
+      const FileSystem& fileSystem, Logger& logger);
 
     double frameRate() const override;
 
@@ -194,7 +194,6 @@ class SysRender2dImpl : public SysRender2d
     void addEntity(EntityId entityId, const DQuad& data) override;
 
     void addScissor(ScissorId id, const Recti& scissor) override;
-    void onResize() override;
 
     void setZIndex(EntityId entityId, uint32_t zIndex) override;
     void setTextureRect(EntityId entityId, const Rectf& textureRect) override;
@@ -317,11 +316,6 @@ void SysRender2dImpl::addScissor(ScissorId id, const Recti& scissor)
   ASSERT(id != 0, "Scissor ID 0 is reserved; choose a different number");
 
   m_scissors[id] = scissor;
-}
-
-void SysRender2dImpl::onResize()
-{
-  m_renderer.onResize();  // Async
 }
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)

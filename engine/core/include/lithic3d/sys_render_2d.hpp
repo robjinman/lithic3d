@@ -116,7 +116,6 @@ class SysRender2d : public System
     virtual render::Renderer& renderer() = 0;
 
     virtual void addScissor(ScissorId id, const Recti& scissor) = 0;
-    virtual void onResize() = 0;
 
     virtual void addEntity(EntityId entityId, const DSprite& data) = 0;
     virtual void addEntity(EntityId entityId, const DText& data) = 0;

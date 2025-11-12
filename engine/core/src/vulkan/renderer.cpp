@@ -680,13 +680,18 @@ void RendererImpl::beginFrame(const Vec4f& clearColour)
 {
   DBG_TRACE(m_logger);
 
+  VkRect2D defaultScissor{ VkOffset2D{0, 0}, m_swapchainExtent };
+  if (m_viewRotated) {
+    defaultScissor = rotateRect(defaultScissor);
+  }
+
   auto& state = m_frameStates.getWritable();
   state.lighting = LightingState{};
   state.clearColour = clearColour;
   state.currentRenderPass = std::nullopt;
   state.renderPasses.clear();
   state.scissors.clear();
-  state.scissors.push_back({ VkOffset2D{0, 0}, m_swapchainExtent });
+  state.scissors.push_back(defaultScissor);
   state.currentScissor = 0;
 }
 
@@ -1457,6 +1462,7 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
     if (node->scissorId != scissorId || &pipeline != prevPipeline) {
       scissorId = node->scissorId;
       auto margins = m_viewRotated ? rotateMargins(m_margins) : m_margins;
+
       auto rect = m_viewRotated ? rotateRect(scissors[scissorId]) : scissors[scissorId];
       rect.offset.x += margins.left;
       rect.offset.y += margins.top;

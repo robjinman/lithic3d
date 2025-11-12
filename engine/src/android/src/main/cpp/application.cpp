@@ -138,6 +138,7 @@ bool Application::update()
 {
   auto screenSize = m_engine->renderer().getScreenSize();
   if (screenSize != m_screenSize) {
+    m_engine->onWindowResize();
     m_game->onWindowResize(screenSize[0], screenSize[1]);
     m_screenSize = screenSize;
   }
@@ -154,7 +155,7 @@ void Application::hideMobileControls()
 
 void Application::onConfigChange()
 {
-  m_engine->renderer().onResize();
+  m_engine->onWindowResize();
 }
 
 void Application::onLeftStickMove(float x, float y)
