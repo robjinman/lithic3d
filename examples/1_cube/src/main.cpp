@@ -7,6 +7,7 @@
 #include <lithic3d/factory.hpp>
 #include <lithic3d/renderer.hpp>
 #include <lithic3d/logger.hpp>
+#include <lithic3d/file_system.hpp>
 
 using namespace lithic3d;
 using namespace lithic3d::render;
@@ -111,11 +112,12 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
+    .material = m_factory->constructMaterial("textures/fonts.png"),
     .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
+      .x = pxToUvX(768.f, 1024.f),
+      .y = pxToUvY(0.f, 256.f, 256.f),
+      .w = pxToUvW(256.f, 1024.f),
+      .h = pxToUvH(256.f, 256.f)
     },
     .text = "Welcome to Lithic3D!",
     .zIndex = 0,

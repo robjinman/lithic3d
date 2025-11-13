@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lithic3d/renderer.hpp"
-#include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
 
 namespace lithic3d
 {
@@ -140,8 +140,8 @@ class RenderResources
 
 using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
-RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
+RenderResourcesPtr createRenderResources(VmaAllocator allocator, VkPhysicalDevice physicalDevice,
+  VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
 
 } // namespace render
 } // namespace lithic3d

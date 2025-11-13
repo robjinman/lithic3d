@@ -29,34 +29,29 @@ Vector<float, N> metresToWorldUnits(const Vector<float, N>& v)
 
 using ScissorId = size_t;
 
-// TODO: Remove
-const uint32_t ATLAS_WIDTH_PX = 1024;
-const uint32_t ATLAS_HEIGHT_PX = 512;
-
-inline float pxToUvX(float px)
+inline float pxToUvX(float px, float textureWidthPx)
 {
   px += 0.5f;
-  return px / static_cast<float>(ATLAS_WIDTH_PX);
+  return px / textureWidthPx;
 }
 
-inline float pxToUvY(float pxY, float pxH)
+inline float pxToUvY(float pxY, float pxH, float textureHeightPx)
 {
   pxY += 0.5f;
   pxH -= 1.f;
-  return (static_cast<float>(ATLAS_HEIGHT_PX) - pxY - pxH) /
-    static_cast<float>(ATLAS_HEIGHT_PX);
+  return (textureHeightPx - pxY - pxH) / textureHeightPx;
 }
 
-inline float pxToUvW(float pw)
+inline float pxToUvW(float pw, float textureWidthPx)
 {
   pw -= 1.f;
-  return pw / static_cast<float>(ATLAS_WIDTH_PX);
+  return pw / textureWidthPx;
 }
 
-inline float pxToUvH(float ph)
+inline float pxToUvH(float ph, float textureHeightPx)
 {
   ph -= 1.f;
-  return ph / static_cast<float>(ATLAS_HEIGHT_PX);
+  return ph / textureHeightPx;
 }
 
 } // namespace lithic3d

@@ -1,6 +1,7 @@
 {
   "dependencies": [
     "gtest",
+    "vulkan-memory-allocator",
     "glfw3",
     "tinyxml2",
     "stb",
@@ -12,6 +13,10 @@
     {
       "name": "gtest",
       "version": "1.14.0"
+    },
+    {
+      "name": "vulkan-memory-allocator",
+      "version": "3.3.0"
     },
     {
       "name": "glfw3",

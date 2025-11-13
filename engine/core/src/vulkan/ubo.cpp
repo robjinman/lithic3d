@@ -6,75 +6,65 @@ namespace lithic3d
 namespace render
 {
 
-BufferedUbo::BufferedUbo(VkPhysicalDevice physicalDevice, VkDevice device, size_t size)
+Ubo::Ubo(VkDevice device, VmaAllocator allocator, size_t size)
   : m_device(device)
+  , m_allocator(allocator)
 {
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    auto& resources = m_resources[i];
+  VkBufferCreateInfo bufferInfo{
+    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .size = size,
+    .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr
+  };
 
-    VkBufferCreateInfo bufferInfo{
-      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .pNext = nullptr,
-      .flags = 0,
-      .size = size,
-      .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-      .queueFamilyIndexCount = 0,
-      .pQueueFamilyIndices = nullptr
-    };
+  VmaAllocationCreateInfo allocInfo{};
+  allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+  allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
+    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
-    VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &resources.buffer),
-      "Failed to create buffer");
+  VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &m_buffer, &m_alloc, &m_allocInfo),
+    "Failed to create buffer");
+}
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, resources.buffer, &memRequirements);
-    m_allocatedSize = memRequirements.size;
+VkBuffer Ubo::buffer()
+{
+  return m_buffer;
+}
 
-    VkMemoryAllocateInfo allocInfo{
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .pNext = nullptr,
-      .allocationSize = m_allocatedSize,
-      .memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-    };
+void Ubo::write(const void* data, size_t size)
+{
+  memcpy(m_allocInfo.pMappedData, data, size);
 
-    VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &resources.memory),
-      "Failed to allocate memory for buffer");
+  VK_CHECK(vmaFlushAllocation(m_allocator, m_alloc, 0, VK_WHOLE_SIZE),
+    "Failed to flush memory ranges");
+}
 
-    vkBindBufferMemory(m_device, resources.buffer, resources.memory, 0);
+Ubo::~Ubo()
+{
+  vmaDestroyBuffer(m_allocator, m_buffer, m_alloc);
+}
 
-    vkMapMemory(m_device, resources.memory, 0, m_allocatedSize, 0, &resources.mapped);
+BufferedUbo::BufferedUbo(VkDevice device, VmaAllocator allocator, size_t size)
+  : m_ubos{
+    Ubo{device, allocator, size},
+    Ubo{device, allocator, size}
   }
+{
 }
 
 void BufferedUbo::write(size_t frame, const void* data, size_t size)
 {
-  memcpy(m_resources[frame].mapped, data, size);
-
-  VkMappedMemoryRange range{
-    .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-    .pNext = nullptr,
-    .memory = m_resources[frame].memory,
-    .offset = 0,
-    .size = m_allocatedSize
-  };
-
-  VK_CHECK(vkFlushMappedMemoryRanges(m_device, 1, &range), "Failed to flush memory ranges");
+  m_ubos[frame].write(data, size);
 }
 
-VkBuffer BufferedUbo::buffer(size_t frame) const
+VkBuffer BufferedUbo::buffer(size_t frame)
 {
-  return m_resources[frame].buffer;
-}
-
-BufferedUbo::~BufferedUbo()
-{
-  for (size_t i = 0; i < m_resources.size(); ++i) {
-    vkDestroyBuffer(m_device, m_resources[i].buffer, nullptr);
-    vkFreeMemory(m_device, m_resources[i].memory, nullptr);
-  }
+  return m_ubos[frame].buffer();
 }
 
 } // namespace render
 } // namespace lithic3d
-

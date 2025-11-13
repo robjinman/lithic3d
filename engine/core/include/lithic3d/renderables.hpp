@@ -211,6 +211,12 @@ struct Mesh
 
 using MeshPtr = std::unique_ptr<Mesh>;
 
+struct BitmapFont
+{
+  MaterialHandle material;
+  Rectf textureSection;
+};
+
 template<typename T>
 std::span<const T> getConstBufferData(const Buffer& buffer)
 {

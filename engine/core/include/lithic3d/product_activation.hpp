@@ -25,9 +25,10 @@ class ProductActivation
 using ProductActivationPtr = std::unique_ptr<ProductActivation>;
 
 class Drm;
+namespace render { class BitmapFont; }
 class Logger;
 
 ProductActivationPtr createProductActivation(Ecs& ecs, EventSystem& eventSystem, Drm& drm,
-  Logger& logger);
+  const render::BitmapFont& font, Logger& logger);
 
 } // namespace lithic3d

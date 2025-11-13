@@ -85,6 +85,7 @@ if(PLATFORM_LINUX)
   endif()
 
   find_package(Vulkan REQUIRED)
+  find_package(VulkanMemoryAllocator CONFIG REQUIRED)
   find_package(OpenSSL REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DDRM -DPLATFORM_LINUX)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g -D_GLIBCXX_DEBUG)
@@ -95,12 +96,14 @@ if(PLATFORM_LINUX)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
     Vulkan::Vulkan
+    GPUOpen::VulkanMemoryAllocator
     OpenSSL::SSL
     OpenAL::OpenAL
     fmt::fmt
   )
 elseif(PLATFORM_ANDROID)
   find_package(Vulkan REQUIRED)
+  find_package(VulkanMemoryAllocator CONFIG REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DPLATFORM_ANDROID)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
@@ -118,6 +121,7 @@ elseif(PLATFORM_ANDROID)
     log
     app-glue
     Vulkan::Vulkan
+    GPUOpen::VulkanMemoryAllocator
     OpenAL::OpenAL
     fmt::fmt
   )
@@ -141,6 +145,7 @@ elseif(PLATFORM_ANDROID)
   )
 elseif(PLATFORM_WINDOWS)
   find_package(Vulkan REQUIRED)
+  find_package(VulkanMemoryAllocator CONFIG REQUIRED)
   find_package(OpenSSL REQUIRED)
   set(COMPILE_FLAGS /W4 /DDRM /DPLATFORM_WINDOWS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS})
@@ -148,12 +153,14 @@ elseif(PLATFORM_WINDOWS)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
     Vulkan::Vulkan
+    GPUOpen::VulkanMemoryAllocator
     OpenSSL::SSL
     OpenAL::OpenAL
     fmt::fmt
   )
 elseif(PLATFORM_OSX)
   find_package(Vulkan REQUIRED)
+  find_package(VulkanMemoryAllocator CONFIG REQUIRED)
   find_package(OpenSSL REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DDRM -DPLATFORM_OSX)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
@@ -161,6 +168,7 @@ elseif(PLATFORM_OSX)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
   target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
     Vulkan::Vulkan
+    GPUOpen::VulkanMemoryAllocator
     OpenSSL::SSL
     OpenAL::OpenAL
     fmt::fmt
@@ -168,11 +176,15 @@ elseif(PLATFORM_OSX)
 elseif(PLATFORM_IOS)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../platform/ios/cmake")
   find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
+  find_package(VulkanMemoryAllocator CONFIG REQUIRED)
   set(COMPILE_FLAGS -Wextra -Wall -DPLATFORM_IOS)
   set(DEBUG_COMPILE_FLAGS ${COMPILE_FLAGS} -g)
   set(RELEASE_COMPILE_FLAGS ${COMPILE_FLAGS} -O3)
   add_library(${ENGINE_LIB_TARGET} ${CPP_SOURCES})
-  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC Vulkan::MoltenVK)
+  target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC
+    Vulkan::MoltenVK
+    GPUOpen::VulkanMemoryAllocator
+  )
 
   if(NOT DEFINED IOS_SIMULATOR)
     target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC OpenAL::OpenAL fmt::fmt)

@@ -29,6 +29,7 @@ using render::RenderPass;
 using render::Buffer;
 using render::BufferUsage;
 using render::toBytes;
+using render::bitflag;
 
 namespace
 {
@@ -212,7 +213,6 @@ class SysRender2dImpl : public SysRender2d
     Camera2d m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
-    MaterialHandle m_textureAtlas;
     MeshHandle m_mesh;
     std::unordered_map<EntityId, MeshHandle> m_textItems;
     std::unordered_map<ScissorId, Recti> m_scissors;
@@ -235,8 +235,9 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
       },
       .flags{}
     };
-    MaterialFeatureSet materialFeatures{};
-    materialFeatures.flags.set(MaterialFeatures::HasTexture);
+    MaterialFeatureSet materialFeatures{
+      .flags{ bitflag(MaterialFeatures::HasTexture) }
+    };
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
@@ -248,11 +249,11 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
         BufferUsage::AttrNormal,
         BufferUsage::AttrTexCoord
       },
-      .flags{}
+      .flags{ bitflag(MeshFeatures::IsQuad) }
     };
-    meshFeatures.flags.set(MeshFeatures::IsQuad);
-    MaterialFeatureSet materialFeatures{};
-    materialFeatures.flags.set(MaterialFeatures::HasTexture);
+    MaterialFeatureSet materialFeatures{
+      .flags{ bitflag(MaterialFeatures::HasTexture) }
+    };
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
@@ -264,9 +265,8 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
         BufferUsage::AttrNormal,
         BufferUsage::AttrTexCoord
       },
-      .flags{}
+      .flags{ bitflag(MeshFeatures::IsQuad) }
     };
-    meshFeatures.flags.set(MeshFeatures::IsQuad);
     MaterialFeatureSet materialFeatures{};
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
@@ -279,24 +279,13 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
         BufferUsage::AttrNormal,
         BufferUsage::AttrTexCoord
       },
-      .flags{}
+      .flags{ bitflag(MeshFeatures::IsDynamicText) }
     };
-    meshFeatures.flags.set(MeshFeatures::IsDynamicText);
-    MaterialFeatureSet materialFeatures{};
-    materialFeatures.flags.set(MaterialFeatures::HasTexture);
+    MaterialFeatureSet materialFeatures{
+      .flags{ bitflag(MaterialFeatures::HasTexture) }
+    };
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
-
-  // TODO
-  auto atlas = render::loadTexture(m_fileSystem.readAppDataFile("textures/atlas.png"));
-
-  MaterialFeatureSet atlasFeatures{};
-  atlasFeatures.flags.set(MaterialFeatures::HasTexture);
-
-  auto atlasMaterial = std::make_unique<Material>(atlasFeatures);
-  atlasMaterial->texture.id = m_renderer.addTexture(std::move(atlas));
-
-  m_textureAtlas = m_renderer.addMaterial(std::move(atlasMaterial));
 
   m_mesh = m_renderer.addMesh(quad());
 }
@@ -334,7 +323,10 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
     .scissor = data.scissor
   };
 
+  // TODO: Assert material features are supported?
+
   m_componentStore.component<CSprite>(entityId) = CSprite{
+    .material = data.material,
     .textureRect = data.textureRect,
     .isText = true
   };
@@ -356,7 +348,6 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
 void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
 {
   ASSERT(!data.text.empty(), "Text must not be empty");
-  ASSERT(data.scissor != 0, "Scissor ID 0 is reserved; choose a different number");
 
   assertHasComponent<CGlobalTransform>(m_componentStore, entityId);
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
@@ -372,6 +363,7 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
+    .material = data.material,
     .textureRect = data.textureRect,
     .isText = true
   };
@@ -432,6 +424,7 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
+    .material = data.material,
     .textureRect = data.textureRect,
     .isText = false
   };
@@ -540,12 +533,18 @@ void SysRender2dImpl::update(Tick, const InputState&)
         if (spriteComp.isText) {
           if (!dynamicTextComps.empty()) {
             auto& mesh = m_textItems.at(entityIds[i]);
-            m_renderer.drawDynamicText(mesh, m_textureAtlas, dynamicTextComps[i].text,
+
+            DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
+              mesh.features, spriteComp.material.features), "Need to compile shader");
+            m_renderer.drawDynamicText(mesh, spriteComp.material, dynamicTextComps[i].text,
               renderComp.colour, screenSpaceTransform);
           }
           else {
             auto& mesh = m_textItems.at(entityIds[i]);
-            m_renderer.drawModel(mesh, m_textureAtlas, renderComp.colour, screenSpaceTransform);
+
+            DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
+              mesh.features, spriteComp.material.features), "Need to compile shader");
+            m_renderer.drawModel(mesh, spriteComp.material, renderComp.colour, screenSpaceTransform);
           }
         }
         else {
@@ -558,11 +557,16 @@ void SysRender2dImpl::update(Tick, const InputState&)
             Vec2f{ r.x, r.y }
           };
 
-          m_renderer.drawSprite(m_mesh, m_textureAtlas, uvCoords, renderComp.colour,
+          DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
+            m_mesh.features, spriteComp.material.features), "Need to compile shader");
+          m_renderer.drawSprite(m_mesh, spriteComp.material, uvCoords, renderComp.colour,
             screenSpaceTransform);
         }
       }
       else {
+        DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
+          m_mesh.features, MaterialFeatureSet{}), "Need to compile shader");
+
         m_renderer.drawQuad(m_mesh, quadComps[i].radius, renderComp.colour, screenSpaceTransform);
       }
     }

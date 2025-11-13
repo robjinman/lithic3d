@@ -55,9 +55,7 @@ struct MaterialData
 {
   MaterialPtr material;
   VkDescriptorSet descriptorSet;
-  VkBuffer uboBuffer;
-  VkDeviceMemory uboMemory;
-  void* uboMapped = nullptr;  // TODO: Remove mapping to host memory
+  UboPtr ubo;
 };
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
@@ -90,8 +88,8 @@ enum class ObjectDescriptorSetBindings : uint32_t
 class RenderResourcesImpl : public RenderResources
 {
   public:
-    RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-      VkCommandPool commandPool, Logger& logger);
+    RenderResourcesImpl(VmaAllocator allocator, VkPhysicalDevice physicalDevice, VkDevice device,
+      VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
 
     // Descriptor sets
     //
@@ -152,6 +150,7 @@ class RenderResourcesImpl : public RenderResources
     std::map<RenderItemId, MaterialDataPtr> m_materials;
 
     Logger& m_logger;
+    VmaAllocator m_allocator;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkQueue m_graphicsQueue;
@@ -196,7 +195,6 @@ class RenderResourcesImpl : public RenderResources
     void createNormalMapSampler();
     void createCubeMapSampler();
     VkBuffer createIndexBuffer(const Buffer& indexBuffer, VkDeviceMemory& indexBufferMemory);
-    void createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory, void*& mapping);
     void createDescriptorPool();
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
       uint32_t binding);
@@ -217,17 +215,18 @@ class RenderResourcesImpl : public RenderResources
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 };
 
-RenderResourcesImpl::RenderResourcesImpl(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+RenderResourcesImpl::RenderResourcesImpl(VmaAllocator allocator, VkPhysicalDevice physicalDevice,
+  VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
   : m_logger(logger)
+  , m_allocator(allocator)
   , m_physicalDevice(physicalDevice)
   , m_device(device)
   , m_graphicsQueue(graphicsQueue)
   , m_commandPool(commandPool)
-  , m_mainCameraUbo(physicalDevice, device, sizeof(CameraTransformsUbo))
-  , m_overlayCameraUbo(physicalDevice, device, sizeof(CameraTransformsUbo))
-  , m_lightTransformsUbo(physicalDevice, device, sizeof(LightTransformsUbo))
-  , m_lightingUbo(physicalDevice, device, sizeof(LightingUbo))
+  , m_mainCameraUbo(device, allocator, sizeof(CameraTransformsUbo))
+  , m_overlayCameraUbo(device, allocator, sizeof(CameraTransformsUbo))
+  , m_lightTransformsUbo(device, allocator, sizeof(LightTransformsUbo))
+  , m_lightingUbo(device, allocator, sizeof(LightingUbo))
 {
   DBG_TRACE(m_logger);
 
@@ -402,7 +401,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
-    data->jointTransformsUbo = std::make_unique<BufferedUbo>(m_physicalDevice, m_device,
+    data->jointTransformsUbo = std::make_unique<BufferedUbo>(m_device, m_allocator,
       sizeof(JointTransformsUbo));
 
     std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float, 4>());
@@ -560,11 +559,10 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
   VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &materialData->descriptorSet),
     "Failed to allocate descriptor sets");
 
-  createUbo(sizeof(MaterialUbo), materialData->uboBuffer, materialData->uboMemory,
-    materialData->uboMapped);
+  materialData->ubo = std::make_unique<Ubo>(m_device, m_allocator, sizeof(MaterialUbo));
 
   VkDescriptorBufferInfo bufferInfo{
-    .buffer = materialData->uboBuffer,
+    .buffer = materialData->ubo->buffer(),
     .offset = 0,
     .range = sizeof(MaterialUbo)
   };
@@ -590,7 +588,7 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
     // TODO: PBR properties
   };
 
-  memcpy(materialData->uboMapped, &ubo, sizeof(ubo));
+  materialData->ubo->write(&ubo, sizeof(ubo));
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
@@ -622,9 +620,6 @@ void RenderResourcesImpl::removeMaterial(RenderItemId id)
   if (i == m_materials.end()) {
     return;
   }
-
-  vkDestroyBuffer(m_device, i->second->uboBuffer, nullptr);
-  vkFreeMemory(m_device, i->second->uboMemory, nullptr);
 
   m_materials.erase(i);
 }
@@ -913,17 +908,6 @@ void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& 
 
   vkDestroyBuffer(m_device, stagingBuffer, nullptr);
   vkFreeMemory(m_device, stagingBufferMemory, nullptr);
-}
-
-void RenderResourcesImpl::createUbo(size_t size, VkBuffer& buffer, VkDeviceMemory& memory,
-  void*& mapping)
-{
-  DBG_TRACE(m_logger);
-
-  createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffer, memory);
-
-  vkMapMemory(m_device, memory, 0, size, 0, &mapping);
 }
 
 void RenderResourcesImpl::createGlobalDescriptorSetLayout()
@@ -1555,11 +1539,11 @@ RenderResourcesImpl::~RenderResourcesImpl()
 
 } // namespace
 
-RenderResourcesPtr createRenderResources(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+RenderResourcesPtr createRenderResources(VmaAllocator allocator, VkPhysicalDevice physicalDevice,
+  VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(physicalDevice, device, graphicsQueue, commandPool,
-    logger);
+  return std::make_unique<RenderResourcesImpl>(allocator, physicalDevice, device, graphicsQueue,
+    commandPool, logger);
 }
 
 } // namespace render

@@ -19,6 +19,7 @@ layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec3 outNormal;
 
+// TODO: Remove
 const uint ATLAS_WIDTH_PX = 1024;
 const uint ATLAS_HEIGHT_PX = 512;
 

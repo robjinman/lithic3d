@@ -1,11 +1,16 @@
 {
   "dependencies": [
+    "vulkan-memory-allocator",
     "tinyxml2",
     "stb",
     "nlohmann-json",
     "openal-soft"
   ],
   "overrides": [
+    {
+      "name": "vulkan-memory-allocator",
+      "version": "3.3.0"
+    },
     {
       "name": "tinyxml2",
       "version": "9.0.0"

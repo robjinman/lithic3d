@@ -63,6 +63,8 @@ class Renderer
     //
     virtual void compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures) = 0;
+    virtual bool hasCompiledShader(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures) const = 0;
 
     // Textures
     //
@@ -84,6 +86,10 @@ class Renderer
     //
     virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
     virtual void removeMaterial(RenderItemId id) = 0;
+
+    // Fonts
+    //
+    //virtual RenderItemId addFont(const Font& font) = 0;
 
     // Per-frame draw functions
     //

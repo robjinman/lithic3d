@@ -8,6 +8,7 @@
 #include <lithic3d/sys_spatial.hpp>
 #include <lithic3d/logger.hpp>
 #include <lithic3d/model_loader.hpp>
+#include <lithic3d/factory.hpp>
 
 using namespace lithic3d;
 using namespace lithic3d::render;
@@ -37,6 +38,7 @@ class Demo : public Game
 
   private:
     Engine& m_engine;
+    FactoryPtr m_factory;
     EntityId m_model = NULL_ENTITY;
 
     Tick m_currentTick = 0;
@@ -50,6 +52,8 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
+  m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
+
   constructLight();
   m_model = constructModel();
   constructCaption();
@@ -127,11 +131,12 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
+    .material = m_factory->constructMaterial("textures/fonts.png"),
     .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
+      .x = pxToUvX(768.f, 1024.f),
+      .y = pxToUvY(0.f, 256.f, 256.f),
+      .w = pxToUvW(256.f, 1024.f),
+      .h = pxToUvH(256.f, 256.f)
     },
     .text = "Welcome to Lithic3D!",
     .zIndex = 0,

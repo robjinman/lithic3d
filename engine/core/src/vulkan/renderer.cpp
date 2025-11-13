@@ -11,6 +11,7 @@
 #include "lithic3d/triple_buffer.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/platform.hpp"
+#include <vk_mem_alloc.h>
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -118,6 +119,16 @@ ScreenMargins rotateMargins(const ScreenMargins& margins)
   };
 }
 
+PipelineKey getPipelineKey(RenderPass renderPass, MeshFeatureSet meshFeatures,
+  MaterialFeatureSet materialFeatures)
+{
+  return PipelineKey{
+    .renderPass = renderPass,
+    .meshFeatures = meshFeatures,
+    .materialFeatures = renderPass == RenderPass::Shadow ? MaterialFeatureSet{} : materialFeatures
+  };
+}
+
 class RendererImpl : public Renderer
 {
   public:
@@ -139,6 +150,8 @@ class RendererImpl : public Renderer
     //
     void compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
       const MaterialFeatureSet& materialFeatures) override;
+    bool hasCompiledShader(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
+      const MaterialFeatureSet& materialFeatures) const override;
 
     // Resources
     //
@@ -201,6 +214,7 @@ class RendererImpl : public Renderer
     VkDebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo() const;
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
     void createLogicalDevice();
+    void createAllocator();
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
     VkSurfaceFormatKHR chooseSwapChainSurfaceFormat(
       const std::vector<VkSurfaceFormatKHR>& formats) const;
@@ -247,6 +261,7 @@ class RendererImpl : public Renderer
     VkSurfaceKHR m_surface;
     VkDebugUtilsMessengerEXT m_debugMessenger;
     VkDevice m_device;
+    VmaAllocator m_allocator = VK_NULL_HANDLE;
     VkQueue m_graphicsQueue;
     VkQueue m_presentQueue;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
@@ -357,13 +372,14 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
+    createAllocator();
   }).get();
   createSwapChain();
   m_thread.run<void>([this]() {
     createImageViews();
     createCommandPool();
-    m_resources = createRenderResources(m_physicalDevice, m_device, m_graphicsQueue, m_commandPool,
-      m_logger);
+    m_resources = createRenderResources(m_allocator, m_physicalDevice, m_device, m_graphicsQueue,
+      m_commandPool, m_logger);
     createDepthResources();
     createCommandBuffers();
     createSyncObjects();
@@ -468,6 +484,13 @@ Vec2i RendererImpl::getViewportSize() const
 const ScreenMargins& RendererImpl::getMargins() const
 {
   return m_margins;
+}
+
+bool RendererImpl::hasCompiledShader(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
+  const MaterialFeatureSet& materialFeatures) const
+{
+  auto key = getPipelineKey(renderPass, meshFeatures, materialFeatures);
+  return m_pipelines.contains(key);
 }
 
 RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
@@ -1387,6 +1410,29 @@ void RendererImpl::createLogicalDevice()
   vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
 }
 
+void RendererImpl::createAllocator()
+{
+  VmaVulkanFunctions vulkanFunctions = {};
+  vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
+  vulkanFunctions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
+
+  VmaAllocatorCreateInfo createInfo{
+    .flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
+    .physicalDevice = m_physicalDevice,
+    .device = m_device,
+    .preferredLargeHeapBlockSize = 0,
+    .pAllocationCallbacks = nullptr,
+    .pDeviceMemoryCallbacks = nullptr,
+    .pHeapSizeLimit = nullptr,
+    .pVulkanFunctions = &vulkanFunctions,
+    .instance = m_instance,
+    .vulkanApiVersion = VK_API_VERSION_1_2,
+    .pTypeExternalMemoryHandleTypes = nullptr
+  };
+  VK_CHECK(vmaCreateAllocator(&createInfo, &m_allocator),
+    "Failed to create vulkan memory allocator");
+}
+
 void RendererImpl::createImageViews()
 {
   DBG_TRACE(m_logger);
@@ -1417,14 +1463,7 @@ void RendererImpl::createCommandPool()
 
 Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& node)
 {
-  PipelineKey key{
-    .renderPass = renderPass,
-    .meshFeatures = node.mesh.features,
-    .materialFeatures = node.material.features
-  };
-  if (renderPass == RenderPass::Shadow) {
-    key.materialFeatures = {};
-  }
+  auto key = getPipelineKey(renderPass, node.mesh.features, node.material.features);
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
     EXCEPTION("No shader has been compiled for this combination of pass/mesh/material features");
@@ -2107,6 +2146,7 @@ void RendererImpl::cleanUp()
   destroyDebugMessenger();
 #endif
   vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+  vmaDestroyAllocator(m_allocator);
   vkDestroyDevice(m_device, nullptr);
   vkDestroyInstance(m_instance, nullptr);
 }

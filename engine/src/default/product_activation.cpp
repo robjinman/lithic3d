@@ -20,7 +20,8 @@ const std::set<UserInput> hexFilter{
 class ProductActivationImpl : public ProductActivation
 {
   public:
-    ProductActivationImpl(Ecs& ecs, EventSystem& eventSystem, Drm& drm, Logger& logger);
+    ProductActivationImpl(Ecs& ecs, EventSystem& eventSystem, Drm& drm,
+      const render::BitmapFont& font, Logger& logger);
 
     EntityId root() const override;
 
@@ -29,6 +30,7 @@ class ProductActivationImpl : public ProductActivation
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     Drm& m_drm;
+    render::BitmapFont m_font;
     EntityId m_rootId;
 
     EntityId constructRoot();
@@ -37,11 +39,12 @@ class ProductActivationImpl : public ProductActivation
 };
 
 ProductActivationImpl::ProductActivationImpl(Ecs& ecs, EventSystem& eventSystem, Drm& drm,
-  Logger& logger)
+  const render::BitmapFont& font, Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
   , m_eventSystem(eventSystem)
   , m_drm(drm)
+  , m_font(font)
 {
   m_rootId = constructRoot();
   constructPrompt();
@@ -94,13 +97,9 @@ EntityId ProductActivationImpl::constructPrompt()
   sysSpatial.addEntity(id, spatial);
 
   DText render{
-    .scissor = 1, // TODO
-    .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
-    },
+    .scissor = 0,
+    .material = m_font.material,
+    .textureRect = m_font.textureSection,
     .text = "Enter 8-digit activation key",
     .zIndex = 1,
     .colour = { 1.f, 1.f, 1.f, 1.f }
@@ -127,7 +126,8 @@ EntityId ProductActivationImpl::constructTextbox()
   auto& store = m_ecs.componentStore();
 
   auto id = store.allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText, CUi, CTextbox
+    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText, CUi,
+    CTextbox
   >();
 
   store.component<CTextbox>(id) = CTextbox{};
@@ -145,13 +145,9 @@ EntityId ProductActivationImpl::constructTextbox()
   sysSpatial.addEntity(id, spatial);
 
   DDynamicText render{
-    .scissor = 1, // TODO
-    .textureRect = {
-      .x = pxToUvX(256.f),
-      .y = pxToUvY(64.f, 192.f),
-      .w = pxToUvW(192.f),
-      .h = pxToUvH(192.f)
-    },
+    .scissor = 0,
+    .material = m_font.material,
+    .textureRect = m_font.textureSection,
     .text = "________",
     .maxLength = 8,
     .zIndex = 1,
@@ -207,9 +203,9 @@ EntityId ProductActivationImpl::constructTextbox()
 } // namespace
 
 ProductActivationPtr createProductActivation(Ecs& ecs, EventSystem& eventSystem, Drm& drm,
-  Logger& logger)
+  const render::BitmapFont& font, Logger& logger)
 {
-  return std::make_unique<ProductActivationImpl>(ecs, eventSystem, drm, logger);
+  return std::make_unique<ProductActivationImpl>(ecs, eventSystem, drm, font, logger);
 }
 
 } // namespace lithic3d

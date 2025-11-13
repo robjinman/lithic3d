@@ -20,6 +20,7 @@ const size_t DYNAMIC_TEXT_MAX_LEN = 31;
 struct DSprite
 {
   ScissorId scissor = 0;
+  render::MaterialHandle material;
   Rectf textureRect;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
@@ -46,6 +47,7 @@ struct DQuad
 struct DText
 {
   ScissorId scissor = 0;
+  render::MaterialHandle material;
   Rectf textureRect;
   std::string text;
   uint32_t zIndex = 0;
@@ -61,6 +63,7 @@ struct DText
 struct DDynamicText
 {
   ScissorId scissor = 0;
+  render::MaterialHandle material;
   Rectf textureRect;
   std::string text;
   size_t maxLength = DYNAMIC_TEXT_MAX_LEN;
@@ -82,6 +85,7 @@ struct CRender2d
 
 struct CSprite
 {
+  render::MaterialHandle material;
   Rectf textureRect;
   bool isText = false; // TODO: Remove?
 
