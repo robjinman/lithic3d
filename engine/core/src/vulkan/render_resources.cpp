@@ -1,5 +1,6 @@
 #include "vulkan/render_resources.hpp"
-#include "vulkan/ubo.hpp"
+#include "vulkan/gpu_buffer.hpp"
+#include "vulkan/vulkan_utils.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/utils.hpp"
@@ -7,6 +8,16 @@
 #include <array>
 #include <cstring>
 #include <cassert>
+
+template<typename T, size_t N>
+std::array<T, N> makeArray(const std::function<T()>& fn)
+{
+  std::array<T, N> arr;
+  for (size_t i = 0; i < N; ++i) {
+    arr[i] = fn();
+  }
+  return arr;
+}
 
 namespace lithic3d
 {
@@ -26,7 +37,7 @@ struct MeshData
   VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
   uint32_t numInstances = 0;
   std::vector<VkDescriptorSet> objectDescriptorSets;
-  BufferedUboPtr jointTransformsUbo;
+  std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> jointTransformsUbo;
 };
 
 using MeshDataPtr = std::unique_ptr<MeshData>;
@@ -55,7 +66,7 @@ struct MaterialData
 {
   MaterialPtr material;
   VkDescriptorSet descriptorSet;
-  UboPtr ubo;
+  GpuBufferPtr ubo;
 };
 
 using MaterialDataPtr = std::unique_ptr<MaterialData>;
@@ -167,10 +178,10 @@ class RenderResourcesImpl : public RenderResources
     std::vector<VkDescriptorSet> m_overlayPassDescriptorSets;
     //std::vector<VkDescriptorSet> m_shadowPassDescriptorSets;
 
-    BufferedUbo m_mainCameraUbo;
-    BufferedUbo m_overlayCameraUbo;
-    BufferedUbo m_lightTransformsUbo;
-    BufferedUbo m_lightingUbo;
+    std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> m_mainCameraUbo;
+    std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> m_overlayCameraUbo;
+    std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> m_lightTransformsUbo;
+    std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> m_lightingUbo;
 
     VkSampler m_textureSampler;
     VkSampler m_normalMapSampler;
@@ -223,12 +234,21 @@ RenderResourcesImpl::RenderResourcesImpl(VmaAllocator allocator, VkPhysicalDevic
   , m_device(device)
   , m_graphicsQueue(graphicsQueue)
   , m_commandPool(commandPool)
-  , m_mainCameraUbo(device, allocator, sizeof(CameraTransformsUbo))
-  , m_overlayCameraUbo(device, allocator, sizeof(CameraTransformsUbo))
-  , m_lightTransformsUbo(device, allocator, sizeof(LightTransformsUbo))
-  , m_lightingUbo(device, allocator, sizeof(LightingUbo))
 {
   DBG_TRACE(m_logger);
+
+  m_mainCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
+    return createUbo(device, allocator, sizeof(CameraTransformsUbo));
+  });
+  m_overlayCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
+    return createUbo(device, allocator, sizeof(CameraTransformsUbo));
+  });
+  m_lightTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
+    return createUbo(device, allocator, sizeof(LightTransformsUbo));
+  });
+  m_lightingUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
+    return createUbo(device, allocator, sizeof(LightingUbo));
+  });
 
   createDescriptorPool();
   createMaterialDescriptorSetLayout();
@@ -401,12 +421,13 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
-    data->jointTransformsUbo = std::make_unique<BufferedUbo>(m_device, m_allocator,
-      sizeof(JointTransformsUbo));
+    data->jointTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
+      return createUbo(m_device, m_allocator, sizeof(JointTransformsUbo));
+    });
 
     std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float, 4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      data->jointTransformsUbo->write(i, joints.data(), joints.size() * sizeof(Mat4x4f));
+      writeToBuffer(*data->jointTransformsUbo[i], joints.data(), joints.size() * sizeof(Mat4x4f));
     }
 
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
@@ -425,7 +446,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       VkDescriptorBufferInfo bufferInfo{
-        .buffer = data->jointTransformsUbo->buffer(i),
+        .buffer = data->jointTransformsUbo[i]->buffer,
         .offset = 0,
         .range = sizeof(JointTransformsUbo)
       };
@@ -506,7 +527,8 @@ void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vect
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
   auto& mesh = *m_meshes.at(id);
-  mesh.jointTransformsUbo->write(currentFrame, joints.data(), joints.size() * sizeof(Mat4x4f));
+  writeToBuffer(*mesh.jointTransformsUbo[currentFrame], joints.data(),
+    joints.size() * sizeof(Mat4x4f));
 }
 
 const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) const
@@ -559,10 +581,10 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
   VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &materialData->descriptorSet),
     "Failed to allocate descriptor sets");
 
-  materialData->ubo = std::make_unique<Ubo>(m_device, m_allocator, sizeof(MaterialUbo));
+  materialData->ubo = createUbo(m_device, m_allocator, sizeof(MaterialUbo));
 
   VkDescriptorBufferInfo bufferInfo{
-    .buffer = materialData->ubo->buffer(),
+    .buffer = materialData->ubo->buffer,
     .offset = 0,
     .range = sizeof(MaterialUbo)
   };
@@ -588,7 +610,7 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
     // TODO: PBR properties
   };
 
-  materialData->ubo->write(&ubo, sizeof(ubo));
+  writeToBuffer(*materialData->ubo, &ubo, sizeof(ubo));
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
@@ -647,19 +669,19 @@ const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId 
 void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_mainCameraUbo.write(currentFrame, &ubo, sizeof(ubo));
+  writeToBuffer(*m_mainCameraUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateOverlayCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_overlayCameraUbo.write(currentFrame, &ubo, sizeof(ubo));
+  writeToBuffer(*m_overlayCameraUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateLightTransformsUbo(const LightTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_lightTransformsUbo.write(currentFrame, &ubo, sizeof(ubo));
+  writeToBuffer(*m_lightTransformsUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetNumber number) const
@@ -680,7 +702,7 @@ VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame)
 
 void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t currentFrame)
 {
-  m_lightingUbo.write(currentFrame, &ubo, sizeof(ubo));
+  writeToBuffer(*m_lightingUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,
@@ -1118,7 +1140,7 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo lightBufferInfo{
-      .buffer = m_lightTransformsUbo.buffer(i),
+      .buffer = m_lightTransformsUbo[i]->buffer,
       .offset = 0,
       .range = sizeof(LightTransformsUbo)
     };
@@ -1195,13 +1217,13 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo cameraBufferInfo{
-      .buffer = m_mainCameraUbo.buffer(i),
+      .buffer = m_mainCameraUbo[i]->buffer,
       .offset = 0,
       .range = sizeof(CameraTransformsUbo)
     };
 
     VkDescriptorBufferInfo lightingBufferInfo{
-      .buffer = m_lightingUbo.buffer(i),
+      .buffer = m_lightingUbo[i]->buffer,
       .offset = 0,
       .range = sizeof(LightingUbo)
     };
@@ -1278,7 +1300,7 @@ void RenderResourcesImpl::createOverlayPassDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo cameraBufferInfo{
-      .buffer = m_overlayCameraUbo.buffer(i),
+      .buffer = m_overlayCameraUbo[i]->buffer,
       .offset = 0,
       .range = sizeof(CameraTransformsUbo)
     };

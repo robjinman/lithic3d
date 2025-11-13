@@ -544,7 +544,8 @@ void SysRender2dImpl::update(Tick, const InputState&)
 
             DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
               mesh.features, spriteComp.material.features), "Need to compile shader");
-            m_renderer.drawModel(mesh, spriteComp.material, renderComp.colour, screenSpaceTransform);
+            m_renderer.drawModel(mesh, spriteComp.material, renderComp.colour,
+              screenSpaceTransform);
           }
         }
         else {
