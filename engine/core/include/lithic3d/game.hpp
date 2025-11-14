@@ -16,6 +16,7 @@ struct GameConfig
   uint32_t windowH = 0;
   uint32_t fullscreenResolutionW = 0;
   uint32_t fullscreenResolutionH = 0;
+  bool captureMouse = false;
 };
 
 class Game

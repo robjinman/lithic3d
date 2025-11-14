@@ -312,6 +312,7 @@ class PipelineImpl : public Pipeline
     VkPipelineColorBlendStateCreateInfo m_colourBlendStateInfo;
     VkPipelineDepthStencilStateCreateInfo m_depthStencilStateInfo;
     VkPipelineRenderingCreateInfo m_renderingCreateInfo;
+    bool m_dynamicScissor = false;
 
     void constructPipeline(VkExtent2D swapchainExtent);
     void destroyPipeline();
@@ -529,6 +530,8 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
       break;
   }
 
+  m_dynamicScissor = spec.renderPass == RenderPass::Main || spec.renderPass == RenderPass::Overlay;
+
   constructPipeline(swapchainExtent);
 }
 
@@ -586,7 +589,7 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     .pMultisampleState = &m_multisampleStateInfo,
     .pDepthStencilState = &m_depthStencilStateInfo,
     .pColorBlendState = &m_colourBlendStateInfo,
-    .pDynamicState = &dynamicState,
+    .pDynamicState = m_dynamicScissor ? &dynamicState : nullptr,
     .layout = m_layout,
     .renderPass = nullptr,
     .subpass = 0,

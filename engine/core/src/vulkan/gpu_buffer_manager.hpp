@@ -28,6 +28,7 @@ class GpuBufferManager
     virtual GpuBufferPtr createVertexBuffer(const std::vector<char>& data) = 0;
     virtual GpuBufferPtr createIndexBuffer(const std::vector<char>& data) = 0;
     virtual GpuBufferPtr createInstanceBuffer(size_t size) = 0;
+    virtual GpuBufferPtr createStagingBuffer(size_t size) = 0;
 
     virtual void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) = 0;
 

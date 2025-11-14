@@ -70,6 +70,23 @@ struct Submodel
 // TODO: List required components
 struct DModel
 {
+  DModel() {}
+
+  DModel(const DModel& cpy)
+  {
+    isInstanced = cpy.isInstanced;
+    animations = cpy.animations;
+    for (auto& m : cpy.submodels) {
+      submodels.push_back(Submodel{
+        .mesh = m.mesh,
+        .material = m.material,
+        .skin = m.skin == nullptr ? nullptr : std::make_unique<Skin>(*m.skin),
+        .jointTransformsDirty = false,
+        .jointTransforms{}
+      });
+    }
+  }
+
   bool isInstanced = false;
   RenderItemId animations = NULL_ID;
   std::vector<Submodel> submodels;

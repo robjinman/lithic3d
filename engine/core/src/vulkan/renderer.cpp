@@ -417,9 +417,9 @@ void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeature
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
     auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
-      auto shader = loadShaderProgram(m_fileSystem, key);
-
       if (!m_pipelines.contains(key)) {
+        auto shader = loadShaderProgram(m_fileSystem, key);
+
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
           m_swapchainImageFormat, depthFormat,
           m_viewRotated ? rotateMargins(m_margins) : m_margins);
@@ -1001,7 +1001,7 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 {
   for (auto& mode : availableModes) {
     if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      //return mode;
+      return mode;
     }
   }
 
@@ -1488,7 +1488,10 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
       //  .extent = m_swapchainExtent
       //};
 
-      vkCmdSetScissor(commandBuffer, 0, 1, &rect);
+      // TODO: Rethink this
+      if (renderPass == RenderPass::Main || renderPass == RenderPass::Overlay) {
+        vkCmdSetScissor(commandBuffer, 0, 1, &rect);
+      }
       prevPipeline = &pipeline;
     }
 

@@ -311,6 +311,7 @@ void SysRender3dImpl::doMainPass()
   m_renderer.beginPass(RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
 
   drawModels(visible);
+  drawSkybox();
 
   for (auto& entry : m_lights) {
     auto id = entry.first;

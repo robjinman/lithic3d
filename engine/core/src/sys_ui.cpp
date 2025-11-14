@@ -390,7 +390,7 @@ std::optional<UserInput> getInput(const InputState& prevState, const InputState&
   return std::nullopt;
 }
 
-void SysUiImpl::update(Tick tick, const InputState& inputState_)
+void SysUiImpl::update(Tick, const InputState& inputState_)
 {
   auto inputState = inputState_;
 

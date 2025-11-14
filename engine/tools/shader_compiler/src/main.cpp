@@ -15,8 +15,9 @@ std::string shaderTypeName(ShaderType type)
   switch (type) {
     case ShaderType::Vertex: return "vertex";
     case ShaderType::Fragment: return "fragment";
-    default: assert(false);
   }
+
+  return "";
 }
 
 struct ShaderSource
@@ -414,6 +415,81 @@ const std::vector<ShaderProgramSpec> specs{
       .flags{
         bitflag(MaterialFeatures::HasTexture) |
         bitflag(MaterialFeatures::HasNormalMap)
+      }
+    }
+  },
+  // Textured, normal mapped 3D model, casts shadow
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Main,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord,
+        BufferUsage::AttrTangent
+      },
+      .flags{
+        bitflag(MeshFeatures::HasTangents) |
+        bitflag(MeshFeatures::CastsShadow)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{
+        bitflag(MaterialFeatures::HasTexture) |
+        bitflag(MaterialFeatures::HasNormalMap)
+      }
+    }
+  },
+  // 3D model, shadow pass
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Shadow,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord,
+        BufferUsage::AttrTangent
+      },
+      .flags{
+        bitflag(MeshFeatures::HasTangents) |
+        bitflag(MeshFeatures::CastsShadow)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{}
+    }
+  },
+  // 3D model, shadow pass
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Shadow,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition,
+        BufferUsage::AttrNormal,
+        BufferUsage::AttrTexCoord
+      },
+      .flags{
+        bitflag(MeshFeatures::CastsShadow)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{}
+    }
+  },
+  // Skybox
+  ShaderProgramSpec{
+    .renderPass = RenderPass::Main,
+    .meshFeatures = MeshFeatureSet{
+      .vertexLayout = {
+        BufferUsage::AttrPosition
+      },
+      .flags{
+        bitflag(MeshFeatures::IsSkybox)
+      }
+    },
+    .materialFeatures = MaterialFeatureSet{
+      .flags{
+        bitflag(MaterialFeatures::HasCubeMap)
       }
     }
   }

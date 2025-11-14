@@ -26,7 +26,8 @@ class FactoryImpl : public Factory
     MaterialHandle constructMaterial(const std::filesystem::path& texturePath,
       const std::filesystem::path& normalMapPath) override;
 
-    void constructCuboid(EntityId id, const MaterialHandle& material, const Vec3f& size) override;
+    void constructCuboid(EntityId id, const MaterialHandle& material, const Vec3f& size,
+      const Vec2f& materialSize) override;
 
   private:
     Ecs& m_ecs;
@@ -75,7 +76,8 @@ MaterialHandle FactoryImpl::constructMaterial(const std::filesystem::path& textu
   return renderer.addMaterial(std::move(material));
 }
 
-void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, const Vec3f& size)
+void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, const Vec3f& size,
+  const Vec2f& materialSize)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -85,7 +87,7 @@ void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, c
 
   sysSpatial.addEntity(id, spatial);
 
-  auto mesh = render::cuboid(size[0], size[1], size[2], { 1.f, 1.f });
+  auto mesh = render::cuboid(size[0], size[1], size[2], materialSize);
 
   mesh->featureSet = render::MeshFeatureSet{
     .vertexLayout = {

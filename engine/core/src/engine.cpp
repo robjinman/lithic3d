@@ -13,6 +13,7 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_ui.hpp"
 #include "lithic3d/model_loader.hpp"
+#include "lithic3d/time.hpp"
 
 namespace lithic3d
 {
@@ -26,8 +27,10 @@ class EngineImpl : public Engine
       LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
-    void update(Tick tick, const InputState& inputState) override;
+    void update(const InputState& inputState) override;
     void onWindowResize() override;
+    Tick currentTick() const override;
+    Tick measuredTickRate() const override;
 
     Logger& logger() override;
     FileSystem& fileSystem() override;
@@ -46,6 +49,11 @@ class EngineImpl : public Engine
     EcsPtr m_ecs;
     ModelLoaderPtr m_modelLoader;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
+    Tick m_currentTick = 0;
+    float m_measuredTickRate = 0.f;
+    Timer m_timer;
+
+    void measureTickRate();
 };
 
 EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
@@ -83,12 +91,32 @@ void EngineImpl::setClearColour(const Vec4f& colour)
   m_clearColour = colour;
 }
 
-void EngineImpl::update(Tick tick, const InputState& inputState)
+Tick EngineImpl::currentTick() const
+{
+  return m_currentTick;
+}
+
+Tick EngineImpl::measuredTickRate() const
+{
+  return m_measuredTickRate;
+}
+
+void EngineImpl::measureTickRate()
+{
+  if (m_currentTick % 10 == 0) {
+    m_measuredTickRate = 10.f / m_timer.elapsed();
+    m_timer.reset();
+  }
+}
+
+void EngineImpl::update(const InputState& inputState)
 {
   try {
     m_renderer->beginFrame(m_clearColour);
 
-    m_ecs->update(tick, inputState);
+    m_ecs->update(m_currentTick, inputState);
+    measureTickRate();
+    ++m_currentTick;
 
     m_renderer->endFrame();
     m_renderer->checkError();

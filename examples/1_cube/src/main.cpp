@@ -1,13 +1,4 @@
-#include <lithic3d/engine.hpp>
-#include <lithic3d/game.hpp>
-#include <lithic3d/ecs.hpp>
-#include <lithic3d/sys_render_2d.hpp>
-#include <lithic3d/sys_render_3d.hpp>
-#include <lithic3d/sys_spatial.hpp>
-#include <lithic3d/factory.hpp>
-#include <lithic3d/renderer.hpp>
-#include <lithic3d/logger.hpp>
-#include <lithic3d/file_system.hpp>
+#include <lithic3d/lithic3d.hpp>
 
 using namespace lithic3d;
 using namespace lithic3d::render;
@@ -40,8 +31,6 @@ class Demo : public Game
     FactoryPtr m_factory;
     EntityId m_cube = NULL_ENTITY;
 
-    Tick m_currentTick = 0;
-
     EntityId constructLight();
     EntityId constructCube();
     EntityId constructCaption();
@@ -67,7 +56,7 @@ EntityId Demo::constructCube()
   >();
 
   auto material = m_factory->constructMaterial("textures/bricks.png");
-  m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f });
+  m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f }, { 1.f, 1.f });
 
   return id;
 }
@@ -79,7 +68,7 @@ EntityId Demo::constructLight()
   >();
 
   DSpatial spatial{
-    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, 2.f }),
+    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -131,18 +120,18 @@ EntityId Demo::constructCaption()
 
 void Demo::rotateCube()
 {
-  float a = (2 * PIf / 360.f) * (m_currentTick % 360);
-  float b = (2 * PIf / 720.f) * (m_currentTick % 720);
+  float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
+  float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
   m_engine.ecs().componentStore().component<CLocalTransform>(m_cube).transform =
-    translationMatrix4x4(Vec3f{ 0.f, 0.f, -5.f }) *
+    translationMatrix4x4(Vec3f{ 0.f, 0.f, 5.f }) *
     rotationMatrix4x4(Vec3f{ b, a, 0.f });
 }
 
 bool Demo::update()
 {
   rotateCube();
-  m_engine.update(m_currentTick++, {});
+  m_engine.update({});
 
   return true;
 }
@@ -158,7 +147,8 @@ GameConfig getGameConfig()
     .windowW = 640,
     .windowH = 480,
     .fullscreenResolutionW = 1920,
-    .fullscreenResolutionH = 1080
+    .fullscreenResolutionH = 1080,
+    .captureMouse = false
   };
 }
 

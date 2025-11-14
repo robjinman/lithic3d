@@ -63,6 +63,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
     GpuBufferPtr createVertexBuffer(const std::vector<char>& data) override;
     GpuBufferPtr createIndexBuffer(const std::vector<char>& data) override;
     GpuBufferPtr createInstanceBuffer(size_t size) override;
+    GpuBufferPtr createStagingBuffer(size_t size) override;
 
     void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) override;
 
@@ -74,7 +75,6 @@ class GpuBufferManagerImpl : public GpuBufferManager
     VkCommandPool m_commandPool;
     VkQueue m_graphicsQueue;
 
-    GpuBufferPtr createStagingBuffer(size_t size);
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
     GpuBufferPtr createDeviceBuffer(const std::vector<char>& data, VkBufferUsageFlags usage);

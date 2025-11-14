@@ -5,7 +5,7 @@ namespace lithic3d
 
 Camera3d::Camera3d()
   : m_position{0, 0, 0}
-  , m_direction{0, 0, -1}
+  , m_direction{0, 0, 1}
 {
 }
 

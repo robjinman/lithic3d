@@ -10,7 +10,7 @@
 #include <cassert>
 
 template<typename T, size_t N>
-std::array<T, N> makeArray(const std::function<T()>& fn)
+std::array<T, N> fillArray(const std::function<T()>& fn)
 {
   std::array<T, N> arr;
   for (size_t i = 0; i < N; ++i) {
@@ -232,16 +232,16 @@ RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
 {
   DBG_TRACE(m_logger);
 
-  m_mainCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+  m_mainCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
     return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
   });
-  m_overlayCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+  m_overlayCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
     return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
   });
-  m_lightTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+  m_lightTransformsUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
     return m_bufferManager.createUbo(sizeof(LightTransformsUbo));
   });
-  m_lightingUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+  m_lightingUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
     return m_bufferManager.createUbo(sizeof(LightingUbo));
   });
 
@@ -324,6 +324,8 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
     stagingBufferMemory);
 
+  //auto stagingBuffer = m_bufferManager.createStagingBuffer(cubeMapSize);
+
   uint32_t width = textures[0]->width;
   uint32_t height = textures[0]->height;
 
@@ -336,6 +338,9 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
 
     size_t offset = i * imageSize;
     memcpy(data + offset, textures[i]->data.data(), static_cast<size_t>(imageSize));
+
+    //memcpy(stagingBuffer->mappedAddress() + offset, textures[i]->data.data(),
+    //  static_cast<size_t>(imageSize));
   }
   vkUnmapMemory(m_device, stagingBufferMemory);
 
@@ -347,6 +352,7 @@ RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
   transitionImageLayout(cubeMapData->image, VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6);
 
+  // TODO: Use GpuBufferManager
   for (uint32_t i = 0; i < 6; ++i) {
     VkDeviceSize offset = i * imageSize;
     copyBufferToImage(stagingBuffer, cubeMapData->image, width, height, offset, i);
@@ -416,7 +422,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
-    data->jointTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    data->jointTransformsUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
       return m_bufferManager.createUbo(sizeof(JointTransformsUbo));
     });
 

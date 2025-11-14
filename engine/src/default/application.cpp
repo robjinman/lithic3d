@@ -139,7 +139,7 @@ Application::Application()
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Don't create OpenGL context
-  //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
   m_instance = this;
 
@@ -170,7 +170,9 @@ Application::Application()
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 
-  enterInputCapture();
+  glfwSetKeyCallback(m_window, Application::onKeyboardInput);
+  glfwSetCursorPosCallback(m_window, Application::onMouseMove);
+  glfwSetJoystickCallback(Application::onJoystickEvent);
 }
 
 void Application::run()
@@ -226,7 +228,7 @@ void Application::onKeyboardInput(int code, int action)
 
     switch (key) {
       case KeyboardKey::Escape:
-        //exitInputCapture();
+        exitInputCapture();
         break;
       case KeyboardKey::F:
         m_engine->logger().info(STR("Renderer frame rate: " << m_engine->renderer().frameRate()));
@@ -298,7 +300,7 @@ void Application::onMouseMove(float x, float y)
 
 void Application::onMouseClick()
 {
-  if (!m_inputCaptured) {
+  if (m_config.captureMouse && !m_inputCaptured) {
     enterInputCapture();
     return;
   }
@@ -314,7 +316,11 @@ void Application::onMouseClick()
 
 void Application::enterInputCapture()
 {
-  //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  if (!m_config.captureMouse) {
+    return;
+  }
+
+  glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetKeyCallback(m_window, Application::onKeyboardInput);
   glfwSetCursorPosCallback(m_window, Application::onMouseMove);
   glfwSetJoystickCallback(Application::onJoystickEvent);
@@ -355,6 +361,10 @@ void Application::processGamepadInput()
 
 void Application::exitInputCapture()
 {
+  if (!m_config.captureMouse) {
+    return;
+  }
+
   glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   glfwSetKeyCallback(m_window, nullptr);
   glfwSetCursorPosCallback(m_window, nullptr);

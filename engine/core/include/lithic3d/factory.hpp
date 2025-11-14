@@ -16,7 +16,7 @@ class Factory
       const std::filesystem::path& normalMapPath) = 0;
 
     virtual void constructCuboid(EntityId id, const render::MaterialHandle& material,
-      const Vec3f& size) = 0;
+      const Vec3f& size, const Vec2f& materialSize) = 0;
 
     virtual ~Factory() = default;
 };

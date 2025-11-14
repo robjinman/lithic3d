@@ -9,10 +9,10 @@ namespace lithic3d
 
 using Tick = long;
 
-const size_t TICKS_PER_SECOND = 60;
-const float WORLD_UNITS_PER_METRE = 10;
+constexpr size_t TICKS_PER_SECOND = 60;
+constexpr float WORLD_UNITS_PER_METRE = 10.f;
 
-inline float metresToWorldUnits(float x)
+constexpr float metresToWorldUnits(float x)
 {
   return x * WORLD_UNITS_PER_METRE;
 }
