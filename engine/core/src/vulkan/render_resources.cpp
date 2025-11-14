@@ -1,5 +1,5 @@
 #include "vulkan/render_resources.hpp"
-#include "vulkan/gpu_buffer.hpp"
+#include "vulkan/gpu_buffer_manager.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/trace.hpp"
@@ -29,12 +29,9 @@ namespace
 struct MeshData
 {
   MeshPtr mesh = nullptr;
-  VkBuffer vertexBuffer = VK_NULL_HANDLE;
-  VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
-  VkBuffer indexBuffer = VK_NULL_HANDLE;
-  VkDeviceMemory indexBufferMemory = VK_NULL_HANDLE;
-  VkBuffer instanceBuffer = VK_NULL_HANDLE;
-  VkDeviceMemory instanceBufferMemory = VK_NULL_HANDLE;
+  GpuBufferPtr vertexBuffer;
+  GpuBufferPtr indexBuffer;
+  GpuBufferPtr instanceBuffer;
   uint32_t numInstances = 0;
   std::vector<VkDescriptorSet> objectDescriptorSets;
   std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> jointTransformsUbo;
@@ -99,8 +96,8 @@ enum class ObjectDescriptorSetBindings : uint32_t
 class RenderResourcesImpl : public RenderResources
 {
   public:
-    RenderResourcesImpl(VmaAllocator allocator, VkPhysicalDevice physicalDevice, VkDevice device,
-      VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
+    RenderResourcesImpl(GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice,
+      VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
 
     // Descriptor sets
     //
@@ -161,7 +158,7 @@ class RenderResourcesImpl : public RenderResources
     std::map<RenderItemId, MaterialDataPtr> m_materials;
 
     Logger& m_logger;
-    VmaAllocator m_allocator;
+    GpuBufferManager& m_bufferManager;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkQueue m_graphicsQueue;
@@ -198,14 +195,11 @@ class RenderResourcesImpl : public RenderResources
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
       VkDeviceSize bufferOffset, uint32_t layer);
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-      VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-    VkBuffer createVertexBuffer(const Mesh& mesh, VkDeviceMemory& vertexBufferMemory);
-    VkBuffer createInstanceBuffer(size_t maxInstances, VkDeviceMemory& instanceBufferMemory);
+      VkBuffer& buffer, VkDeviceMemory& bufferMemory); // TODO: Delete
     void updateInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
     void createTextureSampler();
     void createNormalMapSampler();
     void createCubeMapSampler();
-    VkBuffer createIndexBuffer(const Buffer& indexBuffer, VkDeviceMemory& indexBufferMemory);
     void createDescriptorPool();
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
       uint32_t binding);
@@ -226,10 +220,11 @@ class RenderResourcesImpl : public RenderResources
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 };
 
-RenderResourcesImpl::RenderResourcesImpl(VmaAllocator allocator, VkPhysicalDevice physicalDevice,
-  VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
+  VkCommandPool commandPool, Logger& logger)
   : m_logger(logger)
-  , m_allocator(allocator)
+  , m_bufferManager(bufferManager)
   , m_physicalDevice(physicalDevice)
   , m_device(device)
   , m_graphicsQueue(graphicsQueue)
@@ -237,17 +232,17 @@ RenderResourcesImpl::RenderResourcesImpl(VmaAllocator allocator, VkPhysicalDevic
 {
   DBG_TRACE(m_logger);
 
-  m_mainCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
-    return createUbo(device, allocator, sizeof(CameraTransformsUbo));
+  m_mainCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
   });
-  m_overlayCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
-    return createUbo(device, allocator, sizeof(CameraTransformsUbo));
+  m_overlayCameraUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
   });
-  m_lightTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
-    return createUbo(device, allocator, sizeof(LightTransformsUbo));
+  m_lightTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(LightTransformsUbo));
   });
-  m_lightingUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
-    return createUbo(device, allocator, sizeof(LightingUbo));
+  m_lightingUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(LightingUbo));
   });
 
   createDescriptorPool();
@@ -413,21 +408,22 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
-  data->vertexBuffer = createVertexBuffer(*data->mesh, data->vertexBufferMemory);
-  data->indexBuffer = createIndexBuffer(data->mesh->indexBuffer, data->indexBufferMemory);
+  data->vertexBuffer = m_bufferManager.createVertexBuffer(createVertexArray(*data->mesh));
+  data->indexBuffer = m_bufferManager.createIndexBuffer(data->mesh->indexBuffer.data);
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsInstanced)) {
-    data->instanceBuffer = createInstanceBuffer(data->mesh->maxInstances,
-      data->instanceBufferMemory);
+    data->instanceBuffer =
+      m_bufferManager.createInstanceBuffer(data->mesh->maxInstances * sizeof(MeshInstance));
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
-    data->jointTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([=]() {
-      return createUbo(m_device, m_allocator, sizeof(JointTransformsUbo));
+    data->jointTransformsUbo = makeArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+      return m_bufferManager.createUbo(sizeof(JointTransformsUbo));
     });
 
     std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float, 4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      writeToBuffer(*data->jointTransformsUbo[i], joints.data(), joints.size() * sizeof(Mat4x4f));
+      m_bufferManager.writeToBuffer(*data->jointTransformsUbo[i], joints.data(),
+        joints.size() * sizeof(Mat4x4f));
     }
 
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
@@ -446,7 +442,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       VkDescriptorBufferInfo bufferInfo{
-        .buffer = data->jointTransformsUbo[i]->buffer,
+        .buffer = data->jointTransformsUbo[i]->vkBuffer(),
         .offset = 0,
         .range = sizeof(JointTransformsUbo)
       };
@@ -480,16 +476,6 @@ void RenderResourcesImpl::removeMesh(RenderItemId id)
   if (i == m_meshes.end()) {
     return;
   }
-
-  vkDestroyBuffer(m_device, i->second->indexBuffer, nullptr);
-  vkFreeMemory(m_device, i->second->indexBufferMemory, nullptr);
-  vkDestroyBuffer(m_device, i->second->vertexBuffer, nullptr);
-  vkFreeMemory(m_device, i->second->vertexBufferMemory, nullptr);
-  if (i->second->instanceBuffer != VK_NULL_HANDLE) {
-    vkDestroyBuffer(m_device, i->second->instanceBuffer, nullptr);
-    vkFreeMemory(m_device, i->second->instanceBufferMemory, nullptr);
-  }
-
   m_meshes.erase(i);
 }
 
@@ -498,9 +484,12 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
   auto& mesh = m_meshes.at(id);
 
   return {
-    .vertexBuffer = mesh->vertexBuffer,
-    .indexBuffer = mesh->indexBuffer,
-    .instanceBuffer = mesh->instanceBuffer,
+    .vertexBuffer = mesh->vertexBuffer != nullptr ?
+      mesh->vertexBuffer->vkBuffer() : VK_NULL_HANDLE,
+    .indexBuffer = mesh->indexBuffer!= nullptr ?
+      mesh->indexBuffer->vkBuffer() : VK_NULL_HANDLE,
+    .instanceBuffer = mesh->instanceBuffer != nullptr ?
+      mesh->instanceBuffer->vkBuffer() : VK_NULL_HANDLE,
     .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.size() / sizeof(uint16_t)),
     .numInstances = mesh->numInstances
   };
@@ -518,7 +507,7 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
 
   mesh->numInstances = static_cast<uint32_t>(instances.size());
-  updateInstanceBuffer(instances, mesh->instanceBuffer);
+  updateInstanceBuffer(instances, mesh->instanceBuffer->vkBuffer());
 }
 
 void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints,
@@ -527,7 +516,7 @@ void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vect
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
   auto& mesh = *m_meshes.at(id);
-  writeToBuffer(*mesh.jointTransformsUbo[currentFrame], joints.data(),
+  m_bufferManager.writeToBuffer(*mesh.jointTransformsUbo[currentFrame], joints.data(),
     joints.size() * sizeof(Mat4x4f));
 }
 
@@ -581,10 +570,10 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
   VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &materialData->descriptorSet),
     "Failed to allocate descriptor sets");
 
-  materialData->ubo = createUbo(m_device, m_allocator, sizeof(MaterialUbo));
+  materialData->ubo = m_bufferManager.createUbo(sizeof(MaterialUbo));
 
   VkDescriptorBufferInfo bufferInfo{
-    .buffer = materialData->ubo->buffer,
+    .buffer = materialData->ubo->vkBuffer(),
     .offset = 0,
     .range = sizeof(MaterialUbo)
   };
@@ -610,7 +599,7 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
     // TODO: PBR properties
   };
 
-  writeToBuffer(*materialData->ubo, &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*materialData->ubo, &ubo, sizeof(ubo));
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
@@ -669,19 +658,19 @@ const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId 
 void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  writeToBuffer(*m_mainCameraUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_mainCameraUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateOverlayCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  writeToBuffer(*m_overlayCameraUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_overlayCameraUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateLightTransformsUbo(const LightTransformsUbo& ubo,
   size_t currentFrame)
 {
-  writeToBuffer(*m_lightTransformsUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_lightTransformsUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetNumber number) const
@@ -702,7 +691,7 @@ VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame)
 
 void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t currentFrame)
 {
-  writeToBuffer(*m_lightingUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_lightingUbo[currentFrame], &ubo, sizeof(ubo));
 }
 
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,
@@ -796,6 +785,7 @@ void RenderResourcesImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkD
   endSingleTimeCommands(commandBuffer);
 }
 
+// TODO: Remove
 void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
@@ -828,82 +818,6 @@ void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usa
     "Failed to allocate memory for buffer");
 
   vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
-}
-
-VkBuffer RenderResourcesImpl::createVertexBuffer(const Mesh& mesh,
-  VkDeviceMemory& vertexBufferMemory)
-{
-  DBG_TRACE(m_logger);
-
-  std::vector<char> vertices = createVertexArray(mesh);
-
-  VkDeviceSize size = vertices.size();
-
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-    stagingBufferMemory);
-
-  void* data = nullptr;
-  vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, vertices.data(), size);
-  vkUnmapMemory(m_device, stagingBufferMemory);
-
-  VkBuffer vertexBuffer = VK_NULL_HANDLE;
-  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
-
-  copyBuffer(stagingBuffer, vertexBuffer, size);
-
-  vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-  vkFreeMemory(m_device, stagingBufferMemory, nullptr);
-
-  return vertexBuffer;
-}
-
-VkBuffer RenderResourcesImpl::createIndexBuffer(const Buffer& indexBuffer,
-  VkDeviceMemory& indexBufferMemory)
-{
-  DBG_TRACE(m_logger);
-
-  VkDeviceSize size = indexBuffer.data.size();
-
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    stagingBuffer, stagingBufferMemory);
-
-  void* data = nullptr;
-  vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, indexBuffer.data.data(), size);
-  vkUnmapMemory(m_device, stagingBufferMemory);
-
-  VkBuffer buffer = VK_NULL_HANDLE;
-  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, indexBufferMemory);
-
-  copyBuffer(stagingBuffer, buffer, size);
-
-  vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-  vkFreeMemory(m_device, stagingBufferMemory, nullptr);
-
-  return buffer;
-}
-
-VkBuffer RenderResourcesImpl::createInstanceBuffer(size_t maxInstances,
-  VkDeviceMemory& instanceBufferMemory)
-{
-  DBG_TRACE(m_logger);
-
-  VkDeviceSize size = sizeof(MeshInstance) * maxInstances;
-
-  VkBuffer buffer = VK_NULL_HANDLE;
-  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, instanceBufferMemory);
-
-  return buffer;
 }
 
 void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& instances,
@@ -1140,7 +1054,7 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo lightBufferInfo{
-      .buffer = m_lightTransformsUbo[i]->buffer,
+      .buffer = m_lightTransformsUbo[i]->vkBuffer(),
       .offset = 0,
       .range = sizeof(LightTransformsUbo)
     };
@@ -1217,13 +1131,13 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo cameraBufferInfo{
-      .buffer = m_mainCameraUbo[i]->buffer,
+      .buffer = m_mainCameraUbo[i]->vkBuffer(),
       .offset = 0,
       .range = sizeof(CameraTransformsUbo)
     };
 
     VkDescriptorBufferInfo lightingBufferInfo{
-      .buffer = m_lightingUbo[i]->buffer,
+      .buffer = m_lightingUbo[i]->vkBuffer(),
       .offset = 0,
       .range = sizeof(LightingUbo)
     };
@@ -1300,7 +1214,7 @@ void RenderResourcesImpl::createOverlayPassDescriptorSet()
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     VkDescriptorBufferInfo cameraBufferInfo{
-      .buffer = m_overlayCameraUbo[i]->buffer,
+      .buffer = m_overlayCameraUbo[i]->vkBuffer(),
       .offset = 0,
       .range = sizeof(CameraTransformsUbo)
     };
@@ -1561,10 +1475,11 @@ RenderResourcesImpl::~RenderResourcesImpl()
 
 } // namespace
 
-RenderResourcesPtr createRenderResources(VmaAllocator allocator, VkPhysicalDevice physicalDevice,
-  VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
+  VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(allocator, physicalDevice, device, graphicsQueue,
+  return std::make_unique<RenderResourcesImpl>(bufferManager, physicalDevice, device, graphicsQueue,
     commandPool, logger);
 }
 

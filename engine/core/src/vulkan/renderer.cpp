@@ -1,6 +1,7 @@
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/pipeline.hpp"
 #include "vulkan/render_resources.hpp"
+#include "vulkan/gpu_buffer_manager.hpp"
 #include "lithic3d/vulkan/vulkan_window_delegate.hpp"
 #include "lithic3d/renderer.hpp"
 #include "lithic3d/exception.hpp"
@@ -11,7 +12,6 @@
 #include "lithic3d/triple_buffer.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/platform.hpp"
-#include <vk_mem_alloc.h>
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -214,7 +214,7 @@ class RendererImpl : public Renderer
     VkDebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo() const;
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
     void createLogicalDevice();
-    void createAllocator();
+    void createBufferManager();
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
     VkSurfaceFormatKHR chooseSwapChainSurfaceFormat(
       const std::vector<VkSurfaceFormatKHR>& formats) const;
@@ -261,12 +261,12 @@ class RendererImpl : public Renderer
     VkSurfaceKHR m_surface;
     VkDebugUtilsMessengerEXT m_debugMessenger;
     VkDevice m_device;
-    VmaAllocator m_allocator = VK_NULL_HANDLE;
     VkQueue m_graphicsQueue;
     VkQueue m_presentQueue;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
+    GpuBufferManagerPtr m_bufferManager;
     bool m_viewRotated = false;
     // Equals swapchain extent (with width/height swapped if rotated) with margins subtracted
     Vec2i m_viewDimensions;
@@ -372,14 +372,14 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
-    createAllocator();
   }).get();
   createSwapChain();
   m_thread.run<void>([this]() {
     createImageViews();
     createCommandPool();
-    m_resources = createRenderResources(m_allocator, m_physicalDevice, m_device, m_graphicsQueue,
-      m_commandPool, m_logger);
+    createBufferManager();
+    m_resources = createRenderResources(*m_bufferManager, m_physicalDevice, m_device,
+      m_graphicsQueue, m_commandPool, m_logger);
     createDepthResources();
     createCommandBuffers();
     createSyncObjects();
@@ -1410,29 +1410,6 @@ void RendererImpl::createLogicalDevice()
   vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
 }
 
-void RendererImpl::createAllocator()
-{
-  VmaVulkanFunctions vulkanFunctions = {};
-  vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
-  vulkanFunctions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
-
-  VmaAllocatorCreateInfo createInfo{
-    .flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
-    .physicalDevice = m_physicalDevice,
-    .device = m_device,
-    .preferredLargeHeapBlockSize = 0,
-    .pAllocationCallbacks = nullptr,
-    .pDeviceMemoryCallbacks = nullptr,
-    .pHeapSizeLimit = nullptr,
-    .pVulkanFunctions = &vulkanFunctions,
-    .instance = m_instance,
-    .vulkanApiVersion = VK_API_VERSION_1_2,
-    .pTypeExternalMemoryHandleTypes = nullptr
-  };
-  VK_CHECK(vmaCreateAllocator(&createInfo, &m_allocator),
-    "Failed to create vulkan memory allocator");
-}
-
 void RendererImpl::createImageViews()
 {
   DBG_TRACE(m_logger);
@@ -2142,13 +2119,19 @@ void RendererImpl::cleanUp()
   m_pipelines.clear();
   cleanupSwapChain();
   m_resources.reset();
+  m_bufferManager.reset();
 #ifdef USE_VALIDATION_LAYERS
   destroyDebugMessenger();
 #endif
   vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-  vmaDestroyAllocator(m_allocator);
   vkDestroyDevice(m_device, nullptr);
   vkDestroyInstance(m_instance, nullptr);
+}
+
+void RendererImpl::createBufferManager()
+{
+  m_bufferManager = createGpuBufferManager(m_physicalDevice, m_device, m_instance, m_graphicsQueue,
+    m_commandPool);
 }
 
 RendererImpl::~RendererImpl()
