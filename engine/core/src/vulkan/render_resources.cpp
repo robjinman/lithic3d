@@ -42,9 +42,7 @@ using MeshDataPtr = std::unique_ptr<MeshData>;
 struct TextureData
 {
   TexturePtr texture;
-  VkImage image;
-  VkDeviceMemory imageMemory;
-  VkImageView imageView;
+  GpuImagePtr image;
 };
 
 using TextureDataPtr = std::unique_ptr<TextureData>;
@@ -53,9 +51,6 @@ struct CubeMapData
 {
   std::array<TexturePtr, 6> textures;
   GpuImagePtr image;
-  //VkImage image;
-  //VkDeviceMemory imageMemory;
-  //VkImageView imageView;
 };
 
 using CubeMapDataPtr = std::unique_ptr<CubeMapData>;
@@ -147,8 +142,7 @@ class RenderResourcesImpl : public RenderResources
 
     // Shadow pass
     //
-    VkImage getShadowMapImage() const override;
-    VkImageView getShadowMapImageView() const override;
+    GpuImage& getShadowMap() override;
 
     ~RenderResourcesImpl() override;
 
@@ -186,24 +180,21 @@ class RenderResourcesImpl : public RenderResources
     VkSampler m_cubeMapSampler;
 
     VkExtent2D m_shadowMapSize{ SHADOW_MAP_W, SHADOW_MAP_H };
-    VkImage m_shadowMapImage;
-    VkDeviceMemory m_shadowMapImageMemory;
-    VkImageView m_shadowMapImageView;
+    GpuImagePtr m_shadowMapImage;
     VkSampler m_shadowMapSampler;
 
-    RenderItemId addTexture(TexturePtr texture, VkFormat format);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size); // TODO: Remove
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
-      VkDeviceSize bufferOffset, uint32_t layer); // TODO: Remove
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
-      VkBuffer& buffer, VkDeviceMemory& bufferMemory); // TODO: Delete
-    void updateInstanceBuffer(const std::vector<MeshInstance>& instanceData, VkBuffer buffer);
+    RenderItemId m_nextTextureId = 1;
+    RenderItemId m_nextCubeMapId = 1;
+
     void createTextureSampler();
     void createNormalMapSampler();
     void createCubeMapSampler();
     void createDescriptorPool();
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
       uint32_t binding);
+
+    void createUbos();
+    void createShadowMap();
 
     void createGlobalDescriptorSetLayout();
     void createRenderPassDescriptorSetLayout();
@@ -214,11 +205,6 @@ class RenderResourcesImpl : public RenderResources
     void createMainPassDescriptorSet();
     void createOverlayPassDescriptorSet();
     //void createShadowPassDescriptorSet();
-
-    void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-      uint32_t layerCount);
-    VkCommandBuffer beginSingleTimeCommands();
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 };
 
 RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
@@ -233,19 +219,8 @@ RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
 {
   DBG_TRACE(m_logger);
 
-  m_mainCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
-    return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
-  });
-  m_overlayCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
-    return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
-  });
-  m_lightTransformsUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
-    return m_bufferManager.createUbo(sizeof(LightTransformsUbo));
-  });
-  m_lightingUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
-    return m_bufferManager.createUbo(sizeof(LightingUbo));
-  });
-
+  createUbos();
+  createShadowMap();
   createDescriptorPool();
   createMaterialDescriptorSetLayout();
   createGlobalDescriptorSet();
@@ -256,72 +231,37 @@ RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
   createObjectDescriptorSetLayout();
 }
 
-RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture, VkFormat format)
+RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
 {
-  static RenderItemId nextTextureId = 1;
-
   auto textureData = std::make_unique<TextureData>();
-
-  ASSERT(texture->data.size() % 4 == 0, "Texture data size should be multiple of 4");
-
-  VkDeviceSize imageSize = texture->data.size();
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-
-  createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-    stagingBufferMemory);
-
-  void* data = nullptr;
-  vkMapMemory(m_device, stagingBufferMemory, 0, imageSize, 0, &data);
-  memcpy(data, texture->data.data(), static_cast<size_t>(imageSize));
-  vkUnmapMemory(m_device, stagingBufferMemory);
-
-  createImage(m_physicalDevice, m_device, texture->width, texture->height, format,
-    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureData->image, textureData->imageMemory);
-
-  transitionImageLayout(textureData->image, VK_IMAGE_LAYOUT_UNDEFINED,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
-
-  copyBufferToImage(stagingBuffer, textureData->image, texture->width, texture->height, 0, 0);
-
-  transitionImageLayout(textureData->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
-
-  vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-  vkFreeMemory(m_device, stagingBufferMemory, nullptr);
-
-  textureData->imageView = createImageView(m_device, textureData->image, format,
-    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
-
-  auto textureId = nextTextureId++;
+  textureData->image = m_bufferManager.createTexture(*texture);
   textureData->texture = std::move(texture);
+
+  auto textureId = m_nextTextureId++;
   m_textures[textureId] = std::move(textureData);
 
   return textureId;
 }
 
-RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
-{
-  return addTexture(std::move(texture), VK_FORMAT_R8G8B8A8_SRGB);
-}
-
 RenderItemId RenderResourcesImpl::addNormalMap(TexturePtr texture)
 {
-  return addTexture(std::move(texture), VK_FORMAT_R8G8B8A8_UNORM);
+  auto textureData = std::make_unique<TextureData>();
+  textureData->image = m_bufferManager.createNormalMap(*texture);
+  textureData->texture = std::move(texture);
+
+  auto textureId = m_nextTextureId++;
+  m_textures[textureId] = std::move(textureData);
+
+  return textureId;
 }
 
 RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
 {
-  static RenderItemId nextCubeMapId = 1;
-
   auto cubeMapData = std::make_unique<CubeMapData>();
-
-  auto cubeMapId = nextCubeMapId++;
   cubeMapData->image = m_bufferManager.createCubeMap(textures);
   cubeMapData->textures = std::move(textures);
 
+  auto cubeMapId = m_nextCubeMapId++;
   m_cubeMaps[cubeMapId] = std::move(cubeMapData);
 
   return cubeMapId;
@@ -333,10 +273,6 @@ void RenderResourcesImpl::removeTexture(RenderItemId id)
   if (i == m_textures.end()) {
     return;
   }
-
-  vkDestroyImageView(m_device, i->second->imageView, nullptr);
-  vkDestroyImage(m_device, i->second->image, nullptr);
-  vkFreeMemory(m_device, i->second->imageMemory, nullptr);
 
   m_textures.erase(i);
 }
@@ -460,7 +396,7 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
 
   mesh->numInstances = static_cast<uint32_t>(instances.size());
-  updateInstanceBuffer(instances, mesh->instanceBuffer->vkBuffer());
+  m_bufferManager.writeToBuffer(*mesh->instanceBuffer, instances.data(), instances.size());
 }
 
 void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints,
@@ -556,12 +492,12 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
-    VkImageView imageView = m_textures.at(material->texture.id)->imageView;
+    VkImageView imageView = m_textures.at(material->texture.id)->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
   }
   if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
-    VkImageView imageView = m_textures.at(material->normalMap.id)->imageView;
+    VkImageView imageView = m_textures.at(material->normalMap.id)->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
   }
@@ -659,14 +595,54 @@ VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass rende
   EXCEPTION("Unknown render pass");
 }
 
-VkImageView RenderResourcesImpl::getShadowMapImageView() const
+GpuImage& RenderResourcesImpl::getShadowMap()
 {
-  return m_shadowMapImageView;
+  return *m_shadowMapImage;
 }
 
-VkImage RenderResourcesImpl::getShadowMapImage() const
+void RenderResourcesImpl::createUbos()
 {
-  return m_shadowMapImage;
+  m_mainCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
+  });
+  m_overlayCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
+  });
+  m_lightTransformsUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(LightTransformsUbo));
+  });
+  m_lightingUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
+    return m_bufferManager.createUbo(sizeof(LightingUbo));
+  });
+}
+
+void RenderResourcesImpl::createShadowMap()
+{
+  m_shadowMapImage = m_bufferManager.createShadowMap(m_shadowMapSize);
+
+  VkSamplerCreateInfo samplerInfo{
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .mipLodBias = 0.f,
+    .anisotropyEnable = VK_TRUE,
+    .maxAnisotropy = 1.f,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_NEVER,
+    .minLod = 0.f,
+    .maxLod = 1.f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE
+  };
+
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_shadowMapSampler),
+    "Failed to create shadow map sampler");
 }
 
 void RenderResourcesImpl::createDescriptorPool()
@@ -692,112 +668,6 @@ void RenderResourcesImpl::createDescriptorPool()
 
   VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
     "Failed to create descriptor pool");
-}
-
-// TODO: Remove
-void RenderResourcesImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-  uint32_t height, VkDeviceSize bufferOffset, uint32_t layer)
-{
-  DBG_TRACE(m_logger);
-
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-  VkBufferImageCopy region{
-    .bufferOffset = bufferOffset,
-    .bufferRowLength = 0,
-    .bufferImageHeight = 0,
-    .imageSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .mipLevel = 0,
-      .baseArrayLayer = layer,
-      .layerCount = 1
-    },
-    .imageOffset = { 0, 0, 0 },
-    .imageExtent = { width, height, 1 }
-  };
-
-  vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-    &region);
-
-  endSingleTimeCommands(commandBuffer);
-}
-
-void RenderResourcesImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-{
-  DBG_TRACE(m_logger);
-
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-  VkBufferCopy copyRegion{
-    .srcOffset = 0,
-    .dstOffset = 0,
-    .size = size
-  };
-
-  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-  endSingleTimeCommands(commandBuffer);
-}
-
-// TODO: Remove
-void RenderResourcesImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
-{
-  DBG_TRACE(m_logger);
-
-  VkBufferCreateInfo bufferInfo{
-    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .size = size,
-    .usage = usage,
-    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    .queueFamilyIndexCount = 0,
-    .pQueueFamilyIndices = nullptr
-  };
-
-  VK_CHECK(vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer), "Failed to create buffer");
-
-  VkMemoryRequirements memRequirements;
-  vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
-
-  VkMemoryAllocateInfo allocInfo{
-    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .pNext = nullptr,
-    .allocationSize = memRequirements.size,
-    .memoryTypeIndex = findMemoryType(m_physicalDevice, memRequirements.memoryTypeBits, properties)
-  };
-
-  VK_CHECK(vkAllocateMemory(m_device, &allocInfo, nullptr, &bufferMemory),
-    "Failed to allocate memory for buffer");
-
-  vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
-}
-
-void RenderResourcesImpl::updateInstanceBuffer(const std::vector<MeshInstance>& instances,
-  VkBuffer buffer)
-{
-  DBG_TRACE(m_logger);
-
-  VkDeviceSize size = sizeof(MeshInstance) * instances.size();
-
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-    stagingBufferMemory);
-
-  // TODO: Consider partial updates?
-
-  void* data = nullptr;
-  vkMapMemory(m_device, stagingBufferMemory, 0, size, 0, &data);
-  memcpy(data, instances.data(), size);
-  vkUnmapMemory(m_device, stagingBufferMemory);
-
-  copyBuffer(stagingBuffer, buffer, size);
-
-  vkDestroyBuffer(m_device, stagingBuffer, nullptr);
-  vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 }
 
 void RenderResourcesImpl::createGlobalDescriptorSetLayout()
@@ -1035,40 +905,6 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
 
 void RenderResourcesImpl::createMainPassDescriptorSet()
 {
-  VkFormat depthFormat = findDepthFormat(m_physicalDevice);
-
-  createImage(m_physicalDevice, m_device, m_shadowMapSize.width, m_shadowMapSize.height,
-    depthFormat, VK_IMAGE_TILING_OPTIMAL,
-    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_shadowMapImage, m_shadowMapImageMemory);
-
-  m_shadowMapImageView = createImageView(m_device, m_shadowMapImage, depthFormat,
-    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
-
-  VkSamplerCreateInfo samplerInfo{
-    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .magFilter = VK_FILTER_LINEAR,
-    .minFilter = VK_FILTER_LINEAR,
-    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-    .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-    .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-    .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-    .mipLodBias = 0.f,
-    .anisotropyEnable = VK_TRUE,
-    .maxAnisotropy = 1.f,
-    .compareEnable = VK_FALSE,
-    .compareOp = VK_COMPARE_OP_NEVER,
-    .minLod = 0.f,
-    .maxLod = 1.f,
-    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-    .unnormalizedCoordinates = VK_FALSE
-  };
-
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_shadowMapSampler),
-    "Failed to create shadow map sampler");
-
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_renderPassDescriptorSetLayout);
 
   VkDescriptorSetAllocateInfo allocInfo{
@@ -1098,7 +934,7 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
 
     VkDescriptorImageInfo imageInfo{
       .sampler = m_shadowMapSampler,
-      .imageView = m_shadowMapImageView,
+      .imageView = m_shadowMapImage->vkImageView(),
       .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
     };
 
@@ -1150,8 +986,6 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
 
 void RenderResourcesImpl::createOverlayPassDescriptorSet()
 {
-  VkFormat depthFormat = findDepthFormat(m_physicalDevice);
-
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_renderPassDescriptorSetLayout);
 
   VkDescriptorSetAllocateInfo allocInfo{
@@ -1175,7 +1009,7 @@ void RenderResourcesImpl::createOverlayPassDescriptorSet()
 
     VkDescriptorImageInfo imageInfo{
       .sampler = m_shadowMapSampler,
-      .imageView = m_shadowMapImageView,
+      .imageView = m_shadowMapImage->vkImageView(), // TODO: Need this?
       .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
     };
 
@@ -1199,107 +1033,6 @@ void RenderResourcesImpl::createOverlayPassDescriptorSet()
 
     m_logger.info(STR("Render pass descriptor set: " << m_overlayPassDescriptorSets[i]));
   }
-}
-
-VkCommandBuffer RenderResourcesImpl::beginSingleTimeCommands()
-{
-  VkCommandBufferAllocateInfo allocInfo{
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-    .pNext = nullptr,
-    .commandPool = m_commandPool, // TODO: Separate pool for temp buffers?
-    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    .commandBufferCount = 1
-  };
-  
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
-
-  VkCommandBufferBeginInfo beginInfo{
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    .pNext = nullptr,
-    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    .pInheritanceInfo = nullptr
-  };
-
-  vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-  return commandBuffer;
-}
-
-void RenderResourcesImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
-{
-  vkEndCommandBuffer(commandBuffer);
-
-  VkSubmitInfo submitInfo{
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .pNext = nullptr,
-    .waitSemaphoreCount = 0,
-    .pWaitSemaphores = nullptr,
-    .pWaitDstStageMask = nullptr,
-    .commandBufferCount = 1,
-    .pCommandBuffers = &commandBuffer,
-    .signalSemaphoreCount = 0,
-    .pSignalSemaphores = nullptr
-  };
-  
-  vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(m_graphicsQueue); // TODO: Submit commands asynchronously (see p201)
-
-  vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-}
-
-// TODO: Remove?
-void RenderResourcesImpl::transitionImageLayout(VkImage image, VkImageLayout oldLayout,
-  VkImageLayout newLayout, uint32_t layerCount)
-{
-  DBG_TRACE(m_logger);
-
-  VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-  VkImageMemoryBarrier barrier{
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .pNext = nullptr,
-    .srcAccessMask = 0,
-    .dstAccessMask = 0,
-    .oldLayout = oldLayout,
-    .newLayout = newLayout,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = image,
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseMipLevel = 0,
-      .levelCount = 1,
-      .baseArrayLayer = 0,
-      .layerCount = layerCount
-    }
-  };
-
-  VkPipelineStageFlags sourceStage;
-  VkPipelineStageFlags destinationStage;
-
-  if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-  }
-  else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-    newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-  }
-  else {
-    EXCEPTION("Unsupported layout transition");
-  }
-
-  vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1,
-    &barrier);
-
-  endSingleTimeCommands(commandBuffer);
 }
 
 void RenderResourcesImpl::createTextureSampler()
@@ -1407,9 +1140,6 @@ RenderResourcesImpl::~RenderResourcesImpl()
   vkDestroyDescriptorSetLayout(m_device, m_objectDescriptorSetLayout, nullptr);
 
   vkDestroySampler(m_device, m_shadowMapSampler, nullptr);
-  vkDestroyImageView(m_device, m_shadowMapImageView, nullptr);
-  vkDestroyImage(m_device, m_shadowMapImage, nullptr);
-  vkFreeMemory(m_device, m_shadowMapImageMemory, nullptr);
 
   while (!m_meshes.empty()) {
     removeMesh(m_meshes.begin()->first);

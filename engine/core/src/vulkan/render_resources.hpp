@@ -81,6 +81,8 @@ enum class DescriptorSetNumber : uint32_t
   Object = 3
 };
 
+class GpuImage;
+
 class RenderResources
 {
   public:
@@ -132,8 +134,7 @@ class RenderResources
 
     // Shadow pass
     //
-    virtual VkImage getShadowMapImage() const = 0;
-    virtual VkImageView getShadowMapImageView() const = 0;
+    virtual GpuImage& getShadowMap() = 0;
 
     virtual ~RenderResources() = default;
 };

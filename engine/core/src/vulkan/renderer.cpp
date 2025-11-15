@@ -272,9 +272,7 @@ class RendererImpl : public Renderer
     Vec2i m_viewDimensions;
     std::vector<VkImageView> m_swapchainImageViews;
     std::vector<VkImage> m_swapchainImages;
-    VkImage m_depthImage;
-    VkDeviceMemory m_depthImageMemory;
-    VkImageView m_depthImageView;
+    GpuImagePtr m_depthImage;
     std::vector<VkCommandBuffer> m_commandBuffers;
     uint32_t m_imageIndex;
     VkCommandPool m_commandPool;
@@ -1168,9 +1166,6 @@ void RendererImpl::setPerspectiveMatrix(float rotation)
 
 void RendererImpl::cleanupSwapChain()
 {
-  vkDestroyImageView(m_device, m_depthImageView, nullptr);
-  vkDestroyImage(m_device, m_depthImage, nullptr);
-  vkFreeMemory(m_device, m_depthImageMemory, nullptr);
   for (auto imageView : m_swapchainImageViews) {
     vkDestroyImageView(m_device, imageView, nullptr);
   }
@@ -1512,7 +1507,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
     .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = m_resources->getShadowMapImage(),
+    .image = m_resources->getShadowMap().vkImage(),
     .subresourceRange = VkImageSubresourceRange{
       .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
       .baseMipLevel = 0,
@@ -1528,7 +1523,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
   VkRenderingAttachmentInfo depthAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
-    .imageView = m_resources->getShadowMapImageView(),
+    .imageView = m_resources->getShadowMap().vkImageView(),
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
@@ -1575,7 +1570,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
     .newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = m_resources->getShadowMapImage(),
+    .image = m_resources->getShadowMap().vkImage(),
     .subresourceRange = VkImageSubresourceRange{
       .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
       .baseMipLevel = 0,
@@ -1638,7 +1633,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   VkRenderingAttachmentInfo depthAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
-    .imageView = m_depthImageView,
+    .imageView = m_depthImage->vkImageView(),
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
@@ -1944,14 +1939,7 @@ void RendererImpl::createDepthResources()
 {
   DBG_TRACE(m_logger);
 
-  VkFormat depthFormat = findDepthFormat(m_physicalDevice);
-
-  createImage(m_physicalDevice, m_device, m_swapchainExtent.width, m_swapchainExtent.height,
-    depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depthImage, m_depthImageMemory);
-
-  m_depthImageView = createImageView(m_device, m_depthImage, depthFormat,
-    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
+  m_depthImage = m_bufferManager->createDepthAttachment(m_swapchainExtent);
 }
 
 void RendererImpl::pickPhysicalDevice()
@@ -2122,6 +2110,7 @@ void RendererImpl::cleanUp()
   m_pipelines.clear();
   cleanupSwapChain();
   m_resources.reset();
+  m_depthImage.reset();
   m_bufferManager.reset();
 #ifdef USE_VALIDATION_LAYERS
   destroyDebugMessenger();

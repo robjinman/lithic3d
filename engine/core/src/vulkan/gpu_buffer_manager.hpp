@@ -42,6 +42,10 @@ class GpuBufferManager
     virtual GpuBufferPtr createInstanceBuffer(size_t size) = 0;
     virtual GpuBufferPtr createStagingBuffer(size_t size) = 0;
     virtual GpuImagePtr createCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
+    virtual GpuImagePtr createTexture(const Texture& texture) = 0;
+    virtual GpuImagePtr createNormalMap(const Texture& texture) = 0;
+    virtual GpuImagePtr createDepthAttachment(VkExtent2D extent) = 0;
+    virtual GpuImagePtr createShadowMap(VkExtent2D extent) = 0;
 
     virtual void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) = 0;
 

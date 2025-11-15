@@ -110,6 +110,10 @@ class GpuBufferManagerImpl : public GpuBufferManager
     GpuBufferPtr createInstanceBuffer(size_t size) override;
     GpuBufferPtr createStagingBuffer(size_t size) override;
     GpuImagePtr createCubeMap(const std::array<TexturePtr, 6>& textures) override;
+    GpuImagePtr createTexture(const Texture& texture) override;
+    GpuImagePtr createNormalMap(const Texture& texture) override;
+    GpuImagePtr createDepthAttachment(VkExtent2D extent) override;
+    GpuImagePtr createShadowMap(VkExtent2D extent) override;
 
     void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) override;
 
@@ -117,6 +121,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
 
   private:
     VmaAllocator m_allocator;
+    VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkCommandPool m_commandPool;
     VkQueue m_graphicsQueue;
@@ -130,11 +135,14 @@ class GpuBufferManagerImpl : public GpuBufferManager
       VkImageLayout newLayout, uint32_t layerCount);
     void copyBufferToImage(GpuBuffer& buffer, GpuImage& image, uint32_t width, uint32_t height,
       VkDeviceSize bufferOffset, uint32_t layer);
+    GpuImagePtr createTexture(const Texture& texture, VkFormat format);
+    GpuImagePtr createDepthImage(VkExtent2D extent, VkImageUsageFlags usage);
 };
 
 GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device,
   VkInstance instance, VkQueue graphicsQueue, VkCommandPool commandPool)
-  : m_device(device)
+  : m_physicalDevice(physicalDevice)
+  , m_device(device)
   , m_commandPool(commandPool)
   , m_graphicsQueue(graphicsQueue)
 {
@@ -482,6 +490,122 @@ GpuImagePtr GpuBufferManagerImpl::createCubeMap(const std::array<TexturePtr, 6>&
     VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6);
 
   return image;
+}
+
+GpuImagePtr GpuBufferManagerImpl::createTexture(const Texture& texture, VkFormat format)
+{
+  auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
+
+  ASSERT(texture.data.size() % 4 == 0, "Texture data size should be multiple of 4");
+
+  VkDeviceSize imageSize = texture.data.size();
+  auto stagingBuffer = createStagingBuffer(imageSize);
+
+  memcpy(stagingBuffer->mappedAddress(), texture.data.data(), static_cast<size_t>(imageSize));
+
+  VkImageCreateInfo imageInfo{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = format,
+    .extent = VkExtent3D{
+      .width = texture.width,
+      .height = texture.height,
+      .depth = 1
+    },
+    .mipLevels = 1,
+    .arrayLayers = 1,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = VK_IMAGE_TILING_OPTIMAL,
+    .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  allocCreateInfo.priority = 1.0f;
+
+  VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocCreateInfo, &image->image,
+    &image->allocation, nullptr), "Failed to create image");
+
+  transitionImageLayout(*image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
+
+  copyBufferToImage(*stagingBuffer, *image, texture.width, texture.height, 0, 0);
+
+  transitionImageLayout(*image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+
+  image->imageView = createImageView(m_device, image->image, format, VK_IMAGE_ASPECT_COLOR_BIT,
+    VK_IMAGE_VIEW_TYPE_2D, 1);
+
+  return image;
+}
+
+GpuImagePtr GpuBufferManagerImpl::createTexture(const Texture& texture)
+{
+  return createTexture(texture, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+GpuImagePtr GpuBufferManagerImpl::createNormalMap(const Texture& texture)
+{
+  return createTexture(texture, VK_FORMAT_R8G8B8A8_UNORM);
+}
+
+GpuImagePtr GpuBufferManagerImpl::createDepthImage(VkExtent2D extent, VkImageUsageFlags usage)
+{
+  auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
+
+  auto depthFormat = findDepthFormat(m_physicalDevice);
+
+  VkImageCreateInfo imageInfo{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = depthFormat,
+    .extent = VkExtent3D{
+      .width = extent.width,
+      .height = extent.height,
+      .depth = 1
+    },
+    .mipLevels = 1,
+    .arrayLayers = 1,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = VK_IMAGE_TILING_OPTIMAL,
+    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | usage,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  allocCreateInfo.priority = 1.0f;
+
+  VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocCreateInfo, &image->image,
+    &image->allocation, nullptr), "Failed to create image");
+
+  image->imageView = createImageView(m_device, image->image, depthFormat,
+    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
+
+  return image;
+}
+
+GpuImagePtr GpuBufferManagerImpl::createDepthAttachment(VkExtent2D extent)
+{
+  return createDepthImage(extent, 0);
+}
+
+GpuImagePtr GpuBufferManagerImpl::createShadowMap(VkExtent2D extent)
+{
+  return createDepthImage(extent, VK_IMAGE_USAGE_SAMPLED_BIT);
 }
 
 GpuBufferManagerImpl::~GpuBufferManagerImpl()

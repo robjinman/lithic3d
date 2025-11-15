@@ -39,51 +39,6 @@ uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
   EXCEPTION("Failed to find suitable memory type");
 }
 
-// TODO: Remove
-void createImage(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t width, uint32_t height,
-  VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-  VkImage& image, VkDeviceMemory& imageMemory, uint32_t arrayLayers, VkImageCreateFlags flags)
-{
-  VkImageCreateInfo imageInfo{
-    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = flags,
-    .imageType = VK_IMAGE_TYPE_2D,
-    .format = format,
-    .extent = VkExtent3D{
-      .width = width,
-      .height = height,
-      .depth = 1
-    },
-    .mipLevels = 1,
-    .arrayLayers = arrayLayers,
-    .samples = VK_SAMPLE_COUNT_1_BIT,
-    .tiling = tiling,
-    .usage = usage,
-    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-    .queueFamilyIndexCount = 0,
-    .pQueueFamilyIndices = nullptr,
-    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
-  };
-
-  VK_CHECK(vkCreateImage(device, &imageInfo, nullptr, &image), "Failed to create image");
-
-  VkMemoryRequirements memRequirements;
-  vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-  VkMemoryAllocateInfo allocInfo{
-    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .pNext = nullptr,
-    .allocationSize = memRequirements.size,
-    .memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties)
-  };
-
-  VK_CHECK(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory),
-    "Failed to allocate image memory");
-
-  vkBindImageMemory(device, image, imageMemory, 0);
-}
-
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format,
   VkImageAspectFlags aspectFlags, VkImageViewType type, uint32_t layerCount)
 {
@@ -117,6 +72,7 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format,
   return imageView;
 }
 
+// TODO: Rationalise this
 VkFormat findDepthFormat(VkPhysicalDevice physicalDevice)
 {
   auto findSupportedFormat = [=](const std::vector<VkFormat>& candidates, VkImageTiling tiling,
