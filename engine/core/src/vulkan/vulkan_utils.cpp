@@ -39,6 +39,7 @@ uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
   EXCEPTION("Failed to find suitable memory type");
 }
 
+// TODO: Remove
 void createImage(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t width, uint32_t height,
   VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
   VkImage& image, VkDeviceMemory& imageMemory, uint32_t arrayLayers, VkImageCreateFlags flags)

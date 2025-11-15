@@ -1,8 +1,9 @@
 #pragma once
 
+#include "lithic3d/renderables.hpp"
+#include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
-#include <vulkan/vulkan.h>
 
 namespace lithic3d
 {
@@ -21,6 +22,17 @@ class GpuBuffer
 
 using GpuBufferPtr = std::unique_ptr<GpuBuffer>;
 
+class GpuImage
+{
+  public:
+    virtual VkImage vkImage() = 0;
+    virtual VkImageView vkImageView() = 0;
+
+    virtual ~GpuImage() = default;
+};
+
+using GpuImagePtr = std::unique_ptr<GpuImage>;
+
 class GpuBufferManager
 {
   public:
@@ -29,6 +41,7 @@ class GpuBufferManager
     virtual GpuBufferPtr createIndexBuffer(const std::vector<char>& data) = 0;
     virtual GpuBufferPtr createInstanceBuffer(size_t size) = 0;
     virtual GpuBufferPtr createStagingBuffer(size_t size) = 0;
+    virtual GpuImagePtr createCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
 
     virtual void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) = 0;
 
