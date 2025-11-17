@@ -309,7 +309,7 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
       return m_bufferManager.createUbo(sizeof(JointTransformsUbo));
     });
 
-    std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<float, 4>());
+    std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       m_bufferManager.writeToBuffer(*data->jointTransformsUbo[i], joints.data(),
         joints.size() * sizeof(Mat4x4f));

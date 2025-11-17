@@ -63,7 +63,7 @@ EntityId ProductActivationImpl::constructRoot()
   auto id = m_ecs.componentStore().allocate<DSpatial>();
 
   DSpatial spatial{
-    .transform = identityMatrix<float, 4>(),
+    .transform = identityMatrix<4>(),
     .parent = sysSpatial.root(),
     .enabled = false
   };

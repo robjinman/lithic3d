@@ -449,10 +449,10 @@ using Mat2x3f = Matrix<float, 2, 3>;
 using Mat3x2f = Matrix<float, 3, 2>;
 using Mat4x4f = Matrix<float, 4, 4>;
 
-template<typename T, size_t M>
-Matrix<T, M, M> scaleMatrix(T scale, bool homogeneous)
+template<size_t M>
+Matrix<float, M, M> scaleMatrix(float scale, bool homogeneous)
 {
-  Matrix<T, M, M> m;
+  Matrix<float, M, M> m;
   for (size_t i = 0; i < M; ++i) {
     m.set(i, i, scale);
   }
@@ -462,10 +462,9 @@ Matrix<T, M, M> scaleMatrix(T scale, bool homogeneous)
   return m;
 };
 
-template<typename T>
-Matrix<T, 4, 4> scaleMatrix4x4(const Vector<T, 3>& scale)
+inline Mat4x4f scaleMatrix4x4(const Vec3f& scale)
 {
-  return Matrix<T, 4, 4>{
+  return Mat4x4f{
     scale[0], 0.f, 0.f, 0.f,
     0.f, scale[1], 0.f, 0.f,
     0.f, 0.f, scale[2], 0.f,
@@ -473,16 +472,15 @@ Matrix<T, 4, 4> scaleMatrix4x4(const Vector<T, 3>& scale)
   };
 }
 
-template<typename T, size_t M>
-Matrix<T, M, M> identityMatrix()
+template<size_t M>
+Matrix<float, M, M> identityMatrix()
 {
-  return scaleMatrix<T, M>(1, false);
+  return scaleMatrix<M>(1, false);
 }
 
-template<typename T>
-Matrix<T, 3, 3> crossProductMatrix3x3(const Vector<T, 3>& k)
+inline Mat3x3f crossProductMatrix3x3(const Vec3f& k)
 {
-  return Matrix<T, 3, 3>{
+  return Mat3x3f{
     0, -k[2], k[1],
     k[2], 0, -k[0],
     -k[1], k[0], 0
@@ -490,28 +488,26 @@ Matrix<T, 3, 3> crossProductMatrix3x3(const Vector<T, 3>& k)
 }
 
 // Rodrigues' rotation formula
-template<typename T>
-Matrix<T, 3, 3> rotationMatrix3x3(const Vector<T, 3>& k, T theta)
+inline Mat3x3f rotationMatrix3x3(const Vec3f& k, float theta)
 {
   auto K = crossProductMatrix3x3(k);
-  return identityMatrix<T, 3>() + K * sin(theta) + (K * K) * (1.f - cos(theta));
+  return identityMatrix<3>() + K * sin(theta) + (K * K) * (1.f - cos(theta));
 }
 
 // From Euler angles
-template<typename T>
-Matrix<T, 3, 3> rotationMatrix3x3(const Vector<T, 3>& ori)
+inline Mat3x3f rotationMatrix3x3(const Vec3f& ori)
 {
-  Matrix<T, 3, 3> X{
+  Mat3x3f X{
     1, 0, 0,
     0, cosine(ori[0]), -sine(ori[0]),
     0, sine(ori[0]), cosine(ori[0])
   };
-  Matrix<T, 3, 3> Y{
+  Mat3x3f Y{
     cosine(ori[1]), 0, sine(ori[1]),
     0, 1, 0,
     -sine(ori[1]), 0, cosine(ori[1])
   };
-  Matrix<T, 3, 3> Z{
+  Mat3x3f Z{
     cosine(ori[2]), -sine(ori[2]), 0,
     sine(ori[2]), cosine(ori[2]), 0,
     0, 0, 1
@@ -519,21 +515,19 @@ Matrix<T, 3, 3> rotationMatrix3x3(const Vector<T, 3>& ori)
   return Z * (Y * X);
 }
 
-template<typename T>
-Matrix<T, 4, 4> translationMatrix4x4(const Vector<T, 3>& pos)
+inline Mat4x4f translationMatrix4x4(const Vec3f& pos)
 {
-  auto m = identityMatrix<T, 4>();
+  auto m = identityMatrix<4>();
   m.set(0, 3, pos[0]);
   m.set(1, 3, pos[1]);
   m.set(2, 3, pos[2]);
   return m;
 }
 
-template<typename T>
-Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 3>& ori)
+inline Mat4x4f rotationMatrix4x4(const Vec3f& ori)
 {
   auto rot = rotationMatrix3x3(ori);
-  Matrix<T, 4, 4> m = identityMatrix<T, 4>();
+  Mat4x4f m = identityMatrix<4>();
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 3; ++c) {
       m.set(r, c, rot.at(r, c));
@@ -542,15 +536,14 @@ Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 3>& ori)
   return m;
 }
 
-template<typename T>
-Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 4>& quaternion)
+inline Mat4x4f rotationMatrix4x4(const Vec4f& quaternion)
 {
-  T w = quaternion[0];
-  T x = quaternion[1];
-  T y = quaternion[2];
-  T z = quaternion[3];
+  float w = quaternion[0];
+  float x = quaternion[1];
+  float y = quaternion[2];
+  float z = quaternion[3];
 
-  return Matrix<T, 4, 4>{
+  return Mat4x4f{
     1.f - 2.f * y * y - 2.f * z * z, 2.f * x * y - 2.f * z * w, 2.f * x * z + 2.f * y * w, 0.f,
     2.f * x * y + 2.f * z * w, 1.f - 2.f * x * x - 2.f * z * z, 2.f * y * z - 2.f * x * w, 0.f,
     2.f * x * z - 2.f * y * w, 2.f * y * z + 2.f * x * w, 1.f - 2.f * x * x - 2.f * y * y, 0.f,
@@ -558,11 +551,10 @@ Matrix<T, 4, 4> rotationMatrix4x4(const Vector<T, 4>& quaternion)
   };
 }
 
-template<typename T>
-Matrix<T, 4, 4> createTransform(const Vector<T, 3>& pos, const Vector<T, 3>& ori)
+inline Mat4x4f createTransform(const Vec3f& pos, const Vec3f& ori)
 {
   auto rot = rotationMatrix3x3(ori);
-  Matrix<T, 4, 4> m = identityMatrix<float, 4>();
+  Mat4x4f m = identityMatrix<4>();
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 3; ++c) {
       m.set(r, c, rot.at(r, c));
@@ -574,15 +566,14 @@ Matrix<T, 4, 4> createTransform(const Vector<T, 3>& pos, const Vector<T, 3>& ori
   return m;
 }
 
-template<typename T>
-Matrix<T, 4, 4> fromVerticalToVectorTransform(const Vector<T, 3>& vec)
+inline Mat4x4f fromVerticalToVectorTransform(const Vec3f& vec)
 {
-  Vector<T, 3> u = vec.normalise();
-  Vector<T, 3> w = Vector<T, 3>{0, 0, 1};
-  Vector<T, 3> v = w.cross(u).normalise();
+  Vec3f u = vec.normalise();
+  Vec3f w{ 0, 0, 1 };
+  Vec3f v = w.cross(u).normalise();
   w = u.cross(v);
 
-  return Matrix<T, 4, 4>{
+  return Mat4x4f{
     v[0], w[0], u[0], 0,
     v[1], w[1], u[1], 0,
     v[2], w[2], u[2], 0,
@@ -590,10 +581,9 @@ Matrix<T, 4, 4> fromVerticalToVectorTransform(const Vector<T, 3>& vec)
   };
 }
 
-template<typename T>
-Matrix<T, 3, 3> getRotation3x3(const Matrix<T, 4, 4>& m)
+inline Mat3x3f getRotation3x3(const Mat4x4f& m)
 {
-  Matrix<T, 3, 3> rot;
+  Mat3x3f rot;
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 3; ++c) {
       rot.set(r, c, m.at(r, c));
@@ -602,24 +592,17 @@ Matrix<T, 3, 3> getRotation3x3(const Matrix<T, 4, 4>& m)
   return rot;
 }
 
-template<typename T>
-Vector<T, 3> getTranslation(const Matrix<T, 4, 4>& m)
+inline Vec3f getTranslation(const Mat4x4f& m)
 {
-  return Vector<T, 3>{m.at(0, 3), m.at(1, 3), m.at(2, 3)};
+  return Vec3f{m.at(0, 3), m.at(1, 3), m.at(2, 3)};
 }
 
-template<typename T>
-Vector<T, 3> getDirection(const Matrix<T, 4, 4>& m)
+inline Vec3f getDirection(const Mat4x4f& m)
 {
-  return (getRotation3x3(m) * Vector<T, 3>{
-    static_cast<T>(0),
-    static_cast<T>(0),
-    static_cast<T>(-1)
-  }).normalise();
+  return (getRotation3x3(m) * Vec3f{ 0.f, 0.f, -1.f }).normalise();
 }
 
-template<typename T>
-void setTranslation(Matrix<T, 4, 4>& m, const Vector<T, 3>& t)
+inline void setTranslation(Mat4x4f& m, const Vec3f& t)
 {
   m.set(0, 3, t[0]);
   m.set(1, 3, t[1]);

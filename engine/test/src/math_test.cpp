@@ -70,10 +70,10 @@ TEST_F(MathTest, matrix_multiply_unequal_dims)
   ASSERT_EQ(X, C);
 }
 
-TEST_F(MathTest, identity_matrix)
+TEST_F(MathTest, identityMatrix)
 {
-  auto I = identityMatrix<int, 4>();
-  Matrix<int, 4, 4> m{
+  auto I = identityMatrix<4>();
+  Mat4x4f m{
     5, 4, 3, 2,
     1, 2, 3, 4,
     0, 3, 3, 5,

@@ -91,9 +91,9 @@ class SysRender3dImpl : public SysRender3d
     using DrawFilter = std::function<bool(const Submodel&)>;
 
     std::vector<Vec2f> computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
-      const Vec3f& viewDir, float_t hFov) const;
+      const Vec3f& viewDir, float hFov) const;
     std::vector<Vec2f> computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
-      const Vec3f& viewDir, float_t hFov, float_t zFar) const;
+      const Vec3f& viewDir, float hFov, float zFar) const;
     void drawModels(const std::unordered_set<EntityId>& entities,
       const DrawFilter& filter = [](const Submodel&) { return true; });
     void drawSkybox();
@@ -116,15 +116,15 @@ render::Renderer& SysRender3dImpl::renderer()
 
 // TODO: Remove
 std::vector<Vec2f> SysRender3dImpl::computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
-  const Vec3f& viewDir, float_t hFov) const
+  const Vec3f& viewDir, float hFov) const
 {
   auto params = m_renderer.getViewParams();
-  Vec3f A{ params.nearPlane * static_cast<float_t>(tan(0.5f * hFov)), params.nearPlane, 1 };
-  Vec3f B{ params.farPlane * static_cast<float_t>(tan(0.5f * hFov)), params.farPlane, 1 };
+  Vec3f A{ params.nearPlane * static_cast<float>(tan(0.5f * hFov)), params.nearPlane, 1 };
+  Vec3f B{ params.farPlane * static_cast<float>(tan(0.5f * hFov)), params.farPlane, 1 };
   Vec3f C{ -B[0], B[1], 1 };
   Vec3f D{ -A[0], A[1], 1 };
 
-  float_t a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
+  float a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
 
   Mat3x3f m{
     cosine(a), -sine(a), viewPos[0],
@@ -137,15 +137,15 @@ std::vector<Vec2f> SysRender3dImpl::computePerspectiveFrustumPerimeter(const Vec
 
 // TODO: Remove
 std::vector<Vec2f> SysRender3dImpl::computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
-  const Vec3f& viewDir, float_t hFov, float_t zFar) const
+  const Vec3f& viewDir, float hFov, float zFar) const
 {
-  float_t w = zFar * tan(0.5f * hFov);
+  float w = zFar * tan(0.5f * hFov);
   Vec3f A{ w, 0.f, 1 };
   Vec3f B{ w, zFar, 1 };
   Vec3f C{ -B[0], B[1], 1 };
   Vec3f D{ -A[0], A[1], 1 };
 
-  float_t a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
+  float a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
 
   Mat3x3f m{
     cosine(a), -sine(a), viewPos[0],
@@ -344,12 +344,12 @@ void SysRender3dImpl::doMainPass()
   m_renderer.endPass();
 }
 
-Vec4f interpolateRotation(const Vec4f& A_, const Vec4f& B_, float_t t)
+Vec4f interpolateRotation(const Vec4f& A_, const Vec4f& B_, float t)
 {
   Vec4f A = A_;
   Vec4f B = B_;
 
-  float_t dotProduct = A.dot(B);
+  float dotProduct = A.dot(B);
   if (dotProduct < 0.f) {
     B = -B;
     dotProduct = -dotProduct;
@@ -359,28 +359,28 @@ Vec4f interpolateRotation(const Vec4f& A_, const Vec4f& B_, float_t t)
     return (A + (B - A) * t).normalise();
   }
 
-  float_t theta0 = acos(dotProduct);
-  float_t theta = t * theta0;
-  float_t sinTheta = sin(theta);
-  float_t sinTheta0 = sin(theta0);
+  float theta0 = acos(dotProduct);
+  float theta = t * theta0;
+  float sinTheta = sin(theta);
+  float sinTheta0 = sin(theta0);
 
-  float_t scaleA = cos(theta) - dotProduct * sinTheta / sinTheta0;
-  float_t scaleB = sinTheta / sinTheta0;
+  float scaleA = cos(theta) - dotProduct * sinTheta / sinTheta0;
+  float scaleB = sinTheta / sinTheta0;
 
   return A * scaleA + B * scaleB;
 }
 
-Vec3f interpolateTranslation(const Vec3f& A, const Vec3f& B, float_t t)
+Vec3f interpolateTranslation(const Vec3f& A, const Vec3f& B, float t)
 {
   return A + (B - A) * t;
 }
 
-Vec3f interpolateScale(const Vec3f& A, const Vec3f& B, float_t t)
+Vec3f interpolateScale(const Vec3f& A, const Vec3f& B, float t)
 {
   return A + (B - A) * t;
 }
 
-Transform interpolate(const Transform& A, const Transform& B, float_t t)
+Transform interpolate(const Transform& A, const Transform& B, float t)
 {
   Transform C;
   if (!A.rotation.has_value()) {
@@ -443,7 +443,7 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
   }
 
   // Returns true if channel is finished
-  auto advanceFrame = [](float_t time, const AnimationChannel& channel, size_t& frame,
+  auto advanceFrame = [](float time, const AnimationChannel& channel, size_t& frame,
     size_t numFrames) {
 
     // Loop until the next frame is in the future
@@ -467,7 +467,7 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
     }
 
     size_t numFrames = channel.timestamps.size();
-    float_t time = static_cast<float_t>(state.timer.elapsed());
+    float time = static_cast<float>(state.timer.elapsed());
 
     assert(frame + 1 < numFrames);
 
@@ -482,8 +482,8 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
       continue;
     }
 
-    float_t frameDuration = channel.timestamps[frame + 1] - channel.timestamps[frame];
-    float_t t = (time - channel.timestamps[frame]) / frameDuration;
+    float frameDuration = channel.timestamps[frame + 1] - channel.timestamps[frame];
+    float t = (time - channel.timestamps[frame]) / frameDuration;
     assert(t >= 0.f && t <= 1.f);
 
     const Transform& prevTransform = channel.transforms[frame];
@@ -493,7 +493,7 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
   }
 
   std::vector<Mat4x4f> absTransforms(skeleton.joints.size());
-  computeAbsoluteJointTransforms(pose, absTransforms, identityMatrix<float_t, 4>(),
+  computeAbsoluteJointTransforms(pose, absTransforms, identityMatrix<4>(),
     skeleton.rootNodeIndex);
 
   std::vector<Mat4x4f> finalTransforms;

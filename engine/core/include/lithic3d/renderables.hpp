@@ -202,7 +202,7 @@ struct Mesh
     : featureSet(features)
   {}
 
-  Mat4x4f transform = identityMatrix<float, 4>();
+  Mat4x4f transform = identityMatrix<4>();
   MeshFeatureSet featureSet;
   std::vector<Buffer> attributeBuffers;
   Buffer indexBuffer;

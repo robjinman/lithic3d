@@ -19,7 +19,7 @@ void Camera3d::translate(const Vec3f& delta)
   m_position += delta;
 }
 
-void Camera3d::rotate(float_t deltaPitch, float_t deltaYaw)
+void Camera3d::rotate(float deltaPitch, float deltaYaw)
 {
   auto pitch = rotationMatrix3x3(m_direction.cross(Vec3f{0, 1, 0}), deltaPitch);
   auto yaw = rotationMatrix3x3(Vec3f{0, 1, 0}, deltaYaw);

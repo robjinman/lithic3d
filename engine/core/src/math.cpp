@@ -181,7 +181,7 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
 
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
 {
-  Mat4x4f m = identityMatrix<float, 4>();
+  Mat4x4f m = identityMatrix<4>();
   Vec3f f((centre - eye).normalise());
   Vec3f s(f.cross({ 0, 1, 0 }).normalise());
   Vec3f u(s.cross(f));
@@ -246,7 +246,7 @@ Mat2x2f inverse(const Mat2x2f& M)
 
 Mat4x4f Transform::toMatrix() const
 {
-  Mat4x4f m = identityMatrix<float, 4>();
+  Mat4x4f m = identityMatrix<4>();
   if (scale.has_value()) {
     m = scaleMatrix4x4(scale.value());
   }

@@ -19,7 +19,7 @@ using SkinPtr = std::unique_ptr<Skin>;
 struct AnimationChannel
 {
   size_t jointIndex;  // Index into skin
-  std::vector<float_t> timestamps;
+  std::vector<float> timestamps;
   std::vector<Transform> transforms;
 };
 
@@ -108,9 +108,9 @@ struct DLight
 
   std::vector<Submodel> submodels;
   Vec3f colour;
-  float_t ambient = 0.f;
-  float_t specular = 0.f;
-  float_t zFar = 1500.f; // TODO
+  float ambient = 0.f;
+  float specular = 0.f;
+  float zFar = 1500.f; // TODO
 };
 
 using DLightPtr = std::unique_ptr<DLight>;

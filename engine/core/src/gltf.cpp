@@ -329,7 +329,7 @@ ModelDesc extractModel(const std::vector<char>& jsonData)
     modelDesc.buffers.push_back(buffer.at("uri").get<std::string>());
   }
 
-  extractMeshHierarchy(root, rootNodeIndex, modelDesc.meshes, identityMatrix<float_t, 4>());
+  extractMeshHierarchy(root, rootNodeIndex, modelDesc.meshes, identityMatrix<4>());
   modelDesc.armature = extractArmature(root, rootNodeIndex);
 
   return modelDesc;

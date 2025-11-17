@@ -18,6 +18,9 @@ class SysSpatialImpl : public SysSpatial
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
+    void transformEntity(EntityId id, const Mat4x4f& m) override;
+    void setEntityTransform(EntityId id, const Mat4x4f& m) override;
+
     std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const override;
 
     void addEntity(EntityId entityId, const DSpatial& data) override;
@@ -79,9 +82,20 @@ bool SysSpatialImpl::hasEntity(EntityId entityId) const
   return m_sceneGraph->hasItem(entityId);
 }
 
+void SysSpatialImpl::transformEntity(EntityId id, const Mat4x4f& m)
+{
+  m_componentStore.component<CLocalTransform>(id).transform =
+    m * m_componentStore.component<CLocalTransform>(id).transform;
+}
+
+void SysSpatialImpl::setEntityTransform(EntityId id, const Mat4x4f& m)
+{
+  m_componentStore.component<CLocalTransform>(id).transform = m;
+}
+
 void SysSpatialImpl::update(Tick, const InputState&)
 {
-  Mat4x4f I = identityMatrix<float, 4>();
+  Mat4x4f I = identityMatrix<4>();
 
   Mat4x4f* parentT = &I;
   EntityId prevParentId = NULL_ENTITY;

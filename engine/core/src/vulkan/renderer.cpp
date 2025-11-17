@@ -1148,7 +1148,7 @@ void RendererImpl::setOrthographicMatrix(float rotation)
   m.set(2, 3, -n / (f - n));
   m.set(3, 3, 1.f);
 
-  Mat4x4f rot = rotationMatrix4x4<float>(Vec3f{ 0.f, 0.f, rotation });
+  Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
   m_orthographicMatrix = rot * m;
 }
 
@@ -1159,7 +1159,7 @@ void RendererImpl::setPerspectiveMatrix(float rotation)
   m_viewParams.aspectRatio = aspect;
   m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
 
-  Mat4x4f rot = rotationMatrix4x4<float>(Vec3f{ 0.f, 0.f, rotation });
+  Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
   m_perspectiveMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
     m_viewParams.nearPlane, m_viewParams.farPlane);
 }

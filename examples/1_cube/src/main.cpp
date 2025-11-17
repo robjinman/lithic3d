@@ -117,10 +117,8 @@ void Demo::rotateCube()
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
-  // TODO
-  m_engine.ecs().componentStore().component<CLocalTransform>(m_cube).transform =
-    translationMatrix4x4(Vec3f{ 0.f, 0.f, 5.f }) *
-    rotationMatrix4x4(Vec3f{ b, a, 0.f });
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube,
+    createTransform({ 0.f, 0.f, 5.f }, { b, a, 0.f }));
 }
 
 bool Demo::update()

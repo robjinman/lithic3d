@@ -99,12 +99,13 @@ void Demo::constructSkybox()
   render->model = Submodel{
     .mesh = m_engine.renderer().addMesh(std::move(mesh)),
     .material = m_engine.renderer().addMaterial(std::move(material)),
-    .skin = nullptr
+    .skin = nullptr,
+    .jointTransforms{}
   };
   sysRender3d.addEntity(id, std::move(render));
 
   DSpatial spatial{
-    .transform = identityMatrix<float, 4>(),
+    .transform = identityMatrix<4>(),
     .parent = sysSpatial.root(),
     .enabled = true
   };

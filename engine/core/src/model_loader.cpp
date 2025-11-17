@@ -69,7 +69,7 @@ size_t convert(const char* src, gltf::ElementType elementType, gltf::ComponentTy
     case gltf::ElementType::JointScale:
     case gltf::ElementType::JointTranslation:
     case gltf::ElementType::JointInverseBindMatrices:
-      return convert<float_t>(src, srcType, n, dest);
+      return convert<float>(src, srcType, n, dest);
     default:
       EXCEPTION("Cannot convert element type");
   }
@@ -382,7 +382,7 @@ SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
   return skin;
 }
 
-std::vector<Transform> constructJointTransformsBuffer(const std::vector<float_t>& data,
+std::vector<Transform> constructJointTransformsBuffer(const std::vector<float>& data,
   gltf::ElementType elementType)
 {
   std::vector<Transform> buffer;
@@ -447,16 +447,16 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
   }
 
   for (auto& animationDesc : modelDesc.armature.animations) {
-    std::map<size_t, std::vector<float_t>> buffers;
+    std::map<size_t, std::vector<float>> buffers;
 
-    auto getBuffer = [&](size_t index) -> std::vector<float_t>& {
+    auto getBuffer = [&](size_t index) -> std::vector<float>& {
       auto i = buffers.find(index);
       if (i != buffers.end()) {
         return i->second;
       }
       auto& bufferDesc = animationDesc.buffers[index];
       DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float, "Expected float buffer");
-      std::vector<float_t> buffer(bufferDesc.size * bufferDesc.dimensions);
+      std::vector<float> buffer(bufferDesc.size * bufferDesc.dimensions);
       copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
       buffers[index] = std::move(buffer);
       return buffers.at(index);
