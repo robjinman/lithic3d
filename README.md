@@ -1,5 +1,5 @@
-Lithic 3D
-=========
+Lithic3D
+========
 
 Cross platform game engine.
 

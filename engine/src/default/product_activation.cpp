@@ -60,9 +60,7 @@ EntityId ProductActivationImpl::constructRoot()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
-  auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags
-  >();
+  auto id = m_ecs.componentStore().allocate<DSpatial>();
 
   DSpatial spatial{
     .transform = identityMatrix<float, 4>(),
@@ -80,9 +78,7 @@ EntityId ProductActivationImpl::constructPrompt()
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender = m_ecs.system<SysRender2d>();
 
-  auto id = m_ecs.componentStore().allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite
-  >();
+  auto id = m_ecs.componentStore().allocate<DSpatial, DText>();
 
   Vec2f pos{ 0.3f, 0.7f };
   Vec2f size{ 0.022f, 0.044f };
@@ -125,10 +121,7 @@ EntityId ProductActivationImpl::constructTextbox()
 
   auto& store = m_ecs.componentStore();
 
-  auto id = store.allocate<
-    CLocalTransform, CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText, CUi,
-    CTextbox
-  >();
+  auto id = store.allocate<DSpatial, DDynamicText, DUi>();
 
   store.component<CTextbox>(id) = CTextbox{};
 

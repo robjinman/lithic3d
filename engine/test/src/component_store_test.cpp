@@ -65,7 +65,7 @@ TEST_F(EcsTest, store_and_retrieve_single_component)
 
   ExampleSystem system{componentStore};
 
-  auto entityId = componentStore.allocate<CExampleView>();
+  auto entityId = componentStore.allocateEntity<CExampleView>();
 
   CExample example{
     .a = 1,
@@ -141,7 +141,7 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
     .c = 3.0
   };
 
-  auto entityId = componentStore.allocate<ComponentA, ComponentB>();
+  auto entityId = componentStore.allocateEntity<ComponentA, ComponentB>();
   componentStore.component<ComponentA>(entityId) = componentA;
   componentStore.component<ComponentB>(entityId) = componentB;
 
@@ -181,8 +181,8 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
     .b = 4.f,
   };
 
-  auto entity1 = componentStore.allocate<ComponentA>();
-  auto entity2 = componentStore.allocate<ComponentA>();
+  auto entity1 = componentStore.allocateEntity<ComponentA>();
+  auto entity2 = componentStore.allocateEntity<ComponentA>();
 
   componentStore.component<ComponentA>(entity1) = entity1ComponentA;
   componentStore.component<ComponentA>(entity2) = entity2ComponentA;
@@ -231,8 +231,8 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     .c = 7.0
   };
 
-  auto entity1 = componentStore.allocate<ComponentA>();
-  auto entity2 = componentStore.allocate<ComponentA, ComponentB>();
+  auto entity1 = componentStore.allocateEntity<ComponentA>();
+  auto entity2 = componentStore.allocateEntity<ComponentA, ComponentB>();
 
   componentStore.component<ComponentA>(entity1) = entity1ComponentA;
   componentStore.component<ComponentA>(entity2) = entity2ComponentA;
@@ -300,8 +300,8 @@ TEST_F(EcsTest, get_entity_by_id)
     .c = 7.0
   };
 
-  auto entity1 = componentStore.allocate<ComponentA>();
-  auto entity2 = componentStore.allocate<ComponentA, ComponentB>();
+  auto entity1 = componentStore.allocateEntity<ComponentA>();
+  auto entity2 = componentStore.allocateEntity<ComponentA, ComponentB>();
 
   componentStore.component<ComponentA>(entity1) = entity1ComponentA;
   componentStore.component<ComponentA>(entity2) = entity2ComponentA;
@@ -327,7 +327,7 @@ TEST_F(EcsTest, remove_only_entity)
     .c = 3.0
   };
 
-  auto entityId = componentStore.allocate<ComponentA, ComponentB>();
+  auto entityId = componentStore.allocateEntity<ComponentA, ComponentB>();
 
   componentStore.component<ComponentA>(entityId) = componentA;
   componentStore.component<ComponentB>(entityId) = componentB;
@@ -357,7 +357,7 @@ TEST_F(EcsTest, cannot_modify_const_componentStore)
     .c = 3.0
   };
 
-  auto entityId = componentStore.allocate<ComponentA, ComponentB>();
+  auto entityId = componentStore.allocateEntity<ComponentA, ComponentB>();
 
   componentStore.component<ComponentA>(entityId) = componentA;
   componentStore.component<ComponentB>(entityId) = componentB;
@@ -391,9 +391,45 @@ TEST_F(EcsTest, hasComponentForEntity)
 {
   ComponentStore componentStore;
 
-  auto entityId = componentStore.allocate<ComponentA>();
+  auto entityId = componentStore.allocateEntity<ComponentA>();
 
   EXPECT_TRUE(componentStore.hasComponentForEntity<ComponentA>(entityId));
   EXPECT_FALSE(componentStore.hasComponentForEntity<ComponentB>(entityId));
 }
 
+TEST_F(EcsTest, duplicates_ok)
+{
+  ComponentStore componentStore;
+
+  componentStore.allocateEntity<ComponentA>();
+  componentStore.allocateEntity<ComponentA, ComponentA>();
+
+  auto compAView = componentStore.components<ComponentA>();
+
+  // Should be only 1 group
+  ASSERT_EQ(compAView.end(), ++compAView.begin());
+
+  ASSERT_EQ(2, (*compAView.begin()).entityIds().size());
+  ASSERT_EQ(2, (*compAView.begin()).components<ComponentA>().size());
+}
+
+TEST_F(EcsTest, order_invariant)
+{
+  ComponentStore componentStore;
+
+  componentStore.allocateEntity<ComponentA, ComponentB>();
+  componentStore.allocateEntity<ComponentB, ComponentA>();
+
+  auto compAView = componentStore.components<ComponentA>();
+  auto compBView = componentStore.components<ComponentB>();
+
+  // Should be only 1 group
+  ASSERT_EQ(compAView.end(), ++compAView.begin());
+  ASSERT_EQ(compBView.end(), ++compBView.begin());
+
+  auto aComps = (*compAView.begin()).components<ComponentA>();
+  ASSERT_EQ(2, aComps.size());
+
+  auto bComps = (*compBView.begin()).components<ComponentB>();
+  ASSERT_EQ(2, bComps.size());
+}

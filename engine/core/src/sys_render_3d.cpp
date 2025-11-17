@@ -177,16 +177,25 @@ bool SysRender3dImpl::hasEntity(EntityId entityId) const
 
 void SysRender3dImpl::addEntity(EntityId id, DModelPtr model)
 {
+  assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
+  assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
+
   m_models.insert({ id, std::move(model) });
 }
 
 void SysRender3dImpl::addEntity(EntityId id, DLightPtr light)
 {
+  assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
+  assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
+
   m_lights.insert({ id, std::move(light) });
 }
 
 void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
 {
+  assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
+  assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
+
   m_skybox = std::move(skybox);
 }
 
@@ -279,6 +288,8 @@ void SysRender3dImpl::doShadowPass()
 
   const auto& sysSpatial = m_ecs.system<SysSpatial>();
 
+  // TODO: Check CSpatialFlags
+
   const auto& firstLight = *m_lights.begin()->second;
   const auto& firstLightTransform =
     m_ecs.componentStore().component<CGlobalTransform>(m_lights.begin()->first).transform;
@@ -303,6 +314,8 @@ void SysRender3dImpl::doMainPass()
 {
   const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Colour?
   const auto& sysSpatial = m_ecs.system<SysSpatial>();
+
+  // TODO: Check CSpatialFlags
 
   auto frustum = computePerspectiveFrustumPerimeter(m_camera.getPosition(), m_camera.getDirection(),
     m_renderer.getViewParams().hFov);

@@ -1,10 +1,7 @@
 #pragma once
 
-#include "ecs.hpp"
-#include "utils.hpp"
-#include "math.hpp"
-#include "component_types.hpp"
-#include "systems.hpp"
+#include "sys_spatial.hpp"
+#include "sys_render_2d.hpp"
 #include <functional>
 
 namespace lithic3d
@@ -32,12 +29,10 @@ using Animation2dPtr = std::unique_ptr<Animation2d>;
 
 using Animation2dId = size_t;
 
-// Requires components:
-//   CSpatialFlags
-//   CLocalTransform
-//   CRender2d
 struct DAnimation2d
 {
+  using RequiredComponents = type_list<CSpatialFlags, CLocalTransform, CRender2d>;
+
   std::set<Animation2dId> animations;
 };
 

@@ -1,9 +1,7 @@
 #pragma once
 
-#include "math.hpp"
-#include "ecs.hpp"
 #include "renderables.hpp"
-#include "systems.hpp"
+#include "sys_spatial.hpp"
 #include <set>
 #include <map>
 
@@ -67,9 +65,10 @@ struct Submodel
   std::vector<Mat4x4f> jointTransforms;
 };
 
-// TODO: List required components
 struct DModel
 {
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
+
   DModel() {}
 
   DModel(const DModel& cpy)
@@ -94,17 +93,19 @@ struct DModel
 
 using DModelPtr = std::unique_ptr<DModel>;
 
-// TODO: List required components
 struct DSkybox
 {
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
+
   Submodel model;
 };
 
 using DSkyboxPtr = std::unique_ptr<DSkybox>;
 
-// TODO: List required components
 struct DLight
 {
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
+
   std::vector<Submodel> submodels;
   Vec3f colour;
   float_t ambient = 0.f;
@@ -114,9 +115,10 @@ struct DLight
 
 using DLightPtr = std::unique_ptr<DLight>;
 
-// TODO: List required components
 struct DParticleEmitter
 {
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
+
   // TODO
 };
 

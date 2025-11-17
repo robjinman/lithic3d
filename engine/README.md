@@ -1,5 +1,5 @@
-Freehold Game Engine
-====================
+Lithic3D Engine
+===============
 
 Directory structure
 -------------------

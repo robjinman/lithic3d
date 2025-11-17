@@ -1,10 +1,8 @@
 #pragma once
 
-#include "ecs.hpp"
 #include "input.hpp"
+#include "sys_spatial.hpp"
 #include "utils.hpp"
-#include "component_types.hpp"
-#include "systems.hpp"
 #include <functional>
 
 namespace lithic3d
@@ -12,10 +10,6 @@ namespace lithic3d
 
 struct DUi;
 
-// Requires components:
-//   CSpatialFlags
-//   CGlobalTransform
-//   CUi
 class SysUi : public System
 {
   public:
@@ -52,6 +46,8 @@ struct CUi
 
 struct DUi
 {
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform, CUi>;
+
   bool canReceiveFocus = true;
   SysUi::GroupId group = 0;
   EntityId topSlot = NULL_ENTITY;

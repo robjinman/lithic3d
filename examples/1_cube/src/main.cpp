@@ -51,9 +51,7 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructCube()
 {
-  EntityId id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
+  EntityId id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
 
   auto material = m_factory->constructMaterial("textures/bricks.png");
   m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f }, { 1.f, 1.f });
@@ -63,9 +61,7 @@ EntityId Demo::constructCube()
 
 EntityId Demo::constructLight()
 {
-  auto id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
+  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
@@ -87,9 +83,7 @@ EntityId Demo::constructLight()
 
 EntityId Demo::constructCaption()
 {
-  EntityId id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform, CRender2d, CSprite
-  >();
+  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DText>();
 
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
@@ -123,6 +117,7 @@ void Demo::rotateCube()
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
+  // TODO
   m_engine.ecs().componentStore().component<CLocalTransform>(m_cube).transform =
     translationMatrix4x4(Vec3f{ 0.f, 0.f, 5.f }) *
     rotationMatrix4x4(Vec3f{ b, a, 0.f });

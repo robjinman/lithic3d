@@ -34,7 +34,7 @@ SysSpatialImpl::SysSpatialImpl(ComponentStore& componentStore, EventSystem& even
   : m_componentStore(componentStore)
   , m_eventSystem(eventSystem)
 {
-  EntityId root = m_componentStore.allocate<CLocalTransform, CGlobalTransform, CSpatialFlags>();
+  EntityId root = m_componentStore.allocate<DSpatial>();
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY>>(root);
 }
 

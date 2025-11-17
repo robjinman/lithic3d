@@ -75,9 +75,7 @@ void Demo::constructSkybox()
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  auto id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
+  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>();
 
   auto render = std::make_unique<DSkybox>();
   auto mesh = render::cuboid(9999.f, 9999.f, 9999.f, { 1.f, 1.f });
@@ -116,9 +114,7 @@ void Demo::constructSkybox()
 
 EntityId Demo::constructLight()
 {
-  auto id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
+  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
 
   float pitch = degreesToRadians(-45.f);
   float yaw = degreesToRadians(180.f);
@@ -162,9 +158,7 @@ EntityId Demo::constructModel(float x, float z)
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  auto id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
+  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
 
   auto m = translationMatrix4x4(metresToWorldUnits(Vec3f{ x, 2.f, z })) *
     scaleMatrix4x4(Vec3f{ 10.f, 10.f, 10.f });
@@ -194,9 +188,7 @@ void Demo::constructModels()
 
 EntityId Demo::constructGround()
 {
-  auto id = m_engine.ecs().componentStore().allocate<
-    CSpatialFlags, CLocalTransform, CGlobalTransform
-  >();
+  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
 
   auto material = m_factory->constructMaterial("textures/ground.png");
 

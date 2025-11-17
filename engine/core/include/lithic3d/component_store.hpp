@@ -20,13 +20,58 @@ using ComponentType = uint64_t;
 
 const EntityId NULL_ENTITY = 0;
 
+template<typename... Ts>
+struct type_list {};
+
+template<typename>
+struct is_type_list : std::false_type {};
+
+template<typename... Ts>
+struct is_type_list<type_list<Ts...>> : std::true_type {};
+
+template<typename T> constexpr bool is_type_list_v = is_type_list<T>::value;
+
+template<typename T>
+concept TypeList = is_type_list<T>::value;
+
+template<TypeList List1, TypeList List2>
+struct concat_2;
+
+template<typename... Ts, typename... Us>
+struct concat_2<type_list<Ts...>, type_list<Us...>>
+{
+  using type = type_list<Ts..., Us...>;
+};
+
+template<TypeList... Lists>
+struct concat_n;
+
+template<TypeList L>
+struct concat_n<L>
+{
+  using type = L;
+};
+
+template<TypeList L1, TypeList L2, TypeList... Rest>
+struct concat_n<L1, L2, Rest...>
+{
+  using type = typename concat_n<typename concat_2<L1, L2>::type, Rest...>::type;
+};
+
+template<typename T>
+concept DeclaresRequiredComponents = requires { typename T::RequiredComponents; }
+  && is_type_list_v<typename T::RequiredComponents>;
+
+template<DeclaresRequiredComponents... Ts>
+using extract_components = typename concat_n<typename Ts::RequiredComponents...>::type;
+
 struct IComponentArray
 {
   virtual size_t componentSize() const = 0;
   virtual void remove(size_t index) = 0;
   virtual char* data() = 0;
   virtual size_t size() const = 0;
-  virtual void allocate() = 0;
+  virtual void resize(size_t size) = 0;
 
   virtual ~IComponentArray() = default;
 };
@@ -63,9 +108,9 @@ class ComponentArray : public IComponentArray
       return m_data.size();
     }
 
-    void allocate() override
+    void resize(size_t size) override
     {
-      m_data.resize(m_data.size() + 1);
+      m_data.resize(size);
     }
 
   private:
@@ -83,12 +128,12 @@ class ComponentArrayGroup
   friend class ComponentStore;
 
   public:
-    template<typename... Ts>
+    template<typename... Ts>  // Beware, we might have duplicate types
     void allocate(EntityId entityId)
     {
-      (allocate<Ts>(), ...);
       m_entityIds.push_back(entityId);
       m_indices.insert({ entityId, m_entityIds.size() - 1 });
+      (allocate<Ts>(), ...);
     }
 
     template<typename T>
@@ -99,7 +144,7 @@ class ComponentArrayGroup
         i = m_componentData.insert({ T::TypeId, std::make_unique<ComponentArray<T>>() }).first;
       }
 
-      i->second->allocate();
+      i->second->resize(m_entityIds.size());
 
       assert(m_entityIds.size() == m_indices.size());
     }
@@ -299,7 +344,7 @@ class ComponentStore
     };
 
     template<typename... Ts>
-    EntityId allocate()
+    EntityId allocateEntity()
     {
       EntityId entityId = getNextId();
 
@@ -309,6 +354,18 @@ class ComponentStore
       m_archetypes[entityId] = archetype;
 
       return entityId;
+    }
+
+    template<typename... Ts>
+    EntityId allocateEntity(type_list<Ts...>)
+    {
+      return allocateEntity<Ts...>();
+    }
+
+    template<DeclaresRequiredComponents... Ts>
+    EntityId allocate()
+    {
+      return allocateEntity(extract_components<Ts...>{});
     }
 
     EntityId getNextId()

@@ -6,71 +6,12 @@
 #include "component_types.hpp"
 #include "systems.hpp"
 #include "renderables.hpp"
+#include "sys_spatial.hpp"
 
 namespace lithic3d
 {
 
 const size_t DYNAMIC_TEXT_MAX_LEN = 31;
-
-// Requires components:
-//   CGlobalTransform
-//   CSpatialFlags
-//   CRender2d
-//   CSprite
-struct DSprite
-{
-  ScissorId scissor = 0;
-  render::MaterialHandle material;
-  Rectf textureRect;
-  uint32_t zIndex = 0;
-  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
-};
-
-// Requires components:
-//   CGlobalTransform
-//   CSpatialFlags
-//   CRender2d
-//   CQuad
-struct DQuad
-{
-  ScissorId scissor = 0;
-  uint32_t zIndex = 0;
-  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
-  float radius = 0.f;
-};
-
-// Requires components:
-//   CGlobalTransform
-//   CSpatialFlags
-//   CRender2d
-//   CSprite
-struct DText
-{
-  ScissorId scissor = 0;
-  render::MaterialHandle material;
-  Rectf textureRect;
-  std::string text;
-  uint32_t zIndex = 0;
-  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
-};
-
-// Requires components:
-//   CGlobalTransform
-//   CSpatialFlags
-//   CRender2d
-//   CSprite
-//   CDynamicText
-struct DDynamicText
-{
-  ScissorId scissor = 0;
-  render::MaterialHandle material;
-  Rectf textureRect;
-  std::string text;
-  size_t maxLength = DYNAMIC_TEXT_MAX_LEN;
-  uint32_t zIndex = 0;
-  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
-};
-
 const size_t POLYGON_MAX_VERTICES = 8;
 
 struct CRender2d
@@ -104,6 +45,53 @@ struct CQuad
   float radius = 0.f; // For rounded corners
 
   static constexpr ComponentType TypeId = ComponentTypeId::CQuadId;
+};
+
+struct DSprite
+{
+  using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite>;
+
+  ScissorId scissor = 0;
+  render::MaterialHandle material;
+  Rectf textureRect;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+};
+
+struct DQuad
+{
+  using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CQuad>;
+
+  ScissorId scissor = 0;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+  float radius = 0.f;
+};
+
+struct DText
+{
+  using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite>;
+
+  ScissorId scissor = 0;
+  render::MaterialHandle material;
+  Rectf textureRect;
+  std::string text;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
+};
+
+struct DDynamicText
+{
+  using RequiredComponents =
+    type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText>;
+
+  ScissorId scissor = 0;
+  render::MaterialHandle material;
+  Rectf textureRect;
+  std::string text;
+  size_t maxLength = DYNAMIC_TEXT_MAX_LEN;
+  uint32_t zIndex = 0;
+  Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
 class Camera2d;

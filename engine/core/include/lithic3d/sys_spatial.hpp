@@ -27,17 +27,6 @@ class EEntityEnable : public Event
     EntityId entityId;
 };
 
-// Requires components:
-//   CSpatialFlags
-//   CLocalTransform
-//   CGlobalTransform
-struct DSpatial
-{
-  Mat4x4f transform = identityMatrix<float, 4>();
-  EntityId parent = NULL_ENTITY;
-  bool enabled = true;
-};
-
 struct CLocalTransform
 {
   Mat4x4f transform = identityMatrix<float, 4>();
@@ -60,12 +49,24 @@ struct CSpatialFlags
   static constexpr ComponentType TypeId = CSpatialFlagsTypeId;
 };
 
+struct DSpatial
+{
+  using RequiredComponents = type_list<CSpatialFlags, CLocalTransform, CGlobalTransform>;
+
+  Mat4x4f transform = identityMatrix<float, 4>();
+  EntityId parent = NULL_ENTITY;
+  bool enabled = true;
+};
+
 class SysSpatial : public System
 {
-  public:
+  public:  
     virtual EntityId root() const = 0;
-    virtual void addEntity(EntityId entityId, const DSpatial& data) = 0;
+    virtual void addEntity(EntityId id, const DSpatial& data) = 0;
     virtual void setEnabled(EntityId entityId, bool enabled) = 0;
+
+    //virtual void transformEntity(EntityId id, const Mat4x4f& m) = 0;
+    //virtual void setEntityTransform(EntityId id, const Mat4x4f& m) = 0;
 
     // TODO: Replace with proper frustum culling
     virtual std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const = 0;

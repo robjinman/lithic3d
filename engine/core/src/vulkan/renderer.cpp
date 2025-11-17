@@ -348,7 +348,7 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
   m_window =
     std::unique_ptr<VulkanWindowDelegate>(dynamic_cast<VulkanWindowDelegate*>(window.release()));
 
-  m_logger.info(STR("Freehold Game Engine " << getVersionString()));
+  m_logger.info(STR("Lithic3D " << getVersionString()));
 
   m_viewParams = ViewParams{
     .hFov = 0.f,
@@ -999,7 +999,7 @@ VkPresentModeKHR RendererImpl::chooseSwapChainPresentMode(
 {
   for (auto& mode : availableModes) {
     if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      return mode;
+      //return mode;
     }
   }
 
@@ -2024,9 +2024,9 @@ void RendererImpl::createInstance()
   VkApplicationInfo appInfo{
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     .pNext = nullptr,
-    .pApplicationName = "Freehold Game Engine Application", // TODO
+    .pApplicationName = "Lithic3D Application", // TODO
     .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-    .pEngineName = "Freehold Game Engine",
+    .pEngineName = "Lithic3D",
     .engineVersion = VK_MAKE_VERSION(getVersionMajor(), getVersionMinor(), 0),
     .apiVersion = VK_API_VERSION_1_2
   };
