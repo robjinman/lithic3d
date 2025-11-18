@@ -7,7 +7,8 @@
     "stb",
     "nlohmann-json",
     "openal-soft",
-    "openssl"
+    "openssl",
+    "wxwidgets"
   ],
   "overrides": [
     {
@@ -41,6 +42,10 @@
     {
       "name": "openssl",
       "version": "3.6.0"
+    },
+    {
+      "name": "wxwidgets",
+      "version": "3.3.1"
     }
   ]
 }

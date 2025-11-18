@@ -347,6 +347,7 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
 
   m_window =
     std::unique_ptr<VulkanWindowDelegate>(dynamic_cast<VulkanWindowDelegate*>(window.release()));
+  ASSERT(m_window != nullptr, "Failed to cast m_window to VulkanWindowDelegate");
 
   m_logger.info(STR("Lithic3D " << getVersionString()));
 

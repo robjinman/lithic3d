@@ -13,9 +13,9 @@ class AndroidWindowDelegateImpl : public VulkanWindowDelegate
   public:
     AndroidWindowDelegateImpl(ANativeWindow& window);
 
-    const std::vector<const char*>& getRequiredExtensions() const;
-    VkSurfaceKHR createSurface(VkInstance instance);
-    void getFrameBufferSize(int& width, int& height) const;
+    const std::vector<const char*>& getRequiredExtensions() const override;
+    VkSurfaceKHR createSurface(VkInstance instance) override;
+    void getFrameBufferSize(int& width, int& height) const override;
 
   private:
     ANativeWindow& m_window;
