@@ -24,7 +24,9 @@ if(PLATFORM_LINUX)
 elseif(PLATFORM_WINDOWS)
   file(GLOB PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/windows/*.cpp")
 elseif(PLATFORM_OSX)
-  file(GLOB PLATFORM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/osx/*.cpp")
+  file(GLOB PLATFORM_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/osx/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/osx/*.mm")
 endif()
 
 add_executable(${TARGET}
@@ -43,13 +45,12 @@ elseif(PLATFORM_WINDOWS)
       /ENTRY:WinMainCRTStartup
   )
 elseif(PLATFORM_OSX)
-  # TODO
+  target_link_libraries(${TARGET} PRIVATE "-framework Metal")
 endif()
 
 target_link_libraries(${TARGET} PRIVATE
   ${ENGINE_LIB_TARGET}
-  wx::base
-  wx::gl
+  wx::gl # Correct target?
   ${GTK3_LIBRARIES}
 )
 
@@ -64,3 +65,24 @@ add_custom_target(
   link_editor_data ALL
   COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/data ${CMAKE_CURRENT_BINARY_DIR}/data
 )
+
+if(TARGET shader_compiler)
+  set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../core/src/vulkan/shaders")
+  file(GLOB_RECURSE SHADER_SRCS "${SHADER_DIR}/*.glsl")
+  set(SHADER_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data/shaders")
+  set(SHADER_STAMP "${SHADER_OUT_DIR}/.shaders_generated.stamp")
+
+  add_custom_command(
+    OUTPUT "${SHADER_STAMP}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
+    COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${SHADER_OUT_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${SHADER_STAMP}"
+    DEPENDS shader_compiler ${SHADER_SRCS}
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Running shader_compiler to produce SPV files..."
+  )
+
+  add_custom_target(generate_shaders_for_editor ALL
+    DEPENDS "${SHADER_STAMP}"
+  )
+endif()

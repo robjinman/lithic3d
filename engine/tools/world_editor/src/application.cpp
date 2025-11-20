@@ -50,8 +50,11 @@ void Application::HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEve
 
 wxIMPLEMENT_APP_NO_MAIN(Application);
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
+#ifdef PLATFORM_LINUX
   XInitThreads();
+#endif
 
   return ::wxEntry(argc, argv);
 }

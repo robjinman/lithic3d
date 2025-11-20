@@ -86,6 +86,8 @@ void CanvasImpl::onResize(wxSizeEvent& e)
 {
   e.Skip();
 
+  // TODO: On OSX, resize metal layer
+
   if (m_engine != nullptr) {
     m_engine->onWindowResize();
   }
