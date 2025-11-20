@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.22)
 set(TARGET "editor")
 
 find_package(wxWidgets CONFIG REQUIRED)
-find_package(PkgConfig REQUIRED)
+#find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+#pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 
 file(GLOB CPP_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
@@ -19,8 +19,8 @@ file(GLOB CPP_SOURCES
 
 add_executable(${TARGET} ${CPP_SOURCES})
 
-target_include_directories(${TARGET} PRIVATE ${GTK3_INCLUDE_DIRS})
-target_link_directories(${TARGET} PRIVATE ${GTK3_LIBRARY_DIRS})
+#target_include_directories(${TARGET} PRIVATE ${GTK3_INCLUDE_DIRS})
+#target_link_directories(${TARGET} PRIVATE ${GTK3_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET} PRIVATE
   ${ENGINE_LIB_TARGET}

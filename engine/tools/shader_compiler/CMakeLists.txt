@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(TARGET "shadercompiler")
+set(TARGET "shader_compiler")
 
 find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
 

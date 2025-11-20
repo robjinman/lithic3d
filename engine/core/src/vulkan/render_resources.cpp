@@ -311,8 +311,8 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
 
     std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      m_bufferManager.writeToBuffer(*data->jointTransformsUbo[i], joints.data(),
-        joints.size() * sizeof(Mat4x4f));
+      m_bufferManager.writeToBuffer(*data->jointTransformsUbo[i],
+        reinterpret_cast<const char*>(joints.data()), joints.size() * sizeof(Mat4x4f));
     }
 
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_objectDescriptorSetLayout);
@@ -396,7 +396,8 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
   ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
 
   mesh->numInstances = static_cast<uint32_t>(instances.size());
-  m_bufferManager.writeToBuffer(*mesh->instanceBuffer, instances.data(), instances.size());
+  m_bufferManager.writeToBuffer(*mesh->instanceBuffer,
+    reinterpret_cast<const char*>(instances.data()), instances.size());
 }
 
 void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints,
@@ -405,8 +406,8 @@ void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vect
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
   auto& mesh = *m_meshes.at(id);
-  m_bufferManager.writeToBuffer(*mesh.jointTransformsUbo[currentFrame], joints.data(),
-    joints.size() * sizeof(Mat4x4f));
+  m_bufferManager.writeToBuffer(*mesh.jointTransformsUbo[currentFrame],
+    reinterpret_cast<const char*>(joints.data()), joints.size() * sizeof(Mat4x4f));
 }
 
 const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) const
@@ -488,7 +489,8 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
     // TODO: PBR properties
   };
 
-  m_bufferManager.writeToBuffer(*materialData->ubo, &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*materialData->ubo, reinterpret_cast<const char*>(&ubo),
+    sizeof(ubo));
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
@@ -547,19 +549,22 @@ const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId 
 void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_bufferManager.writeToBuffer(*m_mainCameraUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_mainCameraUbo[currentFrame], reinterpret_cast<const char*>(&ubo),
+    sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateOverlayCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_bufferManager.writeToBuffer(*m_overlayCameraUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_overlayCameraUbo[currentFrame],
+    reinterpret_cast<const char*>(&ubo), sizeof(ubo));
 }
 
 void RenderResourcesImpl::updateLightTransformsUbo(const LightTransformsUbo& ubo,
   size_t currentFrame)
 {
-  m_bufferManager.writeToBuffer(*m_lightTransformsUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_lightTransformsUbo[currentFrame],
+    reinterpret_cast<const char*>(&ubo), sizeof(ubo));
 }
 
 VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetNumber number) const
@@ -580,7 +585,8 @@ VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame)
 
 void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t currentFrame)
 {
-  m_bufferManager.writeToBuffer(*m_lightingUbo[currentFrame], &ubo, sizeof(ubo));
+  m_bufferManager.writeToBuffer(*m_lightingUbo[currentFrame], reinterpret_cast<const char*>(&ubo),
+    sizeof(ubo));
 }
 
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,

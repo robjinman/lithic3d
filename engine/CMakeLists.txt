@@ -268,3 +268,24 @@ else()
   endif()
 
 endif()
+
+if(TARGET shader_compiler)
+  set(SHADER_DIR "${PROJECT_SOURCE_DIR}/core/src/vulkan/shaders")
+  file(GLOB_RECURSE SHADER_SRCS "${SHADER_DIR}/*.glsl")
+  set(SHADER_OUT_DIR "${GAME_PROJECT_DIRECTORY}/data/shaders")
+  set(SHADER_STAMP "${SHADER_OUT_DIR}/.shaders_generated.stamp")
+
+  add_custom_command(
+    OUTPUT "${SHADER_STAMP}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
+    COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${SHADER_OUT_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${SHADER_STAMP}"
+    DEPENDS shader_compiler ${SHADER_SRCS}
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Running shader_compiler to produce SPV files..."
+  )
+
+  add_custom_target(generate_shaders ALL
+    DEPENDS "${SHADER_STAMP}"
+  )
+endif()

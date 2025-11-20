@@ -21,7 +21,7 @@ class GpuBufferImpl : public GpuBuffer
     GpuBufferImpl(const GpuBufferImpl& cpy) = delete;
 
     size_t size() const override;
-    void* mappedAddress() override;
+    char* mappedAddress() override;
     VkBuffer vkBuffer() override;
 
     ~GpuBufferImpl();
@@ -40,9 +40,9 @@ size_t GpuBufferImpl::size() const
   return allocationInfo.size;
 }
 
-void* GpuBufferImpl::mappedAddress()
+char* GpuBufferImpl::mappedAddress()
 {
-  return allocationInfo.pMappedData;
+  return reinterpret_cast<char*>(allocationInfo.pMappedData);
 }
 
 VkBuffer GpuBufferImpl::vkBuffer()
@@ -115,7 +115,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
     GpuImagePtr createDepthAttachment(VkExtent2D extent) override;
     GpuImagePtr createShadowMap(VkExtent2D extent) override;
 
-    void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) override;
+    void writeToBuffer(GpuBuffer& buffer, const char* data, size_t size) override;
 
     ~GpuBufferManagerImpl();
 
@@ -338,7 +338,7 @@ GpuBufferPtr GpuBufferManagerImpl::createInstanceBuffer(size_t size)
   return createDeviceBuffer(size, usage);
 }
 
-void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const void* data, size_t size)
+void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const char* data, size_t size)
 {
   auto& buffer = dynamic_cast<GpuBufferImpl&>(buffer_);
 

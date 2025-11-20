@@ -113,6 +113,11 @@ struct CTextbox
   static constexpr ComponentType TypeId = CTextboxTypeId;
 };
 
+struct DTextbox
+{
+  using RequiredComponents = type_list<CTextbox>;
+};
+
 EntityId ProductActivationImpl::constructTextbox()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
@@ -121,7 +126,7 @@ EntityId ProductActivationImpl::constructTextbox()
 
   auto& store = m_ecs.componentStore();
 
-  auto id = store.allocate<DSpatial, DDynamicText, DUi>();
+  auto id = store.allocate<DSpatial, DDynamicText, DUi, DTextbox>();
 
   store.component<CTextbox>(id) = CTextbox{};
 

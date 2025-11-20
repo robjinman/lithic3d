@@ -24,7 +24,7 @@ class Engine
     virtual void update(const InputState& inputState) = 0;
     virtual void onWindowResize() = 0;
     virtual Tick currentTick() const = 0;
-    virtual Tick measuredTickRate() const = 0;
+    virtual float measuredTickRate() const = 0;
 
     virtual Logger& logger() = 0;
     virtual FileSystem& fileSystem() = 0;

@@ -14,7 +14,7 @@ class GpuBuffer
 {
   public:
     virtual size_t size() const = 0;
-    virtual void* mappedAddress() = 0;
+    virtual char* mappedAddress() = 0;
     virtual VkBuffer vkBuffer() = 0;
 
     virtual ~GpuBuffer() = default;
@@ -47,7 +47,7 @@ class GpuBufferManager
     virtual GpuImagePtr createDepthAttachment(VkExtent2D extent) = 0;
     virtual GpuImagePtr createShadowMap(VkExtent2D extent) = 0;
 
-    virtual void writeToBuffer(GpuBuffer& buffer, const void* data, size_t size) = 0;
+    virtual void writeToBuffer(GpuBuffer& buffer, const char* data, size_t size) = 0;
 
     virtual ~GpuBufferManager() = default;
 };

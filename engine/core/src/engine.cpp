@@ -30,7 +30,7 @@ class EngineImpl : public Engine
     void update(const InputState& inputState) override;
     void onWindowResize() override;
     Tick currentTick() const override;
-    Tick measuredTickRate() const override;
+    float measuredTickRate() const override;
 
     Logger& logger() override;
     FileSystem& fileSystem() override;
@@ -96,7 +96,7 @@ Tick EngineImpl::currentTick() const
   return m_currentTick;
 }
 
-Tick EngineImpl::measuredTickRate() const
+float EngineImpl::measuredTickRate() const
 {
   return m_measuredTickRate;
 }
