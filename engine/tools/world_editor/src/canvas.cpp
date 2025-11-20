@@ -28,10 +28,7 @@ class CanvasImpl : public Canvas
 
   private:
     void initialise();
-    void render(wxDC& dc);
     wxPoint getCursorPos() const;
-    void resize();
-    void refresh();
 
     void onResize(wxSizeEvent& e);
     void onKeyPress(wxKeyEvent& e);
@@ -52,6 +49,7 @@ CanvasImpl::CanvasImpl(wxWindow* parent)
   : Canvas(parent)
 {
   m_timer = new wxTimer(this);
+  m_timer->Start(1000.0 / TICKS_PER_SECOND);
 
   Bind(wxEVT_PAINT, &CanvasImpl::onPaint, this);
   Bind(wxEVT_SIZE, &CanvasImpl::onResize, this);
@@ -74,26 +72,23 @@ void CanvasImpl::initialise()
 
     m_engine = createEngine(std::move(renderer), std::move(audioSystem), std::move(fileSystem),
       std::move(logger));
+
+    m_engine->renderer().start();
   }
 }
 
 void CanvasImpl::onTick(wxTimerEvent&)
 {
-  refresh();
+  Refresh(false);
 }
 
 void CanvasImpl::onResize(wxSizeEvent& e)
 {
   e.Skip();
-  resize();
-}
 
-void CanvasImpl::resize()
-{
-  auto sz = GetSize();
-  // TODO
-
-  refresh();
+  if (m_engine != nullptr) {
+    m_engine->onWindowResize();
+  }
 }
 
 wxPoint CanvasImpl::getCursorPos() const
@@ -130,8 +125,6 @@ void CanvasImpl::onLeftMouseBtnUp(wxMouseEvent& e)
 
     // TODO
   }
-
-  refresh();
 }
 
 void CanvasImpl::onMouseMove(wxMouseEvent& e)
@@ -148,8 +141,6 @@ void CanvasImpl::onMouseMove(wxMouseEvent& e)
     sz.y = sz.x / aspect;
 
     m_selectionRect.SetSize(sz);
-
-    refresh();
   }
 }
 
@@ -162,34 +153,25 @@ void CanvasImpl::onKeyPress(wxKeyEvent& e)
   // TODO
 }
 
-void CanvasImpl::refresh()
-{
-  Refresh(false);
-}
-
 void CanvasImpl::onPaint(wxPaintEvent&)
 {
   wxPaintDC dc(this);
-  render(dc);
 
   if (m_engine == nullptr) {
     initialise();
-  }
-}
-
-void CanvasImpl::render(wxDC&)
-{
-  if (!IsShownOnScreen()) {
     return;
   }
 
-  // TODO
+  if (m_engine != nullptr) {
+    m_engine->update({});
+  }
+
+  Refresh(false);
 }
 
 void CanvasImpl::disable()
 {
   m_disabled = true;
-  refresh();
   Disable();
 }
 

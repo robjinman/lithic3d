@@ -1,11 +1,10 @@
 #include <lithic3d/lithic3d.hpp>
 #include <lithic3d/vulkan/vulkan_window_delegate.hpp>
-#include <gtk/gtk.h>
-#include <gdk/gdkx.h>
 #include <wx/wx.h>
+#include <gdk/gdkx.h>
+#include <gtk/gtk.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_xlib.h>
-#include <iostream> // TODO
 
 namespace
 {
@@ -25,7 +24,6 @@ class VulkanWindowDelegateImpl : public lithic3d::VulkanWindowDelegate
 
 VulkanWindowDelegateImpl::VulkanWindowDelegateImpl(WXWidget window)
 {
-  std::cout << "Window: " << window << "\n";
   m_gdkWindow = gtk_widget_get_window(reinterpret_cast<GtkWidget*>(window));
 }
 
@@ -44,9 +42,6 @@ VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkInstance instance)
   Window xWindow = GDK_WINDOW_XID(m_gdkWindow);
   Display* xDisplay = GDK_WINDOW_XDISPLAY(m_gdkWindow);
 
-  std::cout << "xWindow: " << xWindow << "\n";
-  std::cout << "xDisplay: " << xDisplay << "\n";
-
   VkXlibSurfaceCreateInfoKHR createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
   createInfo.dpy = xDisplay;
@@ -62,11 +57,8 @@ VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkInstance instance)
 
 void VulkanWindowDelegateImpl::getFrameBufferSize(int& width, int& height) const
 {
-  //glfwGetFramebufferSize(&m_window, &width, &height);
-  //while (width == 0 || height == 0) {
-  //  glfwGetFramebufferSize(&m_window, &width, &height);
-  //  glfwWaitEvents();
-  //}
+  gint x, y;
+  gdk_window_get_geometry(m_gdkWindow, &x, &y, &width, &height);
 }
 
 }

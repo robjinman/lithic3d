@@ -35,6 +35,7 @@ add_executable(${TARGET}
 if(PLATFORM_LINUX)
   target_include_directories(${TARGET} PRIVATE ${GTK3_INCLUDE_DIRS})
   target_link_directories(${TARGET} PRIVATE ${GTK3_LIBRARY_DIRS})
+  # add_definitions(${GTK3_CFLAGS_OTHER})
 elseif(PLATFORM_WINDOWS)
   target_link_options(${TARGET}
     PRIVATE

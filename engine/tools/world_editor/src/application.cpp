@@ -1,4 +1,7 @@
 #include <wx/wx.h>
+#ifdef PLATFORM_LINUX
+#include <X11/Xlib.h>
+#endif
 
 wxFrame* createMainWindow(const wxString& title, const wxSize& size);
 
@@ -45,4 +48,10 @@ void Application::HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEve
   });
 }
 
-wxIMPLEMENT_APP(Application);
+wxIMPLEMENT_APP_NO_MAIN(Application);
+
+int main(int argc, char** argv) {
+  XInitThreads();
+
+  return ::wxEntry(argc, argv);
+}
