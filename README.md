@@ -1,10 +1,18 @@
 Lithic3D
 ========
 
-Cross platform game engine.
+C++/Vulkan game engine supporting Windows, Linux, Mac, iPhone, and Android.
 
 Building from source
 --------------------
+
+You build the engine and your game at the same time with a single build command that will look something like:
+
+```
+    LITHIC3D_PROJECT=../game cmake --workflow --preset=linux-debug
+```
+
+where ../game is the path to your game project. To start a new project, copy and modify one of the examples.
 
 ### Prerequisites
 
@@ -130,7 +138,7 @@ Build icon set for OSX
 ```
     brew install imagemagick
 
-    cd ./platform/osx
+    cd ./engine/platform/osx
     ./build_icon_set ./path/to/icon.png ./destination/directory
 ```
 
@@ -145,3 +153,13 @@ After running the osx-release preset, create an .app bundle with
 #### Windows and Linux
 
 Zip bundles are created by the release presets.
+
+### Example projects
+
+A number of example projects are provided that demonstrate how to use various features. The easiest way to start a new Lithic3D project is to copy and modify one of them.
+
+To build one of the example projects such as 1_cube on linux
+
+```
+    LITHIC3D_PROJECT=./examples/1_cube cmake --workflow --preset=linux-debug
+```
