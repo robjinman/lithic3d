@@ -20,6 +20,9 @@ class Camera3d
   private:
     Vec3f m_position;
     Vec3f m_direction;
+
+    // TODO: Store projection matrix here
+    // TODO: Store view frustum here?
 };
 
 } // namespace lithic3d

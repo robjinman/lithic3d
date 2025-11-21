@@ -44,7 +44,7 @@ struct CQuad
 {
   float radius = 0.f; // For rounded corners
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CQuadId;
+  static constexpr ComponentType TypeId = ComponentTypeId::CQuadTypeId;
 };
 
 struct DSprite
@@ -82,8 +82,9 @@ struct DText
 
 struct DDynamicText
 {
-  using RequiredComponents =
-    type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText>;
+  using RequiredComponents = type_list<
+    CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText
+  >;
 
   ScissorId scissor = 0;
   render::MaterialHandle material;

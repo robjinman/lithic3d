@@ -4,7 +4,7 @@
 #include "component_types.hpp"
 #include "event_system.hpp"
 #include "systems.hpp"
-#include <unordered_set>
+#include "spatial_container.hpp"
 
 namespace lithic3d
 {
@@ -27,6 +27,12 @@ class EEntityEnable : public Event
     EntityId entityId;
 };
 
+struct Aabb
+{
+  Vec3f min;
+  Vec3f max;
+};
+
 struct CLocalTransform
 {
   Mat4x4f transform = identityMatrix<4>();
@@ -46,16 +52,29 @@ struct CSpatialFlags
   bool enabled = true; // TODO: Replace with bitset
   bool parentEnabled = true;
 
+  // TODO: Static
+
   static constexpr ComponentType TypeId = CSpatialFlagsTypeId;
+};
+
+struct CBoundingBox
+{
+  Aabb modelSpaceAabb;
+  Aabb worldSpaceAabb;
+
+  static constexpr ComponentType TypeId = CBoundingBoxTypeId;
 };
 
 struct DSpatial
 {
-  using RequiredComponents = type_list<CSpatialFlags, CLocalTransform, CGlobalTransform>;
+  using RequiredComponents = type_list<
+    CSpatialFlags, CLocalTransform, CGlobalTransform, CBoundingBox
+  >;
 
   Mat4x4f transform = identityMatrix<4>();
   EntityId parent = NULL_ENTITY;
   bool enabled = true;
+  Aabb aabb; // Model-space bounding box
 };
 
 class SysSpatial : public System
@@ -68,8 +87,7 @@ class SysSpatial : public System
     virtual void transformEntity(EntityId id, const Mat4x4f& m) = 0;
     virtual void setEntityTransform(EntityId id, const Mat4x4f& m) = 0;
 
-    // TODO: Replace with proper frustum culling
-    virtual std::unordered_set<EntityId> getIntersecting(const std::vector<Vec2f>& poly) const = 0;
+    virtual EntityIdSet getIntersecting(const Frustum& frustum) const = 0;
 
     virtual ~SysSpatial() = default;
 

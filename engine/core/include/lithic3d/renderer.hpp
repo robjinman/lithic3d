@@ -55,9 +55,12 @@ class Renderer
     virtual void onResize() = 0;
     virtual const ViewParams& getViewParams() const = 0;
     virtual Vec2i getScreenSize() const = 0;
-    virtual Vec2i getViewportSize() const = 0;  // Screen size after subtracting margins
+    // Screen size after subtracting margins
+    virtual Vec2i getViewportSize() const = 0;
     virtual const ScreenMargins& getMargins() const = 0;
     virtual void checkError() const = 0;
+    // The perspective projection matrix used for 3D rendering
+    virtual Mat4x4f projectionMatrix() const = 0;
 
     // Initialisation
     //

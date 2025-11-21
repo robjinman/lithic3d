@@ -3,6 +3,7 @@
 #include "component_store.hpp"
 #include "math.hpp"
 #include <memory>
+#include <set>
 
 namespace lithic3d
 {
@@ -13,21 +14,15 @@ struct Plane
   float distance;
 };
 
-struct Aabb
-{
-  Vec3f min;
-  Vec3f max;
-};
-
 using Frustum = std::array<Plane, 6>;
 
 class SpatialContainer
 {
   public:
-    virtual void insert(EntityId entityId, const Aabb& aabb) = 0;
-    virtual void move(EntityId entityId, const Aabb& aabb) = 0;
+    virtual void insert(EntityId entityId, const Vec3f& pos, float diameter) = 0;
+    virtual void move(EntityId entityId, const Vec3f& pos, float diameter) = 0;
     virtual void remove(EntityId entityId) = 0;
-    virtual void getIntersecting(const Frustum& volume, std::vector<EntityId>& entities) const = 0;
+    virtual std::set<EntityId> getIntersecting(const Frustum& volume) const = 0;
 
     virtual ~SpatialContainer() = default;
 };

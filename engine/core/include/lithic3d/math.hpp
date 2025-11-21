@@ -423,6 +423,15 @@ class Matrix
       return true;
     }
 
+    Vector<T, COLS> row(size_t r) const
+    {
+      Vector<T, COLS> v;
+      for (size_t i = 0; i < COLS; ++i) {
+        v[i] = at(r, i);
+      }
+      return v;
+    }
+
   private:
     T m_data[ROWS * COLS];
 };

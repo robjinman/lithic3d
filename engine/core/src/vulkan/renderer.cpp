@@ -145,6 +145,7 @@ class RendererImpl : public Renderer
     Vec2i getViewportSize() const override;
     const ScreenMargins& getMargins() const override;
     void checkError() const override;
+    Mat4x4f projectionMatrix() const override;
 
     // Initialisation
     //
@@ -405,6 +406,14 @@ void RendererImpl::checkError() const
   if (m_hasError) {
     EXCEPTION(m_error);
   }
+}
+
+Mat4x4f RendererImpl::projectionMatrix() const
+{
+  // Slight chance of race condition if swap chain is being recreated
+  // TODO: Protect with mutex?
+
+  return m_perspectiveMatrix;
 }
 
 void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeatures,

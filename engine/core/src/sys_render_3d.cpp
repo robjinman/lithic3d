@@ -29,6 +29,28 @@ using render::RenderPass;
 namespace
 {
 
+Frustum frustumFromMatrix(const Mat4x4f& m)
+{
+  Frustum frustum;
+
+  auto calcPlane = [](const Mat4x4f& m, size_t rowA, size_t rowB, bool add) {
+    auto tmp = add ? m.row(rowA) + m.row(rowB) : m.row(rowA) - m.row(rowB);
+    return Plane{
+      .normal = tmp.sub<3>(),
+      .distance = tmp[3]
+    };
+  };
+
+  frustum[0] = calcPlane(m, 3, 0, true);    // Left plane:    row 3 + row 0
+  frustum[1] = calcPlane(m, 3, 0, false);   // Right plane:   row 3 - row 0
+  frustum[2] = calcPlane(m, 3, 1, false);   // Top plane:     row 3 - row 1
+  frustum[3] = calcPlane(m, 3, 1, true);    // Bottom plane:  row 3 + row 1
+  frustum[4] = calcPlane(m, 3, 2, true);    // Near plane:    row 3 + row 2
+  frustum[5] = calcPlane(m, 3, 2, false);   // Far plane:     row 3 - row 2
+
+  return frustum;
+}
+
 struct AnimationChannelState
 {
   bool stopped = false;
@@ -90,11 +112,10 @@ class SysRender3dImpl : public SysRender3d
 
     using DrawFilter = std::function<bool(const Submodel&)>;
 
-    std::vector<Vec2f> computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
-      const Vec3f& viewDir, float hFov) const;
-    std::vector<Vec2f> computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
-      const Vec3f& viewDir, float hFov, float zFar) const;
-    void drawModels(const std::unordered_set<EntityId>& entities,
+    Frustum computePerspectiveFrustum() const;
+    Frustum computeOrthographicFrustum(const Vec3f& viewPos, const Vec3f& viewDir,
+      float zFar) const;
+    void drawModels(const EntityIdSet& entities,
       const DrawFilter& filter = [](const Submodel&) { return true; });
     void drawSkybox();
     void doShadowPass();
@@ -114,46 +135,18 @@ render::Renderer& SysRender3dImpl::renderer()
   return m_renderer;
 }
 
-// TODO: Remove
-std::vector<Vec2f> SysRender3dImpl::computePerspectiveFrustumPerimeter(const Vec3f& viewPos,
-  const Vec3f& viewDir, float hFov) const
+Frustum SysRender3dImpl::computePerspectiveFrustum() const
 {
-  auto params = m_renderer.getViewParams();
-  Vec3f A{ params.nearPlane * static_cast<float>(tan(0.5f * hFov)), params.nearPlane, 1 };
-  Vec3f B{ params.farPlane * static_cast<float>(tan(0.5f * hFov)), params.farPlane, 1 };
-  Vec3f C{ -B[0], B[1], 1 };
-  Vec3f D{ -A[0], A[1], 1 };
-
-  float a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
-
-  Mat3x3f m{
-    cosine(a), -sine(a), viewPos[0],
-    sine(a), cosine(a), viewPos[2],
-    0, 0, 1
-  };
-
-  return std::vector<Vec2f>{(m * A).sub<2>(), (m * B).sub<2>(), (m * C).sub<2>(), (m * D).sub<2>()};
+  return frustumFromMatrix(m_renderer.projectionMatrix() * m_camera.getMatrix());
 }
 
-// TODO: Remove
-std::vector<Vec2f> SysRender3dImpl::computeOrthographicFrustumPerimeter(const Vec3f& viewPos,
-  const Vec3f& viewDir, float hFov, float zFar) const
+Frustum SysRender3dImpl::computeOrthographicFrustum(const Vec3f& viewPos, const Vec3f& viewDir,
+  float zFar) const
 {
-  float w = zFar * tan(0.5f * hFov);
-  Vec3f A{ w, 0.f, 1 };
-  Vec3f B{ w, zFar, 1 };
-  Vec3f C{ -B[0], B[1], 1 };
-  Vec3f D{ -A[0], A[1], 1 };
+  auto viewMatrix = lookAt(viewPos, viewPos + viewDir);
+  auto projMatrix = orthographic(PIf / 2.f, PIf / 2.f, 0.f, zFar);
 
-  float a = atan2(viewDir[2], viewDir[0]) - 0.5f * PIf;
-
-  Mat3x3f m{
-    cosine(a), -sine(a), viewPos[0],
-    sine(a), cosine(a), viewPos[2],
-    0, 0, 1
-  };
-
-  return std::vector<Vec2f>{(m * A).sub<2>(), (m * B).sub<2>(), (m * C).sub<2>(), (m * D).sub<2>()};
+  return frustumFromMatrix(projMatrix * viewMatrix);
 }
 
 double SysRender3dImpl::frameRate() const
@@ -243,7 +236,7 @@ void SysRender3dImpl::drawSkybox()
   }
 }
 
-void SysRender3dImpl::drawModels(const std::unordered_set<EntityId>& entities,
+void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   const std::function<bool(const Submodel&)>& filter)
 {
   const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Submodel colour?
@@ -297,9 +290,8 @@ void SysRender3dImpl::doShadowPass()
   auto firstLightDir = getDirection(firstLightTransform);
   auto firstLightMatrix = lookAt(firstLightPos, firstLightPos + firstLightDir);
 
-  auto frustum = computeOrthographicFrustumPerimeter(firstLightPos, firstLightDir,
-    degreesToRadians(90.f), firstLight.zFar);
-  auto visible = sysSpatial.getIntersecting(frustum); // TODO: Replace
+  auto frustum = computeOrthographicFrustum(firstLightPos, firstLightDir, firstLight.zFar);
+  auto visible = sysSpatial.getIntersecting(frustum);
 
   m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
 
@@ -317,9 +309,8 @@ void SysRender3dImpl::doMainPass()
 
   // TODO: Check CSpatialFlags
 
-  auto frustum = computePerspectiveFrustumPerimeter(m_camera.getPosition(), m_camera.getDirection(),
-    m_renderer.getViewParams().hFov);
-  auto visible = sysSpatial.getIntersecting(frustum); // TODO: Replace
+  auto frustum = computePerspectiveFrustum();
+  auto visible = sysSpatial.getIntersecting(frustum);
 
   m_renderer.beginPass(RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
 

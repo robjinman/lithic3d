@@ -167,7 +167,11 @@ EntityId Demo::constructModel(float x, float z)
   DSpatial spatial{
     .transform = m,
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = true,
+    .aabb = {
+      .min = { -1.f, -1.f, -1.f },  // TODO: Compute from mesh
+      .max = { 1.f, 1.f, 1.f }
+    }
   };
 
   sysSpatial.addEntity(id, spatial);

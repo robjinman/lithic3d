@@ -48,8 +48,8 @@ class Graph
       size_t index = parentNode.index + parentNode.numDescendents;
       size_t numEntities = dfs.size();
 
-      dfs.push_back(0);
-      parents.push_back(0);
+      dfs.push_back(NULL_VALUE);
+      parents.push_back(NULL_VALUE);
 
       if (index < numEntities) {
         size_t remainder = numEntities - index;

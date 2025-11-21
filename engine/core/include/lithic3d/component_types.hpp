@@ -13,9 +13,10 @@ enum ComponentTypeId : ComponentType
   CRender2dTypeId         = 1u << 3,
   CSpriteTypeId           = 1u << 4,
   CDynamicTextTypeId      = 1u << 5,
-  CQuadId                 = 1u << 6,
+  CQuadTypeId             = 1u << 6,
   CUiTypeId               = 1u << 7,
-  CTextboxTypeId          = 1u << 8
+  CTextboxTypeId          = 1u << 8,
+  CBoundingBoxTypeId      = 1u << 9
 };
 
 } // namespace lithic3d

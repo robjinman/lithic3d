@@ -84,6 +84,10 @@ void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, c
 
   DSpatial spatial{};
   spatial.parent = sysSpatial.root();
+  spatial.aabb = {
+    .min = -size * 0.5f,
+    .max = size * 0.5f
+  };
 
   sysSpatial.addEntity(id, spatial);
 
