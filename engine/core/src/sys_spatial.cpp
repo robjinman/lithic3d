@@ -1,6 +1,7 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/graph.hpp"
 #include <unordered_map>
+#include <array>
 #include <cstring>
 
 namespace lithic3d

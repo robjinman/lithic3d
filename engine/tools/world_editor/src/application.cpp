@@ -48,13 +48,14 @@ void Application::HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEve
   });
 }
 
+#ifdef PLATFORM_LINUX
 wxIMPLEMENT_APP_NO_MAIN(Application);
 
 int main(int argc, char** argv)
 {
-#ifdef PLATFORM_LINUX
   XInitThreads();
-#endif
-
   return ::wxEntry(argc, argv);
 }
+#else
+wxIMPLEMENT_APP(Application);
+#endif

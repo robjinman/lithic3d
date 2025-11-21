@@ -1,6 +1,7 @@
 // Implements a loose, square octree
 
 #include "lithic3d/spatial_container.hpp"
+#include <array>
 
 namespace lithic3d
 {
