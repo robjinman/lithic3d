@@ -9,6 +9,13 @@
 #include <cstring>
 #include <cassert>
 
+namespace lithic3d
+{
+namespace render
+{
+namespace
+{
+
 template<typename T, size_t N>
 std::array<T, N> fillArray(const std::function<T()>& fn)
 {
@@ -18,13 +25,6 @@ std::array<T, N> fillArray(const std::function<T()>& fn)
   }
   return arr;
 }
-
-namespace lithic3d
-{
-namespace render
-{
-namespace
-{
 
 struct MeshData
 {

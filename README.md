@@ -3,16 +3,55 @@ Lithic3D
 
 C++/Vulkan game engine supporting Windows, Linux, Mac, iPhone, and Android.
 
+License
+-------
+
+Lithic3D uses a duel license model.
+
+Future releases of Lithic3D may have different licensing terms, so each time you upgrade to a newer version of Lithic3D please make sure you are compliant with the latest terms.
+
+### Freehold Software License (FSL)
+
+Lithic3D is free to use under the terms of the Freehold Software License (FSL). This is essentially LGPL, plus
+
+* Your application must not contain micro-transactions
+* Your application must not contain ads
+* Your application must be non-subscription - either free or pay-once
+* Your application must not be reliant on remote servers - unless the server-side software is available for users to self-host
+* Your application must not contain "active" DRM that could threaten the user's long term ownership - except DRM added by a third-party app store (Google Play, Apple App Store, etc.)
+
+### Lesser Freehold Software License (LFSL)
+
+You can pay to use a less restrictive license.
+
+TODO
+
 Building from source
 --------------------
 
-You build the engine and your game at the same time with a single build command that will look something like:
+You build the engine and your game at the same time with a single build command, for example:
 
 ```
+    # Build the engine and your game project
     LITHIC3D_PROJECT=../game cmake --workflow --preset=linux-debug
+
+    # Run your game
+    cd ./build/linux/debug/engine/game
+    ./game
 ```
 
-where ../game is the path to your game project. To start a new project, copy and modify one of the examples.
+where ../game is the path to your game project.
+
+In Windows Powershell, the way you set the environment variable is slightly different, so the equivalent commands would be
+
+```
+    $env:LITHIC3D_PROJECT="..\game" cmake --workflow --preset=windows-debug
+
+    cd .\build\windows\debug\engine\game
+    .\Release\game.exe
+```
+
+To start a new project, copy and modify one of the examples.
 
 ### Prerequisites
 
@@ -71,6 +110,8 @@ You can also run the configure/build steps separately
     cmake --build --preset=linux-debug
 ```
 
+See below for additional platform-specific instructions.
+
 #### Android
 
 The build output is an AAB bundle located under build/android/gradle_output/outputs/bundle, which can be installed using the [bundle tool](https://github.com/google/bundletool/releases).
@@ -97,6 +138,25 @@ To generate the keys, run
 
 ```
     keytool -genkeypair -v -keystore upload-keystore.jks -alias upload -keyalg RSA -keysize 4096 -validity 20000
+```
+
+#### OS X
+
+Build icon set for OSX
+
+```
+    brew install imagemagick
+
+    cd ./engine/platform/osx
+    ./build_icon_set ./path/to/icon.png ./destination/directory
+```
+
+You should put the icon set in $LITHIC3D_PROJECT/icons/osx.
+
+After running the osx-release preset, create an .app bundle with
+
+```
+    cmake --install ./build/osx/release
 ```
 
 #### iOS
@@ -129,34 +189,9 @@ To publish to the App Store
 
 Then use the Transporter app to perform the upload.
 
-### Creating deployables
-
-#### OS X
-
-Build icon set for OSX
-
-```
-    brew install imagemagick
-
-    cd ./engine/platform/osx
-    ./build_icon_set ./path/to/icon.png ./destination/directory
-```
-
-You should put the icon set in $LITHIC3D_PROJECT/icons/osx.
-
-After running the osx-release preset, create an .app bundle with
-
-```
-    cmake --install ./build/osx/release
-```
-
-#### Windows and Linux
-
-Zip bundles are created by the release presets.
-
 ### Example projects
 
-A number of example projects are provided that demonstrate how to use various features. The easiest way to start a new Lithic3D project is to copy and modify one of them.
+A number of example projects are provided that demonstrate how to use the various features of Lithic3D. The easiest way to start a new project is to copy and modify one of them.
 
 To build one of the example projects such as 1_cube on linux
 
