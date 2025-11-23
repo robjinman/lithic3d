@@ -1,0 +1,164 @@
+<scene>
+  <!-- Global resources -->
+  <resources>
+    <textures>
+      <texture name="grass" file="grass.png"/>
+      <texture name="dirt" file="dirt.png"/>
+      <texture name="sand" file="sand.png"/>
+      <texture name="pebbles" file="pebbles.png"/>
+      <texture name="terrain_height_map" file="terrain_height_map.png"/>
+      <texture name="terrain_texture_map" file="terrain_texture_map.png"/>
+    </textures>
+    <materials>
+      <!-- Optionally customise materials loaded by models
+      <material name="glass" has-transparency="true"/>-->
+    </materials>
+    <models>
+      <model name="cube" casts-shadow="true" instanced="false"/>
+      <model name="monkey" casts-shadow="true" instanced="false"/>
+      <model name="bendy" casts-shadow="true" instanced="false"/>
+    </models>
+  </resources>
+  <!-- Global prefabs -->
+  <prefabs>
+    <prefab name="light"/>
+    <prefab name="cube"/>
+    <prefab name="monkey"/>
+    <prefab name="bendy"/>
+  </prefabs>
+  <terrain height-map="terrain_height_map" grid-size-x="4" grid-size-z="4" size-x="200.0" size-z="200.0">
+    <texture-maps>
+      <texture-map name="texture_map_1" texture="terrain_texture_map" r="grass" g="dirt" b="sand" a="pebbles"/>
+    </texture-maps>
+    <cells>
+      <cell texture-map="texture_map_1">           <!-- Cell 0, 0 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-75.0" y="10.0" z="-75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 1, 0 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-25.0" y="10.0" z="-75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 2, 0 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="25.0" y="10.0" z="-75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 3, 0 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="75.0" y="10.0" z="-75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 0, 1 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-75.0" y="10.0" z="-25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 1, 1 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-25.0" y="10.0" z="-25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 2, 1 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="25.0" y="10.0" z="-25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 3, 1 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="75.0" y="10.0" z="-25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 0, 2 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-75.0" y="10.0" z="25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 1, 2 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-25.0" y="10.0" z="25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 2, 2 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="25.0" y="10.0" z="25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 3, 2 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="75.0" y="10.0" z="25.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 0, 3 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-75.0" y="10.0" z="75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 1, 3 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="-25.0" y="10.0" z="75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 2, 3 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="25.0" y="10.0" z="75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+      <cell texture-map="texture_map_1">           <!-- Cell 3, 3 -->
+        <entity type="cube" world-slice="1">
+          <transform>
+            <pos x="75.0" y="10.0" z="75.0"/>
+            <ori x="0" y="0" z="0"/>
+          </transform>
+        </entity>
+      </cell>
+    </cells>
+  </terrain>
+</scene>

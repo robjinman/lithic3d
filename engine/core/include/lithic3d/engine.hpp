@@ -16,6 +16,7 @@ namespace render { class Renderer; }
 class Ecs;
 struct InputState;
 class ModelLoader;
+class ResourceManager;
 
 class Engine
 {
@@ -33,6 +34,7 @@ class Engine
     virtual AudioSystem& audioSystem() = 0;
     virtual Ecs& ecs() = 0;
     virtual ModelLoader& modelLoader() = 0;
+    virtual ResourceManager& resourceManager() = 0;
 
     virtual ~Engine() = default;
 };

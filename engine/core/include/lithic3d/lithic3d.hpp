@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "resource_manager.hpp"
 #include "gltf.hpp"
 #include "ecs.hpp"
 #include "sys_spatial.hpp"
@@ -19,7 +20,9 @@
 #include "window_delegate.hpp"
 #include "sys_render_3d.hpp"
 #include "math.hpp"
+#include "spatial_container.hpp"
 #include "sys_render_2d.hpp"
+#include "sys_collision.hpp"
 #include "input.hpp"
 #include "game.hpp"
 #include "events.hpp"
@@ -37,6 +40,7 @@
 #include "xml.hpp"
 #include "sys_ui.hpp"
 #include "component_store.hpp"
+#include "terrain_system.hpp"
 #include "logger.hpp"
 #include "renderer.hpp"
 #include "file_system.hpp"

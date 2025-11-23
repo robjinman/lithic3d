@@ -13,6 +13,7 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_ui.hpp"
 #include "lithic3d/model_loader.hpp"
+#include "lithic3d/resource_manager.hpp"
 #include "lithic3d/time.hpp"
 
 namespace lithic3d
@@ -39,6 +40,7 @@ class EngineImpl : public Engine
     AudioSystem& audioSystem() override;
     Ecs& ecs() override;
     ModelLoader& modelLoader() override;
+    ResourceManager& resourceManager() override;
 
   private:
     render::RendererPtr m_renderer;
@@ -48,6 +50,7 @@ class EngineImpl : public Engine
     EventSystemPtr m_eventSystem;
     EcsPtr m_ecs;
     ModelLoaderPtr m_modelLoader;
+    ResourceManagerPtr m_resourceManager;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
     Tick m_currentTick = 0;
     float m_measuredTickRate = 0.f;
@@ -82,6 +85,8 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
   m_modelLoader = createModelLoader(*m_ecs, *m_fileSystem, *m_logger);
+
+  // TODO: Create resource manager
 
   //m_renderer->start();
 }
@@ -166,6 +171,11 @@ Ecs& EngineImpl::ecs()
 ModelLoader& EngineImpl::modelLoader()
 {
   return *m_modelLoader;
+}
+
+ResourceManager& EngineImpl::resourceManager()
+{
+  return *m_resourceManager;
 }
 
 } // namespace

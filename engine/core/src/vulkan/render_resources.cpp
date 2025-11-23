@@ -41,7 +41,7 @@ using MeshDataPtr = std::unique_ptr<MeshData>;
 
 struct TextureData
 {
-  TexturePtr texture;
+  //TexturePtr texture;
   GpuImagePtr image;
 };
 
@@ -235,7 +235,7 @@ RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
 {
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createTexture(*texture);
-  textureData->texture = std::move(texture);
+  //textureData->texture = std::move(texture);
 
   auto textureId = m_nextTextureId++;
   m_textures[textureId] = std::move(textureData);
@@ -247,7 +247,7 @@ RenderItemId RenderResourcesImpl::addNormalMap(TexturePtr texture)
 {
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createNormalMap(*texture);
-  textureData->texture = std::move(texture);
+  //textureData->texture = std::move(texture);
 
   auto textureId = m_nextTextureId++;
   m_textures[textureId] = std::move(textureData);

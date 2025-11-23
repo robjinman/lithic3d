@@ -16,7 +16,7 @@ Lithic3D is free to use under the terms of the Freehold Software License (FSL). 
 
 * Your application must not contain micro-transactions
 * Your application must not contain ads
-* Your application must be non-subscription - either free or pay-once
+* Your application must not require that users pay a subscription; it must be either free or pay-once
 * Your application must not be reliant on remote servers - unless the server-side software is available for users to self-host
 * Your application must not contain "active" DRM that could threaten the user's long term ownership - except DRM added by a third-party app store (Google Play, Apple App Store, etc.)
 
@@ -48,7 +48,7 @@ In Windows Powershell, the way you set the environment variable is slightly diff
     $env:LITHIC3D_PROJECT="..\game" cmake --workflow --preset=windows-debug
 
     cd .\build\windows\debug\engine\game
-    .\Release\game.exe
+    .\Debug\game.exe
 ```
 
 To start a new project, copy and modify one of the examples.
