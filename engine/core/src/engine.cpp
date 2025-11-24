@@ -86,7 +86,7 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
 
   m_modelLoader = createModelLoader(*m_ecs, *m_fileSystem, *m_logger);
 
-  // TODO: Create resource manager
+  m_resourceManager = createResourceManager(*m_logger);
 
   //m_renderer->start();
 }

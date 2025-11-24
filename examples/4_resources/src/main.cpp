@@ -12,7 +12,7 @@ class Demo : public Game
     Demo(Engine& engine);
 
     float gameViewportAspectRatio() const override { return 1.4f; }
-    void onKeyDown(KeyboardKey) override {}
+    void onKeyDown(KeyboardKey) override;
     void onKeyUp(KeyboardKey) override {}
     void onButtonDown(GamepadButton) override {}
     void onButtonUp(GamepadButton) override {}
@@ -30,10 +30,11 @@ class Demo : public Game
     Engine& m_engine;
     FactoryPtr m_factory;
     EntityId m_cube = NULL_ENTITY;
+    ResourceId m_cubeResourceId = NULL_RESOURCE_ID;
 
-    EntityId constructLight();
-    EntityId constructCube();
-    EntityId constructCaption();
+    void constructLight();
+    void constructCube();
+    void constructCaption();
     void rotateCube();
 };
 
@@ -43,35 +44,89 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
 
   constructLight();
-  m_cube = constructCube();
+  constructCube();
   constructCaption();
 
   m_engine.renderer().start(); // TODO: Move to engine?
 }
 
-EntityId Demo::constructCube()
+template<typename T>
+struct Handle : public ResourceHandle
 {
-  EntityId id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
+  Handle(const T& h)
+    : handle(h)
+  {}
 
-  auto& renderer = m_engine.ecs().system<SysRender3d>().renderer();
+  T handle;
+};
 
-  render::MaterialFeatureSet materialFeatures{
-    .flags{
-      bitflag(render::MaterialFeatures::HasTexture)
-    }
+using TextureRHandle = Handle<RenderItemId>;
+using MaterialRHandle = Handle<render::MaterialHandle>;
+using MeshRHandle = Handle<render::MeshHandle>;
+using EntityRHandle = Handle<EntityId>;
+
+void Demo::constructCube()
+{
+  auto& resourceManager = m_engine.resourceManager();
+
+  Resource texture{
+    .id = resourceManager.nextResourceId(),
+    .loader = [this](const ResourceHandleList&) {
+      auto texture = loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
+      auto textureId = m_engine.renderer().addTexture(std::move(texture));
+      return std::make_unique<TextureRHandle>(textureId);
+    },
+    .unloader = [this](const ResourceHandle& h) {
+      m_engine.renderer().removeTexture(dynamic_cast<const TextureRHandle&>(h).handle);
+    },
+    .dependencies = {}
   };
-  auto texture = render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
-  auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.id = renderer.addTexture(std::move(texture));
 
-  auto materialHandle = m_engine.renderer().addMaterial(std::move(material));
+  Resource material{
+    .id = resourceManager.nextResourceId(),
+    .loader = [this](const ResourceHandleList& deps) {
+      render::MaterialFeatureSet features{
+        .flags{
+          bitflag(render::MaterialFeatures::HasTexture)
+        }
+      };
+      auto material = std::make_unique<Material>(features);
+      material->texture.id = dynamic_cast<const TextureRHandle&>(deps[0].get()).handle;
+      auto handle = m_engine.renderer().addMaterial(std::move(material));
+      return std::make_unique<MaterialRHandle>(handle);
+    },
+    .unloader = [this](const ResourceHandle& h) {
+      m_engine.renderer().removeMaterial(dynamic_cast<const MaterialRHandle&>(h).handle.id);
+    },
+    .dependencies = { texture.id }
+  };
 
-  m_factory->constructCuboid(id, materialHandle, { 1.f, 1.f, 1.f }, { 1.f, 1.f });
+  Resource entity{
+    .id = resourceManager.nextResourceId(),
+    .loader = [this](const ResourceHandleList& deps) {
+      EntityId id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
 
-  return id;
+      auto material = dynamic_cast<const MaterialRHandle&>(deps[0].get()).handle;
+      m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f }, { 1.f, 1.f });
+
+      return std::make_unique<EntityRHandle>(id);
+    },
+    .unloader = [this](const ResourceHandle& h) {
+      m_engine.ecs().removeEntity(dynamic_cast<const EntityRHandle&>(h).handle);
+    },
+    .dependencies = { material.id }
+  };
+
+  resourceManager.addResource(texture);
+  resourceManager.addResource(material);
+  resourceManager.addResource(entity);
+  resourceManager.loadResources({ entity.id }).get();
+
+  m_cubeResourceId = entity.id;
+  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;
 }
 
-EntityId Demo::constructLight()
+void Demo::constructLight()
 {
   auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
 
@@ -89,11 +144,9 @@ EntityId Demo::constructLight()
   light->specular = 0.9f;
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
-
-  return id;
 }
 
-EntityId Demo::constructCaption()
+void Demo::constructCaption()
 {
   auto id = m_engine.ecs().componentStore().allocate<DSpatial, DText>();
 
@@ -120,12 +173,28 @@ EntityId Demo::constructCaption()
   };
 
   m_engine.ecs().system<SysRender2d>().addEntity(id, render);
+}
 
-  return id;
+void Demo::onKeyDown(KeyboardKey key)
+{
+  if (key == KeyboardKey::Space) {
+    if (m_cube != NULL_ENTITY) {
+      m_engine.resourceManager().unloadResources({ m_cubeResourceId });
+      m_cube = NULL_ENTITY;
+    }
+    else {
+      m_engine.resourceManager().loadResources({ m_cubeResourceId }).get();
+      m_cube = dynamic_cast<const EntityRHandle&>(m_engine.resourceManager().getHandle(m_cubeResourceId)).handle;
+    }
+  }
 }
 
 void Demo::rotateCube()
 {
+  if (m_cube == NULL_ENTITY) {
+    return;
+  }
+
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 

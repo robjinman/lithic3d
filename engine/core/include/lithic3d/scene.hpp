@@ -14,7 +14,11 @@ struct Scene
 using ScenePtr = std::unique_ptr<Scene>;
 
 class FileSystem;
+class TerrainSystem;
+class EntityFactory;
+class ResourceManager;
 
-ScenePtr loadScene(const std::string& name, FileSystem& fileSystem);
+ScenePtr loadScene(const std::string& name, FileSystem& fileSystem, TerrainSystem& terrainSystem,
+  EntityFactory& entityFactory, ResourceManager& resourceManager);
 
 } // namespace lithic3d

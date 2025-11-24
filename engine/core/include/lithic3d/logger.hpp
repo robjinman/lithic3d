@@ -19,6 +19,7 @@ class Logger
 
 using LoggerPtr = std::unique_ptr<Logger>;
 
+// TODO: Log level
 LoggerPtr createLogger(std::ostream& errorStream, std::ostream& warningStream,
   std::ostream& infoStream, std::ostream& debugStream);
 

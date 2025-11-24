@@ -2,8 +2,6 @@
 
 #include "math.hpp"
 
-// TODO: Remove Minefield specific shit
-
 namespace lithic3d
 {
 

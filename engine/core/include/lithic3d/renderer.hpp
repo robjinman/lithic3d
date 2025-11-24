@@ -82,6 +82,8 @@ class Renderer
     //
     virtual MeshHandle addMesh(MeshPtr mesh) = 0; // TODO: Remove
     virtual void removeMesh(RenderItemId id) = 0;
+    // TODO: Remove these. We need to provide thread-safe synchronous versions that can be called
+    // from the resource manager thread
     virtual WorkItemResult addMeshAsync(MeshPtr mesh) = 0;
     virtual WorkItemResult removeMeshAsync(RenderItemId id) = 0;
 

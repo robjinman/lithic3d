@@ -50,6 +50,7 @@ using WorkItemHandler = std::function<void(WorkItem&, std::promise<WorkItemResul
 class WorkQueue
 {
   public:
+    // Main thread
     WorkItemResult addWorkItem(WorkItemPtr item)
     {
       std::scoped_lock lock{m_mutex};
@@ -60,6 +61,7 @@ class WorkQueue
       return WorkItemResult{m_workItems.back().second.get_future()};
     }
 
+    // Worker thread
     bool processNext(const WorkItemHandler& handler)
     {
       bool empty = false;
