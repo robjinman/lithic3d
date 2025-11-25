@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderables.hpp"
-#include "work_queue.hpp"
+//#include "work_queue.hpp"
 #include "window_delegate.hpp"
 
 namespace lithic3d
@@ -25,7 +25,7 @@ enum class RenderPass
   Ssr,
   Overlay
 };
-
+/*
 struct AddMeshResult : public WorkItemResultValue
 {
   AddMeshResult(MeshHandle handle)
@@ -37,7 +37,7 @@ struct AddMeshResult : public WorkItemResultValue
 struct RemoveMeshResult : public WorkItemResultValue
 {
 };
-
+*/
 struct ScreenMargins
 {
   uint32_t left = 0;
@@ -80,12 +80,12 @@ class Renderer
 
     // Meshes
     //
-    virtual MeshHandle addMesh(MeshPtr mesh) = 0; // TODO: Remove
+    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
     virtual void removeMesh(RenderItemId id) = 0;
     // TODO: Remove these. We need to provide thread-safe synchronous versions that can be called
     // from the resource manager thread
-    virtual WorkItemResult addMeshAsync(MeshPtr mesh) = 0;
-    virtual WorkItemResult removeMeshAsync(RenderItemId id) = 0;
+    //virtual WorkItemResult addMeshAsync(MeshPtr mesh) = 0;
+    //virtual WorkItemResult removeMeshAsync(RenderItemId id) = 0;
 
     // Materials
     //

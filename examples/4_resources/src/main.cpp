@@ -50,23 +50,8 @@ Demo::Demo(Engine& engine)
   m_engine.renderer().start(); // TODO: Move to engine?
 }
 
-template<typename T>
-struct Handle : public ResourceHandle
-{
-  Handle(const T& h)
-    : handle(h)
-  {}
-
-  T handle;
-};
-
-using TextureRHandle = Handle<RenderItemId>;
-using MaterialRHandle = Handle<render::MaterialHandle>;
-using MeshRHandle = Handle<render::MeshHandle>;
-using EntityRHandle = Handle<EntityId>;
-
 void Demo::constructCube()
-{
+{/*
   auto& resourceManager = m_engine.resourceManager();
 
   Resource texture{
@@ -123,7 +108,7 @@ void Demo::constructCube()
   resourceManager.loadResources({ entity.id }).get();
 
   m_cubeResourceId = entity.id;
-  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;
+  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;*/
 }
 
 void Demo::constructLight()
@@ -184,7 +169,7 @@ void Demo::onKeyDown(KeyboardKey key)
     }
     else {
       m_engine.resourceManager().loadResources({ m_cubeResourceId }).get();
-      m_cube = dynamic_cast<const EntityRHandle&>(m_engine.resourceManager().getHandle(m_cubeResourceId)).handle;
+      //m_cube = dynamic_cast<const EntityRHandle&>(m_engine.resourceManager().getHandle(m_cubeResourceId)).handle;
     }
   }
 }

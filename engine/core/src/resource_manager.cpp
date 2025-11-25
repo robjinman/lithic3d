@@ -4,17 +4,18 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
 #include <unordered_map>
+#include <mutex>
 
 namespace lithic3d
 {
 namespace
 {
 
-struct ResourceData
+struct ManagedResource
 {
   Resource data;
   uint32_t referenceCount = 0;
-  ResourceHandlePtr handle = nullptr;
+  bool loaded = false;
 };
 
 class ResourceManagerImpl : public ResourceManager
@@ -23,18 +24,16 @@ class ResourceManagerImpl : public ResourceManager
     ResourceManagerImpl(Logger& logger);
 
     ResourceId nextResourceId() override;
-    void addResource(const Resource& resource) override;
+    void addResource(Resource&& resource) override;
     std::future<void> loadResources(const std::vector<ResourceId>& resources) override;
     std::future<void> unloadResources(const std::vector<ResourceId>& resources) override;
-    const ResourceHandle& getHandle(ResourceId resourceId) const override;
 
   private:
     Logger& m_logger;
     ResourceId m_nextResourceId = NULL_RESOURCE_ID + 1;
-    std::unordered_map<ResourceId, ResourceData> m_resources;
+    std::unordered_map<ResourceId, ManagedResource> m_resources;
+    std::recursive_mutex m_mutex;
     Thread m_thread;
-
-    // TODO: Mutex
 
     void loadResource(ResourceId id, bool incrementRefCount);
     void unloadResource(ResourceId id);
@@ -50,33 +49,26 @@ ResourceId ResourceManagerImpl::nextResourceId()
   return m_nextResourceId++;
 }
 
-const ResourceHandle& ResourceManagerImpl::getHandle(ResourceId resourceId) const
+void ResourceManagerImpl::addResource(Resource&& resource)
 {
-  auto i = m_resources.find(resourceId);
-  if (i == m_resources.end()) {
-    EXCEPTION("No such resource with id " << resourceId);
-  }
-  if (i->second.handle == nullptr) {
-    EXCEPTION("Resource with id " << resourceId << " is not loaded");
-  }
+  std::scoped_lock lock{m_mutex};
 
-  return *i->second.handle;
-}
-
-void ResourceManagerImpl::addResource(const Resource& resource)
-{
-  m_resources.insert({ resource.id, ResourceData{
-    .data = resource,
-    .referenceCount = 0,
-    .handle = nullptr
+  m_resources.insert({ resource.id, ManagedResource{
+    .data = std::move(resource),
+    .referenceCount = 0
   }});
 }
 
 // Worker thread
 void ResourceManagerImpl::loadResource(ResourceId id, bool incrementRefCount)
 {
-  auto& resource = m_resources.at(id);
-  if (resource.handle != nullptr) {
+  std::scoped_lock lock{m_mutex};
+
+  auto i = m_resources.find(id);
+  ASSERT(i != m_resources.end(), "No resource with id " << id);
+  auto& resource = i->second;
+
+  if (resource.loaded) {
     if (incrementRefCount) {
       ++resource.referenceCount;
     }
@@ -88,17 +80,14 @@ void ResourceManagerImpl::loadResource(ResourceId id, bool incrementRefCount)
     ++resource.referenceCount;
   }
 
-  ResourceHandleList deps;
   for (auto depId : resource.data.dependencies) {
     loadResource(depId, true);
-    auto& dep = m_resources.at(depId);
-
-    deps.push_back(*dep.handle);
   }
 
   m_logger.debug(STR("Loading resource " << id));
   try {
-    resource.handle = resource.data.loader(deps);
+    resource.data.loader(resource.data);
+    resource.loaded = true;
   }
   catch (const Exception& ex) {
     m_logger.error(ex.what());
@@ -108,8 +97,15 @@ void ResourceManagerImpl::loadResource(ResourceId id, bool incrementRefCount)
 // Worker thread
 void ResourceManagerImpl::unloadResource(ResourceId id)
 {
-  auto& resource = m_resources.at(id);
-  if (resource.handle == nullptr) {
+  std::scoped_lock lock{m_mutex};
+
+  auto i = m_resources.find(id);
+  ASSERT(i != m_resources.end(), "No resource with id " << id);
+  auto& resource = i->second;
+
+  assert(resource.data.id == id);
+
+  if (!resource.loaded) {
     assert(resource.referenceCount == 0);
     return; // Already unloaded
   }
@@ -121,17 +117,17 @@ void ResourceManagerImpl::unloadResource(ResourceId id)
 
   m_logger.debug(STR("Unloading resource " << id));
   try {
-    resource.data.unloader(*resource.handle);
+    resource.data.unloader(id);
+    resource.loaded = false;
   }
   catch (const Exception& ex) {
     m_logger.error(ex.what());
   }
-  resource.handle.reset();
 
   for (auto depId : resource.data.dependencies) {
     auto& dep = m_resources.at(depId);
     assert(dep.referenceCount > 0);
-    assert(dep.handle != nullptr);
+    assert(dep.loaded);
 
     --dep.referenceCount;
 

@@ -1,5 +1,6 @@
 #include "lithic3d/vulkan/shader.hpp"
 #include "lithic3d/file_system.hpp"
+#include "lithic3d/strings.hpp"
 #include <cstring>
 
 namespace lithic3d

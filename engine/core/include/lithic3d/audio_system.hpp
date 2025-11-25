@@ -6,6 +6,22 @@
 namespace lithic3d
 {
 
+/*
+enum class AudioResourceType
+{
+  Sound,
+  Music
+};
+
+class AudioResource : public ResourceData
+{
+  public:
+    AudioResourceType type;
+    HashedString name;
+    std::filesystem::path filePath;
+};
+*/
+
 class AudioSystem
 {
   public:

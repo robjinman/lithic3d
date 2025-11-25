@@ -1,8 +1,8 @@
 #include "vulkan/pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/render_resources.hpp"
-#include "lithic3d/utils.hpp"
 #include "lithic3d/logger.hpp"
+#include "lithic3d/strings.hpp"
 #include <array>
 #include <numeric>
 #include <cstring>

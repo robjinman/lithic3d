@@ -334,13 +334,14 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
   auto mesh = textItemMesh(data.text, data.text.size(), data.textureRect, false);
 
   MeshHandle meshHandle;
-  if (m_renderer.isStarted()) {
+  // TODO: Use resource manager
+  //if (m_renderer.isStarted()) {
     // TODO: This blocks
-    meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
-  }
-  else {
+    //meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
+  //}
+  //else {
     meshHandle = m_renderer.addMesh(std::move(mesh));
-  }
+  //}
 
   m_textItems.insert({ entityId, meshHandle });
 }
@@ -379,13 +380,14 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   auto mesh = textItemMesh(data.text, data.maxLength, data.textureRect, true);
 
   MeshHandle meshHandle;
-  if (m_renderer.isStarted()) {
+  // TODO: Use resource manager
+  //if (m_renderer.isStarted()) {
     // TODO: This blocks
-    meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
-  }
-  else {
+    //meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
+  //}
+  //else {
     meshHandle = m_renderer.addMesh(std::move(mesh));
-  }
+  //}
 
   m_textItems.insert({ entityId, meshHandle });
 }

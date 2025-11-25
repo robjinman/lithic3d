@@ -4,6 +4,7 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/utils.hpp"
+#include "lithic3d/strings.hpp"
 #include <map>
 #include <array>
 #include <cstring>

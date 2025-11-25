@@ -12,6 +12,7 @@
 #include "lithic3d/triple_buffer.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/platform.hpp"
+#include "lithic3d/strings.hpp"
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -72,7 +73,7 @@ struct SwapChainSupportDetails
 
 const HashedString strAddMesh = hashString("add_mesh");
 const HashedString strRemoveMesh = hashString("remove_mesh");
-
+/*
 struct AddMeshWorkItem : public WorkItem
 {
   AddMeshWorkItem(MeshPtr mesh)
@@ -89,7 +90,7 @@ struct RemoveMeshWorkItem : public WorkItem
     , meshId(meshId) {}
 
   RenderItemId meshId;
-};
+};*/
 
 // 90 degrees clockwise
 // TODO: Support other rotations
@@ -166,8 +167,8 @@ class RendererImpl : public Renderer
     //
     MeshHandle addMesh(MeshPtr mesh) override;
     void removeMesh(RenderItemId id) override;
-    WorkItemResult addMeshAsync(MeshPtr mesh) override;
-    WorkItemResult removeMeshAsync(RenderItemId id) override;
+    //WorkItemResult addMeshAsync(MeshPtr mesh) override;
+    //WorkItemResult removeMeshAsync(RenderItemId id) override;
 
     // Materials
     //
@@ -249,7 +250,7 @@ class RendererImpl : public Renderer
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
     void drawModelInternal(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
       const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
-    void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
+    //void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
 
     const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
@@ -335,7 +336,7 @@ class RendererImpl : public Renderer
     mutable std::mutex m_errorMutex;
     bool m_hasError = false;
     std::string m_error;
-    WorkQueue m_workQueue;
+    //WorkQueue m_workQueue;
 };
 
 RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSystem, Logger& logger,
@@ -759,7 +760,7 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
   renderPassState.viewPos = viewPos;
   renderPassState.viewMatrix = viewMatrix;
 }
-
+/*
 void RendererImpl::processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result)
 {
   try {
@@ -780,16 +781,16 @@ void RendererImpl::processWorkItem(WorkItem& item, std::promise<WorkItemResultVa
     result.set_exception(std::current_exception());
   }
 }
-
+*/
 void RendererImpl::renderLoop()
 {
   try {
-    auto handler = [this](WorkItem& item, std::promise<WorkItemResultValuePtr>& result) {
-      processWorkItem(item, result);
-    };
+    //auto handler = [this](WorkItem& item, std::promise<WorkItemResultValuePtr>& result) {
+    //  processWorkItem(item, result);
+    //};
 
     while (m_running) {
-      while (m_workQueue.processNext(handler)) {}
+      //while (m_workQueue.processNext(handler)) {}
 
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
         "Error waiting for fence");
@@ -1821,64 +1822,64 @@ RenderItemId RendererImpl::addTexture(TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started");
-  return m_thread.run<RenderItemId>([&, this]() {
+  //ASSERT(!m_running, "Renderer already started");
+  //return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addTexture(std::move(texture));
-  }).get();
+  //}).get();
 }
 
 RenderItemId RendererImpl::addNormalMap(TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started");
-  return m_thread.run<RenderItemId>([&, this]() {
+  //ASSERT(!m_running, "Renderer already started");
+  //return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addNormalMap(std::move(texture));
-  }).get();
+  //}).get();
 }
 
 RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started");
-  return m_thread.run<RenderItemId>([&, this]() {
+  //ASSERT(!m_running, "Renderer already started");
+  //return m_thread.run<RenderItemId>([&, this]() {
     return m_resources->addCubeMap(std::move(textures));
-  }).get();
+  //}).get();
 }
 
 MaterialHandle RendererImpl::addMaterial(MaterialPtr material)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer already started");
-  return m_thread.run<MaterialHandle>([&, this]() {
+  //ASSERT(!m_running, "Renderer already started");
+  //return m_thread.run<MaterialHandle>([&, this]() {
     return m_resources->addMaterial(std::move(material));
-  }).get();
+  //}).get();
 }
 
 MeshHandle RendererImpl::addMesh(MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer is already running");
+  //ASSERT(!m_running, "Renderer is already running");
 
-  return m_thread.run<MeshHandle>([&, this]() {
+  //return m_thread.run<MeshHandle>([&, this]() {
     return m_resources->addMesh(std::move(mesh));
-  }).get();
+  //}).get();
 }
 
 void RendererImpl::removeMesh(RenderItemId meshId)
 {
   DBG_TRACE(m_logger);
 
-  ASSERT(!m_running, "Renderer is already running");
+  //ASSERT(!m_running, "Renderer is already running");
 
-  return m_thread.run<void>([&, this]() {
+  //return m_thread.run<void>([&, this]() {
     return m_resources->removeMesh(meshId);
-  }).get();
+  //}).get();
 }
-
+/*
 WorkItemResult RendererImpl::addMeshAsync(MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
@@ -1895,27 +1896,27 @@ WorkItemResult RendererImpl::removeMeshAsync(RenderItemId meshId)
   auto item = std::make_unique<RemoveMeshWorkItem>(meshId);
 
   return m_workQueue.addWorkItem(std::move(item));
-}
+}*/
 
-void RendererImpl::removeTexture(RenderItemId)
+void RendererImpl::removeTexture(RenderItemId id)
 {
   // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeTexture(id);
+  //EXCEPTION("Not implemented");
+  m_resources->removeTexture(id);
 }
 
-void RendererImpl::removeCubeMap(RenderItemId)
+void RendererImpl::removeCubeMap(RenderItemId id)
 {
   // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeCubeMap(id);
+  //EXCEPTION("Not implemented");
+  m_resources->removeCubeMap(id);
 }
 
-void RendererImpl::removeMaterial(RenderItemId)
+void RendererImpl::removeMaterial(RenderItemId id)
 {
   // TODO
-  EXCEPTION("Not implemented");
-  //m_resources->removeMaterial(id);
+  //EXCEPTION("Not implemented");
+  m_resources->removeMaterial(id);
 }
 
 void RendererImpl::createSyncObjects()
