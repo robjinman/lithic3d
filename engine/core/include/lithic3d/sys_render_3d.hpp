@@ -56,8 +56,10 @@ using AnimationSetPtr = std::unique_ptr<AnimationSet>;
 
 struct Submodel
 {
-  render::MeshHandle mesh;
-  render::MaterialHandle material;
+  ResourceId mesh;
+  render::MeshFeatureSet meshFeatures;
+  ResourceId material;
+  render::MaterialFeatureSet materialFeatures;
   SkinPtr skin;
 
   // TODO: Make these private?
@@ -87,7 +89,7 @@ struct DModel
   }
 
   bool isInstanced = false;
-  RenderItemId animations = NULL_ID;
+  ResourceId animations = NULL_RESOURCE_ID;
   std::vector<Submodel> submodels;
 };
 
@@ -145,8 +147,8 @@ class SysRender3d : public System
 
     // Animations
     //
-    virtual RenderItemId addAnimations(AnimationSetPtr animations) = 0;
-    virtual void removeAnimations(RenderItemId id) = 0;
+    virtual ResourceId addAnimations(AnimationSetPtr animations) = 0;
+    virtual void removeAnimations(ResourceId id) = 0;
     virtual void playAnimation(EntityId entityId, const std::string& name) = 0;
 
     virtual ~SysRender3d() {}

@@ -1,6 +1,6 @@
 #include "lithic3d/world_traversal.hpp"
 #include "lithic3d/resource_manager.hpp"
-#include "lithic3d/world_loader.hpp"
+#include "lithic3d/world.hpp"
 
 namespace lithic3d
 {
@@ -108,8 +108,9 @@ void WorldTraversalImpl::doUpdate(int cellX, int cellY)
     }
   }
 
-  m_resourceManager.unloadResources(toUnload);
-  m_resourceManager.loadResources(toLoad);
+  // TODO
+  //m_resourceManager.unloadResources(toUnload);
+  //m_resourceManager.loadResources(toLoad);
 }
 
 } // namespace

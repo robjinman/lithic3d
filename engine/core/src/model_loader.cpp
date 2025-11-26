@@ -7,7 +7,7 @@
 
 namespace lithic3d
 {
-
+/*
 using render::Buffer;
 using render::BufferUsage;
 using render::VertexLayout;
@@ -20,6 +20,23 @@ using render::MaterialFeatureSet;
 
 namespace
 {
+
+struct SubmodelData
+{
+  render::MeshPtr mesh;
+  render::MaterialPtr material;
+  SkinPtr skin; // TODO: Share skins between submodels
+};
+
+using SubmodelPtr = std::unique_ptr<Submodel>;
+
+struct ModelData
+{
+  std::vector<SubmodelPtr> submodels;
+  AnimationSetPtr animations;
+};
+
+using ModelDataPtr = std::unique_ptr<ModelData>;
 
 template<typename T>
 T convert(const char* value, gltf::ComponentType dataType)
@@ -485,7 +502,6 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
 }
 
 // TODO: This should be done inside the entity factory
-/*
 DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool isInstanced)
 {
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -507,13 +523,14 @@ DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool is
   model->animations = sysRender3d.addAnimations(std::move(modelData->animations));
 
   return model;
-}*/
+}
 
 } // namespace
-
-ModelLoaderPtr createModelLoader(Ecs& ecs, const FileSystem& fileSystem, Logger& logger)
+*/
+ModelLoaderPtr createModelLoader(ResourceManager& resourceManager, render::Renderer& renderer,
+  const FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<ModelLoaderImpl>(ecs, fileSystem, logger);
+  //return std::make_unique<ModelLoaderImpl>(ecs, fileSystem, logger);
 }
 
 } // namespace lithic3d

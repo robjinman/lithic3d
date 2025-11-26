@@ -77,7 +77,7 @@ class Renderer
 
     // Fonts
     //
-    virtual ResourceId addFont(const BitmapFont& font) = 0;
+    //virtual ResourceId addFont(const BitmapFont& font) = 0;
 
     // Per-frame draw functions
     //
@@ -120,6 +120,7 @@ using RendererPtr = std::unique_ptr<Renderer>;
 class FileSystem;
 class Logger;
 
+// TODO: Move inside render namespace?
 render::RendererPtr createRenderer(WindowDelegatePtr window, const FileSystem& fileSystem,
   Logger& logger, const render::ScreenMargins& margins);
 

@@ -38,6 +38,11 @@ class Thread
       return future;
     }
 
+    std::thread::id id() const
+    {
+      return m_thread.get_id();
+    }
+
     ~Thread()
     {
       {

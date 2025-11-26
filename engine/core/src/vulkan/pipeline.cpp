@@ -615,16 +615,16 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
   auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(
     m_spec.renderPass, currentFrame);
-  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material.id);
-  auto objectDescriptorSet = m_renderResources.getObjectDescriptorSet(node.mesh.id, currentFrame);
+  auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
+  auto objectDescriptorSet = m_renderResources.getObjectDescriptorSet(node.mesh, currentFrame);
 
-  auto buffers = m_renderResources.getMeshBuffers(node.mesh.id);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
   if (m_pipeline != bindState.pipeline) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   }
   std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
-  if (node.mesh.features.flags.test(MeshFeatures::IsInstanced)) {
+  if (node.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     vertexBuffers.push_back(buffers.instanceBuffer);
   }
   std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
@@ -654,8 +654,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   //}
 
   if (node.type == RenderNodeType::DefaultModel) {
-    assert(!node.mesh.features.flags.test(MeshFeatures::IsInstanced));
-    assert(!node.mesh.features.flags.test(MeshFeatures::IsSkybox));
+    assert(!node.meshFeatures.flags.test(MeshFeatures::IsInstanced));
+    assert(!node.meshFeatures.flags.test(MeshFeatures::IsSkybox));
 
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
@@ -731,7 +731,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   }
 
   if (node.type == RenderNodeType::InstancedModel) {
-    assert(node.mesh.features.flags.test(MeshFeatures::IsInstanced));
+    assert(node.meshFeatures.flags.test(MeshFeatures::IsInstanced));
 
     vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
   }

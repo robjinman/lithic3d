@@ -28,7 +28,6 @@ class Demo : public Game
 
   private:
     Engine& m_engine;
-    FactoryPtr m_factory;
     EntityId m_cube = NULL_ENTITY;
     ResourceId m_cubeResourceId = NULL_RESOURCE_ID;
 
@@ -41,8 +40,6 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
-
   constructLight();
   constructCube();
   constructCaption();
@@ -53,16 +50,15 @@ Demo::Demo(Engine& engine)
 void Demo::constructCube()
 {
   auto& resourceManager = m_engine.resourceManager();
-
+/*
   Resource texture{
     .id = resourceManager.nextResourceId(),
-    .loader = [this](const ResourceHandleList&) {
+    .loader = [this](const Resource&) {
       auto texture = loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
-      auto textureId = m_engine.renderer().addTexture(std::move(texture));
-      return std::make_unique<TextureRHandle>(textureId);
+      return m_engine.renderer().addTexture(std::move(texture));
     },
-    .unloader = [this](const ResourceHandle& h) {
-      m_engine.renderer().removeTexture(dynamic_cast<const TextureRHandle&>(h).handle);
+    .unloader = [this](ResourceId id) {
+      m_engine.renderer().removeTexture(id);
     },
     .dependencies = {}
   };
@@ -108,7 +104,7 @@ void Demo::constructCube()
   resourceManager.loadResources({ entity.id }).get();
 
   m_cubeResourceId = entity.id;
-  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;
+  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;*/
 }
 
 void Demo::constructLight()
@@ -145,7 +141,7 @@ void Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->constructMaterial("textures/fonts.png"),
+    .material = 0,//m_factory->constructMaterial("textures/fonts.png"),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -164,11 +160,11 @@ void Demo::onKeyDown(KeyboardKey key)
 {
   if (key == KeyboardKey::Space) {
     if (m_cube != NULL_ENTITY) {
-      m_engine.resourceManager().unloadResources({ m_cubeResourceId });
+      //m_engine.resourceManager().unloadResources({ m_cubeResourceId });
       m_cube = NULL_ENTITY;
     }
     else {
-      m_engine.resourceManager().loadResources({ m_cubeResourceId }).get();
+      //m_engine.resourceManager().loadResources({ m_cubeResourceId }).get();
       //m_cube = dynamic_cast<const EntityRHandle&>(m_engine.resourceManager().getHandle(m_cubeResourceId)).handle;
     }
   }

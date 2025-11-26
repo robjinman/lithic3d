@@ -9,7 +9,7 @@
 #include <array>
 #include <cstring>
 #include <cassert>
-
+/*
 namespace lithic3d
 {
 namespace render
@@ -155,6 +155,7 @@ class RenderResourcesImpl : public RenderResources
     std::map<ResourceId, MaterialDataPtr> m_materials;
 
     Logger& m_logger;
+    ResourceManager& m_resourceManager;
     GpuBufferManager& m_bufferManager;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
@@ -210,6 +211,7 @@ RenderResourcesImpl::RenderResourcesImpl(ResourceManager& resourceManager,
   GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
   VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
   : m_logger(logger)
+  , m_resourceManager(resourceManager)
   , m_bufferManager(bufferManager)
   , m_physicalDevice(physicalDevice)
   , m_device(device)
@@ -230,16 +232,27 @@ RenderResourcesImpl::RenderResourcesImpl(ResourceManager& resourceManager,
   createObjectDescriptorSetLayout();
 }
 
-RenderItemId RenderResourcesImpl::addTexture(TexturePtr texture)
+ResourceId RenderResourcesImpl::addTexture(TexturePtr texture)
+{
+  auto id = m_resourceManager.nextResourceId();
+
+  m_resourceManager.addResource(Resource{
+    .id = id,
+    .loader = [=, texture = std::move(texture)]() { loadTexture(id, texture); },
+    .unloader = [=]() { unloadTexture(id); },
+    .dependencies = {}
+  });
+
+  return id;
+}
+
+void RenderResourcesImpl::loadTexture(ResourceId id, TexturePtr texture)
 {
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createTexture(*texture);
   //textureData->texture = std::move(texture);
 
-  auto textureId = m_nextTextureId++;
-  m_textures[textureId] = std::move(textureData);
-
-  return textureId;
+  m_textures[id] = std::move(textureData);
 }
 
 RenderItemId RenderResourcesImpl::addNormalMap(TexturePtr texture)
@@ -1175,3 +1188,4 @@ RenderResourcesPtr createRenderResources(ResourceManager& resourceManager,
 
 } // namespace render
 } // namespace lithic3d
+*/

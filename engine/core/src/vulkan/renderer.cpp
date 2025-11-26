@@ -13,6 +13,7 @@
 #include "lithic3d/trace.hpp"
 #include "lithic3d/platform.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/file_system.hpp"
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -365,8 +366,8 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
     createImageViews();
     createCommandPool();
     createBufferManager();
-    m_resources = createRenderResources(*m_bufferManager, m_physicalDevice, m_device,
-      m_graphicsQueue, m_commandPool, m_logger);
+    //m_resources = createRenderResources(*m_bufferManager, m_physicalDevice, m_device,
+    //  m_graphicsQueue, m_commandPool, m_logger);
     createDepthResources();
     createCommandBuffers();
     createSyncObjects();
@@ -1806,7 +1807,7 @@ ResourceId RendererImpl::addTexture(TexturePtr texture)
 
   //ASSERT(!m_running, "Renderer already started");
   //return m_thread.run<RenderItemId>([&, this]() {
-    return m_resources->addTexture(std::move(texture));
+    //return m_resources->addTexture(std::move(texture));
   //}).get();
 }
 
@@ -1816,7 +1817,7 @@ ResourceId RendererImpl::addNormalMap(TexturePtr texture)
 
   //ASSERT(!m_running, "Renderer already started");
   //return m_thread.run<RenderItemId>([&, this]() {
-    return m_resources->addNormalMap(std::move(texture));
+    //return m_resources->addNormalMap(std::move(texture));
   //}).get();
 }
 
@@ -1826,7 +1827,7 @@ ResourceId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 
   //ASSERT(!m_running, "Renderer already started");
   //return m_thread.run<RenderItemId>([&, this]() {
-    return m_resources->addCubeMap(std::move(textures));
+    //return m_resources->addCubeMap(std::move(textures));
   //}).get();
 }
 

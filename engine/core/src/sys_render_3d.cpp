@@ -20,9 +20,7 @@ using render::MeshPtr;
 using render::MaterialPtr;
 using render::MeshFeatureSet;
 using render::MaterialFeatureSet;
-using render::MeshHandle;
 namespace MeshFeatures = render::MeshFeatures;
-using render::MaterialHandle;
 using render::TexturePtr;
 using render::RenderPass;
 
@@ -59,7 +57,7 @@ struct AnimationChannelState
 
 struct AnimationState
 {
-  RenderItemId animationSet = NULL_ID;
+  ResourceId animationSet = NULL_RESOURCE_ID;
   std::string animationName;
   Timer timer;
   std::vector<AnimationChannelState> channels;
@@ -94,8 +92,8 @@ class SysRender3dImpl : public SysRender3d
 
     // Animations
     //
-    RenderItemId addAnimations(AnimationSetPtr animations) override;
-    void removeAnimations(RenderItemId id) override;
+    ResourceId addAnimations(AnimationSetPtr animations) override;
+    void removeAnimations(ResourceId id) override;
     void playAnimation(EntityId entityId, const std::string& name) override;
 
   private:
@@ -107,7 +105,7 @@ class SysRender3dImpl : public SysRender3d
     std::map<EntityId, DLightPtr> m_lights;
     std::map<EntityId, DModelPtr> m_models;
     DSkyboxPtr m_skybox;
-    std::map<RenderItemId, AnimationSetPtr> m_animationSets;
+    std::map<ResourceId, AnimationSetPtr> m_animationSets;
     std::map<EntityId, AnimationState> m_animationStates;
 
     using DrawFilter = std::function<bool(const Submodel&)>;
@@ -192,17 +190,17 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
   m_skybox = std::move(skybox);
 }
 
-RenderItemId SysRender3dImpl::addAnimations(AnimationSetPtr animations)
+ResourceId SysRender3dImpl::addAnimations(AnimationSetPtr animations)
 {
-  static RenderItemId nextId = 0;
+  // TODO
 
-  auto id = nextId++;
-  m_animationSets[id] = std::move(animations);
+  //auto id = nextId++;
+  //m_animationSets[id] = std::move(animations);
 
   return id;
 }
 
-void SysRender3dImpl::removeAnimations(RenderItemId id)
+void SysRender3dImpl::removeAnimations(ResourceId id)
 {
   // TODO
 }
@@ -232,13 +230,13 @@ const Camera3d& SysRender3dImpl::camera() const
 void SysRender3dImpl::drawSkybox()
 {
   if (m_skybox != nullptr) {
-    m_renderer.drawSkybox(m_skybox->model.mesh, m_skybox->model.material);
+    //m_renderer.drawSkybox(m_skybox->model.mesh, m_skybox->model.material);
   }
 }
 
 void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   const std::function<bool(const Submodel&)>& filter)
-{
+{/*
   const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Submodel colour?
 
   for (EntityId id : entities) {
@@ -268,7 +266,7 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
         }
       }
     }
-  }
+  }*/
 }
 
 void SysRender3dImpl::doShadowPass()
@@ -295,9 +293,9 @@ void SysRender3dImpl::doShadowPass()
 
   m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
 
-  drawModels(visible, [](const Submodel& x) {
-    return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
-  });
+  //drawModels(visible, [](const Submodel& x) {
+  //  return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
+  //});
 
   m_renderer.endPass();
 }
@@ -327,7 +325,7 @@ void SysRender3dImpl::doMainPass()
 
     if (light.submodels.size() > 0) {
       for (auto& submodel : light.submodels) {
-        m_renderer.drawModel(submodel.mesh, submodel.material, white, transform);
+        //m_renderer.drawModel(submodel.mesh, submodel.material, white, transform);
       }
     }
   }

@@ -1,4 +1,4 @@
-#include "lithic3d/factory.hpp"
+/*#include "lithic3d/factory.hpp"
 #include "lithic3d/file_system.hpp"
 #include "lithic3d/ecs.hpp"
 #include "lithic3d/sys_render_3d.hpp"
@@ -126,3 +126,4 @@ FactoryPtr createFactory(Ecs& ecs, FileSystem& fileSystem)
 }
 
 } // namespace lithic3d
+*/

@@ -24,8 +24,6 @@ struct TerrainOptions
 class TerrainBuilder
 {
   public:
-    virtual void loadHeightMap(const std::filesystem::path& path) = 0;
-
     virtual ~TerrainBuilder() = default;
 };
 

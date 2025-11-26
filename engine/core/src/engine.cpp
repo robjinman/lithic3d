@@ -84,9 +84,9 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
-  m_modelLoader = createModelLoader(*m_ecs, *m_fileSystem, *m_logger);
-
   m_resourceManager = createResourceManager(*m_logger);
+
+  m_modelLoader = createModelLoader(*m_resourceManager, *m_renderer, *m_fileSystem, *m_logger);
 
   //m_renderer->start();
 }

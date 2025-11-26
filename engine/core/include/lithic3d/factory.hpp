@@ -6,7 +6,7 @@
 
 namespace lithic3d
 {
-
+/*
 // Factory for creating simple objects without offering much customisation. Useful for quick demos.
 class Factory
 {
@@ -27,5 +27,5 @@ class Ecs;
 class FileSystem;
 
 FactoryPtr createFactory(Ecs& ecs, FileSystem& fileSystem);
-
+*/
 } // namespace lithic3d

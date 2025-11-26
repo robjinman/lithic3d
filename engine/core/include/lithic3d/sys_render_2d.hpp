@@ -26,7 +26,8 @@ struct CRender2d
 
 struct CSprite
 {
-  render::MaterialHandle material;
+  ResourceId material;
+  render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   bool isText = false; // TODO: Remove?
 
@@ -52,7 +53,8 @@ struct DSprite
   using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite>;
 
   ScissorId scissor = 0;
-  render::MaterialHandle material;
+  ResourceId material;
+  render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
@@ -73,7 +75,8 @@ struct DText
   using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite>;
 
   ScissorId scissor = 0;
-  render::MaterialHandle material;
+  ResourceId material;
+  render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   std::string text;
   uint32_t zIndex = 0;
@@ -87,7 +90,8 @@ struct DDynamicText
   >;
 
   ScissorId scissor = 0;
-  render::MaterialHandle material;
+  ResourceId material;
+  render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   std::string text;
   size_t maxLength = DYNAMIC_TEXT_MAX_LEN;

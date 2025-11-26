@@ -21,10 +21,8 @@ using render::MeshPtr;
 using render::Material;
 using render::MeshFeatureSet;
 using render::MaterialFeatureSet;
-using render::MeshHandle;
 namespace MaterialFeatures = render::MaterialFeatures;
 namespace MeshFeatures = render::MeshFeatures;
-using render::MaterialHandle;
 using render::RenderPass;
 using render::Buffer;
 using render::BufferUsage;
@@ -213,8 +211,9 @@ class SysRender2dImpl : public SysRender2d
     Camera2d m_camera;
     Renderer& m_renderer;
     const FileSystem& m_fileSystem;
-    MeshHandle m_mesh;
-    std::unordered_map<EntityId, MeshHandle> m_textItems;
+    ResourceId m_mesh;
+    render::MeshFeatureSet m_meshFeatures;
+    std::unordered_map<EntityId, ResourceId> m_textItems; // Where to store MeshFeatureSets?
     std::unordered_map<ScissorId, Recti> m_scissors;
 };
 
@@ -333,17 +332,17 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
 
   auto mesh = textItemMesh(data.text, data.text.size(), data.textureRect, false);
 
-  MeshHandle meshHandle;
+  //MeshHandle meshHandle;
   // TODO: Use resource manager
   //if (m_renderer.isStarted()) {
     // TODO: This blocks
     //meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
   //}
   //else {
-    meshHandle = m_renderer.addMesh(std::move(mesh));
+    //meshHandle = m_renderer.addMesh(std::move(mesh));
   //}
 
-  m_textItems.insert({ entityId, meshHandle });
+  //m_textItems.insert({ entityId, meshHandle });
 }
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
@@ -379,17 +378,17 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
 
   auto mesh = textItemMesh(data.text, data.maxLength, data.textureRect, true);
 
-  MeshHandle meshHandle;
+  //MeshHandle meshHandle;
   // TODO: Use resource manager
   //if (m_renderer.isStarted()) {
     // TODO: This blocks
     //meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
   //}
   //else {
-    meshHandle = m_renderer.addMesh(std::move(mesh));
+    //meshHandle = m_renderer.addMesh(std::move(mesh));
   //}
 
-  m_textItems.insert({ entityId, meshHandle });
+  //m_textItems.insert({ entityId, meshHandle });
 }
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
@@ -488,7 +487,7 @@ const Camera2d& SysRender2dImpl::camera() const
 }
 
 void SysRender2dImpl::update(Tick, const InputState&)
-{
+{/*
   auto screenAspect = m_renderer.getViewParams().aspectRatio;
   float gameAspect = 630.f / 480.f;  // TODO
   m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
@@ -575,7 +574,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
     }
   }
 
-  m_renderer.endPass();
+  m_renderer.endPass();*/
 }
 
 } // namespace

@@ -47,18 +47,16 @@ class AObjectFactory
       , m_resourceManager(resourceManager)
     {}
 
-    ResourceId createAObject(const std::string& foo)
+    std::future<ResourceId> createAObjectAsync(const std::string& foo)
     {
-      auto id = m_resourceManager.nextResourceId();
+      return m_resourceManager.loadResource([this, foo](ResourceId id) {
+        loadAObject(id, foo);
 
-      m_resourceManager.addResource(Resource{
-        .id = id,
-        .loader = [=]() { loadAObject(id, foo); },  // Be sure to capture by value
-        .unloader = [=]() { unloadAObject(id); },
-        .dependencies = {}
+        return Resource{
+          .unloader = [this](ResourceId id) { unloadAObject(id); },
+          .dependencies = {}
+        };
       });
-
-      return id;
     }
 
   private:
@@ -102,20 +100,18 @@ class BObjectFactory
       , m_aObjectFactory(aObjectFactory)
     {}
 
-    ResourceId createBObject(const std::string& foo, int bar)
+    std::future<ResourceId> createBObjectAsync(const std::string& foo, int bar)
     {
-      auto aObjId = m_aObjectFactory.createAObject(foo);
+      return m_resourceManager.loadResource([this, foo, bar](ResourceId id) {
+        auto aObjId = m_aObjectFactory.createAObjectAsync(foo).get();
 
-      auto id = m_resourceManager.nextResourceId();
+        loadBObject(id, aObjId, bar);
 
-      m_resourceManager.addResource(Resource{
-        .id = id,
-        .loader = [=]() { loadBObject(id, aObjId, bar); },
-        .unloader = [=]() { unloadBObject(id); },
-        .dependencies = { aObjId }
+        return Resource{
+          .unloader = [this](ResourceId id) { unloadBObject(id); },
+          .dependencies = { aObjId }
+        };
       });
-
-      return id;
     }
 
     const BObject& get(ResourceId id) const
@@ -167,20 +163,18 @@ class CObjectFactory
       , m_bObjectFactory(bObjectFactory)
     {}
 
-    ResourceId createCObject(const std::string& foo, int bar, uint64_t baz)
+    std::future<ResourceId> createCObjectAsync(const std::string& foo, int bar, uint64_t baz)
     {
-      auto bObjId = m_bObjectFactory.createBObject(foo, bar);
+      return m_resourceManager.loadResource([this, foo, bar, baz](ResourceId id) {
+        auto bObjId = m_bObjectFactory.createBObjectAsync(foo, bar).get();
 
-      auto id = m_resourceManager.nextResourceId();
+        loadCObject(id, bObjId, baz);
 
-      m_resourceManager.addResource(Resource{
-        .id = id,
-        .loader = [=]() { loadCObject(id, bObjId, baz); },
-        .unloader = [=]() { unloadCObject(id); },
-        .dependencies = { bObjId }
+        return Resource{
+          .unloader = [this](ResourceId id) { unloadCObject(id); },
+          .dependencies = { bObjId }
+        };
       });
-
-      return id;
     }
 
   private:
@@ -228,18 +222,16 @@ class DObjectFactory
     {}
 
     // Demonstrates creation of a resource that is dependent on an already existing resource
-    ResourceId createDObject(ResourceId aObject, char whizz)
+    std::future<ResourceId> createDObjectAsync(ResourceId aObject, char whizz)
     {
-      auto id = m_resourceManager.nextResourceId();
+      return m_resourceManager.loadResource([this, aObject, whizz](ResourceId id) {
+        loadDObject(id, aObject, whizz);
 
-      m_resourceManager.addResource(Resource{
-        .id = id,
-        .loader = [=]() { loadDObject(id, aObject, whizz); },
-        .unloader = [=]() { unloadDObject(id); },
-        .dependencies = { aObject }
+        return Resource{
+          .unloader = [this](ResourceId id) { unloadDObject(id); },
+          .dependencies = { aObject }
+        };
       });
-
-      return id;
     }
 
   private:
@@ -280,9 +272,8 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
   EXPECT_CALL(delegate, loadAObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject()).Times(1).InSequence(seq);
 
-  auto id = factory.createAObject("hello");
-  resourceManager->loadResources({ id });
-  resourceManager->unloadResources({ id }).get();
+  auto id = factory.createAObjectAsync("hello").get();
+  resourceManager->unloadResource(id).get();
 }
 
 TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
@@ -304,9 +295,8 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
   EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject).Times(1).InSequence(seq);
 
-  auto id = cObjectFactory.createCObject("hello", 123, 234);
-  resourceManager->loadResources({ id });
-  resourceManager->unloadResources({ id }).get();
+  auto id = cObjectFactory.createCObjectAsync("hello", 123, 234).get();
+  resourceManager->unloadResource(id).get();
 }
 
 TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
@@ -327,15 +317,12 @@ TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
   EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject).Times(0).InSequence(seq);
 
-  auto bObjId = bObjectFactory.createBObject("hello", 123);
-
-  resourceManager->loadResources({ bObjId }).get();
+  auto bObjId = bObjectFactory.createBObjectAsync("hello", 123).get();
   auto bObject = bObjectFactory.get(bObjId);
 
-  auto dObjId = dObjectFactory.createDObject(bObject.aObject, 'x');
+  auto dObjIdFuture = dObjectFactory.createDObjectAsync(bObject.aObject, 'x');
 
-  resourceManager->loadResources({ dObjId });
-  resourceManager->unloadResources({ bObjId }).get();
+  resourceManager->unloadResource(bObjId).get();
 }
 
 TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
@@ -357,13 +344,11 @@ TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
   EXPECT_CALL(delegate, unloadDObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject).Times(1).InSequence(seq);
 
-  auto bObjId = bObjectFactory.createBObject("hello", 123);
-
-  resourceManager->loadResources({ bObjId }).get();
+  auto bObjId = bObjectFactory.createBObjectAsync("hello", 123).get();
   auto bObject = bObjectFactory.get(bObjId);
 
-  auto dObjId = dObjectFactory.createDObject(bObject.aObject, 'x');
+  auto dObjId = dObjectFactory.createDObjectAsync(bObject.aObject, 'x').get();
 
-  resourceManager->loadResources({ dObjId });
-  resourceManager->unloadResources({ bObjId, dObjId }).get();
+  resourceManager->unloadResource(bObjId);
+  resourceManager->unloadResource(dObjId).get();
 }

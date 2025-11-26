@@ -2,10 +2,12 @@
 
 #include "lithic3d/renderer.hpp"
 #include <vulkan/vulkan.h>
+#include <filesystem>
 
 namespace lithic3d
 {
 
+class FileSystem;
 class Logger;
 
 namespace render
@@ -141,7 +143,6 @@ class RenderResources
 using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
 class GpuBufferManager;
-class FileSystem;
 
 RenderResourcesPtr createRenderResources(FileSystem& fileSystem, ResourceManager& resourceManager,
   GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
