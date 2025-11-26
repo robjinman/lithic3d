@@ -22,16 +22,73 @@ struct Resource
 
 using ResourceLoader = std::function<Resource(ResourceId)>;
 
+class ResourceManager;
+
+class ResourceHandle
+{
+  friend class ResourceManager;
+
+  public:
+    ResourceHandle(const ResourceHandle&) =  delete;
+
+    ResourceHandle(ResourceHandle&& mv)
+      : m_resourceManager(mv.m_resourceManager)
+      , m_idFuture(std::move(mv.m_idFuture))
+      , m_id(mv.m_id)
+    {
+      mv.m_nullified = true;
+    }
+
+    ResourceId id()
+    {
+      if (m_idFuture.valid()) {
+        m_id = m_idFuture.get();
+      }
+      return m_id;
+    }
+
+    ~ResourceHandle();
+
+  private:
+    ResourceManager& m_resourceManager;
+    std::future<ResourceId> m_idFuture;
+    ResourceId m_id = NULL_RESOURCE_ID;
+    bool m_nullified = false;
+
+    ResourceHandle(ResourceManager& resourceManager, std::future<ResourceId>&& idFuture)
+      : m_resourceManager(resourceManager)
+      , m_idFuture(std::move(idFuture))
+    {}
+};
+
 class ResourceManager
 {
+  friend class ResourceHandle;
+
   public:
-    virtual std::future<ResourceId> loadResource(ResourceLoader&& loader) = 0;
+    virtual ResourceHandle loadResource(ResourceLoader&& loader) = 0;
     virtual std::future<void> unloadResource(ResourceId id) = 0;
 
     virtual ~ResourceManager() = default;
+
+  protected:
+    ResourceHandle makeHandle(std::future<ResourceId>&& f)
+    {
+      return ResourceHandle{*this, std::move(f)};
+    }
+
+  private:
+    virtual void decrementReferenceCount(ResourceId id) = 0;
 };
 
 using ResourceManagerPtr = std::unique_ptr<ResourceManager>;
+
+inline ResourceHandle::~ResourceHandle()
+{
+  if (!m_nullified) {
+    m_resourceManager.decrementReferenceCount(id());
+  }
+}
 
 class Logger;
 

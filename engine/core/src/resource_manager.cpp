@@ -21,7 +21,7 @@ class ResourceManagerImpl : public ResourceManager
   public:
     ResourceManagerImpl(Logger& logger);
 
-    std::future<ResourceId> loadResource(ResourceLoader&& loader) override;
+    ResourceHandle loadResource(ResourceLoader&& loader) override;
     std::future<void> unloadResource(ResourceId id) override;
 
   private:
@@ -30,13 +30,41 @@ class ResourceManagerImpl : public ResourceManager
     std::unordered_map<ResourceId, ManagedResource> m_resources;
     Thread m_thread;
 
+    void decrementReferenceCount(ResourceId id) override;
+
     void manageResource(ResourceId id, Resource&& resource);
     void doUnload(ResourceId id);
+    void doDecrementRefCount(ResourceId id);
 };
 
 ResourceManagerImpl::ResourceManagerImpl(Logger& logger)
   : m_logger(logger)
 {
+}
+
+// Main thread
+void ResourceManagerImpl::decrementReferenceCount(ResourceId id)
+{
+  // TODO: Support this?
+  ASSERT(std::this_thread::get_id() != m_thread.id(),
+    "Cannot call decrementReferenceCount from resource manager thread");
+
+  m_thread.run<void>([this, id]() {
+    doDecrementRefCount(id);
+  }); // Don't wait
+}
+
+// Worker thread
+void ResourceManagerImpl::doDecrementRefCount(ResourceId id)
+{
+  auto& dep = m_resources.at(id);
+  assert(dep.referenceCount > 0);
+
+  --dep.referenceCount;
+
+  if (dep.referenceCount == 0) {
+    doUnload(id);
+  }
 }
 
 // Worker thread
@@ -48,7 +76,7 @@ void ResourceManagerImpl::manageResource(ResourceId id, Resource&& resource)
 
   m_resources.insert({id, ManagedResource{
     .data = std::move(resource),
-    .referenceCount = 0
+    .referenceCount = 1
   }});
 }
 
@@ -77,14 +105,7 @@ void ResourceManagerImpl::doUnload(ResourceId id)
   }
 
   for (auto depId : dependencies) {
-    auto& dep = m_resources.at(depId);
-    assert(dep.referenceCount > 0);
-
-    --dep.referenceCount;
-
-    if (dep.referenceCount == 0) {
-      doUnload(depId);
-    }
+    doDecrementRefCount(depId);
   }
 }
 
@@ -97,7 +118,7 @@ std::future<void> ResourceManagerImpl::unloadResource(ResourceId id)
 }
 
 // Main thread or worker thread
-std::future<ResourceId> ResourceManagerImpl::loadResource(ResourceLoader&& loader)
+ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 {
   if (std::this_thread::get_id() == m_thread.id()) {
     auto id = m_nextResourceId++;
@@ -106,14 +127,14 @@ std::future<ResourceId> ResourceManagerImpl::loadResource(ResourceLoader&& loade
     std::promise<ResourceId> promise;
     promise.set_value(id);
 
-    return promise.get_future();
+    return makeHandle(promise.get_future());
   }
 
-  return m_thread.run<ResourceId>([this, loader = std::move(loader)]() {
+  return makeHandle(m_thread.run<ResourceId>([this, loader = std::move(loader)]() {
     auto id = m_nextResourceId++;
     manageResource(id, loader(id));
     return id;
-  });
+  }));
 }
 
 } // namespace
