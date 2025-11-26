@@ -88,11 +88,11 @@ class RenderResources
   public:
     // Resources
     //
-    virtual RenderItemId addTexture(TexturePtr texture) = 0;
-    virtual RenderItemId addNormalMap(TexturePtr texture) = 0;
-    virtual RenderItemId addCubeMap(std::array<TexturePtr, 6> textures) = 0;
-    virtual void removeTexture(RenderItemId id) = 0;
-    virtual void removeCubeMap(RenderItemId id) = 0;
+    virtual ResourceId addTexture(const std::filesystem::path& filePath) = 0;
+    virtual ResourceId addNormalMap(const std::filesystem::path& filePath) = 0;
+    virtual ResourceId addCubeMap(std::array<std::filesystem::path, 6> texturePaths) = 0;
+    virtual void removeTexture(ResourceId id) = 0;
+    virtual void removeCubeMap(ResourceId id) = 0;
 
     // Descriptor sets
     //
@@ -100,25 +100,24 @@ class RenderResources
     virtual VkDescriptorSet getGlobalDescriptorSet(size_t currentFrame) const = 0;
     virtual VkDescriptorSet getRenderPassDescriptorSet(RenderPass renderpass,
       size_t currentFrame) const = 0;
-    virtual VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const = 0;
-    virtual VkDescriptorSet getObjectDescriptorSet(RenderItemId id, size_t currentFrame) const = 0;
+    virtual VkDescriptorSet getMaterialDescriptorSet(ResourceId id) const = 0;
+    virtual VkDescriptorSet getObjectDescriptorSet(ResourceId id, size_t currentFrame) const = 0;
 
     // Meshes
     //
-    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
-    virtual void removeMesh(RenderItemId id) = 0;
-    virtual void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints,
+    virtual ResourceId addMesh(MeshPtr mesh) = 0;
+    virtual void removeMesh(ResourceId id) = 0;
+    virtual void updateJointTransforms(ResourceId meshId, const std::vector<Mat4x4f>& joints,
       size_t currentFrame) = 0;
-    virtual MeshBuffers getMeshBuffers(RenderItemId id) const = 0;
-    virtual void updateMeshInstances(RenderItemId id,
-      const std::vector<MeshInstance>& instances) = 0;
-    virtual const MeshFeatureSet& getMeshFeatures(RenderItemId id) const = 0;
+    virtual MeshBuffers getMeshBuffers(ResourceId id) const = 0;
+    virtual void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances) = 0;
+    virtual const MeshFeatureSet& getMeshFeatures(ResourceId id) const = 0;
 
     // Materials
     //
-    virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
-    virtual void removeMaterial(RenderItemId id) = 0;
-    virtual const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const = 0;
+    virtual ResourceId addMaterial(MaterialPtr material) = 0;
+    virtual void removeMaterial(ResourceId id) = 0;
+    virtual const MaterialFeatureSet& getMaterialFeatures(ResourceId id) const = 0;
 
     // Transforms
     //
@@ -142,10 +141,11 @@ class RenderResources
 using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
 class GpuBufferManager;
+class FileSystem;
 
-RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-  VkCommandPool commandPool, Logger& logger);
+RenderResourcesPtr createRenderResources(FileSystem& fileSystem, ResourceManager& resourceManager,
+  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
+  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
 
 } // namespace render
 } // namespace lithic3d

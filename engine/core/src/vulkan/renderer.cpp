@@ -73,24 +73,6 @@ struct SwapChainSupportDetails
 
 const HashedString strAddMesh = hashString("add_mesh");
 const HashedString strRemoveMesh = hashString("remove_mesh");
-/*
-struct AddMeshWorkItem : public WorkItem
-{
-  AddMeshWorkItem(MeshPtr mesh)
-    : WorkItem(strAddMesh)
-    , mesh(std::move(mesh)) {}
-
-  MeshPtr mesh;
-};
-
-struct RemoveMeshWorkItem : public WorkItem
-{
-  RemoveMeshWorkItem(RenderItemId meshId)
-    : WorkItem(strRemoveMesh)
-    , meshId(meshId) {}
-
-  RenderItemId meshId;
-};*/
 
 // 90 degrees clockwise
 // TODO: Support other rotations
@@ -157,23 +139,21 @@ class RendererImpl : public Renderer
 
     // Resources
     //
-    RenderItemId addTexture(TexturePtr texture) override;
-    RenderItemId addNormalMap(TexturePtr texture) override;
-    RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
-    void removeTexture(RenderItemId id) override;
-    void removeCubeMap(RenderItemId id) override;
+    ResourceId addTexture(TexturePtr texture) override;
+    ResourceId addNormalMap(TexturePtr texture) override;
+    ResourceId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
+    void removeTexture(ResourceId id) override;
+    void removeCubeMap(ResourceId id) override;
 
     // Meshes
     //
-    MeshHandle addMesh(MeshPtr mesh) override;
-    void removeMesh(RenderItemId id) override;
-    //WorkItemResult addMeshAsync(MeshPtr mesh) override;
-    //WorkItemResult removeMeshAsync(RenderItemId id) override;
+    ResourceId addMesh(MeshPtr mesh) override;
+    void removeMesh(ResourceId id) override;
 
     // Materials
     //
-    MaterialHandle addMaterial(MaterialPtr material) override;
-    void removeMaterial(RenderItemId id) override;
+    ResourceId addMaterial(MaterialPtr material) override;
+    void removeMaterial(ResourceId id) override;
 
     // Per frame draw functions
     //
@@ -181,20 +161,26 @@ class RendererImpl : public Renderer
     void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
     void setOrderKey(uint32_t order) override;
     void setScissor(const Recti& scissor) override;
-    void drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform) override;
-    void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+    void drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
       const Mat4x4f& transform) override;
-    void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
-      const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms) override;
-    void drawSprite(MeshHandle mesh, MaterialHandle material, const std::array<Vec2f, 4>& uvCoords,
+    void drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const Vec4f& colour, const Mat4x4f& transform,
+      const std::vector<Mat4x4f>& jointTransforms) override;
+    void drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform) override;
+    void drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const std::array<Vec2f, 4>& uvCoords,
       const Vec4f& colour, const Mat4x4f& transform) override;
-    void drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
-      const Mat4x4f& transform) override;
+    void drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
+      const Vec4f& colour, const Mat4x4f& transform) override;
     void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
+      const Mat4x4f& transform) override;  // TODO: Replace matrix with screen-space coords?
+    void drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const std::string& text, const Vec4f& colour,
       const Mat4x4f& transform) override;
-    void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
-      const Vec4f& colour, const Mat4x4f& transform) override;
-    void drawSkybox(MeshHandle mesh, MaterialHandle material) override;
+    void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId cubeMap,
+      const MaterialFeatureSet& cubeMapFeatures) override;
     void endPass() override;
     void endFrame() override;
 
@@ -245,12 +231,13 @@ class RendererImpl : public Renderer
     void cleanUp();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
       const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer);
-    RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
-      MaterialHandle material) const;
+    RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, ResourceId mesh,
+      const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures) const;
     Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
-    void drawModelInternal(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform,
-      const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms);
-    //void processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result);
+    void drawModelInternal(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform, const Vec4f& colour,
+      const std::optional<std::vector<Mat4x4f>>& jointTransforms);
 
     const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
@@ -336,7 +323,6 @@ class RendererImpl : public Renderer
     mutable std::mutex m_errorMutex;
     bool m_hasError = false;
     std::string m_error;
-    //WorkQueue m_workQueue;
 };
 
 RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSystem, Logger& logger,
@@ -502,29 +488,30 @@ bool RendererImpl::hasCompiledShader(RenderPass renderPass, const MeshFeatureSet
   return m_pipelines.contains(key);
 }
 
-RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHandle mesh,
-  MaterialHandle material) const
+RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, ResourceId mesh,
+  const MeshFeatureSet& meshFeatures, ResourceId material,
+  const MaterialFeatureSet& materialFeatures) const
 {
   PipelineKey pipelineKey{
     .renderPass = RenderPass::Main,
-    .meshFeatures = mesh.features,
-    .materialFeatures = material.features
+    .meshFeatures = meshFeatures,
+    .materialFeatures = materialFeatures
   };
   auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
 
-  if (mesh.features.flags.test(MeshFeatures::IsInstanced)) {
+  if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(orderKey),
-      static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
+      static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
-      static_cast<RenderGraphKey>(mesh.id),
-      static_cast<RenderGraphKey>(material.id)
+      static_cast<RenderGraphKey>(mesh),
+      static_cast<RenderGraphKey>(material)
     };
   }
-  else if (mesh.features.flags.test(MeshFeatures::IsSkybox)) {
+  else if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(orderKey),
-      static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
+      static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
     };
   }
@@ -533,16 +520,17 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, MeshHan
 
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(orderKey),
-      static_cast<RenderGraphKey>(material.features.flags.test(MaterialFeatures::HasTransparency)),
+      static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
-      static_cast<RenderGraphKey>(mesh.id),
-      static_cast<RenderGraphKey>(material.id),
+      static_cast<RenderGraphKey>(mesh),
+      static_cast<RenderGraphKey>(material),
       nextId++
     };
   }
 }
 
-void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const Mat4x4f& transform)
+void RendererImpl::drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -550,7 +538,9 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
   RenderGraph& renderGraph = state.graph;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
+    materialFeatures);
+
   InstancedModelNode* node = nullptr;
   auto i = state.lookup.find(key);
   if (i != state.lookup.end()) {
@@ -559,16 +549,19 @@ void RendererImpl::drawInstance(MeshHandle mesh, MaterialHandle material, const 
   else {
     auto newNode = std::make_unique<InstancedModelNode>();
     newNode->mesh = mesh;
+    newNode->meshFeatures = meshFeatures;
     newNode->material = material;
+    newNode->materialFeatures = materialFeatures;
     newNode->scissorId = frameState.currentScissor;
     node = newNode.get();
     renderGraph.insert(key, std::move(newNode));
     state.lookup.insert({ key, node });
   }
-  node->instances.push_back(MeshInstance{transform * mesh.transform});
+  node->instances.push_back(MeshInstance{transform/* * mesh.transform*/});
 }
 
-void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
+void RendererImpl::drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures,
   const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
@@ -577,22 +570,27 @@ void RendererImpl::drawSprite(MeshHandle mesh, MaterialHandle material,
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
   RenderGraph& renderGraph = state.graph;
 
-  auto node = std::make_unique<SpriteNode>();
+  auto node = std::unique_ptr<SpriteNode>(new SpriteNode{
+    
+  });
   node->mesh = mesh;
+  node->meshFeatures = meshFeatures;
   node->material = material;
+  node->materialFeatures = materialFeatures;
   node->modelMatrix = transform;
   node->uvCoords = uvCoords;
   node->colour = colour;
   node->scissorId = frameState.currentScissor;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
+    materialFeatures);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
-  const Mat4x4f& transform)
+void RendererImpl::drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
+  const Vec4f& colour, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -602,34 +600,40 @@ void RendererImpl::drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
 
   auto node = std::make_unique<QuadNode>();
   node->mesh = mesh;
+  node->meshFeatures = meshFeatures;
   node->modelMatrix = transform;
   node->radius = radius;
   node->colour = colour;
   node->scissorId = frameState.currentScissor;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, node->material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, node->material,
+    node->materialFeatures);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+void RendererImpl::drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
   const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms)
 {
-  drawModelInternal(mesh, material, transform, colour, jointTransforms);
+  drawModelInternal(mesh, meshFeatures, material, materialFeatures, transform, colour,
+    jointTransforms);
 }
 
-void RendererImpl::drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+void RendererImpl::drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
   const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
-  drawModelInternal(mesh, material, transform, colour, std::nullopt);
+  drawModelInternal(mesh, meshFeatures, material, materialFeatures, transform, colour,
+    std::nullopt);
 }
 
-void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
-  const Mat4x4f& transform, const Vec4f& colour,
-  const std::optional<std::vector<Mat4x4f>>& jointTransforms)
+void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform,
+  const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms)
 {
   //DBG_TRACE(m_logger);
 
@@ -645,14 +649,15 @@ void RendererImpl::drawModelInternal(MeshHandle mesh, MaterialHandle material,
   node->jointTransforms = jointTransforms;
   node->scissorId = frameState.currentScissor;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
+    materialFeatures);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawLight(const Vec3f& colour, float ambient, float specular,
-  float zFar, const Mat4x4f& transform)
+void RendererImpl::drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
+  const Mat4x4f& transform)
 {
   FrameState& frameState = m_frameStates.getWritable();
   ASSERT(frameState.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
@@ -666,8 +671,9 @@ void RendererImpl::drawLight(const Vec3f& colour, float ambient, float specular,
   light.zFar = zFar;
 }
 
-void RendererImpl::drawDynamicText(MeshHandle mesh, MaterialHandle material,
-  const std::string& text, const Vec4f& colour, const Mat4x4f& transform)
+void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures, const std::string& text,
+  const Vec4f& colour, const Mat4x4f& transform)
 {
   //DBG_TRACE(m_logger);
 
@@ -683,13 +689,15 @@ void RendererImpl::drawDynamicText(MeshHandle mesh, MaterialHandle material,
   node->colour = colour;
   node->scissorId = frameState.currentScissor;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
+    materialFeatures);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
+void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+  ResourceId material, const MaterialFeatureSet& materialFeatures)
 {
   //DBG_TRACE(m_logger);
 
@@ -702,7 +710,8 @@ void RendererImpl::drawSkybox(MeshHandle mesh, MaterialHandle material)
   node->material = material;
   node->scissorId = frameState.currentScissor;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, material);
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
+    materialFeatures);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
@@ -760,38 +769,11 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
   renderPassState.viewPos = viewPos;
   renderPassState.viewMatrix = viewMatrix;
 }
-/*
-void RendererImpl::processWorkItem(WorkItem& item, std::promise<WorkItemResultValuePtr>& result)
-{
-  try {
-    if (item.name == strAddMesh) {
-      auto& data = dynamic_cast<AddMeshWorkItem&>(item);
-      result.set_value(std::make_unique<AddMeshResult>(m_resources->addMesh(std::move(data.mesh))));
-    }
-    else if (item.name == strRemoveMesh) {
-      auto& data = dynamic_cast<const RemoveMeshWorkItem&>(item);
-      m_resources->removeMesh(data.meshId);
-      result.set_value(std::make_unique<RemoveMeshResult>());
-    }
-    else {
-      throw std::runtime_error("Don't know how to handle work item");
-    }
-  }
-  catch (const std::exception&) {
-    result.set_exception(std::current_exception());
-  }
-}
-*/
+
 void RendererImpl::renderLoop()
 {
   try {
-    //auto handler = [this](WorkItem& item, std::promise<WorkItemResultValuePtr>& result) {
-    //  processWorkItem(item, result);
-    //};
-
     while (m_running) {
-      //while (m_workQueue.processNext(handler)) {}
-
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
         "Error waiting for fence");
 
@@ -1446,7 +1428,7 @@ void RendererImpl::createCommandPool()
 
 Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& node)
 {
-  auto key = getPipelineKey(renderPass, node.mesh.features, node.material.features);
+  auto key = getPipelineKey(renderPass, node.meshFeatures, node.materialFeatures);
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
     EXCEPTION("No shader has been compiled for this combination of pass/mesh/material features");
@@ -1467,13 +1449,13 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
         auto& modelNode = dynamic_cast<const DefaultModelNode&>(*node);
         if (modelNode.jointTransforms.has_value()) {
           auto& joints = modelNode.jointTransforms.value();
-          m_resources->updateJointTransforms(modelNode.mesh.id, joints, m_currentFrame);
+          m_resources->updateJointTransforms(modelNode.mesh, joints, m_currentFrame);
         }
         break;
       }
       case RenderNodeType::InstancedModel: {
         auto& instancedNode = dynamic_cast<const InstancedModelNode&>(*node);
-        m_resources->updateMeshInstances(instancedNode.mesh.id, instancedNode.instances);
+        m_resources->updateMeshInstances(instancedNode.mesh, instancedNode.instances);
         break;
       }
       default: break;
@@ -1818,7 +1800,7 @@ void RendererImpl::createCommandBuffers()
     "Failed to allocate command buffers");
 }
 
-RenderItemId RendererImpl::addTexture(TexturePtr texture)
+ResourceId RendererImpl::addTexture(TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
@@ -1828,7 +1810,7 @@ RenderItemId RendererImpl::addTexture(TexturePtr texture)
   //}).get();
 }
 
-RenderItemId RendererImpl::addNormalMap(TexturePtr texture)
+ResourceId RendererImpl::addNormalMap(TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
@@ -1838,7 +1820,7 @@ RenderItemId RendererImpl::addNormalMap(TexturePtr texture)
   //}).get();
 }
 
-RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
+ResourceId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
 {
   DBG_TRACE(m_logger);
 
@@ -1848,7 +1830,7 @@ RenderItemId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
   //}).get();
 }
 
-MaterialHandle RendererImpl::addMaterial(MaterialPtr material)
+ResourceId RendererImpl::addMaterial(MaterialPtr material)
 {
   DBG_TRACE(m_logger);
 
@@ -1858,7 +1840,7 @@ MaterialHandle RendererImpl::addMaterial(MaterialPtr material)
   //}).get();
 }
 
-MeshHandle RendererImpl::addMesh(MeshPtr mesh)
+ResourceId RendererImpl::addMesh(MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
 
@@ -1869,7 +1851,7 @@ MeshHandle RendererImpl::addMesh(MeshPtr mesh)
   //}).get();
 }
 
-void RendererImpl::removeMesh(RenderItemId meshId)
+void RendererImpl::removeMesh(ResourceId meshId)
 {
   DBG_TRACE(m_logger);
 
@@ -1879,40 +1861,22 @@ void RendererImpl::removeMesh(RenderItemId meshId)
     return m_resources->removeMesh(meshId);
   //}).get();
 }
-/*
-WorkItemResult RendererImpl::addMeshAsync(MeshPtr mesh)
-{
-  DBG_TRACE(m_logger);
 
-  auto item = std::make_unique<AddMeshWorkItem>(std::move(mesh));
-
-  return m_workQueue.addWorkItem(std::move(item));
-}
-
-WorkItemResult RendererImpl::removeMeshAsync(RenderItemId meshId)
-{
-  DBG_TRACE(m_logger);
-
-  auto item = std::make_unique<RemoveMeshWorkItem>(meshId);
-
-  return m_workQueue.addWorkItem(std::move(item));
-}*/
-
-void RendererImpl::removeTexture(RenderItemId id)
+void RendererImpl::removeTexture(ResourceId id)
 {
   // TODO
   //EXCEPTION("Not implemented");
   m_resources->removeTexture(id);
 }
 
-void RendererImpl::removeCubeMap(RenderItemId id)
+void RendererImpl::removeCubeMap(ResourceId id)
 {
   // TODO
   //EXCEPTION("Not implemented");
   m_resources->removeCubeMap(id);
 }
 
-void RendererImpl::removeMaterial(RenderItemId id)
+void RendererImpl::removeMaterial(ResourceId id)
 {
   // TODO
   //EXCEPTION("Not implemented");

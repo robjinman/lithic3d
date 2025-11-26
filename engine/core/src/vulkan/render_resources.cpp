@@ -93,8 +93,9 @@ enum class ObjectDescriptorSetBindings : uint32_t
 class RenderResourcesImpl : public RenderResources
 {
   public:
-    RenderResourcesImpl(GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice,
-      VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
+    RenderResourcesImpl(ResourceManager& resourceManager, GpuBufferManager& bufferManager,
+      VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
+      VkCommandPool commandPool, Logger& logger);
 
     // Descriptor sets
     //
@@ -102,32 +103,32 @@ class RenderResourcesImpl : public RenderResources
     VkDescriptorSet getGlobalDescriptorSet(size_t currentFrame) const override;
     VkDescriptorSet getRenderPassDescriptorSet(RenderPass renderPass,
       size_t currentFrame) const override;
-    VkDescriptorSet getMaterialDescriptorSet(RenderItemId id) const override;
-    VkDescriptorSet getObjectDescriptorSet(RenderItemId id, size_t currentFrame) const override;
+    VkDescriptorSet getMaterialDescriptorSet(ResourceId id) const override;
+    VkDescriptorSet getObjectDescriptorSet(ResourceId id, size_t currentFrame) const override;
 
     // Resources
     //
-    RenderItemId addTexture(TexturePtr texture) override;
-    RenderItemId addNormalMap(TexturePtr texture) override;
-    RenderItemId addCubeMap(std::array<TexturePtr, 6> textures) override;
-    void removeTexture(RenderItemId id) override;
-    void removeCubeMap(RenderItemId id) override;
+    ResourceId addTexture(TexturePtr texture) override;
+    ResourceId addNormalMap(TexturePtr texture) override;
+    ResourceId addCubeMap(std::array<TexturePtr, 6> textures) override;
+    void removeTexture(ResourceId id) override;
+    void removeCubeMap(ResourceId id) override;
 
     // Meshes
     //
-    MeshHandle addMesh(MeshPtr mesh) override;
-    void removeMesh(RenderItemId id) override;
-    void updateJointTransforms(RenderItemId meshId, const std::vector<Mat4x4f>& joints,
+    ResourceId addMesh(MeshPtr mesh) override;
+    void removeMesh(ResourceId id) override;
+    void updateJointTransforms(ResourceId meshId, const std::vector<Mat4x4f>& joints,
       size_t currentFrame) override;
-    MeshBuffers getMeshBuffers(RenderItemId id) const override;
-    void updateMeshInstances(RenderItemId id, const std::vector<MeshInstance>& instances) override;
-    const MeshFeatureSet& getMeshFeatures(RenderItemId id) const override;
+    MeshBuffers getMeshBuffers(ResourceId id) const override;
+    void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances) override;
+    const MeshFeatureSet& getMeshFeatures(ResourceId id) const override;
 
     // Materials
     //
-    MaterialHandle addMaterial(MaterialPtr material) override;
-    void removeMaterial(RenderItemId id) override;
-    const MaterialFeatureSet& getMaterialFeatures(RenderItemId id) const override;
+    ResourceId addMaterial(MaterialPtr material) override;
+    void removeMaterial(ResourceId id) override;
+    const MaterialFeatureSet& getMaterialFeatures(ResourceId id) const override;
 
     // Transforms
     //
@@ -148,10 +149,10 @@ class RenderResourcesImpl : public RenderResources
     ~RenderResourcesImpl() override;
 
   private:
-    std::map<RenderItemId, MeshDataPtr> m_meshes;
-    std::map<RenderItemId, TextureDataPtr> m_textures;
-    std::map<RenderItemId, CubeMapDataPtr> m_cubeMaps;
-    std::map<RenderItemId, MaterialDataPtr> m_materials;
+    std::map<ResourceId, MeshDataPtr> m_meshes;
+    std::map<ResourceId, TextureDataPtr> m_textures;
+    std::map<ResourceId, CubeMapDataPtr> m_cubeMaps;
+    std::map<ResourceId, MaterialDataPtr> m_materials;
 
     Logger& m_logger;
     GpuBufferManager& m_bufferManager;
@@ -184,9 +185,6 @@ class RenderResourcesImpl : public RenderResources
     GpuImagePtr m_shadowMapImage;
     VkSampler m_shadowMapSampler;
 
-    RenderItemId m_nextTextureId = 1;
-    RenderItemId m_nextCubeMapId = 1;
-
     void createTextureSampler();
     void createNormalMapSampler();
     void createCubeMapSampler();
@@ -208,9 +206,9 @@ class RenderResourcesImpl : public RenderResources
     //void createShadowPassDescriptorSet();
 };
 
-RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-  VkCommandPool commandPool, Logger& logger)
+RenderResourcesImpl::RenderResourcesImpl(ResourceManager& resourceManager,
+  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
+  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
   : m_logger(logger)
   , m_bufferManager(bufferManager)
   , m_physicalDevice(physicalDevice)
@@ -1167,12 +1165,12 @@ RenderResourcesImpl::~RenderResourcesImpl()
 
 } // namespace
 
-RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-  VkCommandPool commandPool, Logger& logger)
+RenderResourcesPtr createRenderResources(ResourceManager& resourceManager,
+  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
+  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(bufferManager, physicalDevice, device, graphicsQueue,
-    commandPool, logger);
+  return std::make_unique<RenderResourcesImpl>(resourceManager, bufferManager, physicalDevice,
+    device, graphicsQueue, commandPool, logger);
 }
 
 } // namespace render

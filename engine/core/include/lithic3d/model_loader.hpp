@@ -1,33 +1,33 @@
 #pragma once
 
-#include "sys_render_3d.hpp"
+#include "resource_manager.hpp"
 #include <map>
 
 namespace lithic3d
 {
 
-struct SubmodelData
+struct Submodel
 {
   render::MeshPtr mesh;
   render::MaterialPtr material;
   SkinPtr skin; // TODO: Share skins between submodels
 };
 
-using SubmodelDataPtr = std::unique_ptr<SubmodelData>;
+using SubmodelPtr = std::unique_ptr<Submodel>;
 
-struct ModelData
+struct Model
 {
-  std::vector<SubmodelDataPtr> submodels;
+  std::vector<SubmodelPtr> submodels;
   AnimationSetPtr animations;
 };
 
-using ModelDataPtr = std::unique_ptr<ModelData>;
+using ModelPtr = std::unique_ptr<Model>;
 
 class ModelLoader
 {
   public:
-    virtual ModelDataPtr loadModelData(const std::string& filePath) const = 0;
-    virtual DModelPtr createRenderComponent(ModelDataPtr modelData, bool isInstanced) = 0;
+    virtual ResourceId loadModel(const std::string& filePath) const = 0;
+    virtual DModelPtr createRenderComponent(ResourceId model, bool isInstanced) = 0;
 
     virtual ~ModelLoader() {}
 };
@@ -35,8 +35,10 @@ class ModelLoader
 using ModelLoaderPtr = std::unique_ptr<ModelLoader>;
 
 class FileSystem;
+class Renderer;
 class Logger;
 
-ModelLoaderPtr createModelLoader(Ecs& ecs, const FileSystem& fileSystem, Logger& logger);
+ModelLoaderPtr createModelLoader(ResourceManager& resourceManager, Renderer& renderer,
+  const FileSystem& fileSystem, Logger& logger);
 
 } // namespace lithic3d

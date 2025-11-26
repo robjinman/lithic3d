@@ -30,8 +30,10 @@ struct RenderNode
     : type(type) {}
 
   RenderNodeType type;
-  MeshHandle mesh;
-  MaterialHandle material;
+  ResourceId mesh;
+  MeshFeatureSet meshFeatures;
+  ResourceId material;
+  MaterialFeatureSet materialFeatures;
   uint32_t scissorId = 0;
 
   virtual ~RenderNode() = default;

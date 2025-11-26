@@ -51,7 +51,7 @@ Demo::Demo(Engine& engine)
 }
 
 void Demo::constructCube()
-{/*
+{
   auto& resourceManager = m_engine.resourceManager();
 
   Resource texture{
@@ -108,7 +108,7 @@ void Demo::constructCube()
   resourceManager.loadResources({ entity.id }).get();
 
   m_cubeResourceId = entity.id;
-  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;*/
+  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;
 }
 
 void Demo::constructLight()

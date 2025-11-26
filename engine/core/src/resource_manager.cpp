@@ -86,7 +86,7 @@ void ResourceManagerImpl::loadResource(ResourceId id, bool incrementRefCount)
 
   m_logger.debug(STR("Loading resource " << id));
   try {
-    resource.data.loader(resource.data);
+    resource.data.loader();
     resource.loaded = true;
   }
   catch (const Exception& ex) {
@@ -117,7 +117,7 @@ void ResourceManagerImpl::unloadResource(ResourceId id)
 
   m_logger.debug(STR("Unloading resource " << id));
   try {
-    resource.data.unloader(id);
+    resource.data.unloader();
     resource.loaded = false;
   }
   catch (const Exception& ex) {

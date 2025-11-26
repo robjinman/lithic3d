@@ -1,7 +1,6 @@
 #pragma once
 
 #include "renderables.hpp"
-//#include "work_queue.hpp"
 #include "window_delegate.hpp"
 
 namespace lithic3d
@@ -25,19 +24,7 @@ enum class RenderPass
   Ssr,
   Overlay
 };
-/*
-struct AddMeshResult : public WorkItemResultValue
-{
-  AddMeshResult(MeshHandle handle)
-    : handle(handle) {}
 
-  MeshHandle handle;
-};
-
-struct RemoveMeshResult : public WorkItemResultValue
-{
-};
-*/
 struct ScreenMargins
 {
   uint32_t left = 0;
@@ -71,30 +58,26 @@ class Renderer
 
     // Textures
     //
-    virtual RenderItemId addTexture(TexturePtr texture) = 0;
-    virtual RenderItemId addNormalMap(TexturePtr texture) = 0;
-    virtual RenderItemId addCubeMap(std::array<TexturePtr, 6>&& textures) = 0;
+    virtual ResourceId addTexture(TexturePtr texture) = 0;
+    virtual ResourceId addNormalMap(TexturePtr texture) = 0;
+    virtual ResourceId addCubeMap(std::array<TexturePtr, 6>&& textures) = 0;
 
-    virtual void removeTexture(RenderItemId id) = 0;
-    virtual void removeCubeMap(RenderItemId id) = 0;
+    virtual void removeTexture(ResourceId id) = 0;
+    virtual void removeCubeMap(ResourceId id) = 0;
 
     // Meshes
     //
-    virtual MeshHandle addMesh(MeshPtr mesh) = 0;
-    virtual void removeMesh(RenderItemId id) = 0;
-    // TODO: Remove these. We need to provide thread-safe synchronous versions that can be called
-    // from the resource manager thread
-    //virtual WorkItemResult addMeshAsync(MeshPtr mesh) = 0;
-    //virtual WorkItemResult removeMeshAsync(RenderItemId id) = 0;
+    virtual ResourceId addMesh(MeshPtr mesh) = 0;
+    virtual void removeMesh(ResourceId id) = 0;
 
     // Materials
     //
-    virtual MaterialHandle addMaterial(MaterialPtr material) = 0;
-    virtual void removeMaterial(RenderItemId id) = 0;
+    virtual ResourceId addMaterial(MaterialPtr material) = 0;
+    virtual void removeMaterial(ResourceId id) = 0;
 
     // Fonts
     //
-    //virtual RenderItemId addFont(const Font& font) = 0;
+    virtual ResourceId addFont(const BitmapFont& font) = 0;
 
     // Per-frame draw functions
     //
@@ -103,21 +86,27 @@ class Renderer
       const Mat4x4f& viewMatrix) = 0;
     virtual void setOrderKey(uint32_t order) = 0;
     virtual void setScissor(const Recti& scissor) = 0;
-    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
+    virtual void drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
       const Mat4x4f& transform) = 0;
-    virtual void drawModel(MeshHandle mesh, MaterialHandle material, const Vec4f& colour,
-      const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms) = 0;
-    virtual void drawInstance(MeshHandle mesh, MaterialHandle material,
+    virtual void drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
+      const MaterialFeatureSet& materialFeatures, const Vec4f& colour, const Mat4x4f& transform,
+      const std::vector<Mat4x4f>& jointTransforms) = 0;
+    virtual void drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+      ResourceId material, const MaterialFeatureSet& materialFeatures,
       const Mat4x4f& transform) = 0;
-    virtual void drawSprite(MeshHandle mesh, MaterialHandle material,
+    virtual void drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+      ResourceId material, const MaterialFeatureSet& materialFeatures,
       const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
-    virtual void drawQuad(MeshHandle mesh, float radius, const Vec4f& colour,
-      const Mat4x4f& transform) = 0;
+    virtual void drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
+      const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
       const Mat4x4f& transform) = 0;  // TODO: Replace matrix with screen-space coords?
-    virtual void drawDynamicText(MeshHandle mesh, MaterialHandle material, const std::string& text,
+    virtual void drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+      ResourceId material, const MaterialFeatureSet& materialFeatures, const std::string& text,
       const Vec4f& colour, const Mat4x4f& transform) = 0;
-    virtual void drawSkybox(MeshHandle mesh, MaterialHandle cubeMap) = 0;
+    virtual void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures,
+      ResourceId cubeMap, const MaterialFeatureSet& cubeMapFeatures) = 0;
     virtual void endPass() = 0;
     virtual void endFrame() = 0;
 

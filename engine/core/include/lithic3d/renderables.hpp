@@ -5,6 +5,7 @@
 
 #include "math.hpp"
 #include "hash.hpp"
+#include "resource_manager.hpp"
 #include <memory>
 #include <vector>
 #include <string>
@@ -15,10 +16,6 @@
 
 namespace lithic3d
 {
-
-using RenderItemId = long;
-const RenderItemId NULL_ID = -1;
-
 namespace render
 {
 
@@ -52,7 +49,7 @@ using TexturePtr = std::unique_ptr<Texture>;
 struct MaterialResource
 {
   std::string fileName;
-  RenderItemId id = NULL_ID;
+  ResourceId id = NULL_RESOURCE_ID;
 };
 
 enum class BufferUsage : uint8_t
@@ -133,7 +130,7 @@ struct MaterialFeatureSet
 
   bool operator==(const MaterialFeatureSet& rhs) const = default;
 };
-
+/*
 struct MeshHandle
 {
   RenderItemId id = NULL_ID;
@@ -145,7 +142,7 @@ struct MaterialHandle
 {
   RenderItemId id = NULL_ID;
   MaterialFeatureSet features;
-};
+};*/
 
 struct Material
 {
@@ -211,9 +208,10 @@ struct Mesh
 
 using MeshPtr = std::unique_ptr<Mesh>;
 
+// TODO: Use this or remove?
 struct BitmapFont
 {
-  MaterialHandle material;
+  ResourceId material;
   Rectf textureSection;
 };
 

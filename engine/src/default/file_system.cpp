@@ -86,7 +86,7 @@ class DefaultFileSystem : public FileSystem
     void writeUserDataFile(const fs::path& path, const char* data, size_t size) override;
 
   private:
-    PlatformPathsPtr m_paths;
+    const PlatformPathsPtr m_paths;
 };
 
 DefaultFileSystem::DefaultFileSystem(PlatformPathsPtr platformPaths)

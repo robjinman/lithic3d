@@ -32,14 +32,6 @@ class Delegate
     MOCK_METHOD(void, unloadDObject, ());
 };
 
-// Data needed to construct an AObject
-struct AObjectData
-{
-  std::string foo;
-};
-
-using AObjectDataWrapper = ResourceDataWrapper<AObjectData>;
-
 struct AObject
 {
   std::string foo;
@@ -47,7 +39,7 @@ struct AObject
 
 using AObjectPtr = std::unique_ptr<AObject>;
 
-class AObjectFactory : public ResourceProvider
+class AObjectFactory
 {
   public:
     AObjectFactory(Delegate& delegate, ResourceManager& resourceManager)
@@ -55,15 +47,14 @@ class AObjectFactory : public ResourceProvider
       , m_resourceManager(resourceManager)
     {}
 
-    ResourceId createResource(ResourceDataPtr data) override
+    ResourceId createAObject(const std::string& foo)
     {
       auto id = m_resourceManager.nextResourceId();
 
       m_resourceManager.addResource(Resource{
         .id = id,
-        .data = std::move(data),
-        .loader = [this](const Resource& resource) { loadAObject(resource); },
-        .unloader = [this](ResourceId id) { unloadAObject(id); },
+        .loader = [=]() { loadAObject(id, foo); },  // Be sure to capture by value
+        .unloader = [=]() { unloadAObject(id); },
         .dependencies = {}
       });
 
@@ -76,10 +67,9 @@ class AObjectFactory : public ResourceProvider
     std::unordered_map<ResourceId, AObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadAObject(const Resource& resource)
+    void loadAObject(ResourceId id, const std::string& foo)
     {
-      auto& data = dynamic_cast<const AObjectDataWrapper&>(*resource.data);
-      m_objects.insert({ resource.id, std::make_unique<AObject>(data.data.foo) });
+      m_objects.insert({ id, std::make_unique<AObject>(foo) });
 
       m_delegate.loadAObject();
     }
@@ -93,14 +83,6 @@ class AObjectFactory : public ResourceProvider
     }
 };
 
-struct BObjectData
-{
-  std::string foo;
-  int bar = 0;
-};
-
-using BObjectDataWrapper = ResourceDataWrapper<BObjectData>;
-
 // Demonstrates a resource that depends on another resource, e.g. a material that contains a texture
 struct BObject
 {
@@ -110,7 +92,7 @@ struct BObject
 
 using BObjectPtr = std::unique_ptr<BObject>;
 
-class BObjectFactory : public ResourceProvider
+class BObjectFactory
 {
   public:
     BObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -120,22 +102,16 @@ class BObjectFactory : public ResourceProvider
       , m_aObjectFactory(aObjectFactory)
     {}
 
-    ResourceId createResource(ResourceDataPtr pData) override
+    ResourceId createBObject(const std::string& foo, int bar)
     {
-      auto& data = dynamic_cast<const BObjectDataWrapper&>(*pData);
-
-      auto aObject = std::make_unique<AObjectDataWrapper>(AObjectData{
-        .foo = data.data.foo
-      });
-      auto aObjId = m_aObjectFactory.createResource(std::move(aObject));
+      auto aObjId = m_aObjectFactory.createAObject(foo);
 
       auto id = m_resourceManager.nextResourceId();
 
       m_resourceManager.addResource(Resource{
         .id = id,
-        .data = std::move(pData),
-        .loader = [this](const Resource& resource) { loadBObject(resource); },
-        .unloader = [this](ResourceId id) { unloadBObject(id); },
+        .loader = [=]() { loadBObject(id, aObjId, bar); },
+        .unloader = [=]() { unloadBObject(id); },
         .dependencies = { aObjId }
       });
 
@@ -154,12 +130,11 @@ class BObjectFactory : public ResourceProvider
     std::unordered_map<ResourceId, BObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadBObject(const Resource& resource)
+    void loadBObject(ResourceId id, ResourceId aObject, int bar)
     {
-      auto& data = dynamic_cast<const BObjectDataWrapper&>(*resource.data);
-      m_objects.insert({ resource.id, std::make_unique<BObject>(BObject{
-        .bar = data.data.bar,
-        .aObject = resource.dependencies[0]
+      m_objects.insert({ id, std::make_unique<BObject>(BObject{
+        .bar = bar,
+        .aObject = aObject
       })});
 
       m_delegate.loadBObject();
@@ -174,15 +149,6 @@ class BObjectFactory : public ResourceProvider
     }
 };
 
-struct CObjectData
-{
-  std::string foo;
-  int bar = 0;
-  uint64_t baz = 0;
-};
-
-using CObjectDataWrapper = ResourceDataWrapper<CObjectData>;
-
 struct CObject
 {
   uint64_t baz = 0;
@@ -191,7 +157,7 @@ struct CObject
 
 using CObjectPtr = std::unique_ptr<CObject>;
 
-class CObjectFactory : public ResourceProvider
+class CObjectFactory
 {
   public:
     CObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -201,23 +167,16 @@ class CObjectFactory : public ResourceProvider
       , m_bObjectFactory(bObjectFactory)
     {}
 
-    ResourceId createResource(ResourceDataPtr pData) override
+    ResourceId createCObject(const std::string& foo, int bar, uint64_t baz)
     {
-      auto& data = dynamic_cast<const CObjectDataWrapper&>(*pData);
-
-      auto bObject = std::make_unique<BObjectDataWrapper>(BObjectData{
-        .foo = data.data.foo,
-        .bar = data.data.bar
-      });
-      auto bObjId = m_bObjectFactory.createResource(std::move(bObject));
+      auto bObjId = m_bObjectFactory.createBObject(foo, bar);
 
       auto id = m_resourceManager.nextResourceId();
 
       m_resourceManager.addResource(Resource{
         .id = id,
-        .data = std::move(pData),
-        .loader = [this](const Resource& resource) { loadCObject(resource); },
-        .unloader = [this](ResourceId id) { unloadCObject(id); },
+        .loader = [=]() { loadCObject(id, bObjId, baz); },
+        .unloader = [=]() { unloadCObject(id); },
         .dependencies = { bObjId }
       });
 
@@ -231,12 +190,11 @@ class CObjectFactory : public ResourceProvider
     std::unordered_map<ResourceId, CObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadCObject(const Resource& resource)
+    void loadCObject(ResourceId id, ResourceId bObject, uint64_t baz)
     {
-      auto& data = dynamic_cast<const CObjectDataWrapper&>(*resource.data);
-      m_objects.insert({ resource.id, std::make_unique<CObject>(CObject{
-        .baz = data.data.baz,
-        .bObject = resource.dependencies[0]
+      m_objects.insert({ id, std::make_unique<CObject>(CObject{
+        .baz = baz,
+        .bObject = bObject
       })});
 
       m_delegate.loadCObject();
@@ -251,23 +209,15 @@ class CObjectFactory : public ResourceProvider
     }
 };
 
-struct DObjectData
-{
-  ResourceId aObject = NULL_RESOURCE_ID;
-  char whizz = 0;
-};
-
 struct DObject
 {
   char whizz = 0;
   ResourceId aObject = NULL_RESOURCE_ID;
 };
 
-using DObjectDataWrapper = ResourceDataWrapper<DObjectData>;
-
 using DObjectPtr = std::unique_ptr<DObject>;
 
-class DObjectFactory : public ResourceProvider
+class DObjectFactory
 {
   public:
     DObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -277,18 +227,16 @@ class DObjectFactory : public ResourceProvider
       , m_aObjectFactory(aObjectFactory)
     {}
 
-    ResourceId createResource(ResourceDataPtr pData) override
+    // Demonstrates creation of a resource that is dependent on an already existing resource
+    ResourceId createDObject(ResourceId aObject, char whizz)
     {
-      auto& data = dynamic_cast<const DObjectDataWrapper&>(*pData);
-
       auto id = m_resourceManager.nextResourceId();
 
       m_resourceManager.addResource(Resource{
         .id = id,
-        .data = std::move(pData),
-        .loader = [this](const Resource& resource) { loadDObject(resource); },
-        .unloader = [this](ResourceId id) { unloadDObject(id); },
-        .dependencies = { data.data.aObject }
+        .loader = [=]() { loadDObject(id, aObject, whizz); },
+        .unloader = [=]() { unloadDObject(id); },
+        .dependencies = { aObject }
       });
 
       return id;
@@ -301,12 +249,11 @@ class DObjectFactory : public ResourceProvider
     std::unordered_map<ResourceId, DObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadDObject(const Resource& resource)
+    void loadDObject(ResourceId id, ResourceId aObject, char whizz)
     {
-      auto& data = dynamic_cast<const DObjectDataWrapper&>(*resource.data);
-      m_objects.insert({ resource.id, std::make_unique<DObject>(DObject{
-        .whizz = data.data.whizz,
-        .aObject = resource.dependencies[0]
+      m_objects.insert({ id, std::make_unique<DObject>(DObject{
+        .whizz = whizz,
+        .aObject = aObject
       })});
 
       m_delegate.loadDObject();
@@ -333,9 +280,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
   EXPECT_CALL(delegate, loadAObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject()).Times(1).InSequence(seq);
 
-  auto id = factory.createResource(std::make_unique<AObjectDataWrapper>(AObjectData{
-    .foo = "hello"
-  }));
+  auto id = factory.createAObject("hello");
   resourceManager->loadResources({ id });
   resourceManager->unloadResources({ id }).get();
 }
@@ -359,11 +304,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
   EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject).Times(1).InSequence(seq);
 
-  auto id = cObjectFactory.createResource(std::make_unique<CObjectDataWrapper>(CObjectData{
-    .foo = "hello",
-    .bar = 123,
-    .baz = 234
-  }));
+  auto id = cObjectFactory.createCObject("hello", 123, 234);
   resourceManager->loadResources({ id });
   resourceManager->unloadResources({ id }).get();
 }
@@ -386,18 +327,12 @@ TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
   EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject).Times(0).InSequence(seq);
 
-  auto bObjId = bObjectFactory.createResource(std::make_unique<BObjectDataWrapper>(BObjectData{
-    .foo = "hello",
-    .bar = 123
-  }));
+  auto bObjId = bObjectFactory.createBObject("hello", 123);
 
   resourceManager->loadResources({ bObjId }).get();
   auto bObject = bObjectFactory.get(bObjId);
 
-  auto dObjId = dObjectFactory.createResource(std::make_unique<DObjectDataWrapper>(DObjectData{
-    .aObject = bObject.aObject,
-    .whizz = 'x'
-  }));
+  auto dObjId = dObjectFactory.createDObject(bObject.aObject, 'x');
 
   resourceManager->loadResources({ dObjId });
   resourceManager->unloadResources({ bObjId }).get();
@@ -422,18 +357,12 @@ TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
   EXPECT_CALL(delegate, unloadDObject).Times(1).InSequence(seq);
   EXPECT_CALL(delegate, unloadAObject).Times(1).InSequence(seq);
 
-  auto bObjId = bObjectFactory.createResource(std::make_unique<BObjectDataWrapper>(BObjectData{
-    .foo = "hello",
-    .bar = 123
-  }));
+  auto bObjId = bObjectFactory.createBObject("hello", 123);
 
   resourceManager->loadResources({ bObjId }).get();
   auto bObject = bObjectFactory.get(bObjId);
 
-  auto dObjId = dObjectFactory.createResource(std::make_unique<DObjectDataWrapper>(DObjectData{
-    .aObject = bObject.aObject,
-    .whizz = 'x'
-  }));
+  auto dObjId = dObjectFactory.createDObject(bObject.aObject, 'x');
 
   resourceManager->loadResources({ dObjId });
   resourceManager->unloadResources({ bObjId, dObjId }).get();

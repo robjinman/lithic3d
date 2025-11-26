@@ -13,7 +13,6 @@ using render::BufferUsage;
 using render::VertexLayout;
 using render::Mesh;
 using render::MaterialPtr;
-using render::MaterialHandle;
 namespace MeshFeatures = render::MeshFeatures;
 using render::MeshFeatureSet;
 namespace MaterialFeatures = render::MaterialFeatures;
@@ -290,16 +289,16 @@ render::MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
 class ModelLoaderImpl : public ModelLoader
 {
   public:
-    ModelLoaderImpl(Ecs& ecs, const FileSystem& fileSystem, Logger& logger);
+    ModelLoaderImpl(ResourceManager& resourceManager, Ecs& ecs, const FileSystem& fileSystem,
+      Logger& logger);
 
-    ModelDataPtr loadModelData(const std::string& filePath) const override;
-    DModelPtr createRenderComponent(ModelDataPtr modelData, bool isInstanced) override;
+    ResourceId loadModel(const std::string& filePath) const override;
+    DModelPtr createRenderComponent(ResourceId model, bool isInstanced) override;
 
   private:
     Logger& m_logger;
     Ecs& m_ecs;
     const FileSystem& m_fileSystem;
-    std::map<std::string, RenderItemId> m_materials;
 
     MaterialHandle loadMaterial(MaterialPtr material);
 };
@@ -485,6 +484,8 @@ ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
   return model;
 }
 
+// TODO: This should be done inside the entity factory
+/*
 DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool isInstanced)
 {
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -506,7 +507,7 @@ DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool is
   model->animations = sysRender3d.addAnimations(std::move(modelData->animations));
 
   return model;
-}
+}*/
 
 } // namespace
 
