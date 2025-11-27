@@ -8,14 +8,6 @@ using testing::NiceMock;
 using testing::Return;
 using namespace lithic3d;
 
-class ResourceManagerTest : public testing::Test
-{
-  public:
-    virtual void SetUp() override {}
-
-    virtual void TearDown() override {}
-};
-
 class Delegate
 {
   public:
@@ -39,7 +31,7 @@ struct AObject
 
 using AObjectPtr = std::unique_ptr<AObject>;
 
-class AObjectFactory
+class AObjectFactory : public ResourceProvider
 {
   public:
     AObjectFactory(Delegate& delegate, ResourceManager& resourceManager)
@@ -47,14 +39,14 @@ class AObjectFactory
       , m_resourceManager(resourceManager)
     {}
 
-    ResourceHandle createAObjectAsync(const std::string& foo)
+    [[nodiscard]] ResourceHandle createAObjectAsync(const std::string& foo)
     {
       return m_resourceManager.loadResource([this, foo](ResourceId id) {
         loadAObject(id, foo);
 
-        return Resource{
-          .unloader = [this](ResourceId id) { unloadAObject(id); },
-          .dependencies = {}
+        return ManagedResource{
+          .provider = weak_from_this(),
+          .unloader = [this](ResourceId id) { unloadAObject(id); }
         };
       });
     }
@@ -67,17 +59,15 @@ class AObjectFactory
     // Called from resource manager thread
     void loadAObject(ResourceId id, const std::string& foo)
     {
-      m_objects.insert({ id, std::make_unique<AObject>(foo) });
-
       m_delegate.loadAObject();
+      m_objects.insert({ id, std::make_unique<AObject>(foo) });
     }
 
     // Called from resource manager thread
     void unloadAObject(ResourceId id)
     {
-      m_objects.erase(id);
-
       m_delegate.unloadAObject();
+      m_objects.erase(id);
     }
 };
 
@@ -85,12 +75,12 @@ class AObjectFactory
 struct BObject
 {
   int bar = 0;
-  ResourceId aObject = NULL_RESOURCE_ID;
+  ResourceHandle aObject;
 };
 
 using BObjectPtr = std::unique_ptr<BObject>;
 
-class BObjectFactory
+class BObjectFactory : public ResourceProvider
 {
   public:
     BObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -103,13 +93,13 @@ class BObjectFactory
     ResourceHandle createBObjectAsync(const std::string& foo, int bar)
     {
       return m_resourceManager.loadResource([this, foo, bar](ResourceId id) {
-        auto aObjId = m_aObjectFactory.createAObjectAsync(foo).id();
+        auto aObjHandle = m_aObjectFactory.createAObjectAsync(foo);
 
-        loadBObject(id, aObjId, bar);
+        loadBObject(id, aObjHandle, bar);
 
-        return Resource{
-          .unloader = [this](ResourceId id) { unloadBObject(id); },
-          .dependencies = { aObjId }
+        return ManagedResource{
+          .provider = weak_from_this(),
+          .unloader = [this](ResourceId id) { unloadBObject(id); }
         };
       });
     }
@@ -126,34 +116,32 @@ class BObjectFactory
     std::unordered_map<ResourceId, BObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadBObject(ResourceId id, ResourceId aObject, int bar)
+    void loadBObject(ResourceId id, ResourceHandle aObject, int bar)
     {
+      m_delegate.loadBObject();
       m_objects.insert({ id, std::make_unique<BObject>(BObject{
         .bar = bar,
         .aObject = aObject
       })});
-
-      m_delegate.loadBObject();
     }
 
     // Called from resource manager thread
     void unloadBObject(ResourceId id)
     {
-      m_objects.erase(id);
-
       m_delegate.unloadBObject();
+      m_objects.erase(id);
     }
 };
 
 struct CObject
 {
   uint64_t baz = 0;
-  ResourceId bObject = NULL_RESOURCE_ID;
+  ResourceHandle bObject;
 };
 
 using CObjectPtr = std::unique_ptr<CObject>;
 
-class CObjectFactory
+class CObjectFactory : public ResourceProvider
 {
   public:
     CObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -166,13 +154,13 @@ class CObjectFactory
     ResourceHandle createCObjectAsync(const std::string& foo, int bar, uint64_t baz)
     {
       return m_resourceManager.loadResource([this, foo, bar, baz](ResourceId id) {
-        auto bObjId = m_bObjectFactory.createBObjectAsync(foo, bar).id();
+        auto bObject = m_bObjectFactory.createBObjectAsync(foo, bar);
 
-        loadCObject(id, bObjId, baz);
+        loadCObject(id, bObject, baz);
 
-        return Resource{
-          .unloader = [this](ResourceId id) { unloadCObject(id); },
-          .dependencies = { bObjId }
+        return ManagedResource{
+          .provider = weak_from_this(),
+          .unloader = [this](ResourceId id) { unloadCObject(id); }
         };
       });
     }
@@ -184,34 +172,32 @@ class CObjectFactory
     std::unordered_map<ResourceId, CObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadCObject(ResourceId id, ResourceId bObject, uint64_t baz)
+    void loadCObject(ResourceId id, ResourceHandle bObject, uint64_t baz)
     {
+      m_delegate.loadCObject();
       m_objects.insert({ id, std::make_unique<CObject>(CObject{
         .baz = baz,
         .bObject = bObject
       })});
-
-      m_delegate.loadCObject();
     }
 
     // Called from resource manager thread
     void unloadCObject(ResourceId id)
     {
-      m_objects.erase(id);
-
       m_delegate.unloadCObject();
+      m_objects.erase(id);
     }
 };
 
 struct DObject
 {
   char whizz = 0;
-  ResourceId aObject = NULL_RESOURCE_ID;
+  ResourceHandle aObject;
 };
 
 using DObjectPtr = std::unique_ptr<DObject>;
 
-class DObjectFactory
+class DObjectFactory : public ResourceProvider
 {
   public:
     DObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -222,14 +208,14 @@ class DObjectFactory
     {}
 
     // Demonstrates creation of a resource that is dependent on an already existing resource
-    ResourceHandle createDObjectAsync(ResourceId aObject, char whizz)
+    ResourceHandle createDObjectAsync(ResourceHandle aObject, char whizz)
     {
       return m_resourceManager.loadResource([this, aObject, whizz](ResourceId id) {
         loadDObject(id, aObject, whizz);
 
-        return Resource{
-          .unloader = [this](ResourceId id) { unloadDObject(id); },
-          .dependencies = { aObject }
+        return ManagedResource{
+          .provider = weak_from_this(),
+          .unloader = [this](ResourceId id) { unloadDObject(id); }
         };
       });
     }
@@ -241,120 +227,151 @@ class DObjectFactory
     std::unordered_map<ResourceId, DObjectPtr> m_objects;
 
     // Called from resource manager thread
-    void loadDObject(ResourceId id, ResourceId aObject, char whizz)
+    void loadDObject(ResourceId id, ResourceHandle aObject, char whizz)
     {
+      m_delegate.loadDObject();
       m_objects.insert({ id, std::make_unique<DObject>(DObject{
         .whizz = whizz,
         .aObject = aObject
       })});
-
-      m_delegate.loadDObject();
     }
 
     // Called from resource manager thread
     void unloadDObject(ResourceId id)
     {
-      m_objects.erase(id);
-
       m_delegate.unloadDObject();
+      m_objects.erase(id);
     }
+};
+
+class ResourceManagerTest : public testing::Test
+{
+  public:
+    virtual void SetUp() override
+    {
+      m_delegate = std::make_unique<Delegate>();
+      m_realLogger = createLogger(std::cout, std::cout, std::cout, std::cout);
+      m_resourceManager = createResourceManager(m_mockLogger);
+      m_aObjectFactory = std::make_shared<AObjectFactory>(*m_delegate, *m_resourceManager);
+      m_bObjectFactory = std::make_shared<BObjectFactory>(*m_delegate, *m_resourceManager,
+        *m_aObjectFactory);
+      m_cObjectFactory = std::make_shared<CObjectFactory>(*m_delegate, *m_resourceManager,
+        *m_bObjectFactory);
+      m_dObjectFactory = std::make_shared<DObjectFactory>(*m_delegate, *m_resourceManager,
+        *m_aObjectFactory);
+    }
+
+    virtual void TearDown() override
+    {
+    }
+
+  protected:
+    std::unique_ptr<Logger> m_realLogger;
+    NiceMock<MockLogger> m_mockLogger;
+    std::unique_ptr<ResourceManager> m_resourceManager;
+    std::unique_ptr<Delegate> m_delegate;
+    std::shared_ptr<AObjectFactory> m_aObjectFactory;
+    std::shared_ptr<BObjectFactory> m_bObjectFactory;
+    std::shared_ptr<CObjectFactory> m_cObjectFactory;
+    std::shared_ptr<DObjectFactory> m_dObjectFactory;
+    ResourceHandle m_tmpHandle;
 };
 
 TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
 {
-  NiceMock<MockLogger> logger;
-  Delegate delegate;
-
-  auto resourceManager = createResourceManager(logger);
-  AObjectFactory factory{delegate, *resourceManager};
-
   testing::Sequence seq;
-  EXPECT_CALL(delegate, loadAObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadAObject()).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadAObject()).Times(1).InSequence(seq);
 
-  ResourceId id = NULL_RESOURCE_ID;
-  {
-    auto handle = factory.createAObjectAsync("hello");
-    id = handle.id();
+  try {
+    auto handle = m_aObjectFactory->createAObjectAsync("hello");
+  }
+  catch(...) {
+    m_resourceManager->waitAll();
+    throw;
   }
 
-  resourceManager->unloadResource(id).get();
+  m_resourceManager->waitAll();
 }
-/*
+
 TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
 {
-  NiceMock<MockLogger> logger;
-  Delegate delegate;
-
-  auto resourceManager = createResourceManager(logger);
-
-  AObjectFactory aObjectFactory{delegate, *resourceManager};
-  BObjectFactory bObjectFactory{delegate, *resourceManager, aObjectFactory};
-  CObjectFactory cObjectFactory{delegate, *resourceManager, bObjectFactory};
-
   testing::Sequence seq;
-  EXPECT_CALL(delegate, loadAObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, loadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, loadCObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadCObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadBObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadCObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadCObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadBObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadAObject).Times(1).InSequence(seq);
 
-  auto id = cObjectFactory.createCObjectAsync("hello", 123, 234).id();
-  resourceManager->unloadResource(id).get();
+  try {
+    m_cObjectFactory->createCObjectAsync("hello", 123, 234).id();
+  }
+  catch(...) {
+    m_resourceManager->waitAll();
+    throw;
+  }
+
+  m_resourceManager->waitAll();
 }
 
 TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
 {
-  NiceMock<MockLogger> logger;
-  Delegate delegate;
-
-  auto resourceManager = createResourceManager(logger);
-
-  AObjectFactory aObjectFactory{delegate, *resourceManager};
-  BObjectFactory bObjectFactory{delegate, *resourceManager, aObjectFactory};
-  DObjectFactory dObjectFactory{delegate, *resourceManager, aObjectFactory};
-
   testing::Sequence seq;
-  EXPECT_CALL(delegate, loadAObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, loadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, loadDObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadAObject).Times(0).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadBObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadDObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadBObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadAObject).Times(0);
 
-  auto bObjId = bObjectFactory.createBObjectAsync("hello", 123).id();
-  auto bObject = bObjectFactory.get(bObjId);
+  try {
+    auto bObjHandle = m_bObjectFactory->createBObjectAsync("hello", 123);
+    bObjHandle.wait();
 
-  auto dObjIdFuture = dObjectFactory.createDObjectAsync(bObject.aObject, 'x');
+    auto& bObject = m_bObjectFactory->get(bObjHandle.id());
 
-  resourceManager->unloadResource(bObjId).get();
+    auto dObjHandle = m_dObjectFactory->createDObjectAsync(bObject.aObject, 'x');
+    dObjHandle.wait();
+
+    // Keep alive
+    m_tmpHandle = dObjHandle;
+
+    // bObjHandle goes out of scope here
+  }
+  catch(...) {
+    m_resourceManager->waitAll();
+    throw;
+  }
+
+  m_resourceManager->waitAll();
 }
 
 TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
 {
-  NiceMock<MockLogger> logger;
-  Delegate delegate;
-
-  auto resourceManager = createResourceManager(logger);
-
-  AObjectFactory aObjectFactory{delegate, *resourceManager};
-  BObjectFactory bObjectFactory{delegate, *resourceManager, aObjectFactory};
-  DObjectFactory dObjectFactory{delegate, *resourceManager, aObjectFactory};
-
   testing::Sequence seq;
-  EXPECT_CALL(delegate, loadAObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, loadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, loadDObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadDObject).Times(1).InSequence(seq);
-  EXPECT_CALL(delegate, unloadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadBObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, loadDObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadDObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadBObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadAObject).Times(1).InSequence(seq);
 
-  auto bObjId = bObjectFactory.createBObjectAsync("hello", 123).id();
-  auto bObject = bObjectFactory.get(bObjId);
+  try {
+    auto bObjHandle = m_bObjectFactory->createBObjectAsync("hello", 123);
+    bObjHandle.wait();
 
-  auto dObjId = dObjectFactory.createDObjectAsync(bObject.aObject, 'x').id();
+    auto& bObject = m_bObjectFactory->get(bObjHandle.id());
 
-  resourceManager->unloadResource(bObjId);
-  resourceManager->unloadResource(dObjId).get();
+    auto dObjHandle = m_dObjectFactory->createDObjectAsync(bObject.aObject, 'x');
+    dObjHandle.wait();
+
+    // dObjHandle goes out of scope here
+    // bObjHandle goes out of scope here
+  }
+  catch(...) {
+    m_resourceManager->waitAll();
+    throw;
+  }
+
+  m_resourceManager->waitAll();
 }
-*/

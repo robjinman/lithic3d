@@ -1,9 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <future>
 #include <memory>
-#include <map> // TODO
 
 namespace lithic3d
 {
@@ -14,173 +12,118 @@ constexpr ResourceId NULL_RESOURCE_ID = -1;
 
 using ResourceUnloader = std::function<void(ResourceId)>;
 
-struct Resource
+struct ResourceProvider : public std::enable_shared_from_this<ResourceProvider>
 {
-  ResourceUnloader unloader;
-  std::vector<ResourceId> dependencies;
+  virtual ~ResourceProvider() = default;
 };
 
-using ResourceLoader = std::function<Resource(ResourceId)>;
+struct ManagedResource
+{
+  std::weak_ptr<ResourceProvider> provider;
+  ResourceUnloader unloader;
+};
+
+using ResourceLoader = std::function<ManagedResource(ResourceId)>;
 
 class ResourceManager;
 
-class ResourceHandle
+class Resource
 {
-  friend class ResourceManager;
-
   public:
-    ResourceHandle(const ResourceHandle&) =  delete;
+    Resource(ResourceId id, ResourceManager& resourceManager, std::future<void>&& future)
+      : m_id(id)
+      , m_resourceManager(resourceManager)
+      , m_future(std::move(future))
+    {}
 
-    ResourceHandle(ResourceHandle&& mv)
-      : m_resourceManager(mv.m_resourceManager)
-      , m_idFuture(std::move(mv.m_idFuture))
-      , m_id(mv.m_id)
+    void wait() const
     {
-      mv.m_nullified = true;
+      m_future.wait();
     }
 
-    ResourceId id()
+    ~Resource();
+
+  private:
+    ResourceId m_id;
+    ResourceManager& m_resourceManager;
+    ResourceUnloader m_unloader;
+    std::future<void> m_future;
+};
+
+class [[nodiscard]] ResourceHandle
+{
+  public:
+    ResourceHandle()
+      : m_id(NULL_RESOURCE_ID)
+    {}
+
+    ResourceHandle(ResourceId id, const std::shared_ptr<Resource>& pointer)
+      : m_id(id)
+      , m_resource(pointer)
+    {}
+
+    ResourceHandle(const ResourceHandle& cpy)
+      : m_id(cpy.m_id)
+      , m_resource(cpy.m_resource)
+    {}
+
+    ResourceId id() const
     {
-      if (m_idFuture.valid()) {
-        m_id = m_idFuture.get();
-      }
       return m_id;
     }
 
-    ~ResourceHandle();
+    ResourceHandle& operator=(const ResourceHandle& rhs)
+    {
+      m_id = rhs.m_id;
+      m_resource = rhs.m_resource;
+      return *this;
+    }
+
+    bool operator==(const ResourceHandle& rhs) const
+    {
+      return m_id == rhs.m_id;
+    }
+
+    bool operator<(const ResourceHandle& rhs) const
+    {
+      return m_id < rhs.m_id;
+    }
+
+    void wait() const
+    {
+      if (m_resource != nullptr) {
+        m_resource->wait();
+      }
+    }
 
   private:
-    ResourceManager& m_resourceManager;
-    std::future<ResourceId> m_idFuture;
     ResourceId m_id = NULL_RESOURCE_ID;
-    bool m_nullified = false;
-
-    ResourceHandle(ResourceManager& resourceManager, std::future<ResourceId>&& idFuture)
-      : m_resourceManager(resourceManager)
-      , m_idFuture(std::move(idFuture))
-    {}
+    std::shared_ptr<Resource> m_resource;
 };
 
 class ResourceManager
 {
-  friend class ResourceHandle;
+  friend class Resource;
 
   public:
     virtual ResourceHandle loadResource(ResourceLoader&& loader) = 0;
-    virtual std::future<void> unloadResource(ResourceId id) = 0;
+    virtual void waitAll() = 0;
 
     virtual ~ResourceManager() = default;
 
-  protected:
-    ResourceHandle makeHandle(std::future<ResourceId>&& f)
-    {
-      return ResourceHandle{*this, std::move(f)};
-    }
-
   private:
-    virtual void decrementReferenceCount(ResourceId id) = 0;
+    virtual void unload(ResourceId id) = 0;
 };
 
 using ResourceManagerPtr = std::unique_ptr<ResourceManager>;
 
-inline ResourceHandle::~ResourceHandle()
+inline Resource::~Resource()
 {
-  if (!m_nullified) {
-    m_resourceManager.decrementReferenceCount(id());
-  }
+  m_resourceManager.unload(m_id);
 }
 
 class Logger;
 
 ResourceManagerPtr createResourceManager(Logger& logger);
-/*
-class SubthingFactory
-{
-  public:
-    SubthingFactory(ResourceManager& resourceManager)
-      : m_resourceManager(resourceManager)
-    {}
 
-    std::future<ResourceId> createSubthingAsync(int bar)
-    {
-      // We might already be on the resource manager thread. The resource manager must check which
-      // thread we're on and execute the lambda immediately if we're on the resource manager
-      // thread. If it queues it, we'll end up in deadlock.
-
-      return m_resourceManager.loadResource([this, bar](ResourceId id) {
-        return createSubthing(id, bar);
-      });
-    }
-
-  private:
-    ResourceManager& m_resourceManager;
-
-    Resource createSubthing(ResourceId id, int bar)
-    {
-      // TODO
-
-      return Resource{
-        .unloader = [this](ResourceId id) { deleteSubthing(id); },
-        .dependencies = {}
-      };
-    }
-
-    void deleteSubthing(ResourceId id)
-    {
-    }
-};
-
-struct Thing
-{
-  std::string foo;
-  ResourceId subthing = NULL_RESOURCE_ID;
-};
-
-class ThingFactory
-{
-  public:
-    ThingFactory(ResourceManager& resourceManager, SubthingFactory subthingFactory)
-      : m_resourceManager(resourceManager)
-      , m_subthingFactory(subthingFactory)
-    {}
-
-    std::future<ResourceId> createThingAsync(const std::string& foo, int bar)
-    {
-      return m_resourceManager.loadResource([this, foo, bar](ResourceId id) {
-        return createThing(id, foo, bar);
-      });
-    }
-
-  private:
-    ResourceManager& m_resourceManager;
-    SubthingFactory& m_subthingFactory;
-    std::map<ResourceId, std::unique_ptr<Thing>> m_things;
-
-    Resource createThing(ResourceId id, const std::string& foo, int bar)
-    {
-      // We are already in the resource manager thread at this point
-
-      auto subthingId = m_subthingFactory.createSubthingAsync(bar).get();
-
-      return Resource{
-        .unloader = [this](ResourceId id) { deleteThing(id); },
-        .dependencies = { subthingId }
-      };
-    }
-
-    void deleteThing(ResourceId id)
-    {
-    }
-};
-
-void foo(ResourceManager& resourceManager)
-{
-  SubthingFactory subthingFactory{resourceManager};
-  ThingFactory thingFactory{resourceManager, subthingFactory};
-
-  std::string foo = "Hello";
-  int bar = 123;
-  auto thingFuture = thingFactory.createThingAsync(foo, bar);
-}
-*/
 } // namespace lithic3d

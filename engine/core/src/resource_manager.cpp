@@ -1,20 +1,15 @@
 #include "lithic3d/resource_manager.hpp"
 #include "lithic3d/thread.hpp"
-#include "lithic3d/exception.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/exception.hpp"
 #include <unordered_map>
+#include <atomic>
 
 namespace lithic3d
 {
 namespace
 {
-
-struct ManagedResource
-{
-  Resource data;
-  uint32_t referenceCount = 0;
-};
 
 class ResourceManagerImpl : public ResourceManager
 {
@@ -22,19 +17,17 @@ class ResourceManagerImpl : public ResourceManager
     ResourceManagerImpl(Logger& logger);
 
     ResourceHandle loadResource(ResourceLoader&& loader) override;
-    std::future<void> unloadResource(ResourceId id) override;
+    void waitAll() override;
+
+    ~ResourceManagerImpl();
 
   private:
     Logger& m_logger;
-    ResourceId m_nextResourceId = NULL_RESOURCE_ID + 1;
-    std::unordered_map<ResourceId, ManagedResource> m_resources;
+    std::atomic<ResourceId> m_nextResourceId = NULL_RESOURCE_ID + 1;
     Thread m_thread;
+    std::unordered_map<ResourceId, ManagedResource> m_resources;
 
-    void decrementReferenceCount(ResourceId id) override;
-
-    void manageResource(ResourceId id, Resource&& resource);
-    void doUnload(ResourceId id);
-    void doDecrementRefCount(ResourceId id);
+    void unload(ResourceId id) override;
 };
 
 ResourceManagerImpl::ResourceManagerImpl(Logger& logger)
@@ -42,99 +35,67 @@ ResourceManagerImpl::ResourceManagerImpl(Logger& logger)
 {
 }
 
-// Main thread
-void ResourceManagerImpl::decrementReferenceCount(ResourceId id)
+void ResourceManagerImpl::waitAll()
 {
-  // TODO: Support this?
-  ASSERT(std::this_thread::get_id() != m_thread.id(),
-    "Cannot call decrementReferenceCount from resource manager thread");
-
-  m_thread.run<void>([this, id]() {
-    doDecrementRefCount(id);
-  }); // Don't wait
+  m_thread.waitAll();
 }
 
-// Worker thread
-void ResourceManagerImpl::doDecrementRefCount(ResourceId id)
+// Main thread or worker thread
+void ResourceManagerImpl::unload(ResourceId id)
 {
-  auto& dep = m_resources.at(id);
-  assert(dep.referenceCount > 0);
+  m_logger.debug(STR("Unload requested for resource " << id));
 
-  --dep.referenceCount;
+  auto unloadResource = [this, id]() {
+    m_logger.info(STR("Unloading resource " << id));
 
-  if (dep.referenceCount == 0) {
-    doUnload(id);
-  }
-}
+    auto i = m_resources.find(id);
 
-// Worker thread
-void ResourceManagerImpl::manageResource(ResourceId id, Resource&& resource)
-{
-  for (auto dep : resource.dependencies) {
-    ++m_resources.at(dep).referenceCount;
-  }
+    {
+      auto provider = i->second.provider.lock();
+      if (provider) {
+        i->second.unloader(id);
+      }
+    }
 
-  m_resources.insert({id, ManagedResource{
-    .data = std::move(resource),
-    .referenceCount = 1
-  }});
-}
+    m_resources.erase(i);
+  };
 
-// Worker thread
-void ResourceManagerImpl::doUnload(ResourceId id)
-{
-  auto i = m_resources.find(id);
-  ASSERT(i != m_resources.end(), "No resource with id " << id);
-  auto& resource = i->second;
-
-  if (resource.referenceCount > 0) {
-    // Can't unload. Something else depends on it
+  // We're already on the worker thread
+  if (std::this_thread::get_id() == m_thread.id()) {
+    unloadResource();
     return;
   }
 
-  // Make a copy
-  auto dependencies = resource.data.dependencies;
-
-  m_logger.debug(STR("Unloading resource " << id));
-  try {
-    resource.data.unloader(id);
-    m_resources.erase(i);
-  }
-  catch (const Exception& ex) {
-    m_logger.error(ex.what());
-  }
-
-  for (auto depId : dependencies) {
-    doDecrementRefCount(depId);
-  }
-}
-
-// Main thread
-std::future<void> ResourceManagerImpl::unloadResource(ResourceId id)
-{
-  return m_thread.run<void>([this, id]() {
-    doUnload(id);
-  });
+  m_thread.run<void>(unloadResource);
 }
 
 // Main thread or worker thread
 ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 {
+  auto id = m_nextResourceId++;
+
+  auto loadResource = [this, id, loader = std::move(loader)]() {
+    m_logger.info(STR("Loading resource " << id));
+    m_resources.insert({ id, loader(id)});
+  };
+
+  // We're already on the worker thread. Just load the resource synchronously and return a dummy
+  // future.
   if (std::this_thread::get_id() == m_thread.id()) {
-    auto id = m_nextResourceId++;
-    manageResource(id, loader(id));
+    loadResource();
 
-    std::promise<ResourceId> promise;
-    promise.set_value(id);
-
-    return makeHandle(promise.get_future());
+    std::promise<void> promise;
+    return ResourceHandle(id, std::make_shared<Resource>(id, *this, promise.get_future()));
   }
 
-  return makeHandle(m_thread.run<ResourceId>([this, loader = std::move(loader)]() {
-    auto id = m_nextResourceId++;
-    manageResource(id, loader(id));
-    return id;
-  }));
+  auto future = m_thread.run<void>(std::move(loadResource));
+
+  return ResourceHandle(id, std::make_shared<Resource>(id, *this, std::move(future)));
+}
+
+ResourceManagerImpl::~ResourceManagerImpl()
+{
+  waitAll();
 }
 
 } // namespace

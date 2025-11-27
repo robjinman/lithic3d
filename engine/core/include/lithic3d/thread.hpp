@@ -33,9 +33,17 @@ class Thread
         m_hasWork = true;
       }
 
-      m_conditionVariable.notify_one();
+      m_conditionVariable.notify_all();
 
       return future;
+    }
+
+    void waitAll() const
+    {
+      assert(std::this_thread::get_id() != m_thread.get_id());
+
+      std::unique_lock lock(m_mutex);
+      m_conditionVariable.wait(lock, [this]() { return !m_hasWork; });
     }
 
     std::thread::id id() const
@@ -45,11 +53,13 @@ class Thread
 
     ~Thread()
     {
+      waitAll();
+
       {
         std::lock_guard lock(m_mutex);
         m_running = false;
       }
-      m_conditionVariable.notify_one();
+      m_conditionVariable.notify_all();
       m_thread.join();
     }
 
@@ -71,11 +81,15 @@ class Thread
 
           task = std::move(m_tasks.front());
           m_tasks.pop();
-
-          m_hasWork = !m_tasks.empty();
         }
 
         task();
+
+        {
+          std::unique_lock lock(m_mutex);
+          m_hasWork = !m_tasks.empty();
+          m_conditionVariable.notify_all();
+        }
       }
     }
 
@@ -83,8 +97,8 @@ class Thread
     bool m_running = true;
     bool m_hasWork = false;
     std::queue<std::function<void()>> m_tasks;
-    std::mutex m_mutex;
-    std::condition_variable m_conditionVariable;
+    mutable std::mutex m_mutex;
+    mutable std::condition_variable m_conditionVariable;
 };
 
 } // namespace lithic3d
