@@ -5,34 +5,51 @@ Almost all resources in Lithic3D are managed resources: Sounds, Meshes, Textures
 
 The ResourceManager class keeps track of which resources depend on other resources and uses reference counting to ensure that resources are only unloaded when no longer needed.
 
-Any class that provides managed resources, whether that's a factory or a subsystem, must create its resources asynchonously, returning an `std::future<ResourceId>`, for example:
+Any class that provides managed resources, whether that's a factory or a subsystem, must inherit from ResourceProvider and be owned by an std::shared_ptr. It should create its resources asynchonously, returning a ResourceHandle, for example:
 
 ```
-    std::future<ResourceId> createModelAsync(const std::string& filePath, ResourceId materialId);
+    ResourceHandle createModelAsync(const std::string& filePath, ResourceHandle material);
 ```
 
-The implementation of this function should call ResourceManager::loadResource providing a function that creates the resource and returns Resource object describing the resource. This function will be executed on the resource manager's thread.
+The implementation of this function should call ResourceManager::loadResource, providing a ResourceLoader function that creates the resource and returns a ManagedResource object describing the resource. This loader function will be executed on the resource manager's thread.
 
 ```
-    std::future<ResourceId> createModelAsync(const std::string& filePath, ResourceId materialId)
+    class ModelFactory : public ResourceProvider
     {
-      return m_resourceManager.loadResource([this, filePath, material](ResourceId id) {
-        // Construct resource here, including any sub-resources
+      public:
+        ResourceHandle createModelAsync(const std::string& filePath, ResourceHandle hMaterial)
+        {
+          return m_resourceManager.loadResource([this, filePath, material](ResourceId id) {
+            // We're on the resource manager thread (make thread-safe!)
+            // Construct resource here, including any sub-resources
 
-        auto& material = m_materialFactory.getMaterial(materialId);
-        // Do something with material
+            hMaterial.wait(); // To be sure it exists
+            auto& material = m_materialFactory.getMaterial(hMaterial.id());
 
-        // Construct a sub-resource
-        auto subresourceId = m_factory.createThingAsync("foo", 123).get();
+            // Do something with material?
 
-        return Resource{
-          .unload = [this](ResourceId id) { deleteModel(id); },
-          .dependencies = { materialId, subresourceId }
-        };
-      });
-    }
+            // Construct a sub-resource
+            auto hMesh = m_factory.createMeshAsync(filePath);
+
+            // Store the resource somewhere
+            m_models.insert(id, std::make_unique<Model>(hSubresource, hMaterial, hMesh));
+
+            return ManagedResource{
+              .provider = weak_from_this(),
+              .unload = [this](ResourceId id) { deleteModel(id); }
+            };
+          });
+        }
+
+        void deleteModel(ResourceId id)
+        {
+          // We're on the resource manager thread (make thread-safe!)
+          // Delete the model. Sub-resources will be automatically unloaded if their reference
+          // counts hit zero.
+
+          m_models.erase(id);
+        }
+    };
 ```
-
-The resource manager when it needs to unload the resource will call the unloader function provided by the Resource instance. This function may be called at any time from the resource manager's own thread and so must be thread-safe.
 
 See the unit tests for examples.
