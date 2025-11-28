@@ -1,6 +1,6 @@
-#include "lithic3d/world_traversal.hpp"
-#include "lithic3d/resource_manager.hpp"
-#include "lithic3d/world.hpp"
+#include "lithic3d/world_grid.hpp"
+#include "lithic3d/world_loader.hpp"
+#include <map>
 
 namespace lithic3d
 {
@@ -12,35 +12,40 @@ bool isInRange(const Vec2i& p, const Vec2i& min, const Vec2i& max)
   return p[0] >= min[0] && p[0] <= max[0] && p[1] >= min[1] && p[1] <= max[1];
 }
 
-class WorldTraversalImpl : public WorldTraversal
+// x, y, slice
+using Grid = std::map<std::tuple<uint32_t, uint32_t, uint32_t>, ResourceHandle>;
+
+struct World
+{
+  Grid grid;
+};
+
+class WorldGridImpl : public WorldGrid
 {
   public:
-    WorldTraversalImpl(const WorldTraversalOptions& options, const WorldGrid& worldGrid,
-      ResourceManager& resourceManager);
+    WorldGridImpl(const WorldTraversalOptions& options, WorldLoader& worldLoader);
 
     void update(const Vec3f& cameraPos) override;
 
   private:
-    ResourceManager& m_resourceManager;
+    WorldLoader& m_worldLoader;
     WorldTraversalOptions m_options;
-    WorldGrid m_worldGrid;
+    Grid m_grid;
     Vec2i m_lastGridPos = { -1, -1 };
 
     void doUpdate(int cellX, int cellY);
 };
 
-WorldTraversalImpl::WorldTraversalImpl(const WorldTraversalOptions& options,
-  const WorldGrid& worldGrid, ResourceManager& resourceManager)
-  : m_resourceManager(resourceManager)
+WorldGridImpl::WorldGridImpl(const WorldTraversalOptions& options, WorldLoader& worldLoader)
+  : m_worldLoader(worldLoader)
   , m_options(options)
-  , m_worldGrid(worldGrid)
 {
 }
 
-void WorldTraversalImpl::update(const Vec3f& cameraPos)
+void WorldGridImpl::update(const Vec3f& cameraPos)
 {
-  float cellW = m_worldGrid.sizeMetres[0] / m_worldGrid.sizeCells[0];
-  float cellH = m_worldGrid.sizeMetres[1] / m_worldGrid.sizeCells[1];
+  float cellW = m_worldLoader.worldInfo().cellWidth;
+  float cellH = m_worldLoader.worldInfo().cellHeight;
 
   auto cellX = static_cast<int>(cameraPos[0] / cellW);
   auto cellY = static_cast<int>(cameraPos[2] / cellH);
@@ -51,19 +56,13 @@ void WorldTraversalImpl::update(const Vec3f& cameraPos)
   }
 }
 
-void WorldTraversalImpl::doUpdate(int cellX, int cellY)
+void WorldGridImpl::doUpdate(int cellX, int cellY)
 {
-  int gridW = m_worldGrid.sizeCells[0];
-  int gridH = m_worldGrid.sizeCells[1];
+  int gridW = m_worldLoader.worldInfo().gridWidth;
+  int gridH = m_worldLoader.worldInfo().gridHeight;
 
-  size_t numLayers = m_options.layerOptions.size();
-
-  std::vector<ResourceId> toLoad;
-  std::vector<ResourceId> toUnload;
-
-  for (auto layerIdx = 0; layerIdx < numLayers; ++layerIdx) {
-    auto& layerOpts = m_options.layerOptions[layerIdx];
-    int loadDistance = static_cast<int>(layerOpts.loadDistance);
+  for (auto sliceIdx = 0; sliceIdx < NUM_WORLD_SLICES; ++sliceIdx) {
+    int loadDistance = m_options.sliceLoadDistances[sliceIdx];
 
     Vec2i minForCurrentPos{
       std::max(cellX - loadDistance, 0),
@@ -92,33 +91,26 @@ void WorldTraversalImpl::doUpdate(int cellX, int cellY)
 
     for (int x = minX; x <= maxX; ++x) {
       for (int y = minY; y <= maxY; ++y) {
-        ResourceId layerResource = m_worldGrid.cells[y * gridW + x].layers[layerIdx];
-
         if (isInRange({ x, y }, minForLastPos, maxForLastPos) &&
           !isInRange({ x, y }, minForCurrentPos, maxForCurrentPos)) {
 
-          toUnload.push_back(layerResource);
+          m_grid.erase({ x, y, sliceIdx });
         }
         else if (!isInRange({ x, y }, minForLastPos, maxForLastPos) &&
           isInRange({ x, y }, minForCurrentPos, maxForCurrentPos)) {
 
-          toLoad.push_back(layerResource);
+          m_grid.insert({{ x, y, sliceIdx }, m_worldLoader.loadCellSliceAsync(x, y, sliceIdx)});
         }
       }
     }
   }
-
-  // TODO
-  //m_resourceManager.unloadResources(toUnload);
-  //m_resourceManager.loadResources(toLoad);
 }
 
 } // namespace
 
-WorldTraversalPtr createWorldTraversal(const WorldTraversalOptions& options, const WorldGrid& grid,
-  ResourceManager& resourceManager)
+WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, const WorldLoader& worldLoader)
 {
-  return std::make_unique<WorldTraversalImpl>(options, grid, resourceManager);
+  return std::make_unique<WorldGridImpl>(options, worldLoader);
 }
 
 }

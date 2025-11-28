@@ -1,4 +1,4 @@
-<world grid-size-x="4" grid-size-y="4" cell-size-x="10.0" cell-size-y="10.0" layers="5">
+<world grid-width="4" grid-height="4" cell-width="10.0" cell-height="10.0">
   <!-- Global prefabs -->
   <prefabs>
     <prefab name="light"/>
