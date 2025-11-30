@@ -57,7 +57,7 @@ ResourceHandle RenderResourceLoader::loadTextureAsync(const fs::path& path)
 }
 
 ResourceHandle RenderResourceLoader::loadMaterialAsync(MaterialPtr material)
-{/*
+{
   return m_resourceManager.loadResource([this, material = std::move(material)](ResourceId id) mutable {
     m_renderer.addMaterial(id, std::move(material));
 
@@ -67,11 +67,11 @@ ResourceHandle RenderResourceLoader::loadMaterialAsync(MaterialPtr material)
         m_renderer.removeMaterial(id);
       }
     };
-  });*/
+  });
 }
 
 ResourceHandle RenderResourceLoader::loadMeshAsync(MeshPtr mesh)
-{/*
+{
   return m_resourceManager.loadResource([this, mesh = std::move(mesh)](ResourceId id) mutable {
     m_renderer.addMesh(id, std::move(mesh));
 
@@ -81,7 +81,7 @@ ResourceHandle RenderResourceLoader::loadMeshAsync(MeshPtr mesh)
         m_renderer.removeMesh(id);
       }
     };
-  });*/
+  });
 }
 
 class Demo : public Game, private ResourceProvider
@@ -170,7 +170,7 @@ EntityId Demo::constructCube()
   auto mesh = render::cuboid(size[0], size[1], size[2], materialSize);
   mesh->featureSet = meshFeatures;
 
-  sysRender3d.renderer().compileShader(false, mesh->featureSet, materialFeatures);
+  sysRender3d.renderer().compileShader(false, meshFeatures, materialFeatures);
 
   auto model = std::make_unique<DModel>();
 
@@ -186,6 +186,8 @@ EntityId Demo::constructCube()
   );
 
   sysRender3d.addEntity(id, std::move(model));
+
+  return id;
 }
 
 EntityId Demo::constructLight()

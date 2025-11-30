@@ -251,20 +251,21 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
     for (auto& submodel : model.submodels) {
       if (filter(*submodel)) {
         if (model.isInstanced) {
-          m_renderer.drawInstance(submodel->mesh, submodel->meshFeatures, submodel->material,
-            submodel->materialFeatures, globalTransform);
+          m_renderer.drawInstance(submodel->mesh.id(), submodel->meshFeatures,
+            submodel->material.id(), submodel->materialFeatures, globalTransform);
         }
         else {
           if (submodel->jointTransformsDirty) {
-            m_renderer.drawModel(submodel->mesh, submodel->meshFeatures, submodel->material,
-              submodel->materialFeatures, white, globalTransform/* * submodel->mesh.transform*/,
-              submodel->jointTransforms);
+            m_renderer.drawModel(submodel->mesh.id(), submodel->meshFeatures,
+              submodel->material.id(), submodel->materialFeatures, white,
+              globalTransform/* * submodel->mesh.transform*/, submodel->jointTransforms);
 
             submodel->jointTransformsDirty = false;
           }
           else {
-            m_renderer.drawModel(submodel->mesh, submodel->meshFeatures, submodel->material,
-              submodel->materialFeatures, white, globalTransform /* * submodel->mesh.transform*/);
+            m_renderer.drawModel(submodel->mesh.id(), submodel->meshFeatures,
+              submodel->material.id(), submodel->materialFeatures, white,
+              globalTransform /* * submodel->mesh.transform*/);
           }
         }
       }
@@ -328,7 +329,7 @@ void SysRender3dImpl::doMainPass()
 
     if (light.submodels.size() > 0) {
       for (auto& submodel : light.submodels) {
-        m_renderer.drawModel(submodel->mesh, submodel->meshFeatures, submodel->material,
+        m_renderer.drawModel(submodel->mesh.id(), submodel->meshFeatures, submodel->material.id(),
           submodel->materialFeatures, white, transform);
       }
     }

@@ -66,7 +66,7 @@ void ResourceManagerImpl::unload(ResourceId id)
     return;
   }
 
-  m_thread.run<void>(unloadResource);
+  m_thread.run<void>(std::move(unloadResource));
 }
 
 // Main thread or worker thread
@@ -74,7 +74,7 @@ ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 {
   auto id = m_nextResourceId++;
 
-  auto loadResource = [this, id, loader = std::move(loader)]() {
+  auto loadResource = [this, id, loader = std::move(loader)]() mutable {
     m_logger.info(STR("Loading resource " << id));
     m_resources.insert({ id, loader(id) });
   };

@@ -645,7 +645,9 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
 
   auto node = std::make_unique<DefaultModelNode>();
   node->mesh = mesh;
+  node->meshFeatures = meshFeatures;
   node->material = material;
+  node->materialFeatures = materialFeatures;
   node->modelMatrix = transform;
   node->colour = colour;
   node->jointTransforms = jointTransforms;
@@ -685,7 +687,9 @@ void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFe
 
   auto node = std::make_unique<DynamicTextNode>();
   node->mesh = mesh;
+  node->meshFeatures = meshFeatures;
   node->material = material;
+  node->materialFeatures = materialFeatures;
   node->modelMatrix = transform;
   node->text = text;
   node->colour = colour;
@@ -709,7 +713,9 @@ void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeature
 
   auto node = std::make_unique<SkyboxNode>();
   node->mesh = mesh;
+  node->meshFeatures = meshFeatures;
   node->material = material;
+  node->materialFeatures = materialFeatures;
   node->scissorId = frameState.currentScissor;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,

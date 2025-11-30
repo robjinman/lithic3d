@@ -43,14 +43,14 @@ class EngineImpl : public Engine
     ResourceManager& resourceManager() override;
 
   private:
+    LoggerPtr m_logger;
+    ResourceManagerPtr m_resourceManager;
     render::RendererPtr m_renderer;
     AudioSystemPtr m_audioSystem;
     FileSystemPtr m_fileSystem;
-    LoggerPtr m_logger;
     EventSystemPtr m_eventSystem;
     EcsPtr m_ecs;
     ModelLoaderPtr m_modelLoader;
-    ResourceManagerPtr m_resourceManager;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
     Tick m_currentTick = 0;
     float m_measuredTickRate = 0.f;
@@ -66,6 +66,8 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   , m_fileSystem(std::move(fileSystem))
   , m_logger(std::move(logger))
 {
+  m_resourceManager = createResourceManager(*m_logger);
+
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
@@ -83,8 +85,6 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_ecs->addSystem(ANIMATION_2D_SYSTEM, std::move(sysAnimation2d));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
-
-  m_resourceManager = createResourceManager(*m_logger);
 
   m_modelLoader = createModelLoader(*m_resourceManager, *m_renderer, *m_fileSystem, *m_logger);
 

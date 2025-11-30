@@ -13,7 +13,7 @@ constexpr ResourceId NULL_RESOURCE_ID = -1;
 
 using ResourceUnloader = std::function<void(ResourceId)>;
 
-struct ResourceProvider : protected std::enable_shared_from_this<ResourceProvider>
+struct ResourceProvider : public std::enable_shared_from_this<ResourceProvider>
 {
   virtual ~ResourceProvider() = default;
 };
@@ -24,7 +24,7 @@ struct ManagedResource
   ResourceUnloader unloader;
 };
 
-using ResourceLoader = std::function<ManagedResource(ResourceId)>; //Functor<ManagedResource, ResourceId>;
+using ResourceLoader = Functor<ManagedResource, ResourceId>;
 
 class ResourceManager;
 
@@ -104,7 +104,7 @@ class [[nodiscard]] ResourceHandle
       m_resource.reset();
     }
 
-    operator bool() const
+    explicit operator bool() const
     {
       return !(m_id == NULL_RESOURCE_ID && m_resource == nullptr);
     }

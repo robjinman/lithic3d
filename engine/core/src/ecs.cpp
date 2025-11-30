@@ -39,6 +39,7 @@ class EcsImpl : public Ecs
 EcsImpl::EcsImpl(Logger& logger)
   : m_logger(logger)
 {
+  m_entityIdAllocator = createEntityIdAllocator(NULL_ENTITY_ID); // TODO
   m_componentStore = std::make_unique<ComponentStore>();
 }
 

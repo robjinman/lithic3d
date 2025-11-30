@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include "functor.hpp"
 #include <thread>
 #include <condition_variable>
 #include <mutex>
@@ -21,9 +21,9 @@ class Thread
     }
 
     template<typename T>
-    std::future<T> run(const std::function<T()>& task)
+    std::future<T> run(Functor<T>&& task)
     {
-      auto packagedTask = std::make_shared<std::packaged_task<T()>>(task);
+      auto packagedTask = std::make_shared<std::packaged_task<T()>>(std::move(task));
       std::future<T> future = packagedTask->get_future();
 
       {
@@ -67,7 +67,7 @@ class Thread
     void loop()
     {
       while (true) {
-        std::function<void()> task;
+        Functor<void> task;
 
         {
           std::unique_lock lock(m_mutex);
@@ -96,7 +96,7 @@ class Thread
     std::thread m_thread;
     bool m_running = true;
     bool m_hasWork = false;
-    std::queue<std::function<void()>> m_tasks;
+    std::queue<Functor<void>> m_tasks;
     mutable std::mutex m_mutex;
     mutable std::condition_variable m_conditionVariable;
 };
