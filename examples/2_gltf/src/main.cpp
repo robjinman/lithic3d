@@ -29,7 +29,7 @@ class Demo : public Game
   private:
     Engine& m_engine;
     FactoryPtr m_factory;
-    EntityId m_model = NULL_ENTITY;
+    EntityId m_model = NULL_ENTITY_ID;
 
     EntityId constructLight();
     EntityId constructModel();

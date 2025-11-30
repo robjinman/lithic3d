@@ -140,20 +140,20 @@ class RendererImpl : public Renderer
 
     // Resources
     //
-    ResourceId addTexture(TexturePtr texture) override;
-    ResourceId addNormalMap(TexturePtr texture) override;
-    ResourceId addCubeMap(std::array<TexturePtr, 6>&& textures) override;
+    void addTexture(ResourceId id, TexturePtr texture) override;
+    void addNormalMap(ResourceId id, TexturePtr texture) override;
+    void addCubeMap(ResourceId id, std::array<TexturePtr, 6>&& textures) override;
     void removeTexture(ResourceId id) override;
     void removeCubeMap(ResourceId id) override;
 
     // Meshes
     //
-    ResourceId addMesh(MeshPtr mesh) override;
+    void addMesh(ResourceId id, MeshPtr mesh) override;
     void removeMesh(ResourceId id) override;
 
     // Materials
     //
-    ResourceId addMaterial(MaterialPtr material) override;
+    void addMaterial(ResourceId id, MaterialPtr material) override;
     void removeMaterial(ResourceId id) override;
 
     // Per frame draw functions
@@ -366,8 +366,9 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
     createImageViews();
     createCommandPool();
     createBufferManager();
-    //m_resources = createRenderResources(*m_bufferManager, m_physicalDevice, m_device,
-    //  m_graphicsQueue, m_commandPool, m_logger);
+    // TODO: Construct on main thread?
+    m_resources = createRenderResources(*m_bufferManager, m_physicalDevice, m_device,
+      m_graphicsQueue, m_commandPool, m_logger);
     createDepthResources();
     createCommandBuffers();
     createSyncObjects();
@@ -1801,86 +1802,60 @@ void RendererImpl::createCommandBuffers()
     "Failed to allocate command buffers");
 }
 
-ResourceId RendererImpl::addTexture(TexturePtr texture)
+void RendererImpl::addTexture(ResourceId id, TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
-  //ASSERT(!m_running, "Renderer already started");
-  //return m_thread.run<RenderItemId>([&, this]() {
-    //return m_resources->addTexture(std::move(texture));
-  //}).get();
+  m_resources->addTexture(id, std::move(texture));
 }
 
-ResourceId RendererImpl::addNormalMap(TexturePtr texture)
+void RendererImpl::addNormalMap(ResourceId id, TexturePtr texture)
 {
   DBG_TRACE(m_logger);
 
-  //ASSERT(!m_running, "Renderer already started");
-  //return m_thread.run<RenderItemId>([&, this]() {
-    //return m_resources->addNormalMap(std::move(texture));
-  //}).get();
+  m_resources->addNormalMap(id, std::move(texture));
 }
 
-ResourceId RendererImpl::addCubeMap(std::array<TexturePtr, 6>&& textures)
+void RendererImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6>&& textures)
 {
   DBG_TRACE(m_logger);
 
-  //ASSERT(!m_running, "Renderer already started");
-  //return m_thread.run<RenderItemId>([&, this]() {
-    //return m_resources->addCubeMap(std::move(textures));
-  //}).get();
+  m_resources->addCubeMap(id, std::move(textures));
 }
 
-ResourceId RendererImpl::addMaterial(MaterialPtr material)
+void RendererImpl::addMaterial(ResourceId id, MaterialPtr material)
 {
   DBG_TRACE(m_logger);
 
-  //ASSERT(!m_running, "Renderer already started");
-  //return m_thread.run<MaterialHandle>([&, this]() {
-    return m_resources->addMaterial(std::move(material));
-  //}).get();
+  m_resources->addMaterial(id, std::move(material));
 }
 
-ResourceId RendererImpl::addMesh(MeshPtr mesh)
+void RendererImpl::addMesh(ResourceId id, MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
 
-  //ASSERT(!m_running, "Renderer is already running");
-
-  //return m_thread.run<MeshHandle>([&, this]() {
-    return m_resources->addMesh(std::move(mesh));
-  //}).get();
+  m_resources->addMesh(id, std::move(mesh));
 }
 
-void RendererImpl::removeMesh(ResourceId meshId)
+void RendererImpl::removeMesh(ResourceId id)
 {
   DBG_TRACE(m_logger);
 
-  //ASSERT(!m_running, "Renderer is already running");
-
-  //return m_thread.run<void>([&, this]() {
-    return m_resources->removeMesh(meshId);
-  //}).get();
+  m_resources->removeMesh(id);
 }
 
 void RendererImpl::removeTexture(ResourceId id)
 {
-  // TODO
-  //EXCEPTION("Not implemented");
   m_resources->removeTexture(id);
 }
 
 void RendererImpl::removeCubeMap(ResourceId id)
 {
-  // TODO
-  //EXCEPTION("Not implemented");
   m_resources->removeCubeMap(id);
 }
 
 void RendererImpl::removeMaterial(ResourceId id)
 {
-  // TODO
-  //EXCEPTION("Not implemented");
   m_resources->removeMaterial(id);
 }
 

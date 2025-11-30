@@ -1,5 +1,6 @@
 #pragma once
 
+#include "functor.hpp"
 #include <future>
 #include <memory>
 
@@ -23,7 +24,7 @@ struct ManagedResource
   ResourceUnloader unloader;
 };
 
-using ResourceLoader = std::function<ManagedResource(ResourceId)>;
+using ResourceLoader = std::function<ManagedResource(ResourceId)>; //Functor<ManagedResource, ResourceId>;
 
 class ResourceManager;
 
@@ -89,11 +90,12 @@ class [[nodiscard]] ResourceHandle
       return m_id < rhs.m_id;
     }
 
-    void wait() const
+    const ResourceHandle& wait() const
     {
       if (m_resource != nullptr) {
         m_resource->wait();
       }
+      return *this;
     }
 
     void reset()

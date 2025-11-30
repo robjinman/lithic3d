@@ -2,6 +2,7 @@
 
 #include "resource_manager.hpp"
 #include <filesystem>
+#include <map>
 
 namespace lithic3d
 {

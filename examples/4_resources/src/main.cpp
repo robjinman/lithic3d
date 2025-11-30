@@ -1,12 +1,90 @@
 #include <lithic3d/lithic3d.hpp>
 
+namespace fs = std::filesystem;
+
 using namespace lithic3d;
 using namespace lithic3d::render;
 
 namespace
 {
 
-class Demo : public Game
+struct MaterialDependencies
+{
+  ResourceHandle textureHandle;
+  ResourceHandle normalMapHandle;
+  ResourceHandle cubeMapHandle;
+};
+
+class RenderResourceLoader : private ResourceProvider
+{
+  public:
+    RenderResourceLoader(ResourceManager& resourceManager, FileSystem& fileSystem,
+      Renderer& renderer);
+
+    ResourceHandle loadTextureAsync(const fs::path& path);
+    ResourceHandle loadMaterialAsync(MaterialPtr material);
+    ResourceHandle loadMeshAsync(MeshPtr mesh);
+
+  private:
+    ResourceManager& m_resourceManager;
+    FileSystem& m_fileSystem;
+    Renderer& m_renderer;
+};
+
+RenderResourceLoader::RenderResourceLoader(ResourceManager& resourceManager, FileSystem& fileSystem,
+  Renderer& renderer)
+  : m_resourceManager(resourceManager)
+  , m_fileSystem(fileSystem)
+  , m_renderer(renderer)
+{}
+
+using RenderResourceLoaderPtr = std::unique_ptr<RenderResourceLoader>;
+
+ResourceHandle RenderResourceLoader::loadTextureAsync(const fs::path& path)
+{
+  return m_resourceManager.loadResource([this, path](ResourceId id) {
+    auto data = m_fileSystem.readAppDataFile(path);
+    auto texture = loadTexture(data);
+    m_renderer.addTexture(id, std::move(texture));
+
+    return ManagedResource{
+      .provider = weak_from_this(),
+      .unloader = [this](ResourceId id) {
+        m_renderer.removeTexture(id);
+      }
+    };
+  });
+}
+
+ResourceHandle RenderResourceLoader::loadMaterialAsync(MaterialPtr material)
+{/*
+  return m_resourceManager.loadResource([this, material = std::move(material)](ResourceId id) mutable {
+    m_renderer.addMaterial(id, std::move(material));
+
+    return ManagedResource{
+      .provider = weak_from_this(),
+      .unloader = [this](ResourceId id) {
+        m_renderer.removeMaterial(id);
+      }
+    };
+  });*/
+}
+
+ResourceHandle RenderResourceLoader::loadMeshAsync(MeshPtr mesh)
+{/*
+  return m_resourceManager.loadResource([this, mesh = std::move(mesh)](ResourceId id) mutable {
+    m_renderer.addMesh(id, std::move(mesh));
+
+    return ManagedResource{
+      .provider = weak_from_this(),
+      .unloader = [this](ResourceId id) {
+        m_renderer.removeMesh(id);
+      }
+    };
+  });*/
+}
+
+class Demo : public Game, private ResourceProvider
 {
   public:
     Demo(Engine& engine);
@@ -28,88 +106,92 @@ class Demo : public Game
 
   private:
     Engine& m_engine;
-    EntityId m_cube = NULL_ENTITY;
-    ResourceId m_cubeResourceId = NULL_RESOURCE_ID;
+    RenderResourceLoaderPtr m_renderResourceLoader;
+    EntityId m_light;
+    EntityId m_cube;
+    EntityId m_caption;
 
-    void constructLight();
-    void constructCube();
-    void constructCaption();
+    EntityId constructLight();
+    EntityId constructCube();
+    EntityId constructCaption();
     void rotateCube();
 };
 
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  constructLight();
-  constructCube();
-  constructCaption();
+  m_renderResourceLoader = std::make_unique<RenderResourceLoader>(m_engine.resourceManager(),
+    m_engine.fileSystem(), m_engine.renderer());
+
+  m_light = constructLight();
+  m_cube = constructCube();
+  //m_caption = constructCaption();
 
   m_engine.renderer().start(); // TODO: Move to engine?
 }
 
-void Demo::constructCube()
+EntityId Demo::constructCube()
 {
-  auto& resourceManager = m_engine.resourceManager();
-/*
-  Resource texture{
-    .id = resourceManager.nextResourceId(),
-    .loader = [this](const Resource&) {
-      auto texture = loadTexture(m_engine.fileSystem().readAppDataFile("textures/bricks.png"));
-      return m_engine.renderer().addTexture(std::move(texture));
-    },
-    .unloader = [this](ResourceId id) {
-      m_engine.renderer().removeTexture(id);
-    },
-    .dependencies = {}
+  MaterialFeatureSet materialFeatures{
+    .flags{
+      bitflag(MaterialFeatures::HasTexture)
+    }
+  };
+  auto material = std::make_unique<Material>(materialFeatures);
+  material->texture.handle = m_renderResourceLoader->loadTextureAsync("textures/bricks.png");
+
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
+
+  Vec3f size{ 1.f, 1.f, 1.f };
+  Vec2f materialSize{ 1.f, 1.f };
+
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+
+  DSpatial spatial{};
+  spatial.parent = sysSpatial.root();
+  spatial.aabb = {
+    .min = -size * 0.5f,
+    .max = size * 0.5f
   };
 
-  Resource material{
-    .id = resourceManager.nextResourceId(),
-    .loader = [this](const ResourceHandleList& deps) {
-      render::MaterialFeatureSet features{
-        .flags{
-          bitflag(render::MaterialFeatures::HasTexture)
-        }
-      };
-      auto material = std::make_unique<Material>(features);
-      material->texture.id = dynamic_cast<const TextureRHandle&>(deps[0].get()).handle;
-      auto handle = m_engine.renderer().addMaterial(std::move(material));
-      return std::make_unique<MaterialRHandle>(handle);
+  sysSpatial.addEntity(id, spatial);
+
+  MeshFeatureSet meshFeatures{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
     },
-    .unloader = [this](const ResourceHandle& h) {
-      m_engine.renderer().removeMaterial(dynamic_cast<const MaterialRHandle&>(h).handle.id);
-    },
-    .dependencies = { texture.id }
+    .flags{}
   };
 
-  Resource entity{
-    .id = resourceManager.nextResourceId(),
-    .loader = [this](const ResourceHandleList& deps) {
-      EntityId id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
+  auto mesh = render::cuboid(size[0], size[1], size[2], materialSize);
+  mesh->featureSet = meshFeatures;
 
-      auto material = dynamic_cast<const MaterialRHandle&>(deps[0].get()).handle;
-      m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f }, { 1.f, 1.f });
+  sysRender3d.renderer().compileShader(false, mesh->featureSet, materialFeatures);
 
-      return std::make_unique<EntityRHandle>(id);
-    },
-    .unloader = [this](const ResourceHandle& h) {
-      m_engine.ecs().removeEntity(dynamic_cast<const EntityRHandle&>(h).handle);
-    },
-    .dependencies = { material.id }
-  };
+  auto model = std::make_unique<DModel>();
 
-  resourceManager.addResource(texture);
-  resourceManager.addResource(material);
-  resourceManager.addResource(entity);
-  resourceManager.loadResources({ entity.id }).get();
+  model->submodels.push_back(
+    std::unique_ptr<Submodel>(new Submodel{
+      .mesh = m_renderResourceLoader->loadMeshAsync(std::move(mesh)).wait(), // TODO: Remove wait
+      .meshFeatures = meshFeatures,
+      .material = m_renderResourceLoader->loadMaterialAsync(std::move(material)).wait(), // TODO: Remove wait
+      .materialFeatures = materialFeatures,
+      .skin = nullptr,
+      .jointTransforms{}
+    })
+  );
 
-  m_cubeResourceId = entity.id;
-  m_cube = dynamic_cast<const EntityRHandle&>(resourceManager.getHandle(entity.id)).handle;*/
+  sysRender3d.addEntity(id, std::move(model));
 }
 
-void Demo::constructLight()
+EntityId Demo::constructLight()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
@@ -125,11 +207,14 @@ void Demo::constructLight()
   light->specular = 0.9f;
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
+
+  return id;
 }
 
-void Demo::constructCaption()
+EntityId Demo::constructCaption()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DText>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DText>(id);
 
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
@@ -141,7 +226,7 @@ void Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = 0,//m_factory->constructMaterial("textures/fonts.png"),
+    .material = 0,//m_renderResourceLoader->constructMaterial("textures/fonts.png"),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -154,25 +239,20 @@ void Demo::constructCaption()
   };
 
   m_engine.ecs().system<SysRender2d>().addEntity(id, render);
+
+  return id;
 }
 
 void Demo::onKeyDown(KeyboardKey key)
 {
   if (key == KeyboardKey::Space) {
-    if (m_cube != NULL_ENTITY) {
-      //m_engine.resourceManager().unloadResources({ m_cubeResourceId });
-      m_cube = NULL_ENTITY;
-    }
-    else {
-      //m_engine.resourceManager().loadResources({ m_cubeResourceId }).get();
-      //m_cube = dynamic_cast<const EntityRHandle&>(m_engine.resourceManager().getHandle(m_cubeResourceId)).handle;
-    }
+    // TODO
   }
 }
 
 void Demo::rotateCube()
 {
-  if (m_cube == NULL_ENTITY) {
+  if (m_cube == NULL_ENTITY_ID) {
     return;
   }
 

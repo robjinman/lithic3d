@@ -16,7 +16,7 @@ class SysUi : public System
     using GroupId = uint32_t;
 
     virtual void addEntity(EntityId id, const DUi& data) = 0;
-    virtual void setActiveGroup(GroupId id, EntityId focusedItem = NULL_ENTITY) = 0;
+    virtual void setActiveGroup(GroupId id, EntityId focusedItem = NULL_ENTITY_ID) = 0;
 
     virtual void sendInputEnd(EntityId id, UserInput input) = 0;
     virtual void sendInputCancel(EntityId id) = 0;
@@ -50,10 +50,10 @@ struct DUi
 
   bool canReceiveFocus = true;
   SysUi::GroupId group = 0;
-  EntityId topSlot = NULL_ENTITY;
-  EntityId rightSlot = NULL_ENTITY;
-  EntityId bottomSlot = NULL_ENTITY;
-  EntityId leftSlot = NULL_ENTITY;
+  EntityId topSlot = NULL_ENTITY_ID;
+  EntityId rightSlot = NULL_ENTITY_ID;
+  EntityId bottomSlot = NULL_ENTITY_ID;
+  EntityId leftSlot = NULL_ENTITY_ID;
   std::set<UserInput> inputFilter{};
   std::function<void()> onGainFocus = []() {};
   std::function<void()> onLoseFocus = []() {};

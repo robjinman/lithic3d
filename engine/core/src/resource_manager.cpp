@@ -76,7 +76,7 @@ ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 
   auto loadResource = [this, id, loader = std::move(loader)]() {
     m_logger.info(STR("Loading resource " << id));
-    m_resources.insert({ id, loader(id)});
+    m_resources.insert({ id, loader(id) });
   };
 
   // We're already on the worker thread. Just load the resource synchronously and return a dummy

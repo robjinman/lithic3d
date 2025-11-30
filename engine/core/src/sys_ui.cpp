@@ -12,7 +12,7 @@ namespace
 
 struct ItemGroup
 {
-  EntityId focusedItem = NULL_ENTITY;
+  EntityId focusedItem = NULL_ENTITY_ID;
   std::set<EntityId> items;
 };
 
@@ -154,7 +154,7 @@ void SysUiImpl::setActiveGroup(GroupId id, EntityId focusedItem)
 {
   if (m_activeGroup != 0) {
     auto& group = m_groups.at(m_activeGroup);
-    if (group.focusedItem != NULL_ENTITY) {
+    if (group.focusedItem != NULL_ENTITY_ID) {
       auto focused = group.focusedItem;
       sendUnfocus(group.focusedItem);
       group.focusedItem = focused;
@@ -166,10 +166,10 @@ void SysUiImpl::setActiveGroup(GroupId id, EntityId focusedItem)
   auto& group = m_groups.at(m_activeGroup);
   assert(!group.items.empty());
 
-  if (focusedItem != NULL_ENTITY) {
+  if (focusedItem != NULL_ENTITY_ID) {
     sendFocus(focusedItem);
   }
-  else if (group.focusedItem != NULL_ENTITY) {
+  else if (group.focusedItem != NULL_ENTITY_ID) {
     sendFocus(group.focusedItem);
   }
   else {
@@ -216,7 +216,7 @@ void SysUiImpl::sendUnfocus(EntityId id)
   if (compData.group != 0) {
     auto& group = m_groups.at(compData.group);
     if (group.focusedItem == id) {
-      group.focusedItem = NULL_ENTITY;
+      group.focusedItem = NULL_ENTITY_ID;
     }
   }
 
@@ -311,7 +311,7 @@ void SysUiImpl::processKeyPress(KeyboardKey key)
   }
 
   auto& group = m_groups.at(m_activeGroup);
-  if (group.focusedItem == NULL_ENTITY) {
+  if (group.focusedItem == NULL_ENTITY_ID) {
     return;
   }
 
@@ -328,7 +328,7 @@ void SysUiImpl::processKeyPress(KeyboardKey key)
       auto& currentItem = m_componentData.at(group.focusedItem);
       auto nextItemId = currentItem.slots[keyToSlotIndex(key)];
 
-      if (nextItemId != NULL_ENTITY) {
+      if (nextItemId != NULL_ENTITY_ID) {
         if (currentItem.primed) {
           sendInputCancel(group.focusedItem);
         }
@@ -342,7 +342,7 @@ void SysUiImpl::processKeyPress(KeyboardKey key)
       [[fallthrough]];
     }
     default: {
-      if (group.focusedItem != NULL_ENTITY) {
+      if (group.focusedItem != NULL_ENTITY_ID) {
         sendInputBegin(group.focusedItem, key);
       }
 
@@ -359,7 +359,7 @@ void SysUiImpl::processKeyRelease(KeyboardKey key)
 
   auto& group = m_groups.at(m_activeGroup);
 
-  if (group.focusedItem != NULL_ENTITY) {
+  if (group.focusedItem != NULL_ENTITY_ID) {
     sendInputEnd(group.focusedItem, key);
   }
 }

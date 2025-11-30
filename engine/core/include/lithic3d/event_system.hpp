@@ -1,8 +1,10 @@
 #pragma once
 
-#include "ecs.hpp"
+#include "entity_id.hpp"
+#include "strings.hpp"
+#include "units.hpp"
 #include <functional>
-#include <memory>
+#include <optional>
 
 namespace lithic3d
 {

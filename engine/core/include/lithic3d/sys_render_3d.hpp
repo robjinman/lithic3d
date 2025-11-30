@@ -56,9 +56,9 @@ using AnimationSetPtr = std::unique_ptr<AnimationSet>;
 
 struct Submodel
 {
-  ResourceId mesh;
+  ResourceHandle mesh;
   render::MeshFeatureSet meshFeatures;
-  ResourceId material;
+  ResourceHandle material;
   render::MaterialFeatureSet materialFeatures;
   SkinPtr skin;
 
@@ -67,30 +67,15 @@ struct Submodel
   std::vector<Mat4x4f> jointTransforms;
 };
 
+using SubmodelPtr = std::unique_ptr<Submodel>;
+
 struct DModel
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
-  DModel() {}
-
-  DModel(const DModel& cpy)
-  {
-    isInstanced = cpy.isInstanced;
-    animations = cpy.animations;
-    for (auto& m : cpy.submodels) {
-      submodels.push_back(Submodel{
-        .mesh = m.mesh,
-        .material = m.material,
-        .skin = m.skin == nullptr ? nullptr : std::make_unique<Skin>(*m.skin),
-        .jointTransformsDirty = false,
-        .jointTransforms{}
-      });
-    }
-  }
-
   bool isInstanced = false;
-  ResourceId animations = NULL_RESOURCE_ID;
-  std::vector<Submodel> submodels;
+  ResourceId animations = NULL_RESOURCE_ID; // TODO: Use ResourceHandle
+  std::vector<SubmodelPtr> submodels;
 };
 
 using DModelPtr = std::unique_ptr<DModel>;
@@ -99,7 +84,7 @@ struct DSkybox
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
-  Submodel model;
+  SubmodelPtr model;
 };
 
 using DSkyboxPtr = std::unique_ptr<DSkybox>;
@@ -108,7 +93,7 @@ struct DLight
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
-  std::vector<Submodel> submodels;
+  std::vector<SubmodelPtr> submodels;
   Vec3f colour;
   float ambient = 0.f;
   float specular = 0.f;

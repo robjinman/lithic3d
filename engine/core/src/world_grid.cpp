@@ -108,7 +108,7 @@ void WorldGridImpl::doUpdate(int cellX, int cellY)
 
 } // namespace
 
-WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, const WorldLoader& worldLoader)
+WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, WorldLoader& worldLoader)
 {
   return std::make_unique<WorldGridImpl>(options, worldLoader);
 }

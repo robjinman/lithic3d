@@ -88,11 +88,11 @@ class GpuImage;
 class RenderResources
 {
   public:
-    // Resources
+    // Textures
     //
-    virtual ResourceId addTexture(const std::filesystem::path& filePath) = 0;
-    virtual ResourceId addNormalMap(const std::filesystem::path& filePath) = 0;
-    virtual ResourceId addCubeMap(std::array<std::filesystem::path, 6> texturePaths) = 0;
+    virtual void addTexture(ResourceId id, TexturePtr texture) = 0;
+    virtual void addNormalMap(ResourceId id, TexturePtr texture) = 0;
+    virtual void addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures) = 0;
     virtual void removeTexture(ResourceId id) = 0;
     virtual void removeCubeMap(ResourceId id) = 0;
 
@@ -107,7 +107,7 @@ class RenderResources
 
     // Meshes
     //
-    virtual ResourceId addMesh(MeshPtr mesh) = 0;
+    virtual void addMesh(ResourceId id, MeshPtr mesh) = 0;
     virtual void removeMesh(ResourceId id) = 0;
     virtual void updateJointTransforms(ResourceId meshId, const std::vector<Mat4x4f>& joints,
       size_t currentFrame) = 0;
@@ -117,7 +117,7 @@ class RenderResources
 
     // Materials
     //
-    virtual ResourceId addMaterial(MaterialPtr material) = 0;
+    virtual void addMaterial(ResourceId id, MaterialPtr material) = 0;
     virtual void removeMaterial(ResourceId id) = 0;
     virtual const MaterialFeatureSet& getMaterialFeatures(ResourceId id) const = 0;
 
@@ -144,9 +144,9 @@ using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
 class GpuBufferManager;
 
-RenderResourcesPtr createRenderResources(FileSystem& fileSystem, ResourceManager& resourceManager,
-  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
+RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
+  VkCommandPool commandPool, Logger& logger);
 
 } // namespace render
 } // namespace lithic3d

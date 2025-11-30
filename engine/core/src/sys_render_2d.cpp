@@ -286,7 +286,8 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
-  m_mesh = m_renderer.addMesh(quad());
+  // TODO: Use a factory to create this
+  //m_mesh = m_renderer.addMesh(quad());
 }
 
 render::Renderer& SysRender2dImpl::renderer()

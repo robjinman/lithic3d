@@ -58,21 +58,21 @@ class Renderer
 
     // Textures
     //
-    virtual ResourceId addTexture(TexturePtr texture) = 0;
-    virtual ResourceId addNormalMap(TexturePtr texture) = 0;
-    virtual ResourceId addCubeMap(std::array<TexturePtr, 6>&& textures) = 0;
+    virtual void addTexture(ResourceId id, TexturePtr texture) = 0;
+    virtual void addNormalMap(ResourceId id, TexturePtr texture) = 0;
+    virtual void addCubeMap(ResourceId id, std::array<TexturePtr, 6>&& textures) = 0;
 
     virtual void removeTexture(ResourceId id) = 0;
     virtual void removeCubeMap(ResourceId id) = 0;
 
     // Meshes
     //
-    virtual ResourceId addMesh(MeshPtr mesh) = 0;
+    virtual void addMesh(ResourceId id, MeshPtr mesh) = 0;
     virtual void removeMesh(ResourceId id) = 0;
 
     // Materials
     //
-    virtual ResourceId addMaterial(MaterialPtr material) = 0;
+    virtual void addMaterial(ResourceId id, MaterialPtr material) = 0;
     virtual void removeMaterial(ResourceId id) = 0;
 
     // Fonts

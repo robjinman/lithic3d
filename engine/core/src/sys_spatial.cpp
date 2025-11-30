@@ -12,7 +12,7 @@ namespace
 class SysSpatialImpl : public SysSpatial
 {
   public:
-    SysSpatialImpl(ComponentStore& componentStore, EventSystem& eventSystem);
+    SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -29,20 +29,21 @@ class SysSpatialImpl : public SysSpatial
     void setEnabled(EntityId entityId, bool enabled) override;
 
   private:
-    ComponentStore& m_componentStore;
+    Ecs& m_ecs;
     EventSystem& m_eventSystem;
-    GraphPtr<EntityId, NULL_ENTITY> m_sceneGraph;
+    GraphPtr<EntityId, NULL_ENTITY_ID> m_sceneGraph;
     SpatialContainerPtr m_spatialContainer;
 
     void updateBoundingBox(EntityId entityId, const Mat4x4f& m);
 };
 
-SysSpatialImpl::SysSpatialImpl(ComponentStore& componentStore, EventSystem& eventSystem)
-  : m_componentStore(componentStore)
+SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem)
+  : m_ecs(ecs)
   , m_eventSystem(eventSystem)
 {
-  EntityId root = m_componentStore.allocate<DSpatial>();
-  m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY>>(root);
+  EntityId root = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial>(id);
+  m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
   m_spatialContainer = createSpatialContainer();
 }
 
@@ -58,15 +59,15 @@ EntityId SysSpatialImpl::root() const
 
 void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
-  auto& parentFlags = m_componentStore.component<CSpatialFlags>(data.parent);
+  auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(data.parent);
 
   m_sceneGraph->addItem(entityId, data.parent);
-  m_componentStore.component<CLocalTransform>(entityId).transform = data.transform;
-  m_componentStore.component<CSpatialFlags>(entityId) = CSpatialFlags{
+  m_ecs.componentStore().component<CLocalTransform>(entityId).transform = data.transform;
+  m_ecs.componentStore().component<CSpatialFlags>(entityId) = CSpatialFlags{
     .enabled = data.enabled,
     .parentEnabled = parentFlags.parentEnabled && parentFlags.enabled
   };
-  m_componentStore.component<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
+  m_ecs.componentStore().component<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
 }
 
 void SysSpatialImpl::removeEntity(EntityId entityId)
@@ -82,19 +83,19 @@ bool SysSpatialImpl::hasEntity(EntityId entityId) const
 
 void SysSpatialImpl::transformEntity(EntityId id, const Mat4x4f& m)
 {
-  auto& c = m_componentStore.component<CLocalTransform>(id);
+  auto& c = m_ecs.componentStore().component<CLocalTransform>(id);
   c.transform = m * c.transform;
 }
 
 void SysSpatialImpl::setEntityTransform(EntityId id, const Mat4x4f& m)
 {
-  auto& c = m_componentStore.component<CLocalTransform>(id);
+  auto& c = m_ecs.componentStore().component<CLocalTransform>(id);
   c.transform = m;
 }
 
 void SysSpatialImpl::updateBoundingBox(EntityId entityId, const Mat4x4f& m)
 {
-  auto& box = m_componentStore.component<CBoundingBox>(entityId);
+  auto& box = m_ecs.componentStore().component<CBoundingBox>(entityId);
 
   Vec3f d = box.modelSpaceAabb.max - box.modelSpaceAabb.min;
   std::array<Vec3f, 8> points;
@@ -142,7 +143,7 @@ void SysSpatialImpl::update(Tick, const InputState&)
   Mat4x4f I = identityMatrix<4>();
 
   Mat4x4f* parentT = &I;
-  EntityId prevParentId = NULL_ENTITY;
+  EntityId prevParentId = NULL_ENTITY_ID;
 
   // Skip the root
   for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
@@ -150,13 +151,13 @@ void SysSpatialImpl::update(Tick, const InputState&)
     auto parentId = m_sceneGraph->parents[i];
 
     if (parentId != prevParentId) {
-      parentT = &m_componentStore.component<CGlobalTransform>(parentId).transform;
+      parentT = &m_ecs.componentStore().component<CGlobalTransform>(parentId).transform;
       prevParentId = parentId;
     }
 
     // TODO: Possibly slow std::map lookups, negates benefit of compact buffer
-    auto& localT = m_componentStore.component<CLocalTransform>(entityId);
-    auto& globalT = m_componentStore.component<CGlobalTransform>(entityId);
+    auto& localT = m_ecs.componentStore().component<CLocalTransform>(entityId);
+    auto& globalT = m_ecs.componentStore().component<CGlobalTransform>(entityId);
 
     // TODO: Skip if entity is static or local transform is non-dirty
 
@@ -169,7 +170,7 @@ void SysSpatialImpl::update(Tick, const InputState&)
 void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 {
   auto& node = *m_sceneGraph->nodes.at(entityId);
-  auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(entityId);
 
   if (flags.enabled == enabled) {
     return;
@@ -186,12 +187,12 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
     auto parentId = m_sceneGraph->parents[i];
 
     if (parentId != prevParentId) {
-      auto& parentFlags = m_componentStore.component<CSpatialFlags>(parentId);
+      auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(parentId);
       parentEnabled = parentFlags.parentEnabled && parentFlags.enabled;
       prevParentId = parentId;
     }
 
-    auto& descendentFlags = m_componentStore.component<CSpatialFlags>(entityId);
+    auto& descendentFlags = m_ecs.componentStore().component<CSpatialFlags>(entityId);
     descendentFlags.parentEnabled = parentEnabled;
   }
 
@@ -202,9 +203,9 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 
 } // namespace
 
-SysSpatialPtr createSysSpatial(ComponentStore& componentStore, EventSystem& eventSystem)
+SysSpatialPtr createSysSpatial(Ecs& ecs, EventSystem& eventSystem)
 {
-  return std::make_unique<SysSpatialImpl>(componentStore, eventSystem);
+  return std::make_unique<SysSpatialImpl>(ecs, eventSystem);
 }
 
 } // namespace lithic3d

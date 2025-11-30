@@ -105,11 +105,10 @@ void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
 
 } // namespace
 
-WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, TerrainBuilder& terrainBuilder,
-  EntityFactory& entityFactory, ResourceManager& resourceManager)
+WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, EntityFactory& entityFactory,
+  ResourceManager& resourceManager)
 {
-  return std::make_unique<WorldLoaderImpl>(fileSystem, terrainBuilder, entityFactory,
-    resourceManager);
+  return std::make_unique<WorldLoaderImpl>(fileSystem, entityFactory, resourceManager);
 }
 
 } // namespace lithic3d

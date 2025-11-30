@@ -27,6 +27,7 @@ using ProductActivationPtr = std::unique_ptr<ProductActivation>;
 class Drm;
 namespace render { struct BitmapFont; }
 class Logger;
+class Ecs;
 
 ProductActivationPtr createProductActivation(Ecs& ecs, EventSystem& eventSystem, Drm& drm,
   const render::BitmapFont& font, Logger& logger);

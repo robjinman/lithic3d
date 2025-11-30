@@ -72,7 +72,7 @@ struct DSpatial
   >;
 
   Mat4x4f transform = identityMatrix<4>();
-  EntityId parent = NULL_ENTITY;
+  EntityId parent = NULL_ENTITY_ID;
   bool enabled = true;
   Aabb aabb; // Model-space bounding box
 };
@@ -96,6 +96,6 @@ class SysSpatial : public System
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;
 
-SysSpatialPtr createSysSpatial(ComponentStore& componentStore, EventSystem& eventSystem);
+SysSpatialPtr createSysSpatial(Ecs& ecs, EventSystem& eventSystem);
 
 } // namespace lithic3d

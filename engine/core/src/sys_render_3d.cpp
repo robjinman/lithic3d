@@ -236,7 +236,7 @@ void SysRender3dImpl::drawSkybox()
 
 void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   const std::function<bool(const Submodel&)>& filter)
-{/*
+{
   const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Submodel colour?
 
   for (EntityId id : entities) {
@@ -249,24 +249,27 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
     auto& globalTransform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
 
     for (auto& submodel : model.submodels) {
-      if (filter(submodel)) {
+      if (filter(*submodel)) {
         if (model.isInstanced) {
-          m_renderer.drawInstance(submodel.mesh, submodel.material, globalTransform);
+          m_renderer.drawInstance(submodel->mesh, submodel->meshFeatures, submodel->material,
+            submodel->materialFeatures, globalTransform);
         }
         else {
-          if (submodel.jointTransformsDirty) {
-            m_renderer.drawModel(submodel.mesh, submodel.material, white,
-              globalTransform * submodel.mesh.transform, submodel.jointTransforms);
-            submodel.jointTransformsDirty = false;
+          if (submodel->jointTransformsDirty) {
+            m_renderer.drawModel(submodel->mesh, submodel->meshFeatures, submodel->material,
+              submodel->materialFeatures, white, globalTransform/* * submodel->mesh.transform*/,
+              submodel->jointTransforms);
+
+            submodel->jointTransformsDirty = false;
           }
           else {
-            m_renderer.drawModel(submodel.mesh, submodel.material, white,
-              globalTransform * submodel.mesh.transform);
+            m_renderer.drawModel(submodel->mesh, submodel->meshFeatures, submodel->material,
+              submodel->materialFeatures, white, globalTransform /* * submodel->mesh.transform*/);
           }
         }
       }
     }
-  }*/
+  }
 }
 
 void SysRender3dImpl::doShadowPass()
@@ -293,9 +296,9 @@ void SysRender3dImpl::doShadowPass()
 
   m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
 
-  //drawModels(visible, [](const Submodel& x) {
-  //  return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
-  //});
+  drawModels(visible, [](const Submodel& x) {
+    return x.meshFeatures.flags.test(MeshFeatures::CastsShadow);
+  });
 
   m_renderer.endPass();
 }
@@ -325,7 +328,8 @@ void SysRender3dImpl::doMainPass()
 
     if (light.submodels.size() > 0) {
       for (auto& submodel : light.submodels) {
-        //m_renderer.drawModel(submodel.mesh, submodel.material, white, transform);
+        m_renderer.drawModel(submodel->mesh, submodel->meshFeatures, submodel->material,
+          submodel->materialFeatures, white, transform);
       }
     }
   }
@@ -504,8 +508,9 @@ void SysRender3dImpl::updateAnimations()
 
     for (auto& submodel : model.submodels) {
       auto& skeleton = *animationSet.skeleton;
-      submodel.jointTransforms = computeJointTransforms(skeleton, *submodel.skin, animation, state);
-      submodel.jointTransformsDirty = true;
+      submodel->jointTransforms = computeJointTransforms(skeleton, *submodel->skin, animation,
+        state);
+      submodel->jointTransformsDirty = true;
     }
 
     if (state.finished()) {

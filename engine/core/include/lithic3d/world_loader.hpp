@@ -27,10 +27,9 @@ class WorldLoader
 using WorldLoaderPtr = std::unique_ptr<WorldLoader>;
 
 class FileSystem;
-class TerrainBuilder;
 class EntityFactory;
 
-WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, TerrainBuilder& terrainBuilder,
-  EntityFactory& entityFactory, ResourceManager& resourceManager);
+WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, EntityFactory& entityFactory,
+  ResourceManager& resourceManager);
 
 } // namespace lithic3d

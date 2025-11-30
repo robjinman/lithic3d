@@ -3,22 +3,20 @@
 
 #pragma once
 
+#include "entity_id.hpp"
+#include "exception.hpp"
 #include <vector>
 #include <unordered_map>
 #include <map> // TODO
 #include <cassert>
 #include <stdexcept>
-#include <memory>
 #include <span>
 #include <concepts>
 
 namespace lithic3d
 {
 
-using EntityId = size_t;
 using ComponentType = uint64_t;
-
-const EntityId NULL_ENTITY = 0;
 
 template<typename... Ts>
 struct type_list {};
@@ -344,33 +342,26 @@ class ComponentStore
     };
 
     template<typename... Ts>
-    EntityId allocateEntity()
+    void allocateEntity(EntityId entityId)
     {
-      EntityId entityId = getNextId();
-
       Archetype archetype = (Ts::TypeId | ...);
+
+      ASSERT(!m_archetypes.contains(entityId), "Entity ID " << entityId << " already taken");
 
       m_groups[archetype].allocate<Ts...>(entityId);
       m_archetypes[entityId] = archetype;
-
-      return entityId;
     }
 
     template<typename... Ts>
-    EntityId allocateEntity(type_list<Ts...>)
+    void allocateEntity(EntityId entityId, type_list<Ts...>)
     {
-      return allocateEntity<Ts...>();
+      allocateEntity<Ts...>(entityId);
     }
 
     template<DeclaresRequiredComponents... Ts>
-    EntityId allocate()
+    void allocate(EntityId entityId)
     {
-      return allocateEntity(extract_components<Ts...>{});
-    }
-
-    EntityId getNextId()
-    {
-      return m_nextId++;
+      allocateEntity(entityId, extract_components<Ts...>{});
     }
 
     template<typename... Ts>
@@ -438,7 +429,6 @@ class ComponentStore
     }
 
   private:
-    EntityId m_nextId = 1;
     GroupMap m_groups;
     std::map<EntityId, Archetype> m_archetypes;
 };

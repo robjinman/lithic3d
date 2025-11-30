@@ -9,7 +9,7 @@
 #include <array>
 #include <cstring>
 #include <cassert>
-/*
+
 namespace lithic3d
 {
 namespace render
@@ -93,9 +93,8 @@ enum class ObjectDescriptorSetBindings : uint32_t
 class RenderResourcesImpl : public RenderResources
 {
   public:
-    RenderResourcesImpl(ResourceManager& resourceManager, GpuBufferManager& bufferManager,
-      VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-      VkCommandPool commandPool, Logger& logger);
+    RenderResourcesImpl(GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice,
+      VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
 
     // Descriptor sets
     //
@@ -108,15 +107,15 @@ class RenderResourcesImpl : public RenderResources
 
     // Resources
     //
-    ResourceId addTexture(TexturePtr texture) override;
-    ResourceId addNormalMap(TexturePtr texture) override;
-    ResourceId addCubeMap(std::array<TexturePtr, 6> textures) override;
+    void addTexture(ResourceId id, TexturePtr texture) override;
+    void addNormalMap(ResourceId id, TexturePtr texture) override;
+    void addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures) override;
     void removeTexture(ResourceId id) override;
     void removeCubeMap(ResourceId id) override;
 
     // Meshes
     //
-    ResourceId addMesh(MeshPtr mesh) override;
+    void addMesh(ResourceId id, MeshPtr mesh) override;
     void removeMesh(ResourceId id) override;
     void updateJointTransforms(ResourceId meshId, const std::vector<Mat4x4f>& joints,
       size_t currentFrame) override;
@@ -126,7 +125,7 @@ class RenderResourcesImpl : public RenderResources
 
     // Materials
     //
-    ResourceId addMaterial(MaterialPtr material) override;
+    void addMaterial(ResourceId id, MaterialPtr material) override;
     void removeMaterial(ResourceId id) override;
     const MaterialFeatureSet& getMaterialFeatures(ResourceId id) const override;
 
@@ -155,7 +154,7 @@ class RenderResourcesImpl : public RenderResources
     std::map<ResourceId, MaterialDataPtr> m_materials;
 
     Logger& m_logger;
-    ResourceManager& m_resourceManager;
+    //ResourceManager& m_resourceManager;
     GpuBufferManager& m_bufferManager;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
@@ -207,11 +206,10 @@ class RenderResourcesImpl : public RenderResources
     //void createShadowPassDescriptorSet();
 };
 
-RenderResourcesImpl::RenderResourcesImpl(ResourceManager& resourceManager,
-  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
+  VkCommandPool commandPool, Logger& logger)
   : m_logger(logger)
-  , m_resourceManager(resourceManager)
   , m_bufferManager(bufferManager)
   , m_physicalDevice(physicalDevice)
   , m_device(device)
@@ -232,22 +230,10 @@ RenderResourcesImpl::RenderResourcesImpl(ResourceManager& resourceManager,
   createObjectDescriptorSetLayout();
 }
 
-ResourceId RenderResourcesImpl::addTexture(TexturePtr texture)
+void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
 {
-  auto id = m_resourceManager.nextResourceId();
+  // TODO: Ensure thread-safe
 
-  m_resourceManager.addResource(Resource{
-    .id = id,
-    .loader = [=, texture = std::move(texture)]() { loadTexture(id, texture); },
-    .unloader = [=]() { unloadTexture(id); },
-    .dependencies = {}
-  });
-
-  return id;
-}
-
-void RenderResourcesImpl::loadTexture(ResourceId id, TexturePtr texture)
-{
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createTexture(*texture);
   //textureData->texture = std::move(texture);
@@ -255,32 +241,32 @@ void RenderResourcesImpl::loadTexture(ResourceId id, TexturePtr texture)
   m_textures[id] = std::move(textureData);
 }
 
-RenderItemId RenderResourcesImpl::addNormalMap(TexturePtr texture)
+void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture)
 {
+  // TODO: Ensure thread-safe
+
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createNormalMap(*texture);
   //textureData->texture = std::move(texture);
 
-  auto textureId = m_nextTextureId++;
-  m_textures[textureId] = std::move(textureData);
-
-  return textureId;
+  m_textures[id] = std::move(textureData);
 }
 
-RenderItemId RenderResourcesImpl::addCubeMap(std::array<TexturePtr, 6> textures)
+void RenderResourcesImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures)
 {
+  // TODO: Ensure thread-safe
+
   auto cubeMapData = std::make_unique<CubeMapData>();
   cubeMapData->image = m_bufferManager.createCubeMap(textures);
   cubeMapData->textures = std::move(textures);
 
-  auto cubeMapId = m_nextCubeMapId++;
-  m_cubeMaps[cubeMapId] = std::move(cubeMapData);
-
-  return cubeMapId;
+  m_cubeMaps[id] = std::move(cubeMapData);
 }
 
-void RenderResourcesImpl::removeTexture(RenderItemId id)
+void RenderResourcesImpl::removeTexture(ResourceId id)
 {
+  // TODO: Ensure thread-safe
+
   auto i = m_textures.find(id);
   if (i == m_textures.end()) {
     return;
@@ -289,8 +275,10 @@ void RenderResourcesImpl::removeTexture(RenderItemId id)
   m_textures.erase(i);
 }
 
-void RenderResourcesImpl::removeCubeMap(RenderItemId id)
+void RenderResourcesImpl::removeCubeMap(ResourceId id)
 {
+  // TODO: Ensure thread-safe
+
   auto i = m_cubeMaps.find(id);
   if (i == m_cubeMaps.end()) {
     return;
@@ -299,13 +287,9 @@ void RenderResourcesImpl::removeCubeMap(RenderItemId id)
   m_cubeMaps.erase(i);
 }
 
-MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
+void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
 {
-  static RenderItemId nextMeshId = 1;
-
-  MeshHandle handle;
-  handle.transform = mesh->transform;
-  handle.features = mesh->featureSet;
+  // TODO: Ensure thread-safe
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
@@ -365,14 +349,13 @@ MeshHandle RenderResourcesImpl::addMesh(MeshPtr mesh)
     }
   }
 
-  handle.id = nextMeshId++;
-  m_meshes[handle.id] = std::move(data);
-
-  return handle;
+  m_meshes[id] = std::move(data);
 }
 
-void RenderResourcesImpl::removeMesh(RenderItemId id)
+void RenderResourcesImpl::removeMesh(ResourceId id)
 {
+  // TODO: Ensure thread-safe
+
   auto i = m_meshes.find(id);
   if (i == m_meshes.end()) {
     return;
@@ -380,8 +363,10 @@ void RenderResourcesImpl::removeMesh(RenderItemId id)
   m_meshes.erase(i);
 }
 
-MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
+MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
 {
+  // TODO: Ensure thread-safe
+
   auto& mesh = m_meshes.at(id);
 
   return {
@@ -397,7 +382,7 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(RenderItemId id) const
 }
 
 // TODO: This is far too slow
-void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
+void RenderResourcesImpl::updateMeshInstances(ResourceId id,
   const std::vector<MeshInstance>& instances)
 {
   DBG_TRACE(m_logger);
@@ -412,7 +397,7 @@ void RenderResourcesImpl::updateMeshInstances(RenderItemId id,
     reinterpret_cast<const char*>(instances.data()), instances.size());
 }
 
-void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vector<Mat4x4f>& joints,
+void RenderResourcesImpl::updateJointTransforms(ResourceId id, const std::vector<Mat4x4f>& joints,
   size_t currentFrame)
 {
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
@@ -422,8 +407,10 @@ void RenderResourcesImpl::updateJointTransforms(RenderItemId id, const std::vect
     reinterpret_cast<const char*>(joints.data()), joints.size() * sizeof(Mat4x4f));
 }
 
-const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(RenderItemId id) const
+const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(ResourceId id) const
 {
+  // TODO: Ensure thread-safe
+
   return m_meshes.at(id)->mesh->featureSet;
 }
 
@@ -452,12 +439,9 @@ void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSe
   vkUpdateDescriptorSets(m_device, 1, &samplerDescriptorWrite, 0, nullptr);
 }
 
-MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
+void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
 {
-  static RenderItemId nextMaterialId = 1;
-
-  MaterialHandle handle;
-  handle.features = material->featureSet;
+  // TODO: Ensure thread-safe
 
   auto materialData = std::make_unique<MaterialData>();
 
@@ -506,30 +490,29 @@ MaterialHandle RenderResourcesImpl::addMaterial(MaterialPtr material)
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
-    VkImageView imageView = m_textures.at(material->texture.id)->image->vkImageView();
+    VkImageView imageView = m_textures.at(material->texture.handle.id())->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
   }
   if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
-    VkImageView imageView = m_textures.at(material->normalMap.id)->image->vkImageView();
+    VkImageView imageView = m_textures.at(material->normalMap.handle.id())->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
   }
   if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
-    VkImageView imageView = m_cubeMaps.at(material->cubeMap.id)->image->vkImageView();
+    VkImageView imageView = m_cubeMaps.at(material->cubeMap.handle.id())->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
   }
 
-  handle.id = nextMaterialId++;
   materialData->material = std::move(material);
-  m_materials[handle.id] = std::move(materialData);
-
-  return handle;
+  m_materials[id] = std::move(materialData);
 }
 
-void RenderResourcesImpl::removeMaterial(RenderItemId id)
+void RenderResourcesImpl::removeMaterial(ResourceId id)
 {
+  // TODO: Ensure thread-safe
+
   auto i = m_materials.find(id);
   if (i == m_materials.end()) {
     return;
@@ -538,12 +521,12 @@ void RenderResourcesImpl::removeMaterial(RenderItemId id)
   m_materials.erase(i);
 }
 
-VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(RenderItemId id) const
+VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(ResourceId id) const
 {
-  return id == NULL_ID ? VK_NULL_HANDLE : m_materials.at(id)->descriptorSet;
+  return id == NULL_RESOURCE_ID ? VK_NULL_HANDLE : m_materials.at(id)->descriptorSet;
 }
 
-VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(RenderItemId id,
+VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(ResourceId id,
   size_t currentFrame) const
 {
   // TODO: Currently assume object is a mesh
@@ -553,7 +536,7 @@ VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(RenderItemId id,
     VK_NULL_HANDLE;
 }
 
-const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(RenderItemId id) const
+const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(ResourceId id) const
 {
   return m_materials.at(id)->material->featureSet;
 }
@@ -1178,14 +1161,13 @@ RenderResourcesImpl::~RenderResourcesImpl()
 
 } // namespace
 
-RenderResourcesPtr createRenderResources(ResourceManager& resourceManager,
-  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
-  VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger)
+RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
+  VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(resourceManager, bufferManager, physicalDevice,
-    device, graphicsQueue, commandPool, logger);
+  return std::make_unique<RenderResourcesImpl>(bufferManager, physicalDevice, device, graphicsQueue,
+    commandPool, logger);
 }
 
 } // namespace render
 } // namespace lithic3d
-*/

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ecs.hpp"
+#include "entity_id.hpp"
 #include "event_system.hpp"
 
 namespace lithic3d

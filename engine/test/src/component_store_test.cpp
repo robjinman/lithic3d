@@ -35,7 +35,7 @@ class ExampleSystem
     ExampleSystem(ComponentStore& componentStore)
       : m_componentStore(componentStore) {}
 
-    void addEntity(EntityId id, const CExample& data)
+    void addEntity(ResourceId id, const CExample& data)
     {
       m_componentStore.component<CExampleData>(id) = CExampleData{
         .a = data.a + data.c,
@@ -62,10 +62,12 @@ class ExampleSystem
 TEST_F(EcsTest, store_and_retrieve_single_component)
 {
   ComponentStore componentStore;
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
 
   ExampleSystem system{componentStore};
 
-  auto entityId = componentStore.allocateEntity<CExampleView>();
+  auto entityId = idGen->getNewEntityId();
+  componentStore.allocateEntity<CExampleView>(entityId);
 
   CExample example{
     .a = 1,
@@ -128,6 +130,7 @@ struct ComponentD
 
 TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
   ComponentA componentA{
@@ -141,7 +144,8 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
     .c = 3.0
   };
 
-  auto entityId = componentStore.allocateEntity<ComponentA, ComponentB>();
+  auto entityId = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA, ComponentB>(entityId);
   componentStore.component<ComponentA>(entityId) = componentA;
   componentStore.component<ComponentB>(entityId) = componentB;
 
@@ -169,6 +173,7 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
 
 TEST_F(EcsTest, store_2_entities_with_single_component)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
   ComponentA entity1ComponentA{
@@ -181,8 +186,10 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
     .b = 4.f,
   };
 
-  auto entity1 = componentStore.allocateEntity<ComponentA>();
-  auto entity2 = componentStore.allocateEntity<ComponentA>();
+  auto entity1 = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA>(entity1);
+  auto entity2 = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA>(entity2);
 
   componentStore.component<ComponentA>(entity1) = entity1ComponentA;
   componentStore.component<ComponentA>(entity2) = entity2ComponentA;
@@ -213,6 +220,7 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
 
 TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
   ComponentA entity1ComponentA{
@@ -231,8 +239,10 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
     .c = 7.0
   };
 
-  auto entity1 = componentStore.allocateEntity<ComponentA>();
-  auto entity2 = componentStore.allocateEntity<ComponentA, ComponentB>();
+  auto entity1 = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA>(entity1);
+  auto entity2 = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA, ComponentB>(entity2);
 
   componentStore.component<ComponentA>(entity1) = entity1ComponentA;
   componentStore.component<ComponentA>(entity2) = entity2ComponentA;
@@ -282,6 +292,7 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
 
 TEST_F(EcsTest, get_entity_by_id)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
   ComponentA entity1ComponentA{
@@ -300,8 +311,10 @@ TEST_F(EcsTest, get_entity_by_id)
     .c = 7.0
   };
 
-  auto entity1 = componentStore.allocateEntity<ComponentA>();
-  auto entity2 = componentStore.allocateEntity<ComponentA, ComponentB>();
+  auto entity1 = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA>(entity1);
+  auto entity2 = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA, ComponentB>(entity2);
 
   componentStore.component<ComponentA>(entity1) = entity1ComponentA;
   componentStore.component<ComponentA>(entity2) = entity2ComponentA;
@@ -314,6 +327,7 @@ TEST_F(EcsTest, get_entity_by_id)
 
 TEST_F(EcsTest, remove_only_entity)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
   ComponentA componentA{
@@ -327,7 +341,8 @@ TEST_F(EcsTest, remove_only_entity)
     .c = 3.0
   };
 
-  auto entityId = componentStore.allocateEntity<ComponentA, ComponentB>();
+  auto entityId = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA, ComponentB>(entityId);
 
   componentStore.component<ComponentA>(entityId) = componentA;
   componentStore.component<ComponentB>(entityId) = componentB;
@@ -344,6 +359,7 @@ TEST_F(EcsTest, remove_only_entity)
 
 TEST_F(EcsTest, cannot_modify_const_componentStore)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
   ComponentA componentA{
@@ -357,7 +373,8 @@ TEST_F(EcsTest, cannot_modify_const_componentStore)
     .c = 3.0
   };
 
-  auto entityId = componentStore.allocateEntity<ComponentA, ComponentB>();
+  auto entityId = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA, ComponentB>(entityId);
 
   componentStore.component<ComponentA>(entityId) = componentA;
   componentStore.component<ComponentB>(entityId) = componentB;
@@ -389,9 +406,11 @@ TEST_F(EcsTest, cannot_modify_const_componentStore)
 
 TEST_F(EcsTest, hasComponentForEntity)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
-  auto entityId = componentStore.allocateEntity<ComponentA>();
+  auto entityId = idGen->getNewEntityId();
+  componentStore.allocateEntity<ComponentA>(entityId);
 
   EXPECT_TRUE(componentStore.hasComponentForEntity<ComponentA>(entityId));
   EXPECT_FALSE(componentStore.hasComponentForEntity<ComponentB>(entityId));
@@ -399,10 +418,11 @@ TEST_F(EcsTest, hasComponentForEntity)
 
 TEST_F(EcsTest, duplicates_ok)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
-  componentStore.allocateEntity<ComponentA>();
-  componentStore.allocateEntity<ComponentA, ComponentA>();
+  componentStore.allocateEntity<ComponentA>(idGen->getNewEntityId());
+  componentStore.allocateEntity<ComponentA, ComponentA>(idGen->getNewEntityId());
 
   auto compAView = componentStore.components<ComponentA>();
 
@@ -415,10 +435,11 @@ TEST_F(EcsTest, duplicates_ok)
 
 TEST_F(EcsTest, order_invariant)
 {
+  auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
 
-  componentStore.allocateEntity<ComponentA, ComponentB>();
-  componentStore.allocateEntity<ComponentB, ComponentA>();
+  componentStore.allocateEntity<ComponentA, ComponentB>(idGen->getNewEntityId());
+  componentStore.allocateEntity<ComponentB, ComponentA>(idGen->getNewEntityId());
 
   auto compAView = componentStore.components<ComponentA>();
   auto compBView = componentStore.components<ComponentB>();

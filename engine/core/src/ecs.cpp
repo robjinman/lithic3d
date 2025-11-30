@@ -23,9 +23,11 @@ class EcsImpl : public Ecs
     void removeEntity(EntityId entityId) override;
     ComponentStore& componentStore() override;
     const ComponentStore& componentStore() const override;
+    EntityIdAllocator& idGen() override;
 
   private:
     Logger& m_logger;
+    EntityIdAllocatorPtr m_entityIdAllocator;
     ComponentStorePtr m_componentStore;
     std::vector<EntityId> m_pendingDeletion;
     std::map<SystemId, SystemPtr> m_systems;
@@ -38,6 +40,11 @@ EcsImpl::EcsImpl(Logger& logger)
   : m_logger(logger)
 {
   m_componentStore = std::make_unique<ComponentStore>();
+}
+
+EntityIdAllocator& EcsImpl::idGen()
+{
+  return *m_entityIdAllocator;
 }
 
 void EcsImpl::addSystem(SystemId id, SystemPtr system)

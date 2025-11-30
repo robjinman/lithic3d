@@ -49,7 +49,7 @@ using TexturePtr = std::unique_ptr<Texture>;
 struct MaterialResource
 {
   std::string fileName;
-  ResourceId id = NULL_RESOURCE_ID;
+  ResourceHandle handle;
 };
 
 enum class BufferUsage : uint8_t

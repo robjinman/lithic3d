@@ -60,7 +60,8 @@ EntityId ProductActivationImpl::constructRoot()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
-  auto id = m_ecs.componentStore().allocate<DSpatial>();
+  auto id = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial>(id);
 
   DSpatial spatial{
     .transform = identityMatrix<4>(),
@@ -78,7 +79,8 @@ EntityId ProductActivationImpl::constructPrompt()
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender = m_ecs.system<SysRender2d>();
 
-  auto id = m_ecs.componentStore().allocate<DSpatial, DText>();
+  auto id = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial, DText>(id);
 
   Vec2f pos{ 0.3f, 0.7f };
   Vec2f size{ 0.022f, 0.044f };
@@ -126,7 +128,8 @@ EntityId ProductActivationImpl::constructTextbox()
 
   auto& store = m_ecs.componentStore();
 
-  auto id = store.allocate<DSpatial, DDynamicText, DUi, DTextbox>();
+  auto id = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial, DDynamicText, DUi, DTextbox>(id);
 
   store.component<CTextbox>(id) = CTextbox{};
 
