@@ -40,6 +40,16 @@ class Resource
     void wait() const
     {
       m_future.wait();
+      m_ready = true;
+    }
+
+    bool ready() const
+    {
+      if (m_ready) {
+        return true;
+      }
+      m_ready = m_future.wait_for(std::chrono::microseconds{0}) == std::future_status::ready;
+      return m_ready;
     }
 
     ~Resource();
@@ -49,6 +59,7 @@ class Resource
     ResourceManager& m_resourceManager;
     ResourceUnloader m_unloader;
     std::future<void> m_future;
+    mutable bool m_ready = false;
 };
 
 class [[nodiscard]] ResourceHandle
@@ -96,6 +107,14 @@ class [[nodiscard]] ResourceHandle
         m_resource->wait();
       }
       return *this;
+    }
+
+    bool ready() const
+    {
+      if (m_resource == nullptr) {
+        return false;
+      }
+      return m_resource->ready();
     }
 
     void reset()

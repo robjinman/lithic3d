@@ -44,11 +44,9 @@ class AObjectFactory : public ResourceProvider
       return m_resourceManager.loadResource([this, foo](ResourceId id) {
         loadAObject(id, foo);
 
-        std::cout << "Loaded A\n";
-
         return ManagedResource{
           .provider = weak_from_this(),
-          .unloader = [this](ResourceId id) { /*std::cout << "banana\n";*/ unloadAObject(id); }
+          .unloader = [this](ResourceId id) { unloadAObject(id); }
         };
       });
     }
@@ -265,7 +263,6 @@ class ResourceManagerTest : public testing::Test
 
     virtual void TearDown() override
     {
-      std::cout << "Tear down!\n";
     }
 
   protected:
@@ -294,12 +291,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
     throw;
   }
 
-  std::cout << "Still alive 1" << std::endl;
-
   m_resourceManager->waitAll();
-  //std::this_thread::sleep_for(std::chrono::milliseconds{1000});
-
-  std::cout << "Still alive 2" << std::endl;
 }
 
 TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)

@@ -17,6 +17,7 @@ class Ecs;
 struct InputState;
 class ModelLoader;
 class ResourceManager;
+class RenderResourceLoader;
 
 class Engine
 {
@@ -35,6 +36,7 @@ class Engine
     virtual Ecs& ecs() = 0;
     virtual ModelLoader& modelLoader() = 0;
     virtual ResourceManager& resourceManager() = 0;
+    virtual RenderResourceLoader& renderResourceLoader() = 0;
 
     virtual ~Engine() = default;
 };

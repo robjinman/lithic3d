@@ -14,6 +14,7 @@
 #include "lithic3d/sys_ui.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/resource_manager.hpp"
+#include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/time.hpp"
 
 namespace lithic3d
@@ -41,13 +42,15 @@ class EngineImpl : public Engine
     Ecs& ecs() override;
     ModelLoader& modelLoader() override;
     ResourceManager& resourceManager() override;
+    RenderResourceLoader& renderResourceLoader() override;
 
   private:
     LoggerPtr m_logger;
-    ResourceManagerPtr m_resourceManager;
+    ResourceManagerPtr m_resourceManager; // Must be destroyed last
     render::RendererPtr m_renderer;
     AudioSystemPtr m_audioSystem;
     FileSystemPtr m_fileSystem;
+    RenderResourceLoaderPtr m_renderResourceLoader;
     EventSystemPtr m_eventSystem;
     EcsPtr m_ecs;
     ModelLoaderPtr m_modelLoader;
@@ -67,12 +70,13 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   , m_logger(std::move(logger))
 {
   m_resourceManager = createResourceManager(*m_logger);
-
+  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, *m_fileSystem,
+    *m_renderer);
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
-  auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer, *m_fileSystem,
-    *m_logger);
+  auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
+    *m_renderResourceLoader, *m_logger);
   auto sysRender3d = createSysRender3d(*m_ecs, *m_renderer, *m_logger);
   auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
@@ -176,6 +180,11 @@ ModelLoader& EngineImpl::modelLoader()
 ResourceManager& EngineImpl::resourceManager()
 {
   return *m_resourceManager;
+}
+
+RenderResourceLoader& EngineImpl::renderResourceLoader()
+{
+  return *m_renderResourceLoader;
 }
 
 } // namespace

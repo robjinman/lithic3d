@@ -7,6 +7,7 @@
 #include "lithic3d/time.hpp"
 #include "lithic3d/file_system.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/render_resource_loader.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -178,7 +179,7 @@ class SysRender2dImpl : public SysRender2d
 {
   public:
     SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
-      const FileSystem& fileSystem, Logger& logger);
+      RenderResourceLoader& renderResourceLoader, Logger& logger);
 
     double frameRate() const override;
 
@@ -210,19 +211,20 @@ class SysRender2dImpl : public SysRender2d
     ComponentStore& m_componentStore;
     Camera2d m_camera;
     Renderer& m_renderer;
-    const FileSystem& m_fileSystem;
-    ResourceId m_mesh;
+    RenderResourceLoader& m_renderResourceLoader;
+    ResourceHandle m_mesh;
     render::MeshFeatureSet m_meshFeatures;
-    std::unordered_map<EntityId, ResourceId> m_textItems; // Where to store MeshFeatureSets?
+    std::unordered_map<EntityId, ResourceHandle> m_textItemMeshHandles;
+    std::unordered_map<EntityId, ResourceHandle> m_materialHandles;
     std::unordered_map<ScissorId, Recti> m_scissors;
 };
 
 SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger)
+  RenderResourceLoader& renderResourceLoader, Logger& logger)
   : m_logger(logger)
   , m_componentStore(componentStore)
   , m_renderer(renderer)
-  , m_fileSystem(fileSystem)
+  , m_renderResourceLoader(renderResourceLoader)
 {
   // Text
   {
@@ -286,8 +288,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
-  // TODO: Use a factory to create this
-  //m_mesh = m_renderer.addMesh(quad());
+  m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
 }
 
 render::Renderer& SysRender2dImpl::renderer()
@@ -315,6 +316,8 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CSprite>(m_componentStore, entityId);
+  assertHasComponent<CMesh2d>(m_componentStore, entityId);
+  assertHasComponent<CMaterial2d>(m_componentStore, entityId);
 
   m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
@@ -326,24 +329,27 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
   // TODO: Assert material features are supported?
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
-    .material = data.material,
     .textureRect = data.textureRect,
     .isText = true
   };
 
   auto mesh = textItemMesh(data.text, data.text.size(), data.textureRect, false);
+  MeshFeatureSet meshFeatures = mesh->featureSet;
 
-  //MeshHandle meshHandle;
-  // TODO: Use resource manager
-  //if (m_renderer.isStarted()) {
-    // TODO: This blocks
-    //meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
-  //}
-  //else {
-    //meshHandle = m_renderer.addMesh(std::move(mesh));
-  //}
+  auto meshHandle = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
 
-  //m_textItems.insert({ entityId, meshHandle });
+  m_componentStore.component<CMesh2d>(entityId) = CMesh2d{
+    .id = meshHandle.id(),
+    .features = meshFeatures
+  };
+
+  m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
+    .id = data.material.id(),
+    .features = data.materialFeatures
+  };
+
+  m_textItemMeshHandles.insert({ entityId, meshHandle });
+  m_materialHandles.insert({ entityId, data.material });
 }
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
@@ -355,6 +361,8 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CSprite>(m_componentStore, entityId);
   assertHasComponent<CDynamicText>(m_componentStore, entityId);
+  assertHasComponent<CMesh2d>(m_componentStore, entityId);
+  assertHasComponent<CMaterial2d>(m_componentStore, entityId);
 
   m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
@@ -364,7 +372,6 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
-    .material = data.material,
     .textureRect = data.textureRect,
     .isText = true
   };
@@ -378,18 +385,22 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   c.text[len] = '\0';
 
   auto mesh = textItemMesh(data.text, data.maxLength, data.textureRect, true);
+  MeshFeatureSet meshFeatures = mesh->featureSet;
 
-  //MeshHandle meshHandle;
-  // TODO: Use resource manager
-  //if (m_renderer.isStarted()) {
-    // TODO: This blocks
-    //meshHandle = m_renderer.addMeshAsync(std::move(mesh)).value<render::AddMeshResult>().handle;
-  //}
-  //else {
-    //meshHandle = m_renderer.addMesh(std::move(mesh));
-  //}
+  auto meshHandle = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
 
-  //m_textItems.insert({ entityId, meshHandle });
+  m_componentStore.component<CMesh2d>(entityId) = CMesh2d{
+    .id = meshHandle.id(),
+    .features = meshFeatures
+  };
+
+  m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
+    .id = data.material.id(),
+    .features = data.materialFeatures
+  };
+
+  m_textItemMeshHandles.insert({ entityId, meshHandle });
+  m_materialHandles.insert({ entityId, data.material });
 }
 
 void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
@@ -417,6 +428,7 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
   assertHasComponent<CSpatialFlags>(m_componentStore, entityId);
   assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CSprite>(m_componentStore, entityId);
+  assertHasComponent<CMaterial2d>(m_componentStore, entityId);
 
   m_componentStore.component<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
@@ -426,10 +438,16 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
   };
 
   m_componentStore.component<CSprite>(entityId) = CSprite{
-    .material = data.material,
     .textureRect = data.textureRect,
     .isText = false
   };
+
+  m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
+    .id = data.material.id(),
+    .features = data.materialFeatures
+  };
+
+  m_materialHandles.insert({ entityId, data.material });
 }
 
 void SysRender2dImpl::setZIndex(EntityId entityId, uint32_t zIndex)
@@ -467,9 +485,8 @@ void SysRender2dImpl::updateDynamicText(EntityId entityId, const std::string& te
 
 void SysRender2dImpl::removeEntity(EntityId entityId)
 {
-  m_textItems.erase(entityId);
-
-  // TODO: Delete meshes from renderer
+  m_textItemMeshHandles.erase(entityId);
+  m_materialHandles.erase(entityId);
 }
 
 bool SysRender2dImpl::hasEntity(EntityId entityId) const
@@ -488,7 +505,7 @@ const Camera2d& SysRender2dImpl::camera() const
 }
 
 void SysRender2dImpl::update(Tick, const InputState&)
-{/*
+{
   auto screenAspect = m_renderer.getViewParams().aspectRatio;
   float gameAspect = 630.f / 480.f;  // TODO
   m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
@@ -504,6 +521,8 @@ void SysRender2dImpl::update(Tick, const InputState&)
     auto flags = group.components<CSpatialFlags>();
     auto dynamicTextComps = group.components<CDynamicText>();
     auto quadComps = group.components<CQuad>();
+    auto meshComps = group.components<CMesh2d>();
+    auto materialComps = group.components<CMaterial2d>();
     auto& entityIds = group.entityIds();
 
     for (size_t i = 0; i < n; ++i) {
@@ -531,23 +550,24 @@ void SysRender2dImpl::update(Tick, const InputState&)
 
       if (!spriteComps.empty()) {
         auto& spriteComp = spriteComps[i];
+        auto& materialComp = materialComps[i];
 
         if (spriteComp.isText) {
-          if (!dynamicTextComps.empty()) {
-            auto& mesh = m_textItems.at(entityIds[i]);
+          auto& meshComp = meshComps[i];
 
-            DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
-              mesh.features, spriteComp.material.features), "Need to compile shader");
-            m_renderer.drawDynamicText(mesh, spriteComp.material, dynamicTextComps[i].text,
-              renderComp.colour, screenSpaceTransform);
+          auto& textItemMesh = m_textItemMeshHandles.at(entityIds[i]); // TODO: slow?
+          if (!textItemMesh.ready()) {
+            continue;
+          }
+
+          if (!dynamicTextComps.empty()) {
+            m_renderer.drawDynamicText(meshComp.id, meshComp.features, materialComp.id,
+              materialComp.features, dynamicTextComps[i].text, renderComp.colour,
+              screenSpaceTransform);
           }
           else {
-            auto& mesh = m_textItems.at(entityIds[i]);
-
-            DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
-              mesh.features, spriteComp.material.features), "Need to compile shader");
-            m_renderer.drawModel(mesh, spriteComp.material, renderComp.colour,
-              screenSpaceTransform);
+            m_renderer.drawModel(meshComp.id, meshComp.features, materialComp.id,
+              materialComp.features, renderComp.colour, screenSpaceTransform);
           }
         }
         else {
@@ -560,30 +580,26 @@ void SysRender2dImpl::update(Tick, const InputState&)
             Vec2f{ r.x, r.y }
           };
 
-          DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
-            m_mesh.features, spriteComp.material.features), "Need to compile shader");
-          m_renderer.drawSprite(m_mesh, spriteComp.material, uvCoords, renderComp.colour,
-            screenSpaceTransform);
+          m_renderer.drawSprite(m_mesh.id(), m_meshFeatures, materialComp.id, materialComp.features,
+            uvCoords, renderComp.colour, screenSpaceTransform);
         }
       }
       else {
-        DBG_ASSERT(m_renderer.hasCompiledShader(RenderPass::Overlay,
-          m_mesh.features, MaterialFeatureSet{}), "Need to compile shader");
-
-        m_renderer.drawQuad(m_mesh, quadComps[i].radius, renderComp.colour, screenSpaceTransform);
+        m_renderer.drawQuad(m_mesh.id(), m_meshFeatures, quadComps[i].radius, renderComp.colour,
+          screenSpaceTransform);
       }
     }
   }
 
-  m_renderer.endPass();*/
+  m_renderer.endPass();
 }
 
 } // namespace
 
 SysRender2dPtr createSysRender2d(ComponentStore& componentStore, Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger)
+  RenderResourceLoader& renderResourceLoader, Logger& logger)
 {
-  return std::make_unique<SysRender2dImpl>(componentStore, renderer, fileSystem, logger);
+  return std::make_unique<SysRender2dImpl>(componentStore, renderer, renderResourceLoader, logger);
 }
 
 } // namespace lithic3d

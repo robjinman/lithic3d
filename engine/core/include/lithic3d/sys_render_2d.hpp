@@ -24,10 +24,24 @@ struct CRender2d
   static constexpr ComponentType TypeId = ComponentTypeId::CRender2dTypeId;
 };
 
+struct CMesh2d
+{
+  ResourceId id = NULL_RESOURCE_ID;
+  render::MeshFeatureSet features;
+
+  static constexpr ComponentType TypeId = ComponentTypeId::CMesh2dTypeId;
+};
+
+struct CMaterial2d
+{
+  ResourceId id = NULL_RESOURCE_ID;
+  render::MaterialFeatureSet features;
+
+  static constexpr ComponentType TypeId = ComponentTypeId::CMaterial2dTypeId;
+};
+
 struct CSprite
 {
-  ResourceId material;
-  render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   bool isText = false; // TODO: Remove?
 
@@ -50,10 +64,12 @@ struct CQuad
 
 struct DSprite
 {
-  using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite>;
+  using RequiredComponents = type_list<
+    CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CMaterial2d
+  >;
 
   ScissorId scissor = 0;
-  ResourceId material;
+  ResourceHandle material;
   render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   uint32_t zIndex = 0;
@@ -72,10 +88,12 @@ struct DQuad
 
 struct DText
 {
-  using RequiredComponents = type_list<CGlobalTransform, CSpatialFlags, CRender2d, CSprite>;
+  using RequiredComponents = type_list<
+    CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CMesh2d, CMaterial2d
+  >;
 
   ScissorId scissor = 0;
-  ResourceId material;
+  ResourceHandle material;
   render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   std::string text;
@@ -86,11 +104,11 @@ struct DText
 struct DDynamicText
 {
   using RequiredComponents = type_list<
-    CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CDynamicText
+    CGlobalTransform, CSpatialFlags, CRender2d, CSprite, CMesh2d, CMaterial2d, CDynamicText
   >;
 
   ScissorId scissor = 0;
-  ResourceId material;
+  ResourceHandle material;
   render::MaterialFeatureSet materialFeatures;
   Rectf textureRect;
   std::string text;
@@ -132,10 +150,10 @@ class SysRender2d : public System
 
 using SysRender2dPtr = std::unique_ptr<SysRender2d>;
 
-class FileSystem;
+class RenderResourceLoader;
 class Logger;
 
 SysRender2dPtr createSysRender2d(ComponentStore& componentStore, render::Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger);
+  RenderResourceLoader& renderResourceLoader, Logger& logger);
 
 } // namespace lithic3d

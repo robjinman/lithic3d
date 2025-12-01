@@ -208,10 +208,9 @@ struct Mesh
 
 using MeshPtr = std::unique_ptr<Mesh>;
 
-// TODO: Use this or remove?
 struct BitmapFont
 {
-  ResourceId material;
+  ResourceHandle material;
   Rectf textureSection;
 };
 
