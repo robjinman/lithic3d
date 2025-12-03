@@ -1,5 +1,8 @@
 #include "vulkan/gpu_buffer_manager.hpp"
 #include "vulkan/vulkan_utils.hpp"
+#include "lithic3d/logger.hpp"
+#include "lithic3d/trace.hpp"
+#include "lithic3d/work_queue.hpp"
 #include <vk_mem_alloc.h>
 #include <cstring>
 
@@ -102,7 +105,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
 {
   public:
     GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance,
-      VkQueue graphicsQueue, VkCommandPool commandPool);
+      VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue, Logger& logger);
 
     GpuBufferPtr createUbo(size_t size) override;
     GpuBufferPtr createVertexBuffer(const std::vector<char>& data) override;
@@ -115,16 +118,18 @@ class GpuBufferManagerImpl : public GpuBufferManager
     GpuImagePtr createDepthAttachment(VkExtent2D extent) override;
     GpuImagePtr createShadowMap(VkExtent2D extent) override;
 
-    void writeToBuffer(GpuBuffer& buffer, const char* data, size_t size) override;
+    void writeToBuffer(GpuBuffer& buffer, const char* data, size_t size) override;    
 
     ~GpuBufferManagerImpl();
 
   private:
+    Logger& m_logger;
+    WorkQueue& m_workQueue;
+    VkQueue m_queue;
     VmaAllocator m_allocator;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkCommandPool m_commandPool;
-    VkQueue m_graphicsQueue;
 
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
@@ -140,11 +145,14 @@ class GpuBufferManagerImpl : public GpuBufferManager
 };
 
 GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkQueue graphicsQueue, VkCommandPool commandPool)
-  : m_physicalDevice(physicalDevice)
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue,
+  Logger& logger)
+  : m_logger(logger)
+  , m_workQueue(workQueue)
+  , m_queue(queue)
+  , m_physicalDevice(physicalDevice)
   , m_device(device)
   , m_commandPool(commandPool)
-  , m_graphicsQueue(graphicsQueue)
 {
   VmaVulkanFunctions vulkanFunctions = {};
   vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
@@ -195,6 +203,8 @@ GpuBufferPtr GpuBufferManagerImpl::createStagingBuffer(size_t size)
 
 VkCommandBuffer GpuBufferManagerImpl::beginSingleTimeCommands()
 {
+  DBG_TRACE(m_logger);
+
   VkCommandBufferAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
     .pNext = nullptr,
@@ -220,24 +230,28 @@ VkCommandBuffer GpuBufferManagerImpl::beginSingleTimeCommands()
 
 void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 {
+  DBG_TRACE(m_logger);
+
   vkEndCommandBuffer(commandBuffer);
 
-  VkSubmitInfo submitInfo{
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .pNext = nullptr,
-    .waitSemaphoreCount = 0,
-    .pWaitSemaphores = nullptr,
-    .pWaitDstStageMask = nullptr,
-    .commandBufferCount = 1,
-    .pCommandBuffers = &commandBuffer,
-    .signalSemaphoreCount = 0,
-    .pSignalSemaphores = nullptr
-  };
-  
-  vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(m_graphicsQueue); // TODO: Submit commands asynchronously (see p201)
+  m_workQueue.addWorkItem([this, commandBuffer]() {
+    VkSubmitInfo submitInfo{
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .pNext = nullptr,
+      .waitSemaphoreCount = 0,
+      .pWaitSemaphores = nullptr,
+      .pWaitDstStageMask = nullptr,
+      .commandBufferCount = 1,
+      .pCommandBuffers = &commandBuffer,
+      .signalSemaphoreCount = 0,
+      .pSignalSemaphores = nullptr
+    };
 
-  vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+    vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_queue); // TODO: Submit commands asynchronously (see p201)
+
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
+  }).get();
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
@@ -610,16 +624,20 @@ GpuImagePtr GpuBufferManagerImpl::createShadowMap(VkExtent2D extent)
 
 GpuBufferManagerImpl::~GpuBufferManagerImpl()
 {
+  DBG_TRACE(m_logger);
+
   vmaDestroyAllocator(m_allocator);
+  vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 }
 
 } // namespace
 
 GpuBufferManagerPtr createGpuBufferManager(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkQueue graphicsQueue, VkCommandPool commandPool)
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue,
+  Logger& logger)
 {
-  return std::make_unique<GpuBufferManagerImpl>(physicalDevice, device, instance, graphicsQueue,
-    commandPool);
+  return std::make_unique<GpuBufferManagerImpl>(physicalDevice, device, instance, commandPool,
+    queue, workQueue, logger);
 }
 
 } // namespace render

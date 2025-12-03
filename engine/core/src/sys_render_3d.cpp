@@ -7,6 +7,7 @@
 #include "lithic3d/utils.hpp"
 #include "lithic3d/time.hpp"
 #include "lithic3d/component_store.hpp"
+#include "lithic3d/trace.hpp"
 #include <map>
 #include <cassert>
 #include <unordered_set>
@@ -72,7 +73,8 @@ struct AnimationState
 class SysRender3dImpl : public SysRender3d
 {
   public:
-    SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger);
+    SysRender3dImpl(const Ecs& ecs, Renderer& renderer, ResourceManager& resourceManager,
+      Logger& logger);
 
     double frameRate() const override;
 
@@ -96,8 +98,11 @@ class SysRender3dImpl : public SysRender3d
     void removeAnimations(ResourceId id) override;
     void playAnimation(EntityId entityId, const std::string& name) override;
 
+    ~SysRender3dImpl() override;
+
   private:
     Logger& m_logger;
+    ResourceManager& m_resourceManager;
     Camera3d m_camera;
     const Ecs& m_ecs;
     Renderer& m_renderer;
@@ -121,8 +126,10 @@ class SysRender3dImpl : public SysRender3d
     void updateAnimations();
 };
 
-SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger)
+SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer,
+  ResourceManager& resourceManager, Logger& logger)
   : m_logger(logger)
+  , m_resourceManager(resourceManager)
   , m_ecs(ecs)
   , m_renderer(renderer)
 {
@@ -532,11 +539,17 @@ void SysRender3dImpl::update(Tick, const InputState&)
   doMainPass();
 }
 
+SysRender3dImpl::~SysRender3dImpl()
+{
+  DBG_TRACE(m_logger);
+}
+
 } // namespace
 
-SysRender3dPtr createSysRender3d(const Ecs& ecs, Renderer& renderer, Logger& logger)
+SysRender3dPtr createSysRender3d(const Ecs& ecs, Renderer& renderer,
+  ResourceManager& resourceManager, Logger& logger)
 {
-  return std::make_unique<SysRender3dImpl>(ecs, renderer, logger);
+  return std::make_unique<SysRender3dImpl>(ecs, renderer, resourceManager, logger);
 }
 
 } // namespace lithic3d

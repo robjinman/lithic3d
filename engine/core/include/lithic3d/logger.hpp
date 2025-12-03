@@ -24,7 +24,7 @@ LoggerPtr createLogger(std::ostream& errorStream, std::ostream& warningStream,
   std::ostream& infoStream, std::ostream& debugStream);
 
 #ifndef NDEBUG
-  #define DBG_LOG(logger, msg) logger.debug(msg);
+  #define DBG_LOG(logger, msg) (logger).debug(msg);
 #else
   #define DBG_LOG(logger, msg)
 #endif

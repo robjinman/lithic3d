@@ -22,6 +22,8 @@ class Delegate
 
     MOCK_METHOD(void, loadDObject, ());
     MOCK_METHOD(void, unloadDObject, ());
+
+    MOCK_METHOD(void, testComplete, ());
 };
 
 struct AObject
@@ -31,7 +33,7 @@ struct AObject
 
 using AObjectPtr = std::unique_ptr<AObject>;
 
-class AObjectFactory : public ResourceProvider
+class AObjectFactory
 {
   public:
     AObjectFactory(Delegate& delegate, ResourceManager& resourceManager)
@@ -45,10 +47,14 @@ class AObjectFactory : public ResourceProvider
         loadAObject(id, foo);
 
         return ManagedResource{
-          .provider = weak_from_this(),
           .unloader = [this](ResourceId id) { unloadAObject(id); }
         };
       });
+    }
+
+    ~AObjectFactory()
+    {
+      m_resourceManager.waitAll();
     }
 
   private:
@@ -80,7 +86,7 @@ struct BObject
 
 using BObjectPtr = std::unique_ptr<BObject>;
 
-class BObjectFactory : public ResourceProvider
+class BObjectFactory
 {
   public:
     BObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -98,7 +104,6 @@ class BObjectFactory : public ResourceProvider
         loadBObject(id, aObjHandle, bar);
 
         return ManagedResource{
-          .provider = weak_from_this(),
           .unloader = [this](ResourceId id) { unloadBObject(id); }
         };
       });
@@ -107,6 +112,11 @@ class BObjectFactory : public ResourceProvider
     const BObject& get(ResourceId id) const
     {
       return *m_objects.at(id);
+    }
+
+    ~BObjectFactory()
+    {
+      m_resourceManager.waitAll();
     }
 
   private:
@@ -141,7 +151,7 @@ struct CObject
 
 using CObjectPtr = std::unique_ptr<CObject>;
 
-class CObjectFactory : public ResourceProvider
+class CObjectFactory
 {
   public:
     CObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -159,10 +169,14 @@ class CObjectFactory : public ResourceProvider
         loadCObject(id, bObject, baz);
 
         return ManagedResource{
-          .provider = weak_from_this(),
           .unloader = [this](ResourceId id) { unloadCObject(id); }
         };
       });
+    }
+
+    ~CObjectFactory()
+    {
+      m_resourceManager.waitAll();
     }
 
   private:
@@ -197,7 +211,7 @@ struct DObject
 
 using DObjectPtr = std::unique_ptr<DObject>;
 
-class DObjectFactory : public ResourceProvider
+class DObjectFactory
 {
   public:
     DObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
@@ -214,10 +228,14 @@ class DObjectFactory : public ResourceProvider
         loadDObject(id, aObject, whizz);
 
         return ManagedResource{
-          .provider = weak_from_this(),
           .unloader = [this](ResourceId id) { unloadDObject(id); }
         };
       });
+    }
+
+    ~DObjectFactory()
+    {
+      m_resourceManager.waitAll();
     }
 
   private:
@@ -252,12 +270,12 @@ class ResourceManagerTest : public testing::Test
       m_delegate = std::make_unique<Delegate>();
       m_realLogger = createLogger(std::cout, std::cout, std::cout, std::cout);
       m_resourceManager = createResourceManager(m_mockLogger);
-      m_aObjectFactory = std::make_shared<AObjectFactory>(*m_delegate, *m_resourceManager);
-      m_bObjectFactory = std::make_shared<BObjectFactory>(*m_delegate, *m_resourceManager,
+      m_aObjectFactory = std::make_unique<AObjectFactory>(*m_delegate, *m_resourceManager);
+      m_bObjectFactory = std::make_unique<BObjectFactory>(*m_delegate, *m_resourceManager,
         *m_aObjectFactory);
-      m_cObjectFactory = std::make_shared<CObjectFactory>(*m_delegate, *m_resourceManager,
+      m_cObjectFactory = std::make_unique<CObjectFactory>(*m_delegate, *m_resourceManager,
         *m_bObjectFactory);
-      m_dObjectFactory = std::make_shared<DObjectFactory>(*m_delegate, *m_resourceManager,
+      m_dObjectFactory = std::make_unique<DObjectFactory>(*m_delegate, *m_resourceManager,
         *m_aObjectFactory);
     }
 
@@ -270,11 +288,10 @@ class ResourceManagerTest : public testing::Test
     NiceMock<MockLogger> m_mockLogger;
     std::unique_ptr<ResourceManager> m_resourceManager;
     std::unique_ptr<Delegate> m_delegate;
-    std::shared_ptr<AObjectFactory> m_aObjectFactory;
-    std::shared_ptr<BObjectFactory> m_bObjectFactory;
-    std::shared_ptr<CObjectFactory> m_cObjectFactory;
-    std::shared_ptr<DObjectFactory> m_dObjectFactory;
-    ResourceHandle m_tmpHandle;
+    std::unique_ptr<AObjectFactory> m_aObjectFactory;
+    std::unique_ptr<BObjectFactory> m_bObjectFactory;
+    std::unique_ptr<CObjectFactory> m_cObjectFactory;
+    std::unique_ptr<DObjectFactory> m_dObjectFactory;
 };
 
 TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
@@ -282,6 +299,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
   testing::Sequence seq;
   EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, unloadAObject()).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, testComplete).Times(1).InSequence(seq);
 
   try {
     auto handle = m_aObjectFactory->createAObjectAsync("hello");
@@ -292,6 +310,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
   }
 
   m_resourceManager->waitAll();
+  m_delegate->testComplete();
 }
 
 TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
@@ -303,6 +322,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
   EXPECT_CALL(*m_delegate, unloadCObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, unloadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, unloadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, testComplete).Times(1).InSequence(seq);
 
   try {
     m_cObjectFactory->createCObjectAsync("hello", 123, 234).id();
@@ -313,6 +333,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
   }
 
   m_resourceManager->waitAll();
+  m_delegate->testComplete();
 }
 
 TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
@@ -322,7 +343,11 @@ TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
   EXPECT_CALL(*m_delegate, loadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, loadDObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, unloadBObject).Times(1).InSequence(seq);
-  EXPECT_CALL(*m_delegate, unloadAObject).Times(0);
+  EXPECT_CALL(*m_delegate, testComplete).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadDObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, unloadAObject).Times(1).InSequence(seq);
+
+  ResourceHandle tmpHandle;
 
   try {
     auto bObjHandle = m_bObjectFactory->createBObjectAsync("hello", 123);
@@ -334,7 +359,7 @@ TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
     dObjHandle.wait();
 
     // Keep alive
-    m_tmpHandle = dObjHandle;
+    tmpHandle = dObjHandle;
 
     // bObjHandle goes out of scope here
   }
@@ -344,6 +369,7 @@ TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
   }
 
   m_resourceManager->waitAll();
+  m_delegate->testComplete();
 }
 
 TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
@@ -355,6 +381,7 @@ TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
   EXPECT_CALL(*m_delegate, unloadDObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, unloadBObject).Times(1).InSequence(seq);
   EXPECT_CALL(*m_delegate, unloadAObject).Times(1).InSequence(seq);
+  EXPECT_CALL(*m_delegate, testComplete).Times(1).InSequence(seq);
 
   try {
     auto bObjHandle = m_bObjectFactory->createBObjectAsync("hello", 123);
@@ -374,4 +401,5 @@ TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
   }
 
   m_resourceManager->waitAll();
+  m_delegate->testComplete();
 }

@@ -12,15 +12,15 @@ using ResourceId = int32_t;
 constexpr ResourceId NULL_RESOURCE_ID = -1;
 
 using ResourceUnloader = std::function<void(ResourceId)>;
-
+/*
 struct ResourceProvider : public std::enable_shared_from_this<ResourceProvider>
 {
   virtual ~ResourceProvider() = default;
-};
+};*/
 
 struct ManagedResource
 {
-  std::weak_ptr<ResourceProvider> provider;
+  //std::weak_ptr<ResourceProvider> provider;
   ResourceUnloader unloader;
 };
 
@@ -133,6 +133,8 @@ class [[nodiscard]] ResourceHandle
     std::shared_ptr<Resource> m_resource;
 };
 
+class Thread;
+
 class ResourceManager
 {
   friend class Resource;
@@ -140,6 +142,7 @@ class ResourceManager
   public:
     virtual ResourceHandle loadResource(ResourceLoader&& loader) = 0;
     virtual void waitAll() = 0;
+    virtual Thread& thread() = 0;
 
     virtual ~ResourceManager() = default;
 

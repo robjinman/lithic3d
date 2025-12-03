@@ -93,8 +93,9 @@ enum class ObjectDescriptorSetBindings : uint32_t
 class RenderResourcesImpl : public RenderResources
 {
   public:
-    RenderResourcesImpl(GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice,
-      VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, Logger& logger);
+    RenderResourcesImpl(std::thread::id id, GpuBufferManager& bufferManager,
+      VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool,
+      Logger& logger);
 
     // Descriptor sets
     //
@@ -148,17 +149,16 @@ class RenderResourcesImpl : public RenderResources
     ~RenderResourcesImpl() override;
 
   private:
+    std::thread::id m_threadId;
     std::map<ResourceId, MeshDataPtr> m_meshes;
     std::map<ResourceId, TextureDataPtr> m_textures;
     std::map<ResourceId, CubeMapDataPtr> m_cubeMaps;
     std::map<ResourceId, MaterialDataPtr> m_materials;
 
     Logger& m_logger;
-    //ResourceManager& m_resourceManager;
     GpuBufferManager& m_bufferManager;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
-    VkQueue m_graphicsQueue;
     VkCommandPool m_commandPool;
     VkDescriptorPool m_descriptorPool;
 
@@ -185,6 +185,8 @@ class RenderResourcesImpl : public RenderResources
     GpuImagePtr m_shadowMapImage;
     VkSampler m_shadowMapSampler;
 
+    inline void assertResourceThread() const;
+
     void createTextureSampler();
     void createNormalMapSampler();
     void createCubeMapSampler();
@@ -206,14 +208,13 @@ class RenderResourcesImpl : public RenderResources
     //void createShadowPassDescriptorSet();
 };
 
-RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-  VkCommandPool commandPool, Logger& logger)
-  : m_logger(logger)
+RenderResourcesImpl::RenderResourcesImpl(std::thread::id threadId, GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger)
+  : m_threadId(threadId)
+  , m_logger(logger)
   , m_bufferManager(bufferManager)
   , m_physicalDevice(physicalDevice)
   , m_device(device)
-  , m_graphicsQueue(graphicsQueue)
   , m_commandPool(commandPool)
 {
   DBG_TRACE(m_logger);
@@ -230,8 +231,16 @@ RenderResourcesImpl::RenderResourcesImpl(GpuBufferManager& bufferManager,
   createObjectDescriptorSetLayout();
 }
 
+inline void RenderResourcesImpl::assertResourceThread() const
+{
+  ASSERT(std::this_thread::get_id() == m_threadId, "Must be on resource manager thread");
+}
+
 void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto textureData = std::make_unique<TextureData>();
@@ -243,6 +252,9 @@ void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
 
 void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto textureData = std::make_unique<TextureData>();
@@ -254,6 +266,9 @@ void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture)
 
 void RenderResourcesImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto cubeMapData = std::make_unique<CubeMapData>();
@@ -265,6 +280,9 @@ void RenderResourcesImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6> te
 
 void RenderResourcesImpl::removeTexture(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto i = m_textures.find(id);
@@ -277,6 +295,9 @@ void RenderResourcesImpl::removeTexture(ResourceId id)
 
 void RenderResourcesImpl::removeCubeMap(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto i = m_cubeMaps.find(id);
@@ -289,6 +310,9 @@ void RenderResourcesImpl::removeCubeMap(ResourceId id)
 
 void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto data = std::make_unique<MeshData>();
@@ -354,6 +378,9 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
 
 void RenderResourcesImpl::removeMesh(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto i = m_meshes.find(id);
@@ -400,6 +427,7 @@ void RenderResourcesImpl::updateMeshInstances(ResourceId id,
 void RenderResourcesImpl::updateJointTransforms(ResourceId id, const std::vector<Mat4x4f>& joints,
   size_t currentFrame)
 {
+  DBG_TRACE(m_logger);
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
   auto& mesh = *m_meshes.at(id);
@@ -441,6 +469,9 @@ void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSe
 
 void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto materialData = std::make_unique<MaterialData>();
@@ -511,6 +542,9 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
 
 void RenderResourcesImpl::removeMaterial(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
   // TODO: Ensure thread-safe
 
   auto i = m_materials.find(id);
@@ -544,6 +578,8 @@ const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(ResourceId id
 void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
+  DBG_TRACE(m_logger);
+
   m_bufferManager.writeToBuffer(*m_mainCameraUbo[currentFrame], reinterpret_cast<const char*>(&ubo),
     sizeof(ubo));
 }
@@ -551,6 +587,8 @@ void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
 void RenderResourcesImpl::updateOverlayCameraUbo(const CameraTransformsUbo& ubo,
   size_t currentFrame)
 {
+  DBG_TRACE(m_logger);
+
   m_bufferManager.writeToBuffer(*m_overlayCameraUbo[currentFrame],
     reinterpret_cast<const char*>(&ubo), sizeof(ubo));
 }
@@ -558,6 +596,8 @@ void RenderResourcesImpl::updateOverlayCameraUbo(const CameraTransformsUbo& ubo,
 void RenderResourcesImpl::updateLightTransformsUbo(const LightTransformsUbo& ubo,
   size_t currentFrame)
 {
+  DBG_TRACE(m_logger);
+
   m_bufferManager.writeToBuffer(*m_lightTransformsUbo[currentFrame],
     reinterpret_cast<const char*>(&ubo), sizeof(ubo));
 }
@@ -580,6 +620,8 @@ VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame)
 
 void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t currentFrame)
 {
+  DBG_TRACE(m_logger);
+
   m_bufferManager.writeToBuffer(*m_lightingUbo[currentFrame], reinterpret_cast<const char*>(&ubo),
     sizeof(ubo));
 }
@@ -642,7 +684,7 @@ void RenderResourcesImpl::createShadowMap()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_shadowMapSampler),
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_shadowMapSampler), // TODO: Use allocator
     "Failed to create shadow map sampler");
 }
 
@@ -667,7 +709,7 @@ void RenderResourcesImpl::createDescriptorPool()
     .pPoolSizes = poolSizes.data()
   };
 
-  VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
+  VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool), // TODO: Use allocator
     "Failed to create descriptor pool");
 }
 
@@ -696,7 +738,7 @@ void RenderResourcesImpl::createGlobalDescriptorSetLayout()
     .pBindings = bindings.data()
   };
 
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
     &m_globalDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Global descriptor set layout: " << m_globalDescriptorSetLayout));
@@ -745,7 +787,7 @@ void RenderResourcesImpl::createRenderPassDescriptorSetLayout()
     .pBindings = bindings.data()
   };
   
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
     &m_renderPassDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Render pass descriptor set layout: " << m_renderPassDescriptorSetLayout));
@@ -822,7 +864,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
     .pBindings = bindings.data()
   };
 
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
     &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Material descriptor set layout: " << m_materialDescriptorSetLayout));
@@ -853,7 +895,7 @@ void RenderResourcesImpl::createObjectDescriptorSetLayout()
     .pBindings = bindings.data()
   };
   
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
     &m_objectDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Object descriptor set layout: " << m_objectDescriptorSetLayout));
@@ -1064,7 +1106,7 @@ void RenderResourcesImpl::createTextureSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler),
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler), // TODO: Use allocator
     "Failed to create texture sampler");
 }
 
@@ -1096,7 +1138,7 @@ void RenderResourcesImpl::createNormalMapSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_normalMapSampler),
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_normalMapSampler), // TODO: Use allocator
     "Failed to create normal map sampler");
 }
 
@@ -1128,44 +1170,49 @@ void RenderResourcesImpl::createCubeMapSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_cubeMapSampler),
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_cubeMapSampler), // TODO: Use allocator
     "Failed to create normal map sampler");
 }
 
 RenderResourcesImpl::~RenderResourcesImpl()
 {
-  vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
+  DBG_TRACE(m_logger);
+
+  vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr); // TODO: Use allocator
   vkDestroyDescriptorSetLayout(m_device, m_globalDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_renderPassDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_objectDescriptorSetLayout, nullptr);
 
-  vkDestroySampler(m_device, m_shadowMapSampler, nullptr);
+  vkDestroySampler(m_device, m_shadowMapSampler, nullptr); // TODO: Use allocator
 
-  while (!m_meshes.empty()) {
-    removeMesh(m_meshes.begin()->first);
-  }
-  vkDestroySampler(m_device, m_textureSampler, nullptr);
+  vkDestroySampler(m_device, m_textureSampler, nullptr); // TODO: Use allocator
   vkDestroySampler(m_device, m_normalMapSampler, nullptr);
   vkDestroySampler(m_device, m_cubeMapSampler, nullptr);
-  while (!m_materials.empty()) {
-    removeMaterial(m_materials.begin()->first);
+
+  if (!m_meshes.empty()) {
+    m_logger.warn("Mesh not destroyed");
   }
-  while (!m_textures.empty()) {
-    removeTexture(m_textures.begin()->first);
+
+  if (!m_materials.empty()) {
+    m_logger.warn("Material not destroyed");
   }
-  while (!m_cubeMaps.empty()) {
-    removeCubeMap(m_cubeMaps.begin()->first);
+
+  if (!m_textures.empty()) {
+    m_logger.warn("Texture not destroyed");
+  }
+
+  if (!m_cubeMaps.empty()) {
+    m_logger.warn("Cube map not destroyed");
   }
 }
 
 } // namespace
 
-RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-  VkCommandPool commandPool, Logger& logger)
+RenderResourcesPtr createRenderResources(std::thread::id threadId, GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(bufferManager, physicalDevice, device, graphicsQueue,
+  return std::make_unique<RenderResourcesImpl>(threadId, bufferManager, physicalDevice, device,
     commandPool, logger);
 }
 

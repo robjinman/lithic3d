@@ -143,7 +143,7 @@ class SysRender2d : public System
     virtual void setColour(EntityId entityId, const Vec4f& colour) = 0;
     virtual void updateDynamicText(EntityId entityId, const std::string& text) = 0;
 
-    virtual ~SysRender2d() {}
+    virtual ~SysRender2d() = default;
 
     static const SystemId id = RENDER_2D_SYSTEM;
 };

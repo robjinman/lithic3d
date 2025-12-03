@@ -206,6 +206,8 @@ class SysRender2dImpl : public SysRender2d
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event&) override {}
 
+    ~SysRender2dImpl() override;
+
   private:
     Logger& m_logger;
     ComponentStore& m_componentStore;
@@ -288,7 +290,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
-  m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
+  //m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
 }
 
 render::Renderer& SysRender2dImpl::renderer()
@@ -592,6 +594,11 @@ void SysRender2dImpl::update(Tick, const InputState&)
   }
 
   m_renderer.endPass();
+}
+
+SysRender2dImpl::~SysRender2dImpl()
+{
+  DBG_LOG(m_logger, "SysRender2dImpl::~SysRender2dImpl");
 }
 
 } // namespace

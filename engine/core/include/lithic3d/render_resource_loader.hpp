@@ -19,6 +19,6 @@ class RenderResourceLoader
 using RenderResourceLoaderPtr = std::unique_ptr<RenderResourceLoader>;
 
 RenderResourceLoaderPtr createRenderResourceLoader(ResourceManager& resourceManager,
-  FileSystem& fileSystem, render::Renderer& renderer);
+  FileSystem& fileSystem, render::Renderer& renderer, Logger& logger);
 
 } // namespace lithic3d

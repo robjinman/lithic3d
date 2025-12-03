@@ -5,7 +5,7 @@
 namespace lithic3d
 {
 
-//#define TRACE
+#define TRACE
 
 class Logger;
 

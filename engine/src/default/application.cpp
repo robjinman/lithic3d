@@ -80,6 +80,7 @@ class Application
 
     GLFWwindow* m_window;
     GameConfig m_config;
+    ResourceManagerPtr m_resourceManager;
     EnginePtr m_engine;
     GamePtr m_game;
 
@@ -161,10 +162,12 @@ Application::Application()
   auto windowDelegate = createWindowDelegate(*m_window);
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto audioSystem = createAudioSystem(*fileSystem);
-  auto renderer = createRenderer(std::move(windowDelegate), *fileSystem, *logger, {});
+  m_resourceManager = createResourceManager(*logger);
+  auto renderer = createRenderer(std::move(windowDelegate), *m_resourceManager, *fileSystem,
+    *logger, {});
 
-  m_engine = createEngine(std::move(renderer), std::move(audioSystem), std::move(fileSystem),
-    std::move(logger));
+  m_engine = createEngine(*m_resourceManager, std::move(renderer), std::move(audioSystem),
+    std::move(fileSystem), std::move(logger));
 
   m_game = createGame(*m_engine);
 

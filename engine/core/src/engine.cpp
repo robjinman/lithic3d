@@ -16,6 +16,7 @@
 #include "lithic3d/resource_manager.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/time.hpp"
+#include "lithic3d/trace.hpp"
 
 namespace lithic3d
 {
@@ -25,8 +26,8 @@ namespace
 class EngineImpl : public Engine
 {
   public:
-    EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
-      LoggerPtr logger);
+    EngineImpl(ResourceManager& resourceManager, render::RendererPtr renderer,
+      AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
     void update(const InputState& inputState) override;
@@ -44,9 +45,11 @@ class EngineImpl : public Engine
     ResourceManager& resourceManager() override;
     RenderResourceLoader& renderResourceLoader() override;
 
+    ~EngineImpl() override;
+
   private:
+    ResourceManager& m_resourceManager;
     LoggerPtr m_logger;
-    ResourceManagerPtr m_resourceManager; // Must be destroyed last
     render::RendererPtr m_renderer;
     AudioSystemPtr m_audioSystem;
     FileSystemPtr m_fileSystem;
@@ -62,22 +65,24 @@ class EngineImpl : public Engine
     void measureTickRate();
 };
 
-EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
-  FileSystemPtr fileSystem, LoggerPtr logger)
-  : m_renderer(std::move(renderer))
+EngineImpl::EngineImpl(ResourceManager& resourceManager, render::RendererPtr renderer,
+  AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger)
+  : m_resourceManager(resourceManager)
+  , m_logger(std::move(logger))
+  , m_renderer(std::move(renderer))
   , m_audioSystem(std::move(audioSystem))
   , m_fileSystem(std::move(fileSystem))
-  , m_logger(std::move(logger))
 {
-  m_resourceManager = createResourceManager(*m_logger);
-  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, *m_fileSystem,
-    *m_renderer);
+  m_renderResourceLoader = createRenderResourceLoader(m_resourceManager, *m_fileSystem,
+    *m_renderer, *m_logger);
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
+  m_renderer->start();
+
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
-  auto sysRender3d = createSysRender3d(*m_ecs, *m_renderer, *m_logger);
+  auto sysRender3d = createSysRender3d(*m_ecs, *m_renderer, m_resourceManager, *m_logger);
   auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
@@ -90,9 +95,7 @@ EngineImpl::EngineImpl(render::RendererPtr renderer, AudioSystemPtr audioSystem,
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
 
-  m_modelLoader = createModelLoader(*m_resourceManager, *m_renderer, *m_fileSystem, *m_logger);
-
-  //m_renderer->start();
+  //m_modelLoader = createModelLoader(*m_resourceManager, *m_renderer, *m_fileSystem, *m_logger);
 }
 
 void EngineImpl::setClearColour(const Vec4f& colour)
@@ -179,7 +182,7 @@ ModelLoader& EngineImpl::modelLoader()
 
 ResourceManager& EngineImpl::resourceManager()
 {
-  return *m_resourceManager;
+  return m_resourceManager;
 }
 
 RenderResourceLoader& EngineImpl::renderResourceLoader()
@@ -187,12 +190,19 @@ RenderResourceLoader& EngineImpl::renderResourceLoader()
   return *m_renderResourceLoader;
 }
 
+EngineImpl::~EngineImpl()
+{
+  DBG_TRACE(*m_logger);
+
+  m_resourceManager.waitAll();
+}
+
 } // namespace
 
-EnginePtr createEngine(render::RendererPtr renderer, AudioSystemPtr audioSystem,
-  FileSystemPtr fileSystem, LoggerPtr logger)
+EnginePtr createEngine(ResourceManager& resourceManager, render::RendererPtr renderer,
+  AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger)
 {
-  return std::make_unique<EngineImpl>(std::move(renderer), std::move(audioSystem),
+  return std::make_unique<EngineImpl>(resourceManager, std::move(renderer), std::move(audioSystem),
     std::move(fileSystem), std::move(logger));
 }
 

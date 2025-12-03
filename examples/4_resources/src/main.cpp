@@ -8,7 +8,7 @@ using namespace lithic3d::render;
 namespace
 {
 
-class Demo : public Game, private ResourceProvider
+class Demo : public Game
 {
   public:
     Demo(Engine& engine);
@@ -45,9 +45,9 @@ Demo::Demo(Engine& engine)
 {
   m_light = constructLight();
   m_cube = constructCube();
-  m_caption = constructCaption();
+  //m_caption = constructCaption();
 
-  m_engine.renderer().start(); // TODO: Move to engine?
+  //m_engine.renderer().start(); // TODO: Move to engine?
 }
 
 EntityId Demo::constructCube()

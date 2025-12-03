@@ -145,6 +145,7 @@ using SysRender3dPtr = std::unique_ptr<SysRender3d>;
 
 class Logger;
 
-SysRender3dPtr createSysRender3d(const Ecs& ecs, render::Renderer& renderer, Logger& logger);
+SysRender3dPtr createSysRender3d(const Ecs& ecs, render::Renderer& renderer,
+  ResourceManager& resourceManager, Logger& logger);
 
 } // namespace lithic3d

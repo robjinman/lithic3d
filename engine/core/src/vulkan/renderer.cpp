@@ -14,6 +14,7 @@
 #include "lithic3d/platform.hpp"
 #include "lithic3d/strings.hpp"
 #include "lithic3d/file_system.hpp"
+#include "lithic3d/work_queue.hpp"
 #include <array>
 #include <vector>
 #include <algorithm>
@@ -53,24 +54,6 @@ const std::vector<const char*> DeviceExtensions = {
 };
 
 using PipelineKey = ShaderProgramSpec;
-
-struct QueueFamilyIndices
-{
-  std::optional<uint32_t> graphicsFamily;
-  std::optional<uint32_t> presentFamily;
-
-  bool isComplete() const
-  {
-    return graphicsFamily.has_value() && presentFamily.has_value();
-  }
-};
-
-struct SwapChainSupportDetails
-{
-  VkSurfaceCapabilitiesKHR capabilities;
-  std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> presentModes;
-};
 
 const HashedString strAddMesh = hashString("add_mesh");
 const HashedString strRemoveMesh = hashString("remove_mesh");
@@ -113,11 +96,71 @@ PipelineKey getPipelineKey(RenderPass renderPass, MeshFeatureSet meshFeatures,
   };
 }
 
+enum class QueueType
+{
+  Graphics,
+  Present,
+  Transfer
+};
+
+struct QueueFamilyIndices
+{
+  std::optional<uint32_t> graphicsFamily = std::nullopt;
+  std::optional<uint32_t> presentFamily = std::nullopt;
+
+  bool isComplete() const
+  {
+    return graphicsFamily.has_value() && presentFamily.has_value();
+  }
+};
+
+struct SwapChainSupportDetails
+{
+  VkSurfaceCapabilitiesKHR capabilities;
+  std::vector<VkSurfaceFormatKHR> formats;
+  std::vector<VkPresentModeKHR> presentModes;
+};
+
+struct RenderPassState
+{
+  RenderGraph graph;
+  std::map<RenderGraph::Key, RenderNode*> lookup;
+  Vec3f viewPos;
+  Mat4x4f viewMatrix;
+};
+
+struct LightState
+{
+  Vec3f position;
+  Vec3f direction;
+  Vec3f colour;
+  float ambient;
+  float specular;
+  float zFar;
+};
+
+struct LightingState
+{
+  uint32_t numLights;
+  LightState lights[MAX_LIGHTS];
+};
+
+struct FrameState
+{
+  std::map<RenderPass, RenderPassState> renderPasses;
+  LightingState lighting;
+  Vec4f clearColour;
+  std::optional<RenderPass> currentRenderPass;
+  uint32_t currentOrderKey = 0;
+  std::vector<VkRect2D> scissors;
+  uint32_t currentScissor = 0;
+};
+
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(WindowDelegatePtr window, const FileSystem& fileSystem, Logger& logger,
-      const ScreenMargins& margins);
+    RendererImpl(WindowDelegatePtr window, ResourceManager& resourceManager,
+      const FileSystem& fileSystem, Logger& logger, const ScreenMargins& margins);
 
     void start() override;
     bool isStarted() const override;
@@ -203,7 +246,6 @@ class RendererImpl : public Renderer
     VkDebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo() const;
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
     void createLogicalDevice();
-    void createBufferManager();
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
     VkSurfaceFormatKHR chooseSwapChainSurfaceFormat(
       const std::vector<VkSurfaceFormatKHR>& formats) const;
@@ -217,6 +259,7 @@ class RendererImpl : public Renderer
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
+    VkCommandPool createResourceThreadCommandPool();
     void createDepthResources();
     void createCommandBuffers();
     void doShadowRenderPass(VkCommandBuffer commandBuffer);
@@ -229,7 +272,6 @@ class RendererImpl : public Renderer
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
-    void cleanUp();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
       const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer);
     RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, ResourceId mesh,
@@ -240,19 +282,23 @@ class RendererImpl : public Renderer
       const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform, const Vec4f& colour,
       const std::optional<std::vector<Mat4x4f>>& jointTransforms);
 
+    ResourceManager& m_resourceManager;
     const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
     ViewParams m_viewParams;
     std::unique_ptr<VulkanWindowDelegate> m_window;
     Logger& m_logger;
+    WorkQueue m_workQueue;
     VkInstance m_instance;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceLimits m_deviceLimits;
     VkSurfaceKHR m_surface;
     VkDebugUtilsMessengerEXT m_debugMessenger;
     VkDevice m_device;
+    QueueFamilyIndices m_queueFamilyIndices;
     VkQueue m_graphicsQueue;
     VkQueue m_presentQueue;
+    VkQueue m_transferQueue;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
@@ -276,41 +322,6 @@ class RendererImpl : public Renderer
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
     std::vector<VkFence> m_inFlightFences;
 
-    struct RenderPassState
-    {
-      RenderGraph graph;
-      std::map<RenderGraph::Key, RenderNode*> lookup;
-      Vec3f viewPos;
-      Mat4x4f viewMatrix;
-    };
-
-    struct LightState
-    {
-      Vec3f position;
-      Vec3f direction;
-      Vec3f colour;
-      float ambient;
-      float specular;
-      float zFar;
-    };
-
-    struct LightingState
-    {
-      uint32_t numLights;
-      LightState lights[MAX_LIGHTS];
-    };
-
-    struct FrameState
-    {
-      std::map<RenderPass, RenderPassState> renderPasses;
-      LightingState lighting;
-      Vec4f clearColour;
-      std::optional<RenderPass> currentRenderPass;
-      uint32_t currentOrderKey = 0;
-      std::vector<VkRect2D> scissors;
-      uint32_t currentScissor = 0;
-    };
-
     TripleBuffer<FrameState> m_frameStates;
   
     RenderResourcesPtr m_resources;
@@ -326,9 +337,10 @@ class RendererImpl : public Renderer
     std::string m_error;
 };
 
-RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSystem, Logger& logger,
-  const ScreenMargins& margins)
-  : m_fileSystem(fileSystem)
+RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceManager,
+  const FileSystem& fileSystem, Logger& logger, const ScreenMargins& margins)
+  : m_resourceManager(resourceManager)
+  , m_fileSystem(fileSystem)
   , m_margins(margins)
   , m_logger(logger)
 {
@@ -350,7 +362,11 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
 
   m_frameStates.getReadable().renderPasses[RenderPass::Main] = RenderPassState{};
 
+  DBG_LOG(m_logger, STR("Main thread: " << std::this_thread::get_id()));
+
   m_thread.run<void>([this]() {
+    DBG_LOG(m_logger, STR("Render thread: " << std::this_thread::get_id()));
+
     createInstance();
 #ifdef USE_VALIDATION_LAYERS
     setupDebugMessenger();
@@ -365,10 +381,20 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
   m_thread.run<void>([this]() {
     createImageViews();
     createCommandPool();
-    createBufferManager();
-    // TODO: Construct on main thread?
-    m_resources = createRenderResources(*m_bufferManager, m_physicalDevice, m_device,
-      m_graphicsQueue, m_commandPool, m_logger);
+  }).get();
+  // Do we really need to be on the resource thread?
+  m_resourceManager.thread().run<void>([this]() {
+    DBG_LOG(m_logger, STR("Resource thread: " << std::this_thread::get_id()));
+
+    auto commandPool = createResourceThreadCommandPool();
+
+    m_bufferManager = createGpuBufferManager(m_physicalDevice, m_device, m_instance, commandPool,
+      m_graphicsQueue, m_workQueue, m_logger);
+
+    m_resources = createRenderResources(std::this_thread::get_id(), *m_bufferManager,
+      m_physicalDevice, m_device, commandPool, m_logger);
+  }).get();
+  m_thread.run<void>([this]() {
     createDepthResources();
     createCommandBuffers();
     createSyncObjects();
@@ -377,6 +403,8 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, const FileSystem& fileSyste
 
 void RendererImpl::start()
 {
+  DBG_TRACE(m_logger);
+
   m_running = true;
   m_thread.run<void>([&]() {
     renderLoop();
@@ -390,6 +418,8 @@ bool RendererImpl::isStarted() const
 
 void RendererImpl::checkError() const
 {
+  DBG_TRACE(m_logger);
+
   std::lock_guard lock(m_errorMutex);
 
   if (m_hasError) {
@@ -408,9 +438,9 @@ Mat4x4f RendererImpl::projectionMatrix() const
 void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
   const MaterialFeatureSet& materialFeatures)
 {
-  ASSERT(!m_running, "Renderer already started");
+  DBG_TRACE(m_logger);
 
-  return m_thread.run<void>([&, this]() {
+  auto compile = [&, this]() {
     auto depthFormat = findDepthFormat(m_physicalDevice);
 
     auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
@@ -447,7 +477,14 @@ void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeature
         }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
       }
     }
-  }).get();
+  };
+
+  if (m_running) {
+    m_workQueue.addWorkItem(std::move(compile)).get();
+  }
+  else {
+    compile();
+  }
 }
 
 double RendererImpl::frameRate() const
@@ -457,6 +494,8 @@ double RendererImpl::frameRate() const
 
 void RendererImpl::onResize()
 {
+  DBG_TRACE(m_logger);
+
   m_framebufferResized = true;
 }
 
@@ -534,7 +573,7 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, Resourc
 void RendererImpl::drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatures,
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform)
 {
-  //DBG_TRACE(m_logger);
+  DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
@@ -566,7 +605,7 @@ void RendererImpl::drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeature
   ResourceId material, const MaterialFeatureSet& materialFeatures,
   const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform)
 {
-  //DBG_TRACE(m_logger);
+  DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
@@ -619,6 +658,8 @@ void RendererImpl::drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
   const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms)
 {
+  DBG_TRACE(m_logger);
+
   drawModelInternal(mesh, meshFeatures, material, materialFeatures, transform, colour,
     jointTransforms);
 }
@@ -627,7 +668,7 @@ void RendererImpl::drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
   const Mat4x4f& transform)
 {
-  //DBG_TRACE(m_logger);
+  DBG_TRACE(m_logger);
 
   drawModelInternal(mesh, meshFeatures, material, materialFeatures, transform, colour,
     std::nullopt);
@@ -637,8 +678,6 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform,
   const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms)
 {
-  //DBG_TRACE(m_logger);
-
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
   RenderGraph& renderGraph = state.graph;
@@ -663,6 +702,8 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
 void RendererImpl::drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
   const Mat4x4f& transform)
 {
+  DBG_TRACE(m_logger);
+
   FrameState& frameState = m_frameStates.getWritable();
   ASSERT(frameState.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
 
@@ -679,7 +720,7 @@ void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFe
   ResourceId material, const MaterialFeatureSet& materialFeatures, const std::string& text,
   const Vec4f& colour, const Mat4x4f& transform)
 {
-  //DBG_TRACE(m_logger);
+  DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
@@ -705,7 +746,7 @@ void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFe
 void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures,
   ResourceId material, const MaterialFeatureSet& materialFeatures)
 {
-  //DBG_TRACE(m_logger);
+  DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
@@ -782,6 +823,8 @@ void RendererImpl::renderLoop()
 {
   try {
     while (m_running) {
+      m_workQueue.runAll();
+
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
         "Error waiting for fence");
 
@@ -849,8 +892,6 @@ void RendererImpl::renderLoop()
     m_error = e.what();
     m_running = false;
   }
-
-  cleanUp();
 }
 
 void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
@@ -913,6 +954,8 @@ void RendererImpl::updateLightingUbo(RenderPass renderPass)
 
 void RendererImpl::endPass()
 {
+  DBG_TRACE(m_logger);
+
   m_frameStates.getWritable().currentRenderPass = std::nullopt;
 }
 
@@ -1089,9 +1132,11 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-  auto indices = findQueueFamilies(m_physicalDevice);
-  uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
-  if (indices.graphicsFamily == indices.presentFamily) {
+  uint32_t queueFamilyIndices[] = {
+    m_queueFamilyIndices.graphicsFamily.value(),
+    m_queueFamilyIndices.presentFamily.value()
+  };
+  if (m_queueFamilyIndices.graphicsFamily == m_queueFamilyIndices.presentFamily) {
     createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   }
   else {
@@ -1106,7 +1151,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   createInfo.clipped = VK_TRUE;
   createInfo.oldSwapchain = VK_NULL_HANDLE;// m_swapchain;
 
-  VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain),
+  VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain), // TODO: Use allocator
     "Failed to create swap chain");
 
   uint32_t imageCount;
@@ -1168,7 +1213,7 @@ void RendererImpl::setPerspectiveMatrix(float rotation)
 void RendererImpl::cleanupSwapChain()
 {
   for (auto imageView : m_swapchainImageViews) {
-    vkDestroyImageView(m_device, imageView, nullptr);
+    vkDestroyImageView(m_device, imageView, nullptr); // TODO: Use allocator
   }
   vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 }
@@ -1226,25 +1271,34 @@ SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice dev
 
 QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) const
 {
+  // TODO: Look for dedicated transfer queue
+
   QueueFamilyIndices indices;
 
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
+  m_logger.debug(STR("Queue family count: " << queueFamilyCount));
+
   std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
   for (uint32_t i = 0; i < queueFamilies.size(); ++i) {
-    if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.graphicsFamily = i;
+    if (!indices.graphicsFamily.has_value()) {
+      if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        indices.graphicsFamily = i;
+      }
     }
 
-    VkBool32 presentSupport = false;
-    VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_surface, &presentSupport),
-      "Failed to check present support for device");
+    if (!indices.presentFamily.has_value()) {
+      VkBool32 presentSupport = false;
 
-    if (presentSupport) {
-      indices.presentFamily = i;
+      VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_surface, &presentSupport),
+        "Failed to check present support for device");
+
+      if (presentSupport) {
+        indices.presentFamily = i;
+      }
     }
 
     if (indices.isComplete()) {
@@ -1334,11 +1388,11 @@ bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
     return false;
   }
 
+  auto indices = findQueueFamilies(device);
+
   auto swapchainSupport = querySwapChainSupport(device);
   bool swapchainAdequate = !swapchainSupport.formats.empty() &&
                            !swapchainSupport.presentModes.empty();
-
-  auto indices = findQueueFamilies(device);
 
   VkPhysicalDeviceFeatures supportedFeatures;
   vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
@@ -1399,11 +1453,15 @@ void RendererImpl::createLogicalDevice()
   createInfo.ppEnabledLayerNames = ValidationLayers.data();
 #endif
 
-  VK_CHECK(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device),
+  VK_CHECK(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device), // TODO: Use allocator
     "Failed to create logical device");
 
-  vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
-  vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
+  vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
+  vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
+
+  DBG_LOG(m_logger, STR("Graphics queue: " << m_graphicsQueue));
+  DBG_LOG(m_logger, STR("Present queue: " << m_presentQueue));
+  DBG_LOG(m_logger, STR("Transfer queue: " << m_presentQueue));
 }
 
 void RendererImpl::createImageViews()
@@ -1422,16 +1480,34 @@ void RendererImpl::createCommandPool()
 {
   DBG_TRACE(m_logger);
 
-  QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice);
   VkCommandPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
     .pNext = nullptr,
     .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    .queueFamilyIndex = queueFamilyIndices.graphicsFamily.value()
+    .queueFamilyIndex = m_queueFamilyIndices.graphicsFamily.value()
   };
 
   VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool),
     "Failed to create command pool");
+}
+
+VkCommandPool RendererImpl::createResourceThreadCommandPool()
+{
+  DBG_TRACE(m_logger);
+
+  VkCommandPoolCreateInfo poolInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+    .queueFamilyIndex = m_queueFamilyIndices.graphicsFamily.value()
+  };
+
+  VkCommandPool pool;
+
+  VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &pool), // TODO: Use allocator
+    "Failed to create command pool");
+
+  return pool;
 }
 
 Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& node)
@@ -1852,16 +1928,22 @@ void RendererImpl::removeMesh(ResourceId id)
 
 void RendererImpl::removeTexture(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+
   m_resources->removeTexture(id);
 }
 
 void RendererImpl::removeCubeMap(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+
   m_resources->removeCubeMap(id);
 }
 
 void RendererImpl::removeMaterial(ResourceId id)
 {
+  DBG_TRACE(m_logger);
+
   m_resources->removeMaterial(id);
 }
 
@@ -1881,7 +1963,7 @@ void RendererImpl::createSyncObjects()
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]),
+    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]), // TODO: Use allocator
       "Failed to create semaphore");
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]),
       "Failed to create fence");
@@ -1968,6 +2050,8 @@ void RendererImpl::pickPhysicalDevice()
   m_deviceLimits = props.limits;
 
   m_physicalDevice = devices[index];
+
+  m_queueFamilyIndices = findQueueFamilies(m_physicalDevice);
 }
 
 void RendererImpl::createInstance()
@@ -2010,7 +2094,7 @@ void RendererImpl::createInstance()
   createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   createInfo.ppEnabledExtensionNames = extensions.data();
 
-  VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
+  VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance"); // TODO: Use allocator
 
   loadVulkanExtensionFunctions(m_instance);
 }
@@ -2041,7 +2125,7 @@ void RendererImpl::setupDebugMessenger()
   if (func == nullptr) {
     EXCEPTION("Error getting pointer to vkCreateDebugUtilsMessengerEXT()");
   }
-  VK_CHECK(func(m_instance, &createInfo, nullptr, &m_debugMessenger),
+  VK_CHECK(func(m_instance, &createInfo, nullptr, &m_debugMessenger), // TODO: Use allocator
     "Error setting up debug messenger");
 }
 
@@ -2049,52 +2133,50 @@ void RendererImpl::destroyDebugMessenger()
 {
   auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
     vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
-  func(m_instance, m_debugMessenger, nullptr);
+  func(m_instance, m_debugMessenger, nullptr); // TODO: Use allocator
 }
 
-void RendererImpl::cleanUp()
+RendererImpl::~RendererImpl()
 {
+  DBG_TRACE(m_logger);
+
+  m_running = false;
+
+  m_thread.waitAll();
+
   vkDeviceWaitIdle(m_device);
 
+  m_resources.reset();
+  m_resourceManager.waitAll();
+
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
+    vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr); // TODO: Use allocator
     vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
   }
   for (size_t i = 0; i < m_renderFinishedSemaphores.size(); ++i) {
-    vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
+    vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr); // TODO: Use allocator
   }
-  vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+  vkDestroyCommandPool(m_device, m_commandPool, nullptr); // TODO: Use allocator
   m_pipelines.clear();
   cleanupSwapChain();
-  m_resources.reset();
   m_depthImage.reset();
   m_bufferManager.reset();
 #ifdef USE_VALIDATION_LAYERS
   destroyDebugMessenger();
 #endif
-  vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+  vkDestroySurfaceKHR(m_instance, m_surface, nullptr); // TODO: Use allocator
   vkDestroyDevice(m_device, nullptr);
   vkDestroyInstance(m_instance, nullptr);
-}
-
-void RendererImpl::createBufferManager()
-{
-  m_bufferManager = createGpuBufferManager(m_physicalDevice, m_device, m_instance, m_graphicsQueue,
-    m_commandPool);
-}
-
-RendererImpl::~RendererImpl()
-{
-  m_running = false;
 }
 
 } // namespace
 } // namespace render
 
-render::RendererPtr createRenderer(WindowDelegatePtr window, const FileSystem& fileSystem,
-  Logger& logger, const render::ScreenMargins& margins)
+render::RendererPtr createRenderer(WindowDelegatePtr window, ResourceManager& resourceManager,
+  const FileSystem& fileSystem, Logger& logger, const render::ScreenMargins& margins)
 {
-  return std::make_unique<render::RendererImpl>(std::move(window), fileSystem, logger, margins);
+  return std::make_unique<render::RendererImpl>(std::move(window), resourceManager, fileSystem,
+    logger, margins);
 }
 
 } // namespace lithic3d

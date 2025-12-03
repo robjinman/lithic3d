@@ -9,6 +9,7 @@ namespace lithic3d
 
 class FileSystem;
 class Logger;
+class WorkQueue;
 
 namespace render
 {
@@ -144,9 +145,8 @@ using RenderResourcesPtr = std::unique_ptr<RenderResources>;
 
 class GpuBufferManager;
 
-RenderResourcesPtr createRenderResources(GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkQueue graphicsQueue,
-  VkCommandPool commandPool, Logger& logger);
+RenderResourcesPtr createRenderResources(std::thread::id threadId, GpuBufferManager& bufferManager,
+  VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger);
 
 } // namespace render
 } // namespace lithic3d

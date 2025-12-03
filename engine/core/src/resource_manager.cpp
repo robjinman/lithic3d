@@ -18,6 +18,7 @@ class ResourceManagerImpl : public ResourceManager
 
     ResourceHandle loadResource(ResourceLoader&& loader) override;
     void waitAll() override;
+    Thread& thread() override;
 
     ~ResourceManagerImpl();
 
@@ -40,6 +41,11 @@ void ResourceManagerImpl::waitAll()
   m_thread.waitAll();
 }
 
+Thread& ResourceManagerImpl::thread()
+{
+  return m_thread;
+}
+
 // Main thread or worker thread
 void ResourceManagerImpl::unload(ResourceId id)
 {
@@ -50,12 +56,7 @@ void ResourceManagerImpl::unload(ResourceId id)
 
     auto i = m_resources.find(id);
 
-    {
-      auto provider = i->second.provider.lock();
-      if (provider) {
-        i->second.unloader(id);
-      }
-    }
+    i->second.unloader(id);
 
     m_resources.erase(i);
   };
@@ -73,6 +74,8 @@ void ResourceManagerImpl::unload(ResourceId id)
 ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 {
   auto id = m_nextResourceId++;
+
+  m_logger.debug(STR("Load requested for resource " << id));
 
   auto loadResource = [this, id, loader = std::move(loader)]() mutable {
     m_logger.info(STR("Loading resource " << id));

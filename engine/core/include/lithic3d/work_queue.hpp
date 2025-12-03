@@ -1,93 +1,44 @@
 #pragma once
 
-#include "strings.hpp"
+#include <functional>
 #include <future>
 #include <memory>
-#include <chrono>
-#include <queue>
+#include <vector>
 
 namespace lithic3d
 {
 
-struct WorkItem
-{
-  WorkItem(HashedString name)
-    : name(name) {}
-
-  HashedString name;
-  virtual ~WorkItem() = default;
-};
-
-using WorkItemPtr = std::unique_ptr<WorkItem>;
-
-struct WorkItemResultValue
-{
-  virtual ~WorkItemResultValue() = default;
-};
-
-using WorkItemResultValuePtr = std::unique_ptr<WorkItemResultValue>;
-
-class WorkItemResult
-{
-  public:
-    explicit WorkItemResult(std::future<WorkItemResultValuePtr>&& future)
-      : m_future(std::move(future)) {}
-
-    template<typename T>
-    const T& value()
-    {
-      m_result = m_future.get();
-      return dynamic_cast<const T&>(*m_result);
-    }
-
-  private:
-    std::future<WorkItemResultValuePtr> m_future;
-    WorkItemResultValuePtr m_result = nullptr;
-};
-
-using WorkItemHandler = std::function<void(WorkItem&, std::promise<WorkItemResultValuePtr>&)>;
+// Queue up tasks from one thread for another thread to execute
 
 class WorkQueue
 {
   public:
-    // Main thread
-    WorkItemResult addWorkItem(WorkItemPtr item)
+    std::future<void> addWorkItem(std::function<void()>&& task)
     {
       std::scoped_lock lock{m_mutex};
 
-      std::promise<WorkItemResultValuePtr> promise;
-      m_workItems.push(std::make_pair(std::move(item), std::move(promise)));
+      auto packagedTask = std::make_shared<std::packaged_task<void()>>(std::move(task));
+      std::future<void> future = packagedTask->get_future();
 
-      return WorkItemResult{m_workItems.back().second.get_future()};
+      m_tasks.push_back([packagedTask]() { (*packagedTask)(); });
+
+      return future;
     }
 
-    // Worker thread
-    bool processNext(const WorkItemHandler& handler)
+    void runAll()
     {
-      bool empty = false;
-      std::pair<WorkItemPtr, std::promise<WorkItemResultValuePtr>> item;
+      std::scoped_lock lock{m_mutex};
 
-      {
-        std::scoped_lock lock{m_mutex};
-
-        if (m_workItems.empty()) {
-          return false;
-        }
-
-        item = std::move(m_workItems.front());
-        m_workItems.pop();
-
-        empty = m_workItems.empty();
+      for (auto& task : m_tasks) {
+        task();
       }
 
-      handler(*item.first, item.second);
-
-      return !empty;
+      m_tasks.clear();
     }
 
   private:
     std::mutex m_mutex;
-    std::queue<std::pair<WorkItemPtr, std::promise<WorkItemResultValuePtr>>> m_workItems;
+    std::vector<std::function<void()>> m_tasks;
 };
 
 } // namespace lithic3d

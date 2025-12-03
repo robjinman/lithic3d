@@ -119,9 +119,10 @@ using RendererPtr = std::unique_ptr<Renderer>;
 
 class FileSystem;
 class Logger;
+class ResourceManager;
 
 // TODO: Move inside render namespace?
-render::RendererPtr createRenderer(WindowDelegatePtr window, const FileSystem& fileSystem,
-  Logger& logger, const render::ScreenMargins& margins);
+render::RendererPtr createRenderer(WindowDelegatePtr window, ResourceManager& resourceManager,
+  const FileSystem& fileSystem, Logger& logger, const render::ScreenMargins& margins);
 
 } // namespace lithic3d

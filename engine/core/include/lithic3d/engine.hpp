@@ -43,8 +43,8 @@ class Engine
 
 using EnginePtr = std::unique_ptr<Engine>;
 
-EnginePtr createEngine(std::unique_ptr<render::Renderer> renderer,
-  std::unique_ptr<AudioSystem> audioSystem, std::unique_ptr<FileSystem> fileSystem,
-  std::unique_ptr<Logger> logger);
+EnginePtr createEngine(ResourceManager& resourceManager,
+  std::unique_ptr<render::Renderer> renderer, std::unique_ptr<AudioSystem> audioSystem,
+  std::unique_ptr<FileSystem> fileSystem, std::unique_ptr<Logger> logger);
 
 } // namespace lithic3d

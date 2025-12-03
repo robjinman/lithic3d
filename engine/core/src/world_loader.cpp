@@ -12,7 +12,7 @@ namespace lithic3d
 namespace
 {
 
-class WorldLoaderImpl : public WorldLoader, private ResourceProvider
+class WorldLoaderImpl : public WorldLoader//, private ResourceProvider
 {
   public:
     WorldLoaderImpl(FileSystem& fileSystem, EntityFactory& entityFactory,
@@ -68,7 +68,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
     // TODO
 
     return ManagedResource{
-      .provider = weak_from_this(),
+      //.provider = weak_from_this(),
       .unloader = [](ResourceId) {}
     };
   });
