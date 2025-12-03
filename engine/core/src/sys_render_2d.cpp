@@ -8,6 +8,7 @@
 #include "lithic3d/file_system.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/render_resource_loader.hpp"
+#include "lithic3d/trace.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -290,7 +291,7 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
     m_renderer.compileShader(true, meshFeatures, materialFeatures);
   }
 
-  //m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
+  m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
 }
 
 render::Renderer& SysRender2dImpl::renderer()
@@ -598,7 +599,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
 
 SysRender2dImpl::~SysRender2dImpl()
 {
-  DBG_LOG(m_logger, "SysRender2dImpl::~SysRender2dImpl");
+  DBG_TRACE(m_logger);
 }
 
 } // namespace

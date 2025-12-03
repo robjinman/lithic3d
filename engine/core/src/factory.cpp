@@ -1,16 +1,16 @@
-/*#include "lithic3d/factory.hpp"
-#include "lithic3d/file_system.hpp"
-#include "lithic3d/ecs.hpp"
+#include "lithic3d/factory.hpp"
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
-#include "lithic3d/renderer.hpp"
+#include "lithic3d/render_resource_loader.hpp"
 
 namespace lithic3d
 {
 
 using render::Material;
-using render::MaterialPtr;
-using render::MaterialHandle;
+using render::MaterialFeatureSet;
+namespace MaterialFeatures = render::MaterialFeatures;
+using render::MeshFeatureSet;
+namespace MeshFeatures = render::MeshFeatures;
 using render::bitflag;
 using render::BufferUsage;
 
@@ -20,65 +20,44 @@ namespace
 class FactoryImpl : public Factory
 {
   public:
-    FactoryImpl(Ecs& ecs, const FileSystem& fileSystem);
+    FactoryImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader);
 
-    MaterialHandle constructMaterial(const std::filesystem::path& texturePath) override;
-    MaterialHandle constructMaterial(const std::filesystem::path& texturePath,
-      const std::filesystem::path& normalMapPath) override;
-
-    void constructCuboid(EntityId id, const MaterialHandle& material, const Vec3f& size,
-      const Vec2f& materialSize) override;
+    MaterialHandle createMaterial(const std::filesystem::path& texturePath) override;
+    EntityId createCuboid(const Vec3f& size, MaterialHandle material,
+      const Vec2f& textureSize) override;
 
   private:
     Ecs& m_ecs;
-    const FileSystem& m_fileSystem;
+    RenderResourceLoader& m_renderResourceLoader;
 };
 
-FactoryImpl::FactoryImpl(Ecs& ecs, const FileSystem& fileSystem)
+FactoryImpl::FactoryImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader)
   : m_ecs(ecs)
-  , m_fileSystem(fileSystem) {}
+  , m_renderResourceLoader(renderResourceLoader)
+{}
 
-MaterialHandle FactoryImpl::constructMaterial(const std::filesystem::path& texturePath)
+MaterialHandle FactoryImpl::createMaterial(const std::filesystem::path& texturePath)
 {
-  auto& renderer = m_ecs.system<SysRender3d>().renderer();
-
-  render::MaterialFeatureSet materialFeatures{
+  MaterialFeatureSet materialFeatures{
     .flags{
-      bitflag(render::MaterialFeatures::HasTexture)
+      bitflag(MaterialFeatures::HasTexture)
     }
   };
-  auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
   auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.id = renderer.addTexture(std::move(texture));
+  material->texture.handle = m_renderResourceLoader.loadTextureAsync("textures/bricks.png");
 
-  return renderer.addMaterial(std::move(material));
-}
-
-MaterialHandle FactoryImpl::constructMaterial(const std::filesystem::path& texturePath,
-  const std::filesystem::path& normalMapPath)
-{
-  auto& renderer = m_ecs.system<SysRender3d>().renderer();
-
-  render::MaterialFeatureSet materialFeatures{
-    .flags{
-      bitflag(render::MaterialFeatures::HasTexture) |
-      bitflag(render::MaterialFeatures::HasNormalMap)
-    }
+  return MaterialHandle{
+    .resource = m_renderResourceLoader.loadMaterialAsync(std::move(material)),
+    .features = materialFeatures
   };
-
-  auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-  auto normalMap = render::loadTexture(m_fileSystem.readAppDataFile(normalMapPath));
-
-  auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.id = renderer.addTexture(std::move(texture));
-  material->normalMap.id = renderer.addNormalMap(std::move(normalMap));
-
-  return renderer.addMaterial(std::move(material));
 }
 
-void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, const Vec3f& size,
-  const Vec2f& materialSize)
+EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
+  const Vec2f& textureSize)
 {
+  auto id = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial, DModel>(id);
+
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
 
@@ -91,9 +70,7 @@ void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, c
 
   sysSpatial.addEntity(id, spatial);
 
-  auto mesh = render::cuboid(size[0], size[1], size[2], materialSize);
-
-  mesh->featureSet = render::MeshFeatureSet{
+  MeshFeatureSet meshFeatures{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
@@ -102,28 +79,34 @@ void FactoryImpl::constructCuboid(EntityId id, const MaterialHandle& material, c
     .flags{}
   };
 
-  sysRender3d.renderer().compileShader(false, mesh->featureSet, material.features);
+  auto mesh = render::cuboid(size, textureSize);
+  mesh->featureSet = meshFeatures;
+
+  sysRender3d.renderer().compileShader(false, meshFeatures, material.features);
 
   auto model = std::make_unique<DModel>();
 
   model->submodels.push_back(
-    Submodel{
-      .mesh = sysRender3d.renderer().addMesh(std::move(mesh)),
-      .material = material,
+    std::unique_ptr<Submodel>(new Submodel{
+      .mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait(),
+      .meshFeatures = meshFeatures,
+      .material = material.resource.wait(),
+      .materialFeatures = material.features,
       .skin = nullptr,
       .jointTransforms{}
-    }
+    })
   );
 
   sysRender3d.addEntity(id, std::move(model));
+
+  return id;
 }
 
 } // namespace
 
-FactoryPtr createFactory(Ecs& ecs, FileSystem& fileSystem)
+FactoryPtr createFactory(Ecs& ecs, RenderResourceLoader& renderResourceLoader)
 {
-  return std::make_unique<FactoryImpl>(ecs, fileSystem);
+  return std::make_unique<FactoryImpl>(ecs, renderResourceLoader);
 }
 
 } // namespace lithic3d
-*/

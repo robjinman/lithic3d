@@ -30,9 +30,19 @@ class Demo : public Game
 
   private:
     Engine& m_engine;
+    FactoryPtr m_factory;
     EntityId m_light;
     EntityId m_cube;
     EntityId m_caption;
+    ResourceHandle m_cubeMaterial;
+    ResourceHandle m_cubeMesh;
+    MaterialFeatureSet m_materialFeatures;
+    MeshFeatureSet m_meshFeatures;
+    bool m_loadingCube = false;
+
+    void loadCubeResources();
+    void unloadCubeResources();
+    bool cubeResourcesReady() const;
 
     EntityId constructLight();
     EntityId constructCube();
@@ -43,43 +53,22 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_light = constructLight();
-  m_cube = constructCube();
-  //m_caption = constructCaption();
+  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
 
-  //m_engine.renderer().start(); // TODO: Move to engine?
+  m_light = constructLight();
+  m_cube = NULL_ENTITY_ID;
+  m_caption = constructCaption();
+
+  loadCubeResources();
 }
 
-EntityId Demo::constructCube()
+void Demo::loadCubeResources()
 {
-  MaterialFeatureSet materialFeatures{
-    .flags{
-      bitflag(MaterialFeatures::HasTexture)
-    }
-  };
-  auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.handle =
-    m_engine.renderResourceLoader().loadTextureAsync("textures/bricks.png");
+  auto material = m_factory->createMaterial("textures/bricks.png");
+  m_cubeMaterial = material.resource;
+  m_materialFeatures = material.features;
 
-  auto id = m_engine.ecs().idGen().getNewEntityId();
-  m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
-
-  Vec3f size{ 1.f, 1.f, 1.f };
-  Vec2f materialSize{ 1.f, 1.f };
-
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-
-  DSpatial spatial{};
-  spatial.parent = sysSpatial.root();
-  spatial.aabb = {
-    .min = -size * 0.5f,
-    .max = size * 0.5f
-  };
-
-  sysSpatial.addEntity(id, spatial);
-
-  MeshFeatureSet meshFeatures{
+  m_meshFeatures = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
@@ -88,19 +77,52 @@ EntityId Demo::constructCube()
     .flags{}
   };
 
-  auto mesh = render::cuboid(size[0], size[1], size[2], materialSize);
-  mesh->featureSet = meshFeatures;
+  auto mesh = render::cuboid({ 1.f, 1.f, 1.f }, { 1.f, 1.f });
+  mesh->featureSet = m_meshFeatures;
 
-  m_engine.renderer().compileShader(false, meshFeatures, materialFeatures);
+  m_cubeMesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+
+  m_loadingCube = true;
+}
+
+void Demo::unloadCubeResources()
+{
+  m_cubeMaterial = ResourceHandle{};
+  m_cubeMesh = ResourceHandle{};
+}
+
+bool Demo::cubeResourcesReady() const
+{
+  return m_cubeMaterial.ready() && m_cubeMesh.ready();
+}
+
+EntityId Demo::constructCube()
+{
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
+
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+
+  DSpatial spatial{};
+  spatial.parent = sysSpatial.root();
+  spatial.aabb = {
+    .min = { -0.5f, -0.5f, -0.5f },
+    .max = { 0.5f, 0.5f, 0.5f }
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  sysRender3d.renderer().compileShader(false, m_meshFeatures, m_materialFeatures);
 
   auto model = std::make_unique<DModel>();
 
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
-      .mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait(), // TODO: Remove wait
-      .meshFeatures = meshFeatures,
-      .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(), // TODO: Remove wait
-      .materialFeatures = materialFeatures,
+      .mesh = m_cubeMesh,
+      .meshFeatures = m_meshFeatures,
+      .material = m_cubeMaterial,
+      .materialFeatures = m_materialFeatures,
       .skin = nullptr,
       .jointTransforms{}
     })
@@ -161,7 +183,7 @@ EntityId Demo::constructCaption()
     .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
     .materialFeatures = materialFeatures,
     .textureRect = {
-      .x = pxToUvX(768.f, 1024.f),
+      .x = pxToUvX(256.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
       .w = pxToUvW(256.f, 1024.f),
       .h = pxToUvH(256.f, 256.f)
@@ -176,13 +198,6 @@ EntityId Demo::constructCaption()
   return id;
 }
 
-void Demo::onKeyDown(KeyboardKey key)
-{
-  if (key == KeyboardKey::Space) {
-    // TODO
-  }
-}
-
 void Demo::rotateCube()
 {
   if (m_cube == NULL_ENTITY_ID) {
@@ -192,14 +207,35 @@ void Demo::rotateCube()
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube,
-    createTransform({ 0.f, 0.f, 5.f }, { b, a, 0.f }));
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube, createTransform({ 0.f, 0.f, 5.f },
+    { b, a, 0.f }));
+}
+
+void Demo::onKeyDown(KeyboardKey key)
+{
+  if (key == KeyboardKey::Space) {
+    if (m_cube == NULL_ENTITY_ID) {
+      loadCubeResources();
+    }
+    else {
+      m_engine.ecs().removeEntity(m_cube);
+      unloadCubeResources();
+      m_cube = NULL_ENTITY_ID;
+    }
+  }
 }
 
 bool Demo::update()
 {
   rotateCube();
   m_engine.update({});
+
+  if (m_loadingCube) {
+    if (cubeResourcesReady()) {
+      m_cube = constructCube();
+      m_loadingCube = false;
+    }
+  }
 
   return true;
 }
@@ -209,7 +245,7 @@ bool Demo::update()
 GameConfig getGameConfig()
 {
   return {
-    .appDisplayName = "Lithic3D Demo - Resource Management",
+    .appDisplayName = "Lithic3D Demo - Resources",
     .appShortName = "resources",
     .vendorShortName = "freeholdapps",
     .windowW = 640,

@@ -50,6 +50,7 @@
 #include "logger.hpp"
 #include "renderer.hpp"
 #include "file_system.hpp"
+#include "factory.hpp"
 #include "sys_animation_2d.hpp"
 #include "graph.hpp"
 #include "camera_3d.hpp"

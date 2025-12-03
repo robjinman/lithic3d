@@ -73,8 +73,7 @@ struct AnimationState
 class SysRender3dImpl : public SysRender3d
 {
   public:
-    SysRender3dImpl(const Ecs& ecs, Renderer& renderer, ResourceManager& resourceManager,
-      Logger& logger);
+    SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger);
 
     double frameRate() const override;
 
@@ -102,7 +101,6 @@ class SysRender3dImpl : public SysRender3d
 
   private:
     Logger& m_logger;
-    ResourceManager& m_resourceManager;
     Camera3d m_camera;
     const Ecs& m_ecs;
     Renderer& m_renderer;
@@ -126,10 +124,8 @@ class SysRender3dImpl : public SysRender3d
     void updateAnimations();
 };
 
-SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer,
-  ResourceManager& resourceManager, Logger& logger)
+SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger)
   : m_logger(logger)
-  , m_resourceManager(resourceManager)
   , m_ecs(ecs)
   , m_renderer(renderer)
 {
@@ -546,10 +542,9 @@ SysRender3dImpl::~SysRender3dImpl()
 
 } // namespace
 
-SysRender3dPtr createSysRender3d(const Ecs& ecs, Renderer& renderer,
-  ResourceManager& resourceManager, Logger& logger)
+SysRender3dPtr createSysRender3d(const Ecs& ecs, Renderer& renderer, Logger& logger)
 {
-  return std::make_unique<SysRender3dImpl>(ecs, renderer, resourceManager, logger);
+  return std::make_unique<SysRender3dImpl>(ecs, renderer, logger);
 }
 
 } // namespace lithic3d

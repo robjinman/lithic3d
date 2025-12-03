@@ -249,7 +249,7 @@ inline std::span<uint16_t> getIndexBufferData(Mesh& mesh)
 }
 
 TexturePtr loadTexture(const std::vector<char>& data);
-MeshPtr cuboid(float w, float h, float d, const Vec2f& textureSize);
+MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize);
 MeshPtr mergeMeshes(const Mesh& A, const Mesh& B);
 std::vector<char> createVertexArray(const Mesh& mesh);
 

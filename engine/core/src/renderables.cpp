@@ -53,8 +53,12 @@ TexturePtr loadTexture(const std::vector<char>& data)
   return texture;
 }
 
-MeshPtr cuboid(float W, float H, float D, const Vec2f& textureSize)
+MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
 {
+  float W = size[0];
+  float H = size[1];
+  float D = size[2];
+
   float w = W / 2.f;
   float h = H / 2.f;
   float d = D / 2.f;
