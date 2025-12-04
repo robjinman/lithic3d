@@ -94,16 +94,9 @@ EntityId ProductActivationImpl::constructPrompt()
 
   sysSpatial.addEntity(id, spatial);
 
-  render::MaterialFeatureSet materialFeatures{
-    .flags{
-      render::bitflag(render::MaterialFeatures::HasTexture)
-    }
-  };
-
   DText render{
     .scissor = 0,
     .material = m_font.material,
-    .materialFeatures = materialFeatures,
     .textureRect = m_font.textureSection,
     .text = "Enter 8-digit activation key",
     .zIndex = 1,
@@ -152,16 +145,9 @@ EntityId ProductActivationImpl::constructTextbox()
 
   sysSpatial.addEntity(id, spatial);
 
-  render::MaterialFeatureSet materialFeatures{
-    .flags{
-      render::bitflag(render::MaterialFeatures::HasTexture)
-    }
-  };
-
   DDynamicText render{
     .scissor = 0,
     .material = m_font.material,
-    .materialFeatures = materialFeatures,
     .textureRect = m_font.textureSection,
     .text = "________",
     .maxLength = 8,

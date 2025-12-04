@@ -1,16 +1,87 @@
 #pragma once
 
-#include "resource_manager.hpp"
+#include "renderables.hpp"
+#include <filesystem>
 #include <map>
 
 namespace lithic3d
 {
 
+struct Skin
+{
+  std::vector<size_t> joints; // Indices into skeleton joints
+  std::vector<Mat4x4f> inverseBindMatrices;
+};
+
+using SkinPtr = std::unique_ptr<Skin>;
+
+struct AnimationChannel
+{
+  size_t jointIndex;  // Index into skin
+  std::vector<float> timestamps;
+  std::vector<Transform> transforms;
+};
+
+struct Animation
+{
+  std::string name;
+  // TODO: Duration
+  std::vector<AnimationChannel> channels;
+};
+
+using AnimationPtr = std::unique_ptr<Animation>;
+
+struct Joint
+{
+  Transform transform;
+  std::vector<size_t> children;
+};
+
+struct Skeleton
+{
+  size_t rootNodeIndex = 0;
+  std::vector<Joint> joints;
+};
+
+using SkeletonPtr = std::unique_ptr<Skeleton>;
+
+struct AnimationSet
+{
+  SkeletonPtr skeleton;
+  std::map<std::string, AnimationPtr> animations;
+};
+
+using AnimationSetPtr = std::unique_ptr<AnimationSet>;
+
+struct Submodel
+{
+  render::MeshHandle mesh;
+  render::MaterialHandle material;
+  SkinPtr skin;
+
+  // TODO: Make these private?
+  bool jointTransformsDirty = false;
+  std::vector<Mat4x4f> jointTransforms;
+};
+
+using SubmodelPtr = std::unique_ptr<Submodel>;
+
+struct Model
+{
+  AnimationSetPtr animations; // TODO: Share between models
+  std::vector<SubmodelPtr> submodels;
+};
+
+using ModelPtr = std::unique_ptr<Model>;
+
+// TODO: Should a model be a resource? Or just a bag of handles?
+
 class ModelLoader
 {
   public:
-    virtual ResourceId loadModel(const std::string& filePath) const = 0;
-    //virtual DModelPtr createRenderComponent(ResourceId model, bool isInstanced) = 0;
+    virtual ResourceHandle loadModelAsync(const std::filesystem::path& path) = 0;
+
+    virtual const Model& getModel(ResourceId id) const = 0;
 
     virtual ~ModelLoader() {}
 };
@@ -18,10 +89,10 @@ class ModelLoader
 using ModelLoaderPtr = std::unique_ptr<ModelLoader>;
 
 class FileSystem;
-namespace render { class Renderer; }
-class Logger;
+class RenderResourceLoader;
+class Ecs;
 
-ModelLoaderPtr createModelLoader(ResourceManager& resourceManager, render::Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger);
+ModelLoaderPtr createModelLoader(RenderResourceLoader& renderResourceLoader,
+  ResourceManager& resourceManager, const FileSystem& fileSystem, Logger& logger);
 
 } // namespace lithic3d

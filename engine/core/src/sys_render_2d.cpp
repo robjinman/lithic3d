@@ -24,7 +24,9 @@ using render::Material;
 using render::MeshFeatureSet;
 using render::MaterialFeatureSet;
 namespace MaterialFeatures = render::MaterialFeatures;
+using render::MaterialHandle;
 namespace MeshFeatures = render::MeshFeatures;
+using render::MeshHandle;
 using render::RenderPass;
 using render::Buffer;
 using render::BufferUsage;
@@ -215,10 +217,9 @@ class SysRender2dImpl : public SysRender2d
     Camera2d m_camera;
     Renderer& m_renderer;
     RenderResourceLoader& m_renderResourceLoader;
-    ResourceHandle m_mesh;
-    render::MeshFeatureSet m_meshFeatures;
-    std::unordered_map<EntityId, ResourceHandle> m_textItemMeshHandles;
-    std::unordered_map<EntityId, ResourceHandle> m_materialHandles;
+    MeshHandle m_mesh;
+    std::unordered_map<EntityId, MeshHandle> m_textItemMeshHandles;
+    std::unordered_map<EntityId, MaterialHandle> m_materialHandles;
     std::unordered_map<ScissorId, Recti> m_scissors;
 };
 
@@ -337,18 +338,18 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
   };
 
   auto mesh = textItemMesh(data.text, data.text.size(), data.textureRect, false);
-  MeshFeatureSet meshFeatures = mesh->featureSet;
-
   auto meshHandle = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
 
   m_componentStore.component<CMesh2d>(entityId) = CMesh2d{
-    .id = meshHandle.id(),
-    .features = meshFeatures
+    .id = meshHandle.resource.id(),
+    .features = meshHandle.features
   };
 
+  m_logger.info(STR("4. flags " << data.material.features.flags));
+
   m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
-    .id = data.material.id(),
-    .features = data.materialFeatures
+    .id = data.material.resource.id(),
+    .features = data.material.features
   };
 
   m_textItemMeshHandles.insert({ entityId, meshHandle });
@@ -393,13 +394,13 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   auto meshHandle = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
 
   m_componentStore.component<CMesh2d>(entityId) = CMesh2d{
-    .id = meshHandle.id(),
+    .id = meshHandle.resource.id(),
     .features = meshFeatures
   };
 
   m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
-    .id = data.material.id(),
-    .features = data.materialFeatures
+    .id = data.material.resource.id(),
+    .features = data.material.features
   };
 
   m_textItemMeshHandles.insert({ entityId, meshHandle });
@@ -446,8 +447,8 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
   };
 
   m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
-    .id = data.material.id(),
-    .features = data.materialFeatures
+    .id = data.material.resource.id(),
+    .features = data.material.features
   };
 
   m_materialHandles.insert({ entityId, data.material });
@@ -559,7 +560,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
           auto& meshComp = meshComps[i];
 
           auto& textItemMesh = m_textItemMeshHandles.at(entityIds[i]); // TODO: slow?
-          if (!textItemMesh.ready()) {
+          if (!textItemMesh.resource.ready()) {
             continue;
           }
 
@@ -583,13 +584,13 @@ void SysRender2dImpl::update(Tick, const InputState&)
             Vec2f{ r.x, r.y }
           };
 
-          m_renderer.drawSprite(m_mesh.id(), m_meshFeatures, materialComp.id, materialComp.features,
-            uvCoords, renderComp.colour, screenSpaceTransform);
+          m_renderer.drawSprite(m_mesh.resource.id(), m_mesh.features, materialComp.id,
+            materialComp.features, uvCoords, renderComp.colour, screenSpaceTransform);
         }
       }
       else {
-        m_renderer.drawQuad(m_mesh.id(), m_meshFeatures, quadComps[i].radius, renderComp.colour,
-          screenSpaceTransform);
+        m_renderer.drawQuad(m_mesh.resource.id(), m_mesh.features, quadComps[i].radius,
+          renderComp.colour, screenSpaceTransform);
       }
     }
   }

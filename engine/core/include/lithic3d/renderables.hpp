@@ -45,13 +45,13 @@ struct Texture
 };
 
 using TexturePtr = std::unique_ptr<Texture>;
-
+/*
 struct MaterialResource
 {
   std::string fileName;
   ResourceHandle handle;
 };
-
+*/
 enum class BufferUsage : uint8_t
 {
   None = 0,
@@ -130,37 +130,32 @@ struct MaterialFeatureSet
 
   bool operator==(const MaterialFeatureSet& rhs) const = default;
 };
-/*
-struct MeshHandle
-{
-  RenderItemId id = NULL_ID;
-  MeshFeatureSet features;
-  Mat4x4f transform; // TODO: Remove?
-};
-
-struct MaterialHandle
-{
-  RenderItemId id = NULL_ID;
-  MaterialFeatureSet features;
-};*/
 
 struct Material
 {
-  Material(const MaterialFeatureSet& features)
-    : featureSet(features)
-  {}
-
   std::string name;
   MaterialFeatureSet featureSet;
   Vec4f colour = { 1, 1, 1, 1 };
-  MaterialResource texture; // TODO: Use RenderItemId?
-  MaterialResource cubeMap;
-  MaterialResource normalMap;
+  ResourceHandle texture;
+  ResourceHandle cubeMap;
+  ResourceHandle normalMap;
   float metallicFactor = 0.f;
   float roughnessFactor = 0.f;
 };
 
 using MaterialPtr = std::unique_ptr<Material>;
+
+struct MaterialHandle
+{
+  ResourceHandle resource;
+  render::MaterialFeatureSet features;
+
+  const MaterialHandle& wait() const
+  {
+    resource.wait();
+    return *this;
+  }
+};
 
 struct Buffer
 {
@@ -207,6 +202,18 @@ struct Mesh
 };
 
 using MeshPtr = std::unique_ptr<Mesh>;
+
+struct MeshHandle
+{
+  ResourceHandle resource;
+  render::MeshFeatureSet features;
+
+  const MeshHandle& wait() const
+  {
+    resource.wait();
+    return *this;
+  }
+};
 
 struct BitmapFont
 {

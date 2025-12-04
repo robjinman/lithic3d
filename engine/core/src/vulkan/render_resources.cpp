@@ -521,17 +521,17 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
 
   // TODO: Use array of descriptors for textures, normal maps, etc.?
   if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
-    VkImageView imageView = m_textures.at(material->texture.handle.id())->image->vkImageView();
+    VkImageView imageView = m_textures.at(material->texture.id())->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
   }
   if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
-    VkImageView imageView = m_textures.at(material->normalMap.handle.id())->image->vkImageView();
+    VkImageView imageView = m_textures.at(material->normalMap.id())->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
   }
   if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
-    VkImageView imageView = m_cubeMaps.at(material->cubeMap.handle.id())->image->vkImageView();
+    VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView();
     addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
   }

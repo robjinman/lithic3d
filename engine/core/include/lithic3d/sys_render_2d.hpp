@@ -69,8 +69,7 @@ struct DSprite
   >;
 
   ScissorId scissor = 0;
-  ResourceHandle material;
-  render::MaterialFeatureSet materialFeatures;
+  render::MaterialHandle material;
   Rectf textureRect;
   uint32_t zIndex = 0;
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
@@ -93,8 +92,7 @@ struct DText
   >;
 
   ScissorId scissor = 0;
-  ResourceHandle material;
-  render::MaterialFeatureSet materialFeatures;
+  render::MaterialHandle material;
   Rectf textureRect;
   std::string text;
   uint32_t zIndex = 0;
@@ -108,8 +106,7 @@ struct DDynamicText
   >;
 
   ScissorId scissor = 0;
-  ResourceHandle material;
-  render::MaterialFeatureSet materialFeatures;
+  render::MaterialHandle material;
   Rectf textureRect;
   std::string text;
   size_t maxLength = DYNAMIC_TEXT_MAX_LEN;

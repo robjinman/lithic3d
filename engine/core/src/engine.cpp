@@ -80,9 +80,12 @@ EngineImpl::EngineImpl(ResourceManager& resourceManager, render::RendererPtr ren
 
   m_renderer->start();
 
+  m_modelLoader = createModelLoader(*m_renderResourceLoader, m_resourceManager, *m_fileSystem,
+    *m_logger);
+
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
-  auto sysRender3d = createSysRender3d(*m_ecs, *m_renderer, *m_logger);
+  auto sysRender3d = createSysRender3d(*m_ecs, *m_modelLoader, *m_renderer, *m_logger);
   auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
@@ -94,8 +97,6 @@ EngineImpl::EngineImpl(ResourceManager& resourceManager, render::RendererPtr ren
   m_ecs->addSystem(ANIMATION_2D_SYSTEM, std::move(sysAnimation2d));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
-
-  //m_modelLoader = createModelLoader(*m_resourceManager, *m_renderer, *m_fileSystem, *m_logger);
 }
 
 void EngineImpl::setClearColour(const Vec4f& colour)

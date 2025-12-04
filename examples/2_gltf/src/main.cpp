@@ -40,18 +40,17 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
+  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
 
   constructLight();
   m_model = constructModel();
   constructCaption();
-
-  m_engine.renderer().start(); // TODO: Move to engine?
 }
 
 EntityId Demo::constructLight()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
@@ -76,20 +75,25 @@ EntityId Demo::constructModel()
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
+  auto id = m_engine.ecs().idGen().getNewEntityId(); 
+  m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
   DSpatial spatial{};
   spatial.parent = sysSpatial.root();
 
   sysSpatial.addEntity(id, spatial);
 
-  auto modelData = m_engine.modelLoader().loadModelData("models/monkey.gltf");
-  auto render = m_engine.modelLoader().createRenderComponent(std::move(modelData), false);
+  auto render = std::make_unique<DModel>();
+  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
 
-  for (auto& submodel : render->submodels) {
-    submodel.mesh.features.flags.set(MeshFeatures::CastsShadow, false);
-    sysRender3d.renderer().compileShader(false, submodel.mesh.features, submodel.material.features);
-  }
+  auto meshFeatures = m_engine.modelLoader().getModel(render->model.id()).submodels[0]->mesh.features; // TODO: This is ridiculous
+  MaterialFeatureSet materialFeatures{
+    .flags{
+      bitflag(MaterialFeatures::HasTexture) |
+      bitflag(MaterialFeatures::HasNormalMap)
+    }
+  };
+  sysRender3d.renderer().compileShader(false, meshFeatures, materialFeatures);
 
   sysRender3d.addEntity(id, std::move(render));
 
@@ -101,7 +105,8 @@ EntityId Demo::constructCaption()
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender2d = m_engine.ecs().system<SysRender2d>();
 
-  EntityId id = m_engine.ecs().componentStore().allocate<DSpatial, DText>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DText>(id);
 
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
@@ -113,7 +118,7 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->constructMaterial("textures/fonts.png"),
+    .material = m_factory->createMaterial("textures/fonts.png").wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -135,8 +140,8 @@ void Demo::rotateModel()
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model,
-    createTransform({ 0.f, 0.f, 5.f }, { b, a, 0.f }));
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model, createTransform({ 0.f, 0.f, 5.f },
+    { b, a, 0.f }));
 }
 
 bool Demo::update()

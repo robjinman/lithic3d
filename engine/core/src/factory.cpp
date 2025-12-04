@@ -2,6 +2,7 @@
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/render_resource_loader.hpp"
+#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -9,8 +10,10 @@ namespace lithic3d
 using render::Material;
 using render::MaterialFeatureSet;
 namespace MaterialFeatures = render::MaterialFeatures;
+using render::MaterialHandle;
 using render::MeshFeatureSet;
 namespace MeshFeatures = render::MeshFeatures;
+using render::MeshHandle;
 using render::bitflag;
 using render::BufferUsage;
 
@@ -38,18 +41,15 @@ FactoryImpl::FactoryImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader)
 
 MaterialHandle FactoryImpl::createMaterial(const std::filesystem::path& texturePath)
 {
-  MaterialFeatureSet materialFeatures{
+  auto material = std::make_unique<Material>();
+  material->featureSet = MaterialFeatureSet{
     .flags{
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.handle = m_renderResourceLoader.loadTextureAsync("textures/bricks.png");
+  material->texture = m_renderResourceLoader.loadTextureAsync(texturePath);
 
-  return MaterialHandle{
-    .resource = m_renderResourceLoader.loadMaterialAsync(std::move(material)),
-    .features = materialFeatures
-  };
+  return m_renderResourceLoader.loadMaterialAsync(std::move(material));
 }
 
 EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
@@ -89,9 +89,7 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
       .mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait(),
-      .meshFeatures = meshFeatures,
       .material = material.resource.wait(),
-      .materialFeatures = material.features,
       .skin = nullptr,
       .jointTransforms{}
     })

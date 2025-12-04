@@ -2,12 +2,14 @@
 #include "lithic3d/gltf.hpp"
 #include "lithic3d/file_system.hpp"
 #include "lithic3d/utils.hpp"
-#include "lithic3d/renderer.hpp"
+#include "lithic3d/render_resource_loader.hpp"
+#include "lithic3d/logger.hpp"
+#include "lithic3d/strings.hpp"
 #include <set>
 
 namespace lithic3d
 {
-/*
+
 using render::Buffer;
 using render::BufferUsage;
 using render::VertexLayout;
@@ -15,28 +17,13 @@ using render::Mesh;
 using render::MaterialPtr;
 namespace MeshFeatures = render::MeshFeatures;
 using render::MeshFeatureSet;
+using render::MeshHandle;
 namespace MaterialFeatures = render::MaterialFeatures;
 using render::MaterialFeatureSet;
+using render::MaterialHandle;
 
 namespace
 {
-
-struct SubmodelData
-{
-  render::MeshPtr mesh;
-  render::MaterialPtr material;
-  SkinPtr skin; // TODO: Share skins between submodels
-};
-
-using SubmodelPtr = std::unique_ptr<Submodel>;
-
-struct ModelData
-{
-  std::vector<SubmodelPtr> submodels;
-  AnimationSetPtr animations;
-};
-
-using ModelDataPtr = std::unique_ptr<ModelData>;
 
 template<typename T>
 T convert(const char* value, gltf::ComponentType dataType)
@@ -290,81 +277,64 @@ render::MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
   return mesh;
 }
 
-render::MaterialPtr constructMaterial(const gltf::MaterialDesc& materialDesc)
-{
-  auto material = std::make_unique<render::Material>(createMaterialFeatureSet(materialDesc));
-
-  material->name = materialDesc.name;
-  material->texture.fileName = materialDesc.baseColourTexture;
-  material->normalMap.fileName = materialDesc.normalMap;
-  material->colour = materialDesc.baseColourFactor;
-  // TODO: PBR attributes
-
-  return material;
-}
-
 class ModelLoaderImpl : public ModelLoader
 {
   public:
-    ModelLoaderImpl(ResourceManager& resourceManager, Ecs& ecs, const FileSystem& fileSystem,
-      Logger& logger);
+    ModelLoaderImpl(RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
+      const FileSystem& fileSystem, Logger& logger);
 
-    ResourceId loadModel(const std::string& filePath) const override;
-    DModelPtr createRenderComponent(ResourceId model, bool isInstanced) override;
+    ResourceHandle loadModelAsync(const std::filesystem::path& path) override;
+
+    const Model& getModel(ResourceId id) const override;
 
   private:
     Logger& m_logger;
-    Ecs& m_ecs;
+    RenderResourceLoader& m_renderResourceLoader;
+    ResourceManager& m_resourceManager;
     const FileSystem& m_fileSystem;
 
-    MaterialHandle loadMaterial(MaterialPtr material);
+    std::map<ResourceId, ModelPtr> m_models;
+    mutable std::mutex m_mutex;
+
+    MaterialHandle loadMaterialAsync(const gltf::MaterialDesc& desc);
 };
 
-ModelLoaderImpl::ModelLoaderImpl(Ecs& ecs, const FileSystem& fileSystem,
-  Logger& logger)
+ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
+  ResourceManager& resourceManager, const FileSystem& fileSystem, Logger& logger)
   : m_logger(logger)
-  , m_ecs(ecs)
+  , m_renderResourceLoader(renderResourceLoader)
+  , m_resourceManager(resourceManager)
   , m_fileSystem(fileSystem)
 {
 }
 
-MaterialHandle ModelLoaderImpl::loadMaterial(MaterialPtr material)
+const Model& ModelLoaderImpl::getModel(ResourceId id) const
 {
-  auto& sysRender3d = m_ecs.system<SysRender3d>();
+  std::scoped_lock lock{m_mutex};
+  return *m_models.at(id);
+}
 
-  auto textureFileName = material->texture.fileName;
-  if (textureFileName != "") {
-    auto texturePath = STR("textures/" << textureFileName);
+MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc)
+{
+  auto material = std::make_unique<render::Material>();
+  material->name = desc.name;
+  material->colour = desc.baseColourFactor;
+  material->featureSet = createMaterialFeatureSet(desc);
 
-    auto i = m_materials.find(textureFileName);
-    if (i == m_materials.end()) {
-      auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-      material->texture.id = sysRender3d.renderer().addTexture(std::move(texture));
-      m_materials[textureFileName] = material->texture.id;
-    }
-    else {
-      material->texture.id = i->second;
-    }
+  std::filesystem::path texturesPath = "textures";
+
+  if (!desc.baseColourTexture.empty()) {
+    material->texture =
+      m_renderResourceLoader.loadTextureAsync(texturesPath / desc.baseColourTexture);
   }
 
-  // TODO: Remove duplication
-  auto normalMapFileName = material->normalMap.fileName;
-  if (normalMapFileName != "") {
-    auto texturePath = STR("textures/" << normalMapFileName);
-
-    auto i = m_materials.find(normalMapFileName);
-    if (i == m_materials.end()) {
-      auto texture = render::loadTexture(m_fileSystem.readAppDataFile(texturePath));
-      material->normalMap.id = sysRender3d.renderer().addNormalMap(std::move(texture));
-      m_materials[normalMapFileName] = material->normalMap.id;
-    }
-    else {
-      material->normalMap.id = i->second;
-    }
+  if (!desc.normalMap.empty()) {
+    material->normalMap = m_renderResourceLoader.loadNormalMapAsync(texturesPath / desc.normalMap);
   }
-  // TODO: Repeat the above for cube maps
 
-  return sysRender3d.renderer().addMaterial(std::move(material));
+  // TODO: Cube maps?
+
+  return m_renderResourceLoader.loadMaterialAsync(std::move(material));
 }
 
 SkeletonPtr extractSkeleton(const gltf::ArmatureDesc& armature)
@@ -430,107 +400,102 @@ std::vector<Transform> constructJointTransformsBuffer(const std::vector<float>& 
   return buffer;
 }
 
-ModelDataPtr ModelLoaderImpl::loadModelData(const std::string& filePath) const
+ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
 {
-  auto modelDesc = gltf::extractModel(m_fileSystem.readAppDataFile(filePath));
+  return m_resourceManager.loadResource([this, filePath](ResourceId id) {
+    auto modelDesc = gltf::extractModel(m_fileSystem.readAppDataFile(filePath));
 
-  std::vector<std::vector<char>> dataBuffers;
-  for (const auto& buffer : modelDesc.buffers) {
-    auto binPath = std::filesystem::path{filePath}.parent_path() / buffer;
-    dataBuffers.push_back(m_fileSystem.readAppDataFile(binPath));
-  }
+    std::vector<std::vector<char>> dataBuffers;
+    for (const auto& buffer : modelDesc.buffers) {
+      auto binPath = std::filesystem::path{filePath}.parent_path() / buffer;
+      dataBuffers.push_back(m_fileSystem.readAppDataFile(binPath));
+    }
 
-  bool hasAnimations = modelDesc.armature.animations.size() > 0;
-  auto model = std::make_unique<ModelData>();
-  if (hasAnimations) {
-    model->animations = std::make_unique<AnimationSet>();
-    model->animations->skeleton = extractSkeleton(modelDesc.armature);
-  }
+    bool hasAnimations = modelDesc.armature.animations.size() > 0;
+    auto model = std::make_unique<Model>();
 
-  for (auto& meshDesc : modelDesc.meshes) {
-    auto submodel = std::make_unique<SubmodelData>();
-    submodel->mesh = constructMesh(meshDesc, dataBuffers);
-    submodel->material = constructMaterial(meshDesc.material);
     if (hasAnimations) {
-      submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
+      model->animations = std::make_unique<AnimationSet>();
+      model->animations->skeleton = extractSkeleton(modelDesc.armature);
     }
 
-    if (submodel->mesh->featureSet.flags.test(MeshFeatures::HasTangents)) {
-      computeMeshTangents(*submodel->mesh);
-    }
+    for (auto& meshDesc : modelDesc.meshes) {
+      auto mesh = constructMesh(meshDesc, dataBuffers);
+      auto meshFeatures = mesh->featureSet;
 
-    model->submodels.push_back(std::move(submodel));
-  }
-
-  for (auto& animationDesc : modelDesc.armature.animations) {
-    std::map<size_t, std::vector<float>> buffers;
-
-    auto getBuffer = [&](size_t index) -> std::vector<float>& {
-      auto i = buffers.find(index);
-      if (i != buffers.end()) {
-        return i->second;
+      if (meshFeatures.flags.test(MeshFeatures::HasTangents)) {
+        computeMeshTangents(*mesh);
       }
-      auto& bufferDesc = animationDesc.buffers[index];
-      DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float, "Expected float buffer");
-      std::vector<float> buffer(bufferDesc.size * bufferDesc.dimensions);
-      copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
-      buffers[index] = std::move(buffer);
-      return buffers.at(index);
-    };
 
-    auto animation = std::make_unique<Animation>();
-    animation->name = animationDesc.name;
+      auto submodel = std::make_unique<Submodel>();
+      submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
+      submodel->material = loadMaterialAsync(meshDesc.material);
 
-    for (auto& channelDesc : animationDesc.channels) {
-      auto& transformBufferDesc = animationDesc.buffers[channelDesc.transformsBufferIndex];
-      auto& transformsBuffer = getBuffer(channelDesc.transformsBufferIndex);
+      if (hasAnimations) {
+        submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
+      }
 
-      std::vector<Transform> transforms = constructJointTransformsBuffer(transformsBuffer,
-        transformBufferDesc.type);
-
-      animation->channels.push_back(AnimationChannel{
-        .jointIndex = channelDesc.nodeIndex,
-        .timestamps = getBuffer(channelDesc.timesBufferIndex),
-        .transforms = std::move(transforms)
-      });
+      model->submodels.push_back(std::move(submodel));
     }
 
-    model->animations->animations[animation->name] = std::move(animation);
-  }
+    for (auto& animationDesc : modelDesc.armature.animations) {
+      std::map<size_t, std::vector<float>> buffers;
 
-  return model;
-}
+      auto getBuffer = [&](size_t index) -> std::vector<float>& {
+        auto i = buffers.find(index);
+        if (i != buffers.end()) {
+          return i->second;
+        }
+        auto& bufferDesc = animationDesc.buffers[index];
+        DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float,
+          "Expected float buffer");
+        std::vector<float> buffer(bufferDesc.size * bufferDesc.dimensions);
+        copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
+        buffers[index] = std::move(buffer);
+        return buffers.at(index);
+      };
 
-// TODO: This should be done inside the entity factory
-DModelPtr ModelLoaderImpl::createRenderComponent(ModelDataPtr modelData, bool isInstanced)
-{
-  auto& sysRender3d = m_ecs.system<SysRender3d>();
+      auto animation = std::make_unique<Animation>();
+      animation->name = animationDesc.name;
 
-  DModelPtr model = std::make_unique<DModel>();
-  model->isInstanced = isInstanced;
+      for (auto& channelDesc : animationDesc.channels) {
+        auto& transformBufferDesc = animationDesc.buffers[channelDesc.transformsBufferIndex];
+        auto& transformsBuffer = getBuffer(channelDesc.transformsBufferIndex);
 
-  for (auto& submodelData : modelData->submodels) {
-    Submodel submodel{
-      .mesh = sysRender3d.renderer().addMesh(std::move(submodelData->mesh)),
-      .material = loadMaterial(std::move(submodelData->material)),
-      .skin = std::move(submodelData->skin),
-      .jointTransforms{}
+        std::vector<Transform> transforms = constructJointTransformsBuffer(transformsBuffer,
+          transformBufferDesc.type);
+
+        animation->channels.push_back(AnimationChannel{
+          .jointIndex = channelDesc.nodeIndex,
+          .timestamps = getBuffer(channelDesc.timesBufferIndex),
+          .transforms = std::move(transforms)
+        });
+      }
+
+      model->animations->animations[animation->name] = std::move(animation);
+    }
+
+    {
+      std::scoped_lock lock{m_mutex};
+      m_models.insert({ id, std::move(model) });
+    }
+
+    return ManagedResource{
+      .unloader = [this, filePath](ResourceId id) {
+        std::scoped_lock lock{m_mutex};
+        m_models.erase(id);
+      }
     };
-
-    model->submodels.push_back(std::move(submodel));
-  }
-
-  model->animations = sysRender3d.addAnimations(std::move(modelData->animations));
-
-  return model;
+  });
 }
 
 } // namespace
-*/
-ModelLoaderPtr createModelLoader(ResourceManager& resourceManager, render::Renderer& renderer,
-  const FileSystem& fileSystem, Logger& logger)
+
+ModelLoaderPtr createModelLoader(RenderResourceLoader& renderResourceLoader,
+  ResourceManager& resourceManager, const FileSystem& fileSystem, Logger& logger)
 {
-  //return std::make_unique<ModelLoaderImpl>(ecs, fileSystem, logger);
+  return std::make_unique<ModelLoaderImpl>(renderResourceLoader, resourceManager, fileSystem,
+    logger);
 }
 
 } // namespace lithic3d

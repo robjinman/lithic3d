@@ -99,13 +99,11 @@ EntityId Demo::constructCaption()
     }
   };
   auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.handle =
-    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
+  material->texture = m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
 
   DText render{
     .scissor = 0,
     .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
-    .materialFeatures = materialFeatures,
     .textureRect = {
       .x = pxToUvX(256.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),

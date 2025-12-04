@@ -8,6 +8,7 @@
 #include "lithic3d/time.hpp"
 #include "lithic3d/component_store.hpp"
 #include "lithic3d/trace.hpp"
+#include "lithic3d/model_loader.hpp"
 #include <map>
 #include <cassert>
 #include <unordered_set>
@@ -58,7 +59,6 @@ struct AnimationChannelState
 
 struct AnimationState
 {
-  ResourceId animationSet = NULL_RESOURCE_ID;
   std::string animationName;
   Timer timer;
   std::vector<AnimationChannelState> channels;
@@ -73,7 +73,8 @@ struct AnimationState
 class SysRender3dImpl : public SysRender3d
 {
   public:
-    SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger);
+    SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
+      Logger& logger);
 
     double frameRate() const override;
 
@@ -91,10 +92,6 @@ class SysRender3dImpl : public SysRender3d
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override {}
 
-    // Animations
-    //
-    ResourceId addAnimations(AnimationSetPtr animations) override;
-    void removeAnimations(ResourceId id) override;
     void playAnimation(EntityId entityId, const std::string& name) override;
 
     ~SysRender3dImpl() override;
@@ -103,12 +100,12 @@ class SysRender3dImpl : public SysRender3d
     Logger& m_logger;
     Camera3d m_camera;
     const Ecs& m_ecs;
+    const ModelLoader& m_modelLoader;
     Renderer& m_renderer;
     // TODO: Use component store
     std::map<EntityId, DLightPtr> m_lights;
     std::map<EntityId, DModelPtr> m_models;
     DSkyboxPtr m_skybox;
-    std::map<ResourceId, AnimationSetPtr> m_animationSets;
     std::map<EntityId, AnimationState> m_animationStates;
 
     using DrawFilter = std::function<bool(const Submodel&)>;
@@ -124,9 +121,11 @@ class SysRender3dImpl : public SysRender3d
     void updateAnimations();
 };
 
-SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, Renderer& renderer, Logger& logger)
+SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
+  Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
+  , m_modelLoader(modelLoader)
   , m_renderer(renderer)
 {
 }
@@ -193,27 +192,11 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
   m_skybox = std::move(skybox);
 }
 
-ResourceId SysRender3dImpl::addAnimations(AnimationSetPtr animations)
-{
-  // TODO
-
-  //auto id = nextId++;
-  //m_animationSets[id] = std::move(animations);
-
-  return id;
-}
-
-void SysRender3dImpl::removeAnimations(ResourceId id)
-{
-  // TODO
-}
-
 void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name)
 {
-  auto& model = *m_models.at(entityId);
+  auto& modelComp = *m_models.at(entityId);
 
   m_animationStates[entityId] = AnimationState{
-    .animationSet = model.animations,
     .animationName = name,
     .timer{},
     .channels{}
@@ -248,26 +231,27 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
       continue;
     }
 
-    auto& model = *entry->second;
+    auto& modelData = *entry->second;
+    auto& model = m_modelLoader.getModel(modelData.model.wait().id()); // TODO: Slow!
     auto& globalTransform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
 
     for (auto& submodel : model.submodels) {
       if (filter(*submodel)) {
-        if (model.isInstanced) {
-          m_renderer.drawInstance(submodel->mesh.id(), submodel->meshFeatures,
-            submodel->material.id(), submodel->materialFeatures, globalTransform);
+        if (modelData.isInstanced) {
+          m_renderer.drawInstance(submodel->mesh.resource.id(), submodel->mesh.features,
+            submodel->material.resource.id(), submodel->material.features, globalTransform);
         }
         else {
           if (submodel->jointTransformsDirty) {
-            m_renderer.drawModel(submodel->mesh.id(), submodel->meshFeatures,
-              submodel->material.id(), submodel->materialFeatures, white,
+            m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
+              submodel->material.resource.id(), submodel->material.features, white,
               globalTransform/* * submodel->mesh.transform*/, submodel->jointTransforms);
 
             submodel->jointTransformsDirty = false;
           }
           else {
-            m_renderer.drawModel(submodel->mesh.id(), submodel->meshFeatures,
-              submodel->material.id(), submodel->materialFeatures, white,
+            m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
+              submodel->material.resource.id(), submodel->material.features, white,
               globalTransform /* * submodel->mesh.transform*/);
           }
         }
@@ -301,7 +285,7 @@ void SysRender3dImpl::doShadowPass()
   m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
 
   drawModels(visible, [](const Submodel& x) {
-    return x.meshFeatures.flags.test(MeshFeatures::CastsShadow);
+    return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
   });
 
   m_renderer.endPass();
@@ -332,8 +316,8 @@ void SysRender3dImpl::doMainPass()
 
     if (light.submodels.size() > 0) {
       for (auto& submodel : light.submodels) {
-        m_renderer.drawModel(submodel->mesh.id(), submodel->meshFeatures, submodel->material.id(),
-          submodel->materialFeatures, white, transform);
+        m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
+          submodel->material.resource.id(), submodel->material.features, white, transform);
       }
     }
   }
@@ -505,9 +489,10 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
 void SysRender3dImpl::updateAnimations()
 {
   for (auto i = m_animationStates.begin(); i != m_animationStates.end();) {
-    auto& model = *m_models.at(i->first);
+    auto& modelData = *m_models.at(i->first);
+    auto& model = m_modelLoader.getModel(modelData.model.wait().id()); // TODO: Slow!
     auto& state = i->second;
-    auto& animationSet = *m_animationSets.at(state.animationSet);
+    auto& animationSet = *model.animations;
     auto& animation = *animationSet.animations.at(state.animationName); // TODO: Slow?
 
     for (auto& submodel : model.submodels) {
@@ -542,9 +527,10 @@ SysRender3dImpl::~SysRender3dImpl()
 
 } // namespace
 
-SysRender3dPtr createSysRender3d(const Ecs& ecs, Renderer& renderer, Logger& logger)
+SysRender3dPtr createSysRender3d(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
+  Logger& logger)
 {
-  return std::make_unique<SysRender3dImpl>(ecs, renderer, logger);
+  return std::make_unique<SysRender3dImpl>(ecs, modelLoader, renderer, logger);
 }
 
 } // namespace lithic3d

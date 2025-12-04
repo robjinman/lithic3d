@@ -10,8 +10,10 @@ class RenderResourceLoader
 {
   public:
     virtual ResourceHandle loadTextureAsync(const std::filesystem::path& path) = 0;
-    virtual ResourceHandle loadMaterialAsync(render::MaterialPtr material) = 0;
-    virtual ResourceHandle loadMeshAsync(render::MeshPtr mesh) = 0;
+    virtual ResourceHandle loadNormalMapAsync(const std::filesystem::path& path) = 0;
+    virtual ResourceHandle loadCubeMapAsync(const std::array<std::filesystem::path, 6>& path) = 0;
+    virtual render::MaterialHandle loadMaterialAsync(render::MaterialPtr material) = 0;
+    virtual render::MeshHandle loadMeshAsync(render::MeshPtr mesh) = 0;
 
     virtual ~RenderResourceLoader() = default;
 };
