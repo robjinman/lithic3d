@@ -93,12 +93,12 @@ EntityId Demo::constructCaption()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
-  MaterialFeatureSet materialFeatures{
+  auto material = std::make_unique<Material>();
+  material->featureSet = MaterialFeatureSet{
     .flags{
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  auto material = std::make_unique<Material>(materialFeatures);
   material->texture = m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
 
   DText render{

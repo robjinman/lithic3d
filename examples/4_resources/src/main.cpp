@@ -34,10 +34,8 @@ class Demo : public Game
     EntityId m_light;
     EntityId m_cube;
     EntityId m_caption;
-    ResourceHandle m_cubeMaterial;
-    ResourceHandle m_cubeMesh;
-    MaterialFeatureSet m_materialFeatures;
-    MeshFeatureSet m_meshFeatures;
+    MaterialHandle m_cubeMaterial;
+    MeshHandle m_cubeMesh;
     bool m_loadingCube = false;
 
     void loadCubeResources();
@@ -64,22 +62,9 @@ Demo::Demo(Engine& engine)
 
 void Demo::loadCubeResources()
 {
-  auto material = m_factory->createMaterial("textures/bricks.png");
-  m_cubeMaterial = material.resource;
-  m_materialFeatures = material.features;
-
-  m_meshFeatures = MeshFeatureSet{
-    .vertexLayout = {
-      BufferUsage::AttrPosition,
-      BufferUsage::AttrNormal,
-      BufferUsage::AttrTexCoord
-    },
-    .flags{}
-  };
-
   auto mesh = render::cuboid({ 1.f, 1.f, 1.f }, { 1.f, 1.f });
-  mesh->featureSet = m_meshFeatures;
 
+  m_cubeMaterial = m_factory->createMaterial("textures/bricks.png");
   m_cubeMesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
 
   m_loadingCube = true;
@@ -87,13 +72,13 @@ void Demo::loadCubeResources()
 
 void Demo::unloadCubeResources()
 {
-  m_cubeMaterial = ResourceHandle{};
-  m_cubeMesh = ResourceHandle{};
+  m_cubeMaterial.resource = ResourceHandle{};
+  m_cubeMesh.resource = ResourceHandle{};
 }
 
 bool Demo::cubeResourcesReady() const
 {
-  return m_cubeMaterial.ready() && m_cubeMesh.ready();
+  return m_cubeMaterial.resource.ready() && m_cubeMesh.resource.ready();
 }
 
 EntityId Demo::constructCube()
@@ -113,16 +98,14 @@ EntityId Demo::constructCube()
 
   sysSpatial.addEntity(id, spatial);
 
-  sysRender3d.renderer().compileShader(false, m_meshFeatures, m_materialFeatures);
+  sysRender3d.renderer().compileShader(false, m_cubeMesh.features, m_cubeMaterial.features);
 
   auto model = std::make_unique<DModel>();
 
-  model->submodels.push_back(
+  model->model.submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
       .mesh = m_cubeMesh,
-      .meshFeatures = m_meshFeatures,
       .material = m_cubeMaterial,
-      .materialFeatures = m_materialFeatures,
       .skin = nullptr,
       .jointTransforms{}
     })
@@ -169,19 +152,17 @@ EntityId Demo::constructCaption()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
-  MaterialFeatureSet materialFeatures{
+  auto material = std::make_unique<Material>();
+  material->featureSet = MaterialFeatureSet{
     .flags{
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  auto material = std::make_unique<Material>(materialFeatures);
-  material->texture.handle =
-    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
+  material->texture = m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png");
 
   DText render{
     .scissor = 0,
-    .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
-    .materialFeatures = materialFeatures,
+    .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)),
     .textureRect = {
       .x = pxToUvX(256.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),

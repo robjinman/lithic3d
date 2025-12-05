@@ -232,10 +232,9 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
     }
 
     auto& modelData = *entry->second;
-    auto& model = m_modelLoader.getModel(modelData.model.wait().id()); // TODO: Slow!
     auto& globalTransform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
 
-    for (auto& submodel : model.submodels) {
+    for (auto& submodel : modelData.model.submodels) {
       if (filter(*submodel)) {
         if (modelData.isInstanced) {
           m_renderer.drawInstance(submodel->mesh.resource.id(), submodel->mesh.features,
@@ -490,7 +489,7 @@ void SysRender3dImpl::updateAnimations()
 {
   for (auto i = m_animationStates.begin(); i != m_animationStates.end();) {
     auto& modelData = *m_models.at(i->first);
-    auto& model = m_modelLoader.getModel(modelData.model.wait().id()); // TODO: Slow!
+    auto& model = modelData.model;
     auto& state = i->second;
     auto& animationSet = *model.animations;
     auto& animation = *animationSet.animations.at(state.animationName); // TODO: Slow?

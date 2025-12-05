@@ -13,6 +13,7 @@ class RenderResourceLoader;
 class Factory
 {
   public:
+    // TODO: Label async?
     virtual render::MaterialHandle createMaterial(const std::filesystem::path& texturePath) = 0;
     virtual EntityId createCuboid(const Vec3f& size, render::MaterialHandle material,
       const Vec2f& textureSize) = 0;

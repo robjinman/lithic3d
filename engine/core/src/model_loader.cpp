@@ -5,6 +5,7 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/thread.hpp"
 #include <set>
 
 namespace lithic3d
@@ -283,18 +284,13 @@ class ModelLoaderImpl : public ModelLoader
     ModelLoaderImpl(RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
       const FileSystem& fileSystem, Logger& logger);
 
-    ResourceHandle loadModelAsync(const std::filesystem::path& path) override;
-
-    const Model& getModel(ResourceId id) const override;
+    std::future<Model> loadModelAsync(const std::filesystem::path& path) override;
 
   private:
     Logger& m_logger;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     const FileSystem& m_fileSystem;
-
-    std::map<ResourceId, ModelPtr> m_models;
-    mutable std::mutex m_mutex;
 
     MaterialHandle loadMaterialAsync(const gltf::MaterialDesc& desc);
 };
@@ -306,12 +302,6 @@ ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
   , m_resourceManager(resourceManager)
   , m_fileSystem(fileSystem)
 {
-}
-
-const Model& ModelLoaderImpl::getModel(ResourceId id) const
-{
-  std::scoped_lock lock{m_mutex};
-  return *m_models.at(id);
 }
 
 MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc)
@@ -400,9 +390,9 @@ std::vector<Transform> constructJointTransformsBuffer(const std::vector<float>& 
   return buffer;
 }
 
-ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
+std::future<Model> ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
 {
-  return m_resourceManager.loadResource([this, filePath](ResourceId id) {
+  return m_resourceManager.thread().run<Model>([this, filePath]() {
     auto modelDesc = gltf::extractModel(m_fileSystem.readAppDataFile(filePath));
 
     std::vector<std::vector<char>> dataBuffers;
@@ -412,11 +402,11 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
     }
 
     bool hasAnimations = modelDesc.armature.animations.size() > 0;
-    auto model = std::make_unique<Model>();
+    Model model;
 
     if (hasAnimations) {
-      model->animations = std::make_unique<AnimationSet>();
-      model->animations->skeleton = extractSkeleton(modelDesc.armature);
+      model.animations = std::make_unique<AnimationSet>();
+      model.animations->skeleton = extractSkeleton(modelDesc.armature);
     }
 
     for (auto& meshDesc : modelDesc.meshes) {
@@ -435,7 +425,7 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
         submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
       }
 
-      model->submodels.push_back(std::move(submodel));
+      model.submodels.push_back(std::move(submodel));
     }
 
     for (auto& animationDesc : modelDesc.armature.animations) {
@@ -472,20 +462,10 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
         });
       }
 
-      model->animations->animations[animation->name] = std::move(animation);
+      model.animations->animations[animation->name] = std::move(animation);
     }
 
-    {
-      std::scoped_lock lock{m_mutex};
-      m_models.insert({ id, std::move(model) });
-    }
-
-    return ManagedResource{
-      .unloader = [this, filePath](ResourceId id) {
-        std::scoped_lock lock{m_mutex};
-        m_models.erase(id);
-      }
-    };
+    return model;
   });
 }
 

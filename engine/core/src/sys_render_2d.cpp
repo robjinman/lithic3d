@@ -345,8 +345,6 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
     .features = meshHandle.features
   };
 
-  m_logger.info(STR("4. flags " << data.material.features.flags));
-
   m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
     .id = data.material.resource.id(),
     .features = data.material.features

@@ -13,7 +13,7 @@ struct DModel
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
-  ResourceHandle model;
+  Model model;
   bool isInstanced = false;
 };
 

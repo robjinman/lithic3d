@@ -2,7 +2,6 @@
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/render_resource_loader.hpp"
-#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -70,7 +69,8 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
 
   sysSpatial.addEntity(id, spatial);
 
-  MeshFeatureSet meshFeatures{
+  auto mesh = render::cuboid(size, textureSize);
+  mesh->featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
@@ -79,23 +79,20 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
     .flags{}
   };
 
-  auto mesh = render::cuboid(size, textureSize);
-  mesh->featureSet = meshFeatures;
+  sysRender3d.renderer().compileShader(false, mesh->featureSet, material.features);
 
-  sysRender3d.renderer().compileShader(false, meshFeatures, material.features);
+  auto render = std::make_unique<DModel>();
 
-  auto model = std::make_unique<DModel>();
-
-  model->submodels.push_back(
+  render->model.submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
       .mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait(),
-      .material = material.resource.wait(),
+      .material = material.wait(),
       .skin = nullptr,
       .jointTransforms{}
     })
   );
 
-  sysRender3d.addEntity(id, std::move(model));
+  sysRender3d.addEntity(id, std::move(render));
 
   return id;
 }

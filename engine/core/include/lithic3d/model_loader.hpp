@@ -74,14 +74,10 @@ struct Model
 
 using ModelPtr = std::unique_ptr<Model>;
 
-// TODO: Should a model be a resource? Or just a bag of handles?
-
 class ModelLoader
 {
   public:
-    virtual ResourceHandle loadModelAsync(const std::filesystem::path& path) = 0;
-
-    virtual const Model& getModel(ResourceId id) const = 0;
+    virtual std::future<Model> loadModelAsync(const std::filesystem::path& path) = 0;
 
     virtual ~ModelLoader() {}
 };

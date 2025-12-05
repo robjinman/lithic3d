@@ -1515,7 +1515,11 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   auto key = getPipelineKey(renderPass, node.meshFeatures, node.materialFeatures);
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
-    EXCEPTION("No shader has been compiled for this combination of pass/mesh/material features");
+    EXCEPTION("No shader has been compiled for this combination of pass/mesh/material features: "
+      << "[ RenderPass: " << static_cast<int>(renderPass)
+      << ", Mesh: (" << node.meshFeatures.vertexLayout << ") "
+      << node.meshFeatures.flags.to_string() << ", Material: "
+      << node.materialFeatures.flags.to_string() << " ]");
   }
   return *i->second;
 }

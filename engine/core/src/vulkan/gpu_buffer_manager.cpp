@@ -251,7 +251,8 @@ void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
     vkQueueWaitIdle(m_queue); // TODO: Submit commands asynchronously (see p201)
 
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-  }).get();
+  }).wait_for(std::chrono::milliseconds(1000)); // Set a timeout to prevent deadlock in the event an
+                                                // exception is thrown from the render thread
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)

@@ -57,7 +57,7 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
+  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
 
   m_player = createPlayer(m_engine.ecs().system<SysRender3d>().camera());
   m_model = loadModel();
@@ -75,33 +75,34 @@ void Demo::constructSkybox()
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>(id);
 
-  auto render = std::make_unique<DSkybox>();
-  auto mesh = render::cuboid(9999.f, 9999.f, 9999.f, { 1.f, 1.f });
+  auto mesh = render::cuboid({ 9999.f, 9999.f, 9999.f }, { 1.f, 1.f });
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
   mesh->featureSet.flags.set(MeshFeatures::IsSkybox, true);
   uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
   std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));
-  std::array<TexturePtr, 6> textures{
-    render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/skybox/right.png")),
-    render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/skybox/left.png")),
-    render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/skybox/top.png")),
-    render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/skybox/bottom.png")),
-    render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/skybox/front.png")),
-    render::loadTexture(m_engine.fileSystem().readAppDataFile("textures/skybox/back.png")),
-  };
-  auto material = std::make_unique<Material>(MaterialFeatureSet{});
+
+  auto material = std::make_unique<Material>();
   material->featureSet.flags.set(MaterialFeatures::HasCubeMap, true);
-  material->cubeMap.id = m_engine.renderer().addCubeMap(std::move(textures));
+  material->cubeMap = m_engine.renderResourceLoader().loadCubeMapAsync({
+    "textures/skybox/right.png",
+    "textures/skybox/left.png",
+    "textures/skybox/top.png",
+    "textures/skybox/bottom.png",
+    "textures/skybox/front.png",
+    "textures/skybox/back.png"
+  });
+
   m_engine.renderer().compileShader(false, mesh->featureSet, material->featureSet);
-  render->model = Submodel{
-    .mesh = m_engine.renderer().addMesh(std::move(mesh)),
-    .material = m_engine.renderer().addMaterial(std::move(material)),
-    .skin = nullptr,
-    .jointTransforms{}
-  };
+
+  auto render = std::make_unique<DSkybox>();
+  render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+  render->model->material =
+    m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait();
+
   sysRender3d.addEntity(id, std::move(render));
 
   DSpatial spatial{
@@ -115,7 +116,8 @@ void Demo::constructSkybox()
 
 EntityId Demo::constructLight()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
 
   float pitch = degreesToRadians(-45.f);
   float yaw = degreesToRadians(180.f);
@@ -143,13 +145,8 @@ DModelPtr Demo::loadModel()
 {
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  auto modelData = m_engine.modelLoader().loadModelData("models/monkey.gltf");
-  auto render = m_engine.modelLoader().createRenderComponent(std::move(modelData), false);
-
-  for (auto& submodel : render->submodels) {
-    //submodel.mesh.features.flags.set(MeshFeatures::CastsShadow, true);
-    sysRender3d.renderer().compileShader(false, submodel.mesh.features, submodel.material.features);
-  }
+  auto render = std::make_unique<DModel>();
+  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").get();
 
   return render;
 }
@@ -159,7 +156,8 @@ EntityId Demo::constructModel(float x, float z)
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
   auto m = translationMatrix4x4(metresToWorldUnits(Vec3f{ x, 2.f, z })) *
     scaleMatrix4x4(Vec3f{ 10.f, 10.f, 10.f });
@@ -176,7 +174,9 @@ EntityId Demo::constructModel(float x, float z)
 
   sysSpatial.addEntity(id, spatial);
 
-  DModelPtr render = std::make_unique<DModel>(*m_model);
+  DModelPtr render = std::make_unique<DModel>();
+  render->model = m_model->model; // TODO: Clone model or find a better solution
+
   sysRender3d.addEntity(id, std::move(render));
 
   return id;
@@ -193,11 +193,9 @@ void Demo::constructModels()
 
 EntityId Demo::constructGround()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
+  auto material = m_factory->createMaterial("textures/ground.png").wait();
 
-  auto material = m_factory->constructMaterial("textures/ground.png");
-
-  m_factory->constructCuboid(id, material, metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }),
+  auto id = m_factory->createCuboid(metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material,
     metresToWorldUnits(Vec2f{ 5.f, 5.f }));
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =

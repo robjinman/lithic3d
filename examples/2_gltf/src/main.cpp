@@ -84,9 +84,9 @@ EntityId Demo::constructModel()
   sysSpatial.addEntity(id, spatial);
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").get();
 
-  auto meshFeatures = m_engine.modelLoader().getModel(render->model.id()).submodels[0]->mesh.features; // TODO: This is ridiculous
+  auto meshFeatures = render->model.submodels[0]->mesh.features; // TODO
   MaterialFeatureSet materialFeatures{
     .flags{
       bitflag(MaterialFeatures::HasTexture) |
