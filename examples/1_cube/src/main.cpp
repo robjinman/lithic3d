@@ -44,7 +44,8 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
+  m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader());
 
   m_light = constructLight();
   m_cube = constructCube();

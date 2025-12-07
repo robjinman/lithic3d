@@ -40,7 +40,8 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
+  m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader());
 
   constructLight();
   m_model = constructModel();
@@ -84,9 +85,11 @@ EntityId Demo::constructModel()
   sysSpatial.addEntity(id, spatial);
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").get();
+  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
 
-  auto meshFeatures = render->model.submodels[0]->mesh.features; // TODO
+  // TODO: This is ridiculous
+  auto& model = m_engine.modelLoader().getModel(render->model.id());
+  auto meshFeatures = model.submodels[0]->mesh.features;
   MaterialFeatureSet materialFeatures{
     .flags{
       bitflag(MaterialFeatures::HasTexture) |

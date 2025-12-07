@@ -22,7 +22,7 @@ namespace
 class FactoryImpl : public Factory
 {
   public:
-    FactoryImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader);
+    FactoryImpl(Ecs& ecs, ModelLoader&  modelLoader, RenderResourceLoader& renderResourceLoader);
 
     MaterialHandle createMaterial(const std::filesystem::path& texturePath) override;
     EntityId createCuboid(const Vec3f& size, MaterialHandle material,
@@ -30,11 +30,14 @@ class FactoryImpl : public Factory
 
   private:
     Ecs& m_ecs;
+    ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
 };
 
-FactoryImpl::FactoryImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader)
+FactoryImpl::FactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
+  RenderResourceLoader& renderResourceLoader)
   : m_ecs(ecs)
+  , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
 {}
 
@@ -81,9 +84,8 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
 
   sysRender3d.renderer().compileShader(false, mesh->featureSet, material.features);
 
-  auto render = std::make_unique<DModel>();
-
-  render->model.submodels.push_back(
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
       .mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait(),
       .material = material.wait(),
@@ -92,6 +94,9 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
     })
   );
 
+  auto render = std::make_unique<DModel>();
+  render->model = m_modelLoader.loadModelAsync(std::move(model)).wait();
+
   sysRender3d.addEntity(id, std::move(render));
 
   return id;
@@ -99,9 +104,10 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
 
 } // namespace
 
-FactoryPtr createFactory(Ecs& ecs, RenderResourceLoader& renderResourceLoader)
+FactoryPtr createFactory(Ecs& ecs, ModelLoader& modelLoader,
+  RenderResourceLoader& renderResourceLoader)
 {
-  return std::make_unique<FactoryImpl>(ecs, renderResourceLoader);
+  return std::make_unique<FactoryImpl>(ecs, modelLoader, renderResourceLoader);
 }
 
 } // namespace lithic3d

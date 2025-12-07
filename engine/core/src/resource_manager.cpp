@@ -3,6 +3,7 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
 #include "lithic3d/exception.hpp"
+#include "lithic3d/trace.hpp"
 #include <unordered_map>
 #include <atomic>
 
@@ -20,7 +21,7 @@ class ResourceManagerImpl : public ResourceManager
     void waitAll() override;
     Thread& thread() override;
 
-    ~ResourceManagerImpl();
+    ~ResourceManagerImpl() override;
 
   private:
     Logger& m_logger;
@@ -55,10 +56,20 @@ void ResourceManagerImpl::unload(ResourceId id)
     m_logger.info(STR("Unloading resource " << id));
 
     auto i = m_resources.find(id);
+    if (i != m_resources.end()) {   // Might not be found if loader function threw exception
+      try {
+        i->second.unloader(id);
+      }
+      catch (const std::exception& ex) {
+        m_logger.error(STR("Error unloading resource " << id << ": " << ex.what()));
+      }
+      catch (...) {
+        m_logger.error(STR("Unknown error unloading resource " << id));
+      }
 
-    i->second.unloader(id);
-
-    m_resources.erase(i);
+      // i might be invalid after calling unloader, so use id instead
+      m_resources.erase(id);
+    }
   };
 
   // We're already on the worker thread
@@ -79,7 +90,16 @@ ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 
   auto loadResource = [this, id, loader = std::move(loader)]() mutable {
     m_logger.info(STR("Loading resource " << id));
-    m_resources.insert({ id, loader(id) });
+
+    try {
+      m_resources.insert({ id, loader(id) });
+    }
+    catch (const std::exception& ex) {
+      m_logger.error(STR("Error loading resource " << id << ": " << ex.what()));
+    }
+    catch (...) {
+      m_logger.error(STR("Unknown error loading resource " << id));
+    }
   };
 
   // We're already on the worker thread. Just load the resource synchronously and return a dummy
@@ -98,6 +118,8 @@ ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
 
 ResourceManagerImpl::~ResourceManagerImpl()
 {
+  DBG_TRACE(m_logger);
+
   waitAll();
 }
 

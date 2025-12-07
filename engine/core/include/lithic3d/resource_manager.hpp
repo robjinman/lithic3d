@@ -12,15 +12,9 @@ using ResourceId = int32_t;
 constexpr ResourceId NULL_RESOURCE_ID = -1;
 
 using ResourceUnloader = std::function<void(ResourceId)>;
-/*
-struct ResourceProvider : public std::enable_shared_from_this<ResourceProvider>
-{
-  virtual ~ResourceProvider() = default;
-};*/
 
 struct ManagedResource
 {
-  //std::weak_ptr<ResourceProvider> provider;
   ResourceUnloader unloader;
 };
 

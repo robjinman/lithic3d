@@ -26,7 +26,7 @@ namespace
 class EngineImpl : public Engine
 {
   public:
-    EngineImpl(ResourceManager& resourceManager, render::RendererPtr renderer,
+    EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
       AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
@@ -48,15 +48,15 @@ class EngineImpl : public Engine
     ~EngineImpl() override;
 
   private:
-    ResourceManager& m_resourceManager;
     LoggerPtr m_logger;
+    ResourceManagerPtr m_resourceManager;
     render::RendererPtr m_renderer;
     AudioSystemPtr m_audioSystem;
     FileSystemPtr m_fileSystem;
     RenderResourceLoaderPtr m_renderResourceLoader;
+    ModelLoaderPtr m_modelLoader;
     EventSystemPtr m_eventSystem;
     EcsPtr m_ecs;
-    ModelLoaderPtr m_modelLoader;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
     Tick m_currentTick = 0;
     float m_measuredTickRate = 0.f;
@@ -65,22 +65,22 @@ class EngineImpl : public Engine
     void measureTickRate();
 };
 
-EngineImpl::EngineImpl(ResourceManager& resourceManager, render::RendererPtr renderer,
+EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
   AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger)
-  : m_resourceManager(resourceManager)
-  , m_logger(std::move(logger))
+  : m_logger(std::move(logger))
+  , m_resourceManager(std::move(resourceManager))
   , m_renderer(std::move(renderer))
   , m_audioSystem(std::move(audioSystem))
   , m_fileSystem(std::move(fileSystem))
 {
-  m_renderResourceLoader = createRenderResourceLoader(m_resourceManager, *m_fileSystem,
+  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, *m_fileSystem,
     *m_renderer, *m_logger);
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
   m_renderer->start();
 
-  m_modelLoader = createModelLoader(*m_renderResourceLoader, m_resourceManager, *m_fileSystem,
+  m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, *m_fileSystem,
     *m_logger);
 
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
@@ -183,7 +183,7 @@ ModelLoader& EngineImpl::modelLoader()
 
 ResourceManager& EngineImpl::resourceManager()
 {
-  return m_resourceManager;
+  return *m_resourceManager;
 }
 
 RenderResourceLoader& EngineImpl::renderResourceLoader()
@@ -195,16 +195,16 @@ EngineImpl::~EngineImpl()
 {
   DBG_TRACE(*m_logger);
 
-  m_resourceManager.waitAll();
+  m_resourceManager->waitAll();
 }
 
 } // namespace
 
-EnginePtr createEngine(ResourceManager& resourceManager, render::RendererPtr renderer,
+EnginePtr createEngine(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
   AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger)
 {
-  return std::make_unique<EngineImpl>(resourceManager, std::move(renderer), std::move(audioSystem),
-    std::move(fileSystem), std::move(logger));
+  return std::make_unique<EngineImpl>(std::move(resourceManager), std::move(renderer),
+    std::move(audioSystem), std::move(fileSystem), std::move(logger));
 }
 
 } // namespace lithic3d

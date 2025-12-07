@@ -7,9 +7,6 @@
 namespace lithic3d
 {
 
-class Ecs;
-class RenderResourceLoader;
-
 class Factory
 {
   public:
@@ -23,6 +20,11 @@ class Factory
 
 using FactoryPtr = std::unique_ptr<Factory>;
 
-FactoryPtr createFactory(Ecs& ecs, RenderResourceLoader& renderResourceLoader);
+class Ecs;
+class ModelLoader;
+class RenderResourceLoader;
+
+FactoryPtr createFactory(Ecs& ecs, ModelLoader& modelLoader,
+  RenderResourceLoader& renderResourceLoader);
 
 }

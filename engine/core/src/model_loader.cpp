@@ -284,13 +284,21 @@ class ModelLoaderImpl : public ModelLoader
     ModelLoaderImpl(RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
       const FileSystem& fileSystem, Logger& logger);
 
-    std::future<Model> loadModelAsync(const std::filesystem::path& path) override;
+    ResourceHandle loadModelAsync(const std::filesystem::path& path) override;
+    ResourceHandle loadModelAsync(ModelPtr model) override;
+
+    const Model& getModel(ResourceId id) const override;
+
+    ~ModelLoaderImpl() override;
 
   private:
     Logger& m_logger;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     const FileSystem& m_fileSystem;
+
+    mutable std::mutex m_mutex;
+    std::unordered_map<ResourceId, ModelPtr> m_models;
 
     MaterialHandle loadMaterialAsync(const gltf::MaterialDesc& desc);
 };
@@ -302,6 +310,12 @@ ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
   , m_resourceManager(resourceManager)
   , m_fileSystem(fileSystem)
 {
+}
+
+const Model& ModelLoaderImpl::getModel(ResourceId id) const
+{
+  std::scoped_lock lock{m_mutex};
+  return *m_models.at(id);
 }
 
 MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc)
@@ -390,9 +404,24 @@ std::vector<Transform> constructJointTransformsBuffer(const std::vector<float>& 
   return buffer;
 }
 
-std::future<Model> ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
+ResourceHandle ModelLoaderImpl::loadModelAsync(ModelPtr model)
 {
-  return m_resourceManager.thread().run<Model>([this, filePath]() {
+  return m_resourceManager.loadResource([this, model = std::move(model)](ResourceId id) mutable {
+    std::scoped_lock lock{m_mutex};
+    m_models.insert({ id, std::move(model) });
+
+    return ManagedResource{
+      .unloader = [this](ResourceId id) {
+        std::scoped_lock lock{m_mutex};
+        m_models.erase(id);
+      }
+    };
+  });
+}
+
+ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
+{
+  return m_resourceManager.loadResource([this, filePath](ResourceId id) {
     auto modelDesc = gltf::extractModel(m_fileSystem.readAppDataFile(filePath));
 
     std::vector<std::vector<char>> dataBuffers;
@@ -402,11 +431,11 @@ std::future<Model> ModelLoaderImpl::loadModelAsync(const std::filesystem::path& 
     }
 
     bool hasAnimations = modelDesc.armature.animations.size() > 0;
-    Model model;
+    auto model = std::make_unique<Model>();
 
     if (hasAnimations) {
-      model.animations = std::make_unique<AnimationSet>();
-      model.animations->skeleton = extractSkeleton(modelDesc.armature);
+      model->animations = std::make_unique<AnimationSet>();
+      model->animations->skeleton = extractSkeleton(modelDesc.armature);
     }
 
     for (auto& meshDesc : modelDesc.meshes) {
@@ -425,7 +454,7 @@ std::future<Model> ModelLoaderImpl::loadModelAsync(const std::filesystem::path& 
         submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
       }
 
-      model.submodels.push_back(std::move(submodel));
+      model->submodels.push_back(std::move(submodel));
     }
 
     for (auto& animationDesc : modelDesc.armature.animations) {
@@ -462,11 +491,30 @@ std::future<Model> ModelLoaderImpl::loadModelAsync(const std::filesystem::path& 
         });
       }
 
-      model.animations->animations[animation->name] = std::move(animation);
+      model->animations->animations[animation->name] = std::move(animation);
     }
 
-    return model;
+    {
+      std::scoped_lock lock{m_mutex};
+      m_models.insert({ id, std::move(model) });
+    }
+
+    return ManagedResource{
+      .unloader = [this](ResourceId id) {
+        std::scoped_lock lock{m_mutex};
+        m_models.erase(id);
+      }
+    };
   });
+}
+
+ModelLoaderImpl::~ModelLoaderImpl()
+{
+  {
+    std::scoped_lock lock{m_mutex};
+    m_models.clear();
+  }
+  m_resourceManager.waitAll();
 }
 
 } // namespace

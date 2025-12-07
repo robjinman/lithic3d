@@ -57,7 +57,8 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
+  m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader());
 
   m_player = createPlayer(m_engine.ecs().system<SysRender3d>().camera());
   m_model = loadModel();
@@ -99,6 +100,7 @@ void Demo::constructSkybox()
   m_engine.renderer().compileShader(false, mesh->featureSet, material->featureSet);
 
   auto render = std::make_unique<DSkybox>();
+  render->model = std::make_unique<Submodel>();
   render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
   render->model->material =
     m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait();
@@ -146,7 +148,18 @@ DModelPtr Demo::loadModel()
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").get();
+  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
+
+  // TODO: This is ridiculous
+  auto& model = m_engine.modelLoader().getModel(render->model.id());
+  auto meshFeatures = model.submodels[0]->mesh.features;
+  MaterialFeatureSet materialFeatures{
+    .flags{
+      bitflag(MaterialFeatures::HasTexture) |
+      bitflag(MaterialFeatures::HasNormalMap)
+    }
+  };
+  sysRender3d.renderer().compileShader(false, meshFeatures, materialFeatures);
 
   return render;
 }
@@ -175,7 +188,7 @@ EntityId Demo::constructModel(float x, float z)
   sysSpatial.addEntity(id, spatial);
 
   DModelPtr render = std::make_unique<DModel>();
-  render->model = m_model->model; // TODO: Clone model or find a better solution
+  render->model = m_model->model;
 
   sysRender3d.addEntity(id, std::move(render));
 

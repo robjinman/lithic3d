@@ -77,7 +77,11 @@ using ModelPtr = std::unique_ptr<Model>;
 class ModelLoader
 {
   public:
-    virtual std::future<Model> loadModelAsync(const std::filesystem::path& path) = 0;
+    virtual ResourceHandle loadModelAsync(const std::filesystem::path& path) = 0;
+    virtual ResourceHandle loadModelAsync(ModelPtr model) = 0; // Get a handle for an existing model
+    virtual const Model& getModel(ResourceId id) const = 0;
+    //virtual const Skin& getSkin(ResourceId id) const = 0;
+    //virtual const AnimationSet& getAnimationSet(ResourceId id) const = 0;
 
     virtual ~ModelLoader() {}
 };

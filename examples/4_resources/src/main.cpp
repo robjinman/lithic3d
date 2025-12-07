@@ -34,7 +34,7 @@ class Demo : public Game
     EntityId m_light;
     EntityId m_cube;
     EntityId m_caption;
-    MaterialHandle m_cubeMaterial;
+    MaterialHandle m_cubeMaterial; // TODO
     MeshHandle m_cubeMesh;
     bool m_loadingCube = false;
 
@@ -51,7 +51,8 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.renderResourceLoader());
+  m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader());
 
   m_light = constructLight();
   m_cube = NULL_ENTITY_ID;
@@ -100,9 +101,8 @@ EntityId Demo::constructCube()
 
   sysRender3d.renderer().compileShader(false, m_cubeMesh.features, m_cubeMaterial.features);
 
-  auto model = std::make_unique<DModel>();
-
-  model->model.submodels.push_back(
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
       .mesh = m_cubeMesh,
       .material = m_cubeMaterial,
@@ -111,7 +111,10 @@ EntityId Demo::constructCube()
     })
   );
 
-  sysRender3d.addEntity(id, std::move(model));
+  auto render = std::make_unique<DModel>();
+  render->model = m_engine.modelLoader().loadModelAsync(std::move(model)).wait();
+
+  sysRender3d.addEntity(id, std::move(render));
 
   return id;
 }

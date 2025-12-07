@@ -38,7 +38,6 @@ class CanvasImpl : public Canvas
     void onPaint(wxPaintEvent& e);
     void onTick(wxTimerEvent& e);
 
-    ResourceManagerPtr m_resourceManager;
     EnginePtr m_engine;
     bool m_disabled = false;
     wxTimer* m_timer = nullptr;
@@ -69,11 +68,11 @@ void CanvasImpl::initialise()
     auto windowDelegate = createWindowDelegate(GetHandle());
     auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
     auto audioSystem = createAudioSystem(*fileSystem);
-    m_resourceManager = createResourceManager(*logger);
-    auto renderer = createRenderer(std::move(windowDelegate), *m_resourceManager, *fileSystem,
+    auto resourceManager = createResourceManager(*logger);
+    auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem,
       *logger, {});
 
-    m_engine = createEngine(*m_resourceManager, std::move(renderer), std::move(audioSystem),
+    m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
       std::move(fileSystem), std::move(logger));
 
     m_engine->renderer().start();

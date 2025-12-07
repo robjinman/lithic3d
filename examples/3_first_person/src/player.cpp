@@ -1,8 +1,8 @@
 #include "player.hpp"
 #include <lithic3d/lithic3d.hpp>
 
-namespace lithic3d
-{
+using namespace lithic3d;
+
 namespace
 {
 
@@ -103,5 +103,3 @@ PlayerPtr createPlayer(Camera3d& camera)
 {
   return std::make_unique<PlayerImpl>(camera);
 }
-
-} // namespace lithic3d
