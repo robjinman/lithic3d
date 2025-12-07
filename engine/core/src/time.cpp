@@ -58,4 +58,29 @@ void Timer::reset()
   m_start = std::chrono::high_resolution_clock::now();
 }
 
+void Scheduler::update()
+{
+  for (auto i = m_tasks.begin(); i != m_tasks.end();) {
+    auto tick = i->first;
+
+    if (m_currentTick >= tick) {
+      for (auto& fn : i->second) {
+        fn();
+      }
+
+      i = m_tasks.erase(i);
+    }
+    else {
+      break;
+    }
+  }
+
+  ++m_currentTick;
+}
+
+void Scheduler::run(Tick delay, std::function<void()>&& fn)
+{
+  m_tasks[m_currentTick + delay].push_back(std::move(fn));
+}
+
 } // namespace lithic3d

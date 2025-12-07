@@ -8,42 +8,6 @@ using namespace lithic3d::render;
 namespace
 {
 
-class Scheduler
-{
-  public:
-    void update();
-    void run(Tick delay, std::function<void()>&& fn);
-
-  private:
-    Tick m_currentTick = 0;
-    std::map<Tick, std::vector<std::function<void()>>> m_tasks;
-};
-
-void Scheduler::update()
-{
-  for (auto i = m_tasks.begin(); i != m_tasks.end();) {
-    auto tick = i->first;
-
-    if (m_currentTick >= tick) {
-      for (auto& fn : i->second) {
-        fn();
-      }
-
-      i = m_tasks.erase(i);
-    }
-    else {
-      break;
-    }
-  }
-
-  ++m_currentTick;
-}
-
-void Scheduler::run(Tick delay, std::function<void()>&& fn)
-{
-  m_tasks[m_currentTick + delay].push_back(std::move(fn));
-}
-
 class Demo : public Game
 {
   public:

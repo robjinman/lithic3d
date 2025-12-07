@@ -1,6 +1,9 @@
 #pragma once
 
+#include "units.hpp"
 #include <chrono>
+#include <map>
+#include <vector>
 
 namespace lithic3d
 {
@@ -27,6 +30,17 @@ class Timer
 
   private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
+};
+
+class Scheduler
+{
+  public:
+    void update();
+    void run(Tick delay, std::function<void()>&& fn);
+
+  private:
+    Tick m_currentTick = 0;
+    std::map<Tick, std::vector<std::function<void()>>> m_tasks;
 };
 
 } // namespace lithic3d
