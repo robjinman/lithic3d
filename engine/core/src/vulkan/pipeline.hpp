@@ -30,9 +30,9 @@ struct RenderNode
     : type(type) {}
 
   RenderNodeType type;
-  ResourceId mesh;
+  ResourceId mesh = NULL_RESOURCE_ID;
   MeshFeatureSet meshFeatures;
-  ResourceId material;
+  ResourceId material = NULL_RESOURCE_ID;
   MaterialFeatureSet materialFeatures;
   uint32_t scissorId = 0;
 

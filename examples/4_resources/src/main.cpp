@@ -8,6 +8,42 @@ using namespace lithic3d::render;
 namespace
 {
 
+class Scheduler
+{
+  public:
+    void update();
+    void run(Tick delay, std::function<void()>&& fn);
+
+  private:
+    Tick m_currentTick = 0;
+    std::map<Tick, std::vector<std::function<void()>>> m_tasks;
+};
+
+void Scheduler::update()
+{
+  for (auto i = m_tasks.begin(); i != m_tasks.end();) {
+    auto tick = i->first;
+
+    if (m_currentTick >= tick) {
+      for (auto& fn : i->second) {
+        fn();
+      }
+
+      i = m_tasks.erase(i);
+    }
+    else {
+      break;
+    }
+  }
+
+  ++m_currentTick;
+}
+
+void Scheduler::run(Tick delay, std::function<void()>&& fn)
+{
+  m_tasks[m_currentTick + delay].push_back(std::move(fn));
+}
+
 class Demo : public Game
 {
   public:
@@ -31,19 +67,20 @@ class Demo : public Game
   private:
     Engine& m_engine;
     FactoryPtr m_factory;
-    EntityId m_light;
-    EntityId m_cube;
-    EntityId m_caption;
+    Scheduler m_scheduler;
+    EntityId m_cube = NULL_ENTITY_ID;
+    EntityId m_quad = NULL_ENTITY_ID;
     ResourceHandle m_cubeModel;
     bool m_loadingCube = false;
 
     void loadCubeResources();
     void unloadCubeResources();
     bool cubeResourcesReady() const;
-
     EntityId constructLight();
+    EntityId constructQuad();
     EntityId constructCube();
     EntityId constructCaption();
+    void rotateQuad();
     void rotateCube();
 };
 
@@ -53,9 +90,9 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
-  m_light = constructLight();
-  m_cube = NULL_ENTITY_ID;
-  m_caption = constructCaption();
+  constructLight();
+  m_quad = constructQuad();
+  constructCaption();
 
   loadCubeResources();
 }
@@ -81,12 +118,35 @@ void Demo::loadCubeResources()
 
 void Demo::unloadCubeResources()
 {
-  m_cubeModel = ResourceHandle{};
+  m_scheduler.run(3, [this]() {
+    m_cubeModel = ResourceHandle{};
+  });
 }
 
 bool Demo::cubeResourcesReady() const
 {
   return m_cubeModel.ready();
+}
+
+EntityId Demo::constructQuad()
+{
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DQuad>(id);
+
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender2d = m_engine.ecs().system<SysRender2d>();
+
+  DSpatial spatial{};
+  spatial.parent = sysSpatial.root();
+
+  sysSpatial.addEntity(id, spatial);
+
+  DQuad render;
+  render.colour = { 1.f, 0.f, 0.f, 1.f };
+
+  sysRender2d.addEntity(id, render);
+
+  return id;
 }
 
 EntityId Demo::constructCube()
@@ -198,6 +258,16 @@ void Demo::rotateCube()
     { b, a, 0.f }));
 }
 
+void Demo::rotateQuad()
+{
+  float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
+
+  Vec2f pos{ 0.1f, 0.8f };
+  Vec2f size{ 0.08f, 0.08f };
+  auto m = screenSpaceTransform(pos, size, a, { 0.5f, 0.5f });
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_quad, m);
+}
+
 void Demo::onKeyDown(KeyboardKey key)
 {
   if (key == KeyboardKey::Space) {
@@ -214,8 +284,10 @@ void Demo::onKeyDown(KeyboardKey key)
 
 bool Demo::update()
 {
+  rotateQuad();
   rotateCube();
   m_engine.update({});
+  m_scheduler.update();
 
   if (m_loadingCube) {
     if (cubeResourcesReady()) {

@@ -287,8 +287,6 @@ void RenderResourcesImpl::removeTexture(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
-
   std::scoped_lock lock{m_mutex};
 
   auto i = m_textures.find(id);
@@ -303,8 +301,6 @@ void RenderResourcesImpl::removeCubeMap(ResourceId id)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
-
-  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
 
   std::scoped_lock lock{m_mutex};
 
@@ -389,8 +385,6 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
-
-  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
 
   std::scoped_lock lock{m_mutex};
 
@@ -552,8 +546,6 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
-
-  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
 
   std::scoped_lock lock{m_mutex};
 
