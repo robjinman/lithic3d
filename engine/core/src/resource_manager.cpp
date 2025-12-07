@@ -20,10 +20,12 @@ class ResourceManagerImpl : public ResourceManager
     ResourceHandle loadResource(ResourceLoader&& loader) override;
     void waitAll() override;
     Thread& thread() override;
+    void deactivate() override;
 
     ~ResourceManagerImpl() override;
 
   private:
+    std::atomic<bool> m_deactivated = false;
     Logger& m_logger;
     std::atomic<ResourceId> m_nextResourceId = NULL_RESOURCE_ID + 1;
     Thread m_thread;
@@ -35,6 +37,11 @@ class ResourceManagerImpl : public ResourceManager
 ResourceManagerImpl::ResourceManagerImpl(Logger& logger)
   : m_logger(logger)
 {
+}
+
+void ResourceManagerImpl::deactivate()
+{
+  m_deactivated = true;
 }
 
 void ResourceManagerImpl::waitAll()
@@ -50,6 +57,10 @@ Thread& ResourceManagerImpl::thread()
 // Main thread or worker thread
 void ResourceManagerImpl::unload(ResourceId id)
 {
+  if (m_deactivated.load()) {
+    return;
+  }
+
   m_logger.debug(STR("Unload requested for resource " << id));
 
   auto unloadResource = [this, id]() {

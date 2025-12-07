@@ -94,8 +94,7 @@ class RenderResourcesImpl : public RenderResources
 {
   public:
     RenderResourcesImpl(std::thread::id id, GpuBufferManager& bufferManager,
-      VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool,
-      Logger& logger);
+      VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger);
 
     // Descriptor sets
     //
@@ -122,13 +121,11 @@ class RenderResourcesImpl : public RenderResources
       size_t currentFrame) override;
     MeshBuffers getMeshBuffers(ResourceId id) const override;
     void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances) override;
-    const MeshFeatureSet& getMeshFeatures(ResourceId id) const override;
 
     // Materials
     //
     void addMaterial(ResourceId id, MaterialPtr material) override;
     void removeMaterial(ResourceId id) override;
-    const MaterialFeatureSet& getMaterialFeatures(ResourceId id) const override;
 
     // Transforms
     //
@@ -149,7 +146,10 @@ class RenderResourcesImpl : public RenderResources
     ~RenderResourcesImpl() override;
 
   private:
-    std::thread::id m_threadId;
+    mutable std::recursive_mutex m_mutex; // Currently just protect everything with a single mutex
+                                          // TODO: Better solution
+
+    std::thread::id m_resourceThreadId;
     std::map<ResourceId, MeshDataPtr> m_meshes;
     std::map<ResourceId, TextureDataPtr> m_textures;
     std::map<ResourceId, CubeMapDataPtr> m_cubeMaps;
@@ -208,9 +208,10 @@ class RenderResourcesImpl : public RenderResources
     //void createShadowPassDescriptorSet();
 };
 
-RenderResourcesImpl::RenderResourcesImpl(std::thread::id threadId, GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger)
-  : m_threadId(threadId)
+RenderResourcesImpl::RenderResourcesImpl(std::thread::id resourceThreadId,
+  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
+  VkCommandPool commandPool, Logger& logger)
+  : m_resourceThreadId(resourceThreadId)
   , m_logger(logger)
   , m_bufferManager(bufferManager)
   , m_physicalDevice(physicalDevice)
@@ -233,7 +234,7 @@ RenderResourcesImpl::RenderResourcesImpl(std::thread::id threadId, GpuBufferMana
 
 inline void RenderResourcesImpl::assertResourceThread() const
 {
-  ASSERT(std::this_thread::get_id() == m_threadId, "Must be on resource manager thread");
+  ASSERT(std::this_thread::get_id() == m_resourceThreadId, "Must be on resource manager thread");
 }
 
 void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
@@ -241,13 +242,14 @@ void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
-
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createTexture(*texture);
   //textureData->texture = std::move(texture);
 
-  m_textures[id] = std::move(textureData);
+  {
+    std::scoped_lock lock{m_mutex};
+    m_textures[id] = std::move(textureData);
+  }
 }
 
 void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture)
@@ -255,13 +257,14 @@ void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
-
   auto textureData = std::make_unique<TextureData>();
   textureData->image = m_bufferManager.createNormalMap(*texture);
   //textureData->texture = std::move(texture);
 
-  m_textures[id] = std::move(textureData);
+  {
+    std::scoped_lock lock{m_mutex};
+    m_textures[id] = std::move(textureData);
+  }
 }
 
 void RenderResourcesImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures)
@@ -269,13 +272,14 @@ void RenderResourcesImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6> te
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
-
   auto cubeMapData = std::make_unique<CubeMapData>();
   cubeMapData->image = m_bufferManager.createCubeMap(textures);
   cubeMapData->textures = std::move(textures);
 
-  m_cubeMaps[id] = std::move(cubeMapData);
+  {
+    std::scoped_lock lock{m_mutex};
+    m_cubeMaps[id] = std::move(cubeMapData);
+  }
 }
 
 void RenderResourcesImpl::removeTexture(ResourceId id)
@@ -283,7 +287,9 @@ void RenderResourcesImpl::removeTexture(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
+  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
+
+  std::scoped_lock lock{m_mutex};
 
   auto i = m_textures.find(id);
   if (i == m_textures.end()) {
@@ -298,7 +304,9 @@ void RenderResourcesImpl::removeCubeMap(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
+  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
+
+  std::scoped_lock lock{m_mutex};
 
   auto i = m_cubeMaps.find(id);
   if (i == m_cubeMaps.end()) {
@@ -312,8 +320,6 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
-
-  // TODO: Ensure thread-safe
 
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
@@ -373,7 +379,10 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
     }
   }
 
-  m_meshes[id] = std::move(data);
+  {
+    std::scoped_lock lock{m_mutex};
+    m_meshes[id] = std::move(data);
+  }
 }
 
 void RenderResourcesImpl::removeMesh(ResourceId id)
@@ -381,7 +390,9 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
+  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
+
+  std::scoped_lock lock{m_mutex};
 
   auto i = m_meshes.find(id);
   if (i == m_meshes.end()) {
@@ -392,7 +403,7 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
 
 MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
 {
-  // TODO: Ensure thread-safe
+  std::scoped_lock lock{m_mutex};
 
   auto& mesh = m_meshes.at(id);
 
@@ -414,6 +425,8 @@ void RenderResourcesImpl::updateMeshInstances(ResourceId id,
 {
   DBG_TRACE(m_logger);
 
+  std::scoped_lock lock{m_mutex};
+
   auto& mesh = m_meshes.at(id);
   ASSERT(mesh->mesh->featureSet.flags.test(MeshFeatures::IsInstanced),
     "Can't instance a non-instanced mesh");
@@ -433,13 +446,6 @@ void RenderResourcesImpl::updateJointTransforms(ResourceId id, const std::vector
   auto& mesh = *m_meshes.at(id);
   m_bufferManager.writeToBuffer(*mesh.jointTransformsUbo[currentFrame],
     reinterpret_cast<const char*>(joints.data()), joints.size() * sizeof(Mat4x4f));
-}
-
-const MeshFeatureSet& RenderResourcesImpl::getMeshFeatures(ResourceId id) const
-{
-  // TODO: Ensure thread-safe
-
-  return m_meshes.at(id)->mesh->featureSet;
 }
 
 void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSet,
@@ -471,8 +477,6 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
-
-  // TODO: Ensure thread-safe
 
   auto materialData = std::make_unique<MaterialData>();
 
@@ -519,25 +523,29 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
   m_bufferManager.writeToBuffer(*materialData->ubo, reinterpret_cast<const char*>(&ubo),
     sizeof(ubo));
 
-  // TODO: Use array of descriptors for textures, normal maps, etc.?
-  if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
-    VkImageView imageView = m_textures.at(material->texture.id())->image->vkImageView();
-    addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
-      static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
-  }
-  if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
-    VkImageView imageView = m_textures.at(material->normalMap.id())->image->vkImageView();
-    addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
-      static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
-  }
-  if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
-    VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView();
-    addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
-      static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
-  }
+  {
+    std::scoped_lock lock{m_mutex};
 
-  materialData->material = std::move(material);
-  m_materials[id] = std::move(materialData);
+    // TODO: Use array of descriptors for textures, normal maps, etc.?
+    if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
+      VkImageView imageView = m_textures.at(material->texture.id())->image->vkImageView();
+      addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
+        static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
+    }
+    if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
+      VkImageView imageView = m_textures.at(material->normalMap.id())->image->vkImageView();
+      addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
+        static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
+    }
+    if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
+      VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView();
+      addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
+        static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
+    }
+
+    materialData->material = std::move(material);
+    m_materials[id] = std::move(materialData);
+  }
 }
 
 void RenderResourcesImpl::removeMaterial(ResourceId id)
@@ -545,7 +553,9 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  // TODO: Ensure thread-safe
+  std::this_thread::sleep_for(std::chrono::milliseconds{100}); // TODO
+
+  std::scoped_lock lock{m_mutex};
 
   auto i = m_materials.find(id);
   if (i == m_materials.end()) {
@@ -557,22 +567,21 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
 
 VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(ResourceId id) const
 {
+  std::scoped_lock lock{m_mutex};
+
   return id == NULL_RESOURCE_ID ? VK_NULL_HANDLE : m_materials.at(id)->descriptorSet;
 }
 
 VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(ResourceId id,
   size_t currentFrame) const
 {
+  std::scoped_lock lock{m_mutex};
+
   // TODO: Currently assume object is a mesh
   auto& mesh = *m_meshes.at(id);
   return mesh.objectDescriptorSets.size() > 0 ?
     mesh.objectDescriptorSets[currentFrame] :
     VK_NULL_HANDLE;
-}
-
-const MaterialFeatureSet& RenderResourcesImpl::getMaterialFeatures(ResourceId id) const
-{
-  return m_materials.at(id)->material->featureSet;
 }
 
 void RenderResourcesImpl::updateMainCameraUbo(const CameraTransformsUbo& ubo,
@@ -615,6 +624,8 @@ VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetN
 
 VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame) const
 {
+  std::scoped_lock lock{m_mutex};
+
   return m_globalDescriptorSets[currentFrame];
 }
 
@@ -629,6 +640,8 @@ void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t curre
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,
   size_t currentFrame) const
 {
+  std::scoped_lock lock{m_mutex};
+
   switch (renderPass) {
     case RenderPass::Main: return m_mainPassDescriptorSets[currentFrame];
     case RenderPass::Shadow: return m_mainPassDescriptorSets[currentFrame]; // TODO
@@ -1209,11 +1222,12 @@ RenderResourcesImpl::~RenderResourcesImpl()
 
 } // namespace
 
-RenderResourcesPtr createRenderResources(std::thread::id threadId, GpuBufferManager& bufferManager,
-  VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger)
+RenderResourcesPtr createRenderResources(std::thread::id resourceThreadId,
+  GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
+  VkCommandPool commandPool, Logger& logger)
 {
-  return std::make_unique<RenderResourcesImpl>(threadId, bufferManager, physicalDevice, device,
-    commandPool, logger);
+  return std::make_unique<RenderResourcesImpl>(resourceThreadId, bufferManager, physicalDevice,
+    device, commandPool, logger);
 }
 
 } // namespace render

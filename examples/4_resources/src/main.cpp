@@ -34,8 +34,7 @@ class Demo : public Game
     EntityId m_light;
     EntityId m_cube;
     EntityId m_caption;
-    MaterialHandle m_cubeMaterial; // TODO
-    MeshHandle m_cubeMesh;
+    ResourceHandle m_cubeModel;
     bool m_loadingCube = false;
 
     void loadCubeResources();
@@ -65,25 +64,41 @@ void Demo::loadCubeResources()
 {
   auto mesh = render::cuboid({ 1.f, 1.f, 1.f }, { 1.f, 1.f });
 
-  m_cubeMaterial = m_factory->createMaterial("textures/bricks.png");
-  m_cubeMesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
+    std::unique_ptr<Submodel>(new Submodel{
+      .mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)),
+      .material = m_factory->createMaterial("textures/bricks.png"),
+      .skin = nullptr,
+      .jointTransforms{}
+    })
+  );
+
+  m_cubeModel = m_engine.modelLoader().loadModelAsync(std::move(model));
 
   m_loadingCube = true;
 }
 
 void Demo::unloadCubeResources()
 {
-  m_cubeMaterial.resource = ResourceHandle{};
-  m_cubeMesh.resource = ResourceHandle{};
+  m_cubeModel = ResourceHandle{};
 }
 
 bool Demo::cubeResourcesReady() const
 {
-  return m_cubeMaterial.resource.ready() && m_cubeMesh.resource.ready();
+  return m_cubeModel.ready();
 }
 
 EntityId Demo::constructCube()
 {
+  // TODO: This is ridiculous
+  static bool done = [this]() {
+    auto& model = m_engine.modelLoader().getModel(m_cubeModel.id());
+    m_engine.renderer().compileShader(false, model.submodels[0]->mesh.features,
+      model.submodels[0]->material.features);
+    return true;
+  }();
+
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
@@ -99,20 +114,8 @@ EntityId Demo::constructCube()
 
   sysSpatial.addEntity(id, spatial);
 
-  sysRender3d.renderer().compileShader(false, m_cubeMesh.features, m_cubeMaterial.features);
-
-  auto model = std::make_unique<Model>();
-  model->submodels.push_back(
-    std::unique_ptr<Submodel>(new Submodel{
-      .mesh = m_cubeMesh,
-      .material = m_cubeMaterial,
-      .skin = nullptr,
-      .jointTransforms{}
-    })
-  );
-
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync(std::move(model)).wait();
+  render->model = m_cubeModel;
 
   sysRender3d.addEntity(id, std::move(render));
 

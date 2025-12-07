@@ -137,6 +137,7 @@ class ResourceManager
     virtual ResourceHandle loadResource(ResourceLoader&& loader) = 0;
     virtual void waitAll() = 0;
     virtual Thread& thread() = 0;
+    virtual void deactivate() = 0;
 
     virtual ~ResourceManager() = default;
 

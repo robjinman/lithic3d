@@ -376,6 +376,8 @@ void Application::exitInputCapture()
 
 Application::~Application()
 {
+  m_engine->resourceManager().deactivate();
+
   m_game.reset();
   m_engine.reset();
   glfwDestroyWindow(m_window);
