@@ -8,6 +8,25 @@ namespace lithic3d
 namespace render
 {
 
+enum class RenderPass
+{
+  Shadow = 0,
+  Main,
+  Ssr,
+  Overlay
+};
+
+struct ShaderProgramSpec
+{
+  RenderPass renderPass;
+  MeshFeatureSet meshFeatures;
+  MaterialFeatureSet materialFeatures;
+
+  bool operator==(const ShaderProgramSpec& rhs) const = default;
+
+  std::string toString() const;
+};
+
 struct ViewParams
 {
   float hFov;
@@ -15,14 +34,6 @@ struct ViewParams
   float aspectRatio;
   float nearPlane;
   float farPlane;
-};
-
-enum class RenderPass
-{
-  Shadow = 0,
-  Main,
-  Ssr,
-  Overlay
 };
 
 struct ScreenMargins
@@ -51,10 +62,8 @@ class Renderer
 
     // Initialisation
     //
-    virtual void compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures) = 0;
-    virtual bool hasCompiledShader(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures) const = 0;
+    virtual void compileShader(const ShaderProgramSpec& spec) = 0;
+    virtual bool hasCompiledShader(const ShaderProgramSpec& spec) const = 0;
 
     // Textures
     //
@@ -126,3 +135,12 @@ render::RendererPtr createRenderer(WindowDelegatePtr window, ResourceManager& re
   const FileSystem& fileSystem, Logger& logger, const render::ScreenMargins& margins);
 
 } // namespace lithic3d
+
+template<>
+struct std::hash<lithic3d::render::ShaderProgramSpec>
+{
+  std::size_t operator()(const lithic3d::render::ShaderProgramSpec& spec) const noexcept
+  {
+    return lithic3d::hashAll(spec.renderPass, spec.meshFeatures, spec.materialFeatures);
+  }
+};

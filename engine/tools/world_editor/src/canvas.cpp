@@ -13,8 +13,6 @@ using namespace lithic3d;
 
 WindowDelegatePtr createWindowDelegate(WXWidget window);
 
-using namespace lithic3d;
-
 namespace
 {
 

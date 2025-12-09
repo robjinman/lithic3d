@@ -115,14 +115,6 @@ EntityId Demo::constructQuad()
 
 EntityId Demo::constructCube()
 {
-  // TODO: This is ridiculous
-  static bool done = [this]() {
-    auto& model = m_engine.modelLoader().getModel(m_cubeModel.id());
-    m_engine.renderer().compileShader(false, model.submodels[0]->mesh.features,
-      model.submodels[0]->material.features);
-    return true;
-  }();
-
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
@@ -275,7 +267,8 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
-    .captureMouse = false
+    .captureMouse = false,
+    .shaderManifest = "shaders.xml"
   };
 }
 

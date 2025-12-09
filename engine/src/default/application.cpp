@@ -8,6 +8,7 @@
 #include <lithic3d/platform_paths.hpp>
 #include <lithic3d/audio_system.hpp>
 #include <lithic3d/units.hpp>
+#include <lithic3d/shader_manifest.hpp>
 #include <GLFW/glfw3.h>
 #if defined(_WIN32) && defined(NDEBUG)
 #include <windows.h>
@@ -164,6 +165,16 @@ Application::Application()
   auto resourceManager = createResourceManager(*logger);
   auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
     {});
+
+  logger->info("Compiling shaders...");
+
+  auto manifest = fileSystem->readAppDataFile(m_config.shaderManifest);
+  auto specs = parseShaderManifest(manifest);
+  for (auto& spec : specs) {
+    renderer->compileShader(spec);
+  }
+
+  logger->info("Finished compiling shaders");
 
   m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
     std::move(fileSystem), std::move(logger));

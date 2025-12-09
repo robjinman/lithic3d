@@ -69,13 +69,14 @@ add_custom_target(
 if(TARGET shader_compiler)
   set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../core/src/vulkan/shaders")
   file(GLOB_RECURSE SHADER_SRCS "${SHADER_DIR}/*.glsl")
+  set(SHADER_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data/shaders.xml")
   set(SHADER_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data/shaders")
   set(SHADER_STAMP "${SHADER_OUT_DIR}/.shaders_generated.stamp")
 
   add_custom_command(
     OUTPUT "${SHADER_STAMP}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
-    COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${SHADER_OUT_DIR}"
+    COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${SHADER_MANIFEST_PATH}" "${SHADER_OUT_DIR}"
     COMMAND ${CMAKE_COMMAND} -E touch "${SHADER_STAMP}"
     DEPENDS ${SHADER_SRCS}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"

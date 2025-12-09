@@ -85,7 +85,9 @@ void main()
   outTangent = T;
   outBitangent = B;
   outNormal = N;
-#else
+#elif defined(ATTR_NORMAL)
   outNormal = mat3(modelMatrix) * inNormal;
+#else
+  outNormal = vec3(0, 0, -1);
 #endif
 }

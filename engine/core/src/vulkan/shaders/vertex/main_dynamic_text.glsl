@@ -17,7 +17,6 @@ layout(push_constant) uniform PushConstants
 
 layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out vec3 outWorldPos;
-layout(location = 2) out vec3 outNormal;
 
 // TODO: Remove
 const uint ATLAS_WIDTH_PX = 1024;
@@ -122,5 +121,4 @@ void main()
 
   outWorldPos = worldPos.xyz;
   outTexCoord = uvForVertex(gl_VertexIndex);
-  outNormal = mat3(modelMatrix) * inNormal;
 }

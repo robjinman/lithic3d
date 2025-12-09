@@ -150,7 +150,8 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
-    .captureMouse = false
+    .captureMouse = false,
+    .shaderManifest = "shaders.xml"
   };
 }
 

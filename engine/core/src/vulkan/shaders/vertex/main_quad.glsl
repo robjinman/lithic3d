@@ -16,7 +16,6 @@ layout(push_constant) uniform PushConstants
 
 layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out vec3 outWorldPos;
-layout(location = 2) out vec3 outNormal;
 
 vec4 computeVertexPosition(mat4 modelMatrix)
 {
@@ -37,5 +36,4 @@ void main()
     case 3: outTexCoord = vec2(0.0, 1.0); break;
   }
   outWorldPos = worldPos.xyz;
-  outNormal = mat3(modelMatrix) * inNormal;
 }

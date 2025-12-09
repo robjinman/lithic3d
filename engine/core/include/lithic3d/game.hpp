@@ -3,6 +3,7 @@
 #include "input.hpp"
 #include "math.hpp"
 #include <memory>
+#include <filesystem>
 
 namespace lithic3d
 {
@@ -17,6 +18,7 @@ struct GameConfig
   uint32_t fullscreenResolutionW = 0;
   uint32_t fullscreenResolutionH = 0;
   bool captureMouse = false;
+  std::filesystem::path shaderManifest;
 };
 
 class Game

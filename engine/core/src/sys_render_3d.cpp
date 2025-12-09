@@ -194,8 +194,6 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
 
 void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name)
 {
-  auto& modelComp = *m_models.at(entityId);
-
   m_animationStates[entityId] = AnimationState{
     .animationName = name,
     .timer{},

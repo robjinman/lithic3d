@@ -82,8 +82,6 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
     .flags{}
   };
 
-  sysRender3d.renderer().compileShader(false, mesh->featureSet, material.features);
-
   auto model = std::make_unique<Model>();
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{

@@ -17,7 +17,6 @@ layout(push_constant) uniform PushConstants
 
 layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out vec3 outWorldPos;
-layout(location = 2) out vec3 outNormal;
 
 vec4 computeVertexPosition(mat4 modelMatrix)
 {
@@ -34,5 +33,4 @@ void main()
 
   outWorldPos = worldPos.xyz;
   outTexCoord = constants.uvCoords[gl_VertexIndex];
-  outNormal = mat3(modelMatrix) * inNormal;
 }

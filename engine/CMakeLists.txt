@@ -278,9 +278,9 @@ if(TARGET shader_compiler)
   add_custom_command(
     OUTPUT "${SHADER_STAMP}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
-    COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${SHADER_OUT_DIR}"
+    COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${GAME_PROJECT_DIRECTORY}/data/shaders.xml" "${SHADER_OUT_DIR}"
     COMMAND ${CMAKE_COMMAND} -E touch "${SHADER_STAMP}"
-    DEPENDS ${SHADER_SRCS}
+    DEPENDS ${SHADER_SRCS} "${GAME_PROJECT_DIRECTORY}/data/shaders.xml"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Running shader_compiler to produce SPV files..."
   )

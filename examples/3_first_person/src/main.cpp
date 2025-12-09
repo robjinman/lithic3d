@@ -97,8 +97,6 @@ void Demo::constructSkybox()
     "textures/skybox/back.png"
   });
 
-  m_engine.renderer().compileShader(false, mesh->featureSet, material->featureSet);
-
   auto render = std::make_unique<DSkybox>();
   render->model = std::make_unique<Submodel>();
   render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
@@ -149,17 +147,6 @@ DModelPtr Demo::loadModel()
 
   auto render = std::make_unique<DModel>();
   render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
-
-  // TODO: This is ridiculous
-  auto& model = m_engine.modelLoader().getModel(render->model.id());
-  auto meshFeatures = model.submodels[0]->mesh.features;
-  MaterialFeatureSet materialFeatures{
-    .flags{
-      bitflag(MaterialFeatures::HasTexture) |
-      bitflag(MaterialFeatures::HasNormalMap)
-    }
-  };
-  sysRender3d.renderer().compileShader(false, meshFeatures, materialFeatures);
 
   return render;
 }
@@ -369,7 +356,8 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
-    .captureMouse = true
+    .captureMouse = true,
+    .shaderManifest = "shaders.xml"
   };
 }
 

@@ -176,10 +176,8 @@ class RendererImpl : public Renderer
 
     // Initialisation
     //
-    void compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures) override;
-    bool hasCompiledShader(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-      const MaterialFeatureSet& materialFeatures) const override;
+    void compileShader(const ShaderProgramSpec& spec) override;
+    bool hasCompiledShader(const ShaderProgramSpec& spec) const override;
 
     // Resources
     //
@@ -435,8 +433,7 @@ Mat4x4f RendererImpl::projectionMatrix() const
   return m_perspectiveMatrix;
 }
 
-void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures)
+void RendererImpl::compileShader(const ShaderProgramSpec& spec)
 {
   DBG_TRACE(m_logger);
 
@@ -455,26 +452,23 @@ void RendererImpl::compileShader(bool overlay, const MeshFeatureSet& meshFeature
       }
     };
 
-    if (overlay) {
-      addPipeline(PipelineKey{
-        .renderPass = RenderPass::Overlay,
-        .meshFeatures = meshFeatures,
-        .materialFeatures = materialFeatures
-      }, m_swapchainExtent);
-    }
-    else {
-      addPipeline(PipelineKey{
-        .renderPass = RenderPass::Main,
-        .meshFeatures = meshFeatures,
-        .materialFeatures = materialFeatures
-      }, m_swapchainExtent);
-
-      if (meshFeatures.flags.test(MeshFeatures::CastsShadow)) {
+    switch (spec.renderPass) {
+      case RenderPass::Overlay:
+      case RenderPass::Main: {
         addPipeline(PipelineKey{
-          .renderPass = RenderPass::Shadow,
-          .meshFeatures = meshFeatures,
+          .renderPass = spec.renderPass,
+          .meshFeatures = spec.meshFeatures,
+          .materialFeatures = spec.materialFeatures
+        }, m_swapchainExtent);
+        break;
+      }
+      case RenderPass::Shadow: {
+        addPipeline(PipelineKey{
+          .renderPass = spec.renderPass,
+          .meshFeatures = spec.meshFeatures,
           .materialFeatures = {}
         }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
+        break;
       }
     }
   };
@@ -522,10 +516,9 @@ const ScreenMargins& RendererImpl::getMargins() const
   return m_margins;
 }
 
-bool RendererImpl::hasCompiledShader(RenderPass renderPass, const MeshFeatureSet& meshFeatures,
-  const MaterialFeatureSet& materialFeatures) const
+bool RendererImpl::hasCompiledShader(const ShaderProgramSpec& spec) const
 {
-  auto key = getPipelineKey(renderPass, meshFeatures, materialFeatures);
+  auto key = getPipelineKey(spec.renderPass, spec.meshFeatures, spec.materialFeatures);
   return m_pipelines.contains(key);
 }
 

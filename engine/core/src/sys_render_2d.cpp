@@ -230,68 +230,6 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
   , m_renderer(renderer)
   , m_renderResourceLoader(renderResourceLoader)
 {
-  // Text
-  {
-    MeshFeatureSet meshFeatures{
-      .vertexLayout = {
-        BufferUsage::AttrPosition,
-        BufferUsage::AttrNormal,
-        BufferUsage::AttrTexCoord
-      },
-      .flags{}
-    };
-    MaterialFeatureSet materialFeatures{
-      .flags{ bitflag(MaterialFeatures::HasTexture) }
-    };
-    m_renderer.compileShader(true, meshFeatures, materialFeatures);
-  }
-
-  // Sprites
-  {
-    MeshFeatureSet meshFeatures{
-      .vertexLayout = {
-        BufferUsage::AttrPosition,
-        BufferUsage::AttrNormal,
-        BufferUsage::AttrTexCoord
-      },
-      .flags{ bitflag(MeshFeatures::IsQuad) }
-    };
-    MaterialFeatureSet materialFeatures{
-      .flags{ bitflag(MaterialFeatures::HasTexture) }
-    };
-    m_renderer.compileShader(true, meshFeatures, materialFeatures);
-  }
-
-  // Quads
-  {
-    MeshFeatureSet meshFeatures{
-      .vertexLayout = {
-        BufferUsage::AttrPosition,
-        BufferUsage::AttrNormal,
-        BufferUsage::AttrTexCoord
-      },
-      .flags{ bitflag(MeshFeatures::IsQuad) }
-    };
-    MaterialFeatureSet materialFeatures{};
-    m_renderer.compileShader(true, meshFeatures, materialFeatures);
-  }
-
-  // Dynamic text
-  {
-    MeshFeatureSet meshFeatures{
-      .vertexLayout = {
-        BufferUsage::AttrPosition,
-        BufferUsage::AttrNormal,
-        BufferUsage::AttrTexCoord
-      },
-      .flags{ bitflag(MeshFeatures::IsDynamicText) }
-    };
-    MaterialFeatureSet materialFeatures{
-      .flags{ bitflag(MaterialFeatures::HasTexture) }
-    };
-    m_renderer.compileShader(true, meshFeatures, materialFeatures);
-  }
-
   m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
 }
 
