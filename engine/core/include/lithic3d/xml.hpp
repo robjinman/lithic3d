@@ -26,6 +26,7 @@ class XmlNode
         std::vector<std::unique_ptr<XmlNode>>::const_iterator m_i;
     };
 
+    virtual std::unique_ptr<XmlNode> clone() const = 0;
     virtual const std::string& name() const = 0;
     virtual const std::string& contents() const = 0;
     virtual Iterator child(const std::string& name) const = 0;

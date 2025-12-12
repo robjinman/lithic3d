@@ -451,6 +451,7 @@ std::ostream& operator<<(std::ostream& stream, const Matrix<T, ROWS, COLS>& m)
 using Vec2i = Vector<int, 2>;
 using Vec2f = Vector<float, 2>;
 using Vec3f = Vector<float, 3>;
+using Vec3i = Vector<int, 3>;
 using Vec4f = Vector<float, 4>;
 using Mat2x2f = Matrix<float, 2, 2>;
 using Mat3x3f = Matrix<float, 3, 3>;
@@ -560,19 +561,14 @@ inline Mat4x4f rotationMatrix4x4(const Vec4f& quaternion)
   };
 }
 
+inline Mat4x4f createTransform(const Vec3f& pos, const Vec3f& ori, const Vec3f& scale)
+{
+  return scaleMatrix4x4(scale) * rotationMatrix4x4(ori) * translationMatrix4x4(pos);
+}
+
 inline Mat4x4f createTransform(const Vec3f& pos, const Vec3f& ori)
 {
-  auto rot = rotationMatrix3x3(ori);
-  Mat4x4f m = identityMatrix<4>();
-  for (size_t r = 0; r < 3; ++r) {
-    for (size_t c = 0; c < 3; ++c) {
-      m.set(r, c, rot.at(r, c));
-    }
-  }
-  m.set(0, 3, pos[0]);
-  m.set(1, 3, pos[1]);
-  m.set(2, 3, pos[2]);
-  return m;
+  return rotationMatrix4x4(ori) * translationMatrix4x4(pos);
 }
 
 inline Mat4x4f fromVerticalToVectorTransform(const Vec3f& vec)

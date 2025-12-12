@@ -1,5 +1,7 @@
 #include <lithic3d/lithic3d.hpp>
 
+namespace fs = std::filesystem;
+
 using namespace lithic3d;
 using namespace lithic3d::render;
 
@@ -29,39 +31,42 @@ class Demo : public Game
   private:
     Engine& m_engine;
     FactoryPtr m_factory;
-    EntityId m_cube = NULL_ENTITY_ID;
+    EntityFactoryPtr m_entityFactory;
+    MaterialHandle m_cubeMaterial;
+    EntityId m_light;
+    EntityId m_cube;
+    EntityId m_caption;
 
     EntityId constructLight();
     EntityId constructCube();
     EntityId constructCaption();
-    void rotateCube();
 };
 
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_factory = createFactory(m_engine.ecs(), m_engine.fileSystem());
+  m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader());
 
-  constructLight();
+  m_entityFactory = createEntityFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem());
+
+  m_light = constructLight();
   m_cube = constructCube();
-  constructCaption();
-
-  m_engine.renderer().start(); // TODO: Move to engine?
+  m_caption = constructCaption();
 }
 
 EntityId Demo::constructCube()
 {
-  EntityId id = m_engine.ecs().componentStore().allocate<DSpatial, DModel>();
+  m_entityFactory->loadPrefabAsync("monkey").wait();
 
-  auto material = m_factory->constructMaterial("textures/bricks.png");
-  m_factory->constructCuboid(id, material, { 1.f, 1.f, 1.f }, { 1.f, 1.f });
-
-  return id;
+  return m_entityFactory->constructEntity("monkey", createTransform({ 0.f, 0.f, 5.f }, {}));
 }
 
 EntityId Demo::constructLight()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DLight>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
@@ -83,7 +88,8 @@ EntityId Demo::constructLight()
 
 EntityId Demo::constructCaption()
 {
-  auto id = m_engine.ecs().componentStore().allocate<DSpatial, DText>();
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DText>(id);
 
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
@@ -93,11 +99,19 @@ EntityId Demo::constructCaption()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
+  auto material = std::make_unique<Material>();
+  material->featureSet = MaterialFeatureSet{
+    .flags{
+      bitflag(MaterialFeatures::HasTexture)
+    }
+  };
+  material->texture = m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
+
   DText render{
     .scissor = 0,
-    .material = m_factory->constructMaterial("textures/fonts.png"),
+    .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
     .textureRect = {
-      .x = pxToUvX(768.f, 1024.f),
+      .x = pxToUvX(256.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
       .w = pxToUvW(256.f, 1024.f),
       .h = pxToUvH(256.f, 256.f)
@@ -112,18 +126,8 @@ EntityId Demo::constructCaption()
   return id;
 }
 
-void Demo::rotateCube()
-{
-  float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
-  float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
-
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube,
-    createTransform({ 0.f, 0.f, 5.f }, { b, a, 0.f }));
-}
-
 bool Demo::update()
 {
-  rotateCube();
   m_engine.update({});
 
   return true;
@@ -141,7 +145,8 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
-    .captureMouse = false
+    .captureMouse = false,
+    .shaderManifest = "shaders.xml"
   };
 }
 

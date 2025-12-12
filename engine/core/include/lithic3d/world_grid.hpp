@@ -29,7 +29,9 @@ class WorldGrid
 using WorldGridPtr = std::unique_ptr<WorldGrid>;
 
 class WorldLoader;
+class EventSystem;
 
-WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, WorldLoader& worldLoader);
+WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, WorldLoader& worldLoader,
+  EventSystem& eventSystem);
 
 }

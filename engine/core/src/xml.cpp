@@ -54,8 +54,10 @@ namespace
 class XmlNodeImpl : public XmlNode
 {
   public:
+    XmlNodeImpl(const XmlNodeImpl& cpy);
     XmlNodeImpl(const XMLElement& node);
 
+    XmlNodePtr clone() const override;
     const std::string& name() const override;
     const std::string& contents() const override;
     Iterator child(const std::string& name) const override;
@@ -88,6 +90,21 @@ XmlNodeImpl::XmlNodeImpl(const XMLElement& node)
     std::string name = elem->Name();
     m_children.push_back(std::make_unique<XmlNodeImpl>(*elem));
   }
+}
+
+XmlNodeImpl::XmlNodeImpl(const XmlNodeImpl& cpy)
+  : m_name(cpy.m_name)
+  , m_contents(cpy.m_contents)
+  , m_attributes(cpy.m_attributes)
+{
+  for (auto& child : cpy.m_children) {
+    m_children.push_back(child->clone());
+  }
+}
+
+XmlNodePtr XmlNodeImpl::clone() const
+{
+  return std::make_unique<XmlNodeImpl>(*this);
 }
 
 const std::string& XmlNodeImpl::name() const

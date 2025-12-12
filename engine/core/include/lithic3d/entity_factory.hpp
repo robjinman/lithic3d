@@ -1,30 +1,31 @@
 #pragma once
 
-#include "component_store.hpp"
 #include "math.hpp"
-#include <memory>
+#include "resource_manager.hpp"
+#include "entity_id.hpp"
 
 namespace lithic3d
 {
 
-class XmlNode;
-
 class EntityFactory
 {
   public:
-    // Any required resources must already be present in the resource manager
-    virtual void loadPrefabs(const XmlNode& prefabs) = 0;
-
-    // Construct entity from prefab with instance-specific customisation
-    virtual EntityId constructEntity(const XmlNode& data, const Mat4x4f& transform) const = 0;
+    virtual ResourceHandle loadPrefabAsync(const std::string& name) = 0;
+    virtual EntityId constructEntity(const std::string& type, const Mat4x4f& transform) const = 0;
+    virtual bool hasPrefab(const std::string& name) const = 0;
 
     virtual ~EntityFactory() = default;
 };
 
 using EntityFactoryPtr = std::unique_ptr<EntityFactory>;
 
-class ResourceManager;
+class Ecs;
+class FileSystem;
+class ModelLoader;
+class RenderResourceLoader;
 
-EntityFactoryPtr createEntityFactory(ResourceManager& resourceManager);
+EntityFactoryPtr createEntityFactory(Ecs& ecs, ModelLoader& modelLoader,
+  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
+  const FileSystem& fileSystem);
 
 } // namespace lithic3d

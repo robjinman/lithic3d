@@ -1,11 +1,4 @@
-<world grid-width="4" grid-height="4" cell-width="10.0" cell-height="10.0">
-  <!-- Global prefabs -->
-  <prefabs>
-    <prefab name="light"/>
-    <prefab name="cube"/>
-    <prefab name="monkey"/>
-    <prefab name="bendy"/>
-  </prefabs>
+<world grid-width="4" grid-height="4" cell-slice-width="10.0" cell-slice-height="10.0">
   <terrain height-map="terrain_height_map">
     <textures>
       <texture name="grass" file="grass.png"/>
@@ -15,8 +8,6 @@
       <texture name="terrain_height_map" file="terrain_height_map.png"/>
       <texture name="terrain_texture_map" file="terrain_texture_map.png"/>
     </textures>
-    <texture-maps>
-      <texture-map name="texture_map_1" texture="terrain_texture_map" r="grass" g="dirt" b="sand" a="pebbles"/>
-    </texture-maps>
+    <texture-map texture="terrain_texture_map" r="grass" g="dirt" b="sand" a="pebbles"/>
   </terrain>
 </world>

@@ -19,7 +19,13 @@ class WorldLoader
 {
   public:
     virtual const WorldInfo& worldInfo() const = 0;
+
     virtual ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) = 0;
+
+    // Call only once handle returned by loadCellSliceAsync is ready
+    virtual void createEntities(ResourceId cellSliceId) = 0;
+
+    // To unload a cell slice, delete the entities first, then delete the slice handle
 
     virtual ~WorldLoader() = default;
 };
@@ -28,8 +34,9 @@ using WorldLoaderPtr = std::unique_ptr<WorldLoader>;
 
 class FileSystem;
 class EntityFactory;
+class RenderResourceLoader;
 
 WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, EntityFactory& entityFactory,
-  ResourceManager& resourceManager);
+  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager);
 
 } // namespace lithic3d
