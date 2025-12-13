@@ -26,6 +26,6 @@ class RenderResourceLoader;
 
 EntityFactoryPtr createEntityFactory(Ecs& ecs, ModelLoader& modelLoader,
   RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-  const FileSystem& fileSystem);
+  const FileSystem& fileSystem, Logger& logger);
 
 } // namespace lithic3d

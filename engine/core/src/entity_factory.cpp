@@ -5,6 +5,7 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_render_3d.hpp"
+#include "lithic3d/logger.hpp"
 
 namespace fs = std::filesystem;
 
@@ -33,13 +34,14 @@ class EntityFactoryImpl : public EntityFactory
   public:
     EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
       RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-      const FileSystem& fileSystem);
+      const FileSystem& fileSystem, Logger& logger);
 
     ResourceHandle loadPrefabAsync(const std::string& name) override;
     EntityId constructEntity(const std::string& type, const Mat4x4f& transform) const override;
     bool hasPrefab(const std::string& name) const override;
 
   private:
+    Logger& m_logger;
     Ecs& m_ecs;
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
@@ -56,8 +58,9 @@ class EntityFactoryImpl : public EntityFactory
 
 EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
   RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-  const FileSystem& fileSystem)
-  : m_ecs(ecs)
+  const FileSystem& fileSystem, Logger& logger)
+  : m_logger(logger)
+  , m_ecs(ecs)
   , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
@@ -141,6 +144,9 @@ EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x
 
   auto id = m_ecs.idGen().getNewEntityId();
 
+  m_logger.debug(STR("Constructing entity " << id << " of type " << type));
+  m_logger.debug(STR(transform));
+
   m_ecs.componentStore().allocate<DSpatial, DModel>(id); // TODO
 
   if (prefab.spatial.has_value()) {
@@ -170,10 +176,10 @@ bool EntityFactoryImpl::hasPrefab(const std::string& name) const
 
 EntityFactoryPtr createEntityFactory(Ecs& ecs, ModelLoader& modelLoader,
   RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-  const FileSystem& fileSystem)
+  const FileSystem& fileSystem, Logger& logger)
 {
   return std::make_unique<EntityFactoryImpl>(ecs, modelLoader, renderResourceLoader,
-    resourceManager, fileSystem);
+    resourceManager, fileSystem, logger);
 }
 
 } // namespace lithic3d

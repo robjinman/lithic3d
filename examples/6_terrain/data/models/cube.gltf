@@ -69,7 +69,7 @@
 		{
 			"mimeType":"image/png",
 			"name":"red",
-			"uri":"bricks_colour.png"
+			"uri":"ground.png"
 		}
 	],
 	"accessors":[

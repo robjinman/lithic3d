@@ -6,6 +6,7 @@
 #include "lithic3d/terrain_builder.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/units.hpp"
 
 namespace fs = std::filesystem;
 
@@ -32,24 +33,33 @@ Mat4x4f constructTransform(const XmlNode& transformXml)
 
   auto i = transformXml.child("scale");
   if (i != transformXml.end()) {
-    auto scale = constructVec3f(*i);
+    scale = constructVec3f(*i);
   }
 
-  return createTransform(pos, ori, scale);
+  return createTransform(metresToWorldUnits(pos), ori, scale);
 }
   
 struct CellSlice
 {
+  uint32_t x = 0;
+  uint32_t y = 0;
+  uint32_t sliceIdx = 0;
   std::vector<ResourceHandle> prefabs;
   std::vector<XmlNodePtr> pendingEntities;
 };
 
-std::string cellSliceFileName(uint32_t x, uint32_t y, uint32_t sliceIdx)
+fs::path cellSlicePath(uint32_t x, uint32_t y, uint32_t sliceIdx)
 {
   std::stringstream ss;
-  ss << std::setw(3) << std::setfill('0') << x << y << sliceIdx << ".xml";
+  ss << std::setw(3) << std::setfill('0') << x
+    << std::setw(3) << std::setfill('0') << y;
 
-  return ss.str();
+  fs::path dir{ss.str()};
+
+  ss.str("");
+  ss << std::setw(3) << std::setfill('0') << sliceIdx << ".xml";
+
+  return dir / ss.str();
 }
 
 class WorldLoaderImpl : public WorldLoader
@@ -60,7 +70,7 @@ class WorldLoaderImpl : public WorldLoader
 
     const WorldInfo& worldInfo() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
-    void createEntities(ResourceId cellSliceId) override;
+    std::vector<EntityId> createEntities(ResourceId cellSliceId) override;
 
   private:
     FileSystem& m_fileSystem;
@@ -94,18 +104,23 @@ WorldLoaderImpl::WorldLoaderImpl(FileSystem& fileSystem, EntityFactory& entityFa
   m_terrainBuilder = createTerrainBuilder(terrainConfig);
 }
 
-void WorldLoaderImpl::createEntities(ResourceId cellSliceId)
+std::vector<EntityId> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
+  std::vector<EntityId> entities;
+
   auto& cellSlice = m_cellSlices.at(cellSliceId);
 
   for (auto& entityXml : cellSlice.pendingEntities) {
     auto type = entityXml->attribute("type");
     auto transform = constructTransform(*entityXml->child("transform"));
 
-    m_entityFactory.constructEntity(type, transform);
+    auto id = m_entityFactory.constructEntity(type, transform);
+    entities.push_back(id);
   }
 
-  m_cellSlices.clear();
+  cellSlice.pendingEntities.clear();
+
+  return entities;
 }
 
 const WorldInfo& WorldLoaderImpl::worldInfo() const
@@ -117,14 +132,12 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 { 
   auto handle = m_resourceManager.loadResource([this, x, y, sliceIdx](ResourceId id) {
     const auto worldsPath = fs::path{"worlds"};
-    const auto cellSliceFilePath = worldsPath / m_worldName / cellSliceFileName(x, y, sliceIdx);
+    const auto cellSliceFilePath = worldsPath / m_worldName / cellSlicePath(x, y, sliceIdx);
 
     auto cellSliceXmlFileData = m_fileSystem.readAppDataFile(cellSliceFilePath);
     auto cellSliceXml = parseXml(cellSliceXmlFileData);
 
     ASSERT(cellSliceXml->name() == "cell-slice", "Expected <cell-slice> element");
-
-    CellSlice cellSlice;
 
     for (auto& entityXml : *cellSliceXml) {
       auto type = entityXml.attribute("type");
@@ -133,7 +146,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
         m_cellSlices[id].prefabs.push_back(m_entityFactory.loadPrefabAsync(type));
       }
 
-      cellSlice.pendingEntities.push_back(entityXml.clone());
+      m_cellSlices[id].pendingEntities.push_back(entityXml.clone());
     }
 
     return ManagedResource{
@@ -143,9 +156,12 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
     };
   });
 
-  DBG_ASSERT(m_cellSlices.contains(handle.id()), "Cell slice already loaded");
+  DBG_ASSERT(!m_cellSlices.contains(handle.id()), "Cell slice already loaded");
 
   m_cellSlices.insert({ handle.id(), CellSlice{
+    .x = x,
+    .y = y,
+    .sliceIdx = sliceIdx,
     .prefabs = {},
     .pendingEntities = {}
   }});
@@ -168,8 +184,8 @@ void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
   m_worldInfo = WorldInfo{
     .gridWidth = static_cast<uint32_t>(std::stoi(node.attribute("grid-width"))),
     .gridHeight = static_cast<uint32_t>(std::stoi(node.attribute("grid-height"))),
-    .cellWidth = std::stof(node.attribute("cell-width")),
-    .cellHeight = std::stof(node.attribute("cell-height"))
+    .cellWidth = metresToWorldUnits(std::stof(node.attribute("cell-width"))),
+    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell-height")))
   };
 }
 

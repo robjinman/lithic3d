@@ -1,0 +1,9 @@
+<cell-slice>
+  <entity type="ground">
+    <transform>
+      <pos x="5" y="-1" z="15"/>
+      <ori x="0" y="0" z="0"/>
+      <scale x="50" y="1" z="50"/>
+    </transform>
+  </entity>
+</cell-slice>

@@ -242,10 +242,6 @@ class Vector
       return !(*this == rhs);
     }
 
-    bool operator<(const Vector<T, N>& rhs) const {
-      return squareMagnitude() < rhs.squareMagnitude();
-    }
-
     T dot(const Vector<T, N>& rhs) const
     {
       T sum = 0;
@@ -563,12 +559,12 @@ inline Mat4x4f rotationMatrix4x4(const Vec4f& quaternion)
 
 inline Mat4x4f createTransform(const Vec3f& pos, const Vec3f& ori, const Vec3f& scale)
 {
-  return scaleMatrix4x4(scale) * rotationMatrix4x4(ori) * translationMatrix4x4(pos);
+  return translationMatrix4x4(pos) * rotationMatrix4x4(ori) * scaleMatrix4x4(scale);
 }
 
 inline Mat4x4f createTransform(const Vec3f& pos, const Vec3f& ori)
 {
-  return rotationMatrix4x4(ori) * translationMatrix4x4(pos);
+  return translationMatrix4x4(pos) * rotationMatrix4x4(ori);
 }
 
 inline Mat4x4f fromVerticalToVectorTransform(const Vec3f& vec)

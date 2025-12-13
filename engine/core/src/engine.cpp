@@ -63,6 +63,7 @@ class EngineImpl : public Engine
     Timer m_timer;
 
     void measureTickRate();
+    void handleEvent(const Event& event);
 };
 
 EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
@@ -97,6 +98,13 @@ EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr r
   m_ecs->addSystem(ANIMATION_2D_SYSTEM, std::move(sysAnimation2d));
   m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
   m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
+
+  m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
+}
+
+void EngineImpl::handleEvent(const Event& event)
+{
+  m_ecs->processEvent(event);
 }
 
 void EngineImpl::setClearColour(const Vec4f& colour)

@@ -1,8 +1,0 @@
-<cell-slice texture-map="texture_map_1">           <!-- cell-slice 0, 2 -->
-  <entity type="cube">
-    <transform>
-      <pos x="-75.0" y="10.0" z="25.0"/>
-      <ori x="0" y="0" z="0"/>
-    </transform>
-  </entity>
-</cell-slice>

@@ -14,7 +14,6 @@ struct WorldTraversalOptions
   // A value of 0 means the slice is only loaded when the camera enters the cell
   // A value of 1 means the slice is loaded when the camera enters an adjacent cell
   // etc.
-  uint32_t loadDistance = 0;
   std::array<uint32_t, NUM_WORLD_SLICES> sliceLoadDistances;
 };
 
@@ -30,8 +29,9 @@ using WorldGridPtr = std::unique_ptr<WorldGrid>;
 
 class WorldLoader;
 class EventSystem;
+class Logger;
 
 WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, WorldLoader& worldLoader,
-  EventSystem& eventSystem);
+  EventSystem& eventSystem, Logger& logger);
 
 }
