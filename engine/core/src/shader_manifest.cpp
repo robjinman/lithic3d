@@ -1,6 +1,8 @@
 #include "lithic3d/shader_manifest.hpp"
 #include "lithic3d/xml.hpp"
 #include "lithic3d/utils.hpp"
+#include "lithic3d/strings.hpp"
+#include "lithic3d/logger.hpp"
 #include <set>
 #include <cassert>
 
@@ -12,6 +14,40 @@ namespace lithic3d
 {
 namespace
 {
+
+bool hasAttribute(const VertexLayout& layout, BufferUsage attribute)
+{
+  return std::find(layout.begin(), layout.end(), attribute) != layout.end();
+}
+
+bool isValid(const ShaderProgramSpec& spec, std::string& message)
+{
+  if (spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
+    if (!hasAttribute(spec.meshFeatures.vertexLayout, BufferUsage::AttrTangent)) {
+      message = "Material has normal map, but mesh is missing tangents";
+      return false;
+    }
+    if (!spec.meshFeatures.flags.test(MeshFeatures::HasTangents)) {
+      message = "Material has normal map, but mesh is missing tangents";
+      return false;
+    }
+    if (!hasAttribute(spec.meshFeatures.vertexLayout, BufferUsage::AttrNormal)) {
+      message = "Material has normal map, but mesh is missing vertex normals";
+      return false;
+    }
+  }
+
+  if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)
+    || spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
+
+    if (!hasAttribute(spec.meshFeatures.vertexLayout, BufferUsage::AttrTexCoord)) {
+      message = "Material has texture or normal map, but mesh is missing UVs";
+      return false;
+    }
+  }
+
+  return true;
+}
 
 MaterialFeatures::Enum parseMaterialFlagName(const std::string& name)
 {
@@ -94,10 +130,12 @@ std::vector<MaterialFeatureSet> parseMaterialFeaturesXml(const XmlNode& material
 
   auto stringToFlag = [](const std::string& name) { return parseMaterialFlagName(name); };
 
+  auto flagsXml = materialFeaturesXml.child("flags");
+
   auto flagSets = parseFlags<
     MaterialFeatures::Enum,
     MaterialFeatures::Flags
-  >(*materialFeaturesXml.child("flags"), stringToFlag);
+  >(*flagsXml, stringToFlag);
 
   for (auto flags : flagSets) {
     featureSets.push_back(MaterialFeatureSet{
@@ -205,6 +243,9 @@ MeshFeatures::Enum parseMeshFlagName(const std::string& name)
   else if (name == "is-skybox") {
     return MeshFeatures::IsSkybox;
   }
+  else if (name == "is-terrain") {
+    return MeshFeatures::IsTerrain;
+  }
   else if (name == "is-animated") {
     return MeshFeatures::IsAnimated;
   }
@@ -250,11 +291,6 @@ std::vector<MeshFeatureSet> parseMeshFeaturesXml(const XmlNode& meshFeaturesXml)
   return meshFeatureSets;
 }
 
-bool hasAttribute(const VertexLayout& layout, BufferUsage attribute)
-{
-  return std::find(layout.begin(), layout.end(), attribute) != layout.end();
-}
-
 void setInferred(ShaderProgramSpec& spec)
 {
   if (hasAttribute(spec.meshFeatures.vertexLayout, BufferUsage::AttrTangent)) {
@@ -283,11 +319,16 @@ std::vector<RenderPass> parseRenderPassesXml(const XmlNode& renderPassesXml)
   return renderPasses;
 }
 
-void parseShaderSpec(const XmlNode& shaderXml, std::vector<ShaderProgramSpec>& specs)
+void parseShaderSpec(const XmlNode& shaderXml, std::vector<ShaderProgramSpec>& specs,
+  Logger& logger)
 {
-  auto renderPasses = parseRenderPassesXml(*shaderXml.child("render-passes"));
-  auto meshFeatureSets = parseMeshFeaturesXml(*shaderXml.child("mesh-features"));
-  auto materialFeatureSets = parseMaterialFeaturesXml(*shaderXml.child("material-features"));
+  auto renderPassesXml = shaderXml.child("render-passes");
+  auto meshFeaturesXml = shaderXml.child("mesh-features");
+  auto materialFeaturesXml = shaderXml.child("material-features");
+
+  auto renderPasses = parseRenderPassesXml(*renderPassesXml);
+  auto meshFeatureSets = parseMeshFeaturesXml(*meshFeaturesXml);
+  auto materialFeatureSets = parseMaterialFeaturesXml(*materialFeaturesXml);
 
   for (auto renderPass : renderPasses) {
     for (auto& meshFeatures : meshFeatureSets) {
@@ -300,20 +341,26 @@ void parseShaderSpec(const XmlNode& shaderXml, std::vector<ShaderProgramSpec>& s
 
         setInferred(spec);
 
-        specs.push_back(spec);
+        std::string message;
+        if (isValid(spec, message)) {
+          specs.push_back(spec);
+        }
+        else {
+          logger.warn(STR("Skipping invalid shader spec: " << message));
+        }
       }
     }
   }
 }
 
-std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml)
+std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml, Logger& logger)
 {
   ASSERT(shadersXml.name() == "shaders", "Expected <shaders> element");
 
   std::vector<ShaderProgramSpec> specs;
 
   for (auto& node : shadersXml) {
-    parseShaderSpec(node, specs);
+    parseShaderSpec(node, specs, logger);
   }
 
   return specs;
@@ -321,10 +368,10 @@ std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml)
 
 } // namespace
 
-std::vector<ShaderProgramSpec> parseShaderManifest(const std::vector<char>& data)
+std::vector<ShaderProgramSpec> parseShaderManifest(const std::vector<char>& data, Logger& logger)
 {
   auto root = parseXml(data);
-  return parseShadersXml(*root);
+  return parseShadersXml(*root, logger);
 }
 
 } // namespace lithic3d

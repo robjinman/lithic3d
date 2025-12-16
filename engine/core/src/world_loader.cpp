@@ -7,6 +7,8 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/strings.hpp"
 #include "lithic3d/units.hpp"
+#include <map>
+#include <cassert>
 
 namespace fs = std::filesystem;
 
@@ -46,6 +48,7 @@ struct CellSlice
   uint32_t sliceIdx = 0;
   std::vector<ResourceHandle> prefabs;
   std::vector<XmlNodePtr> pendingEntities;
+  ResourceHandle terrain;
 };
 
 fs::path cellSlicePath(uint32_t x, uint32_t y, uint32_t sliceIdx)
@@ -65,16 +68,19 @@ fs::path cellSlicePath(uint32_t x, uint32_t y, uint32_t sliceIdx)
 class WorldLoaderImpl : public WorldLoader
 {
   public:
-    WorldLoaderImpl(FileSystem& fileSystem, EntityFactory& entityFactory,
-      RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager);
+    WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+      ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
+      ResourceManager& resourceManager, Logger& logger);
 
     const WorldInfo& worldInfo() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
     std::vector<EntityId> createEntities(ResourceId cellSliceId) override;
 
   private:
+    Logger& m_logger;
     FileSystem& m_fileSystem;
     EntityFactory& m_entityFactory;
+    ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     TerrainBuilderPtr m_terrainBuilder;
@@ -87,10 +93,13 @@ class WorldLoaderImpl : public WorldLoader
     TerrainConfig loadTerrainConfig(const XmlNode& node);
 };
 
-WorldLoaderImpl::WorldLoaderImpl(FileSystem& fileSystem, EntityFactory& entityFactory,
-  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager)
-  : m_fileSystem(fileSystem)
+WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+  ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
+  ResourceManager& resourceManager, Logger& logger)
+  : m_logger(logger)
+  , m_fileSystem(fileSystem)
   , m_entityFactory(entityFactory)
+  , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
 {
@@ -100,15 +109,29 @@ WorldLoaderImpl::WorldLoaderImpl(FileSystem& fileSystem, EntityFactory& entityFa
   auto worldXml = parseXml(xmlData);
 
   loadWorldInfo(*worldXml);
-  auto terrainConfig = loadTerrainConfig(*worldXml->child("terrain"));
-  m_terrainBuilder = createTerrainBuilder(terrainConfig);
+
+  // TODO
+  TerrainConfig terrainConfig{
+    .world = "world",
+    .minHeight = 0.f,
+    .maxHeight = 2.f,
+    .cellWidth = worldUnitsToMetres(m_worldInfo.cellWidth),
+    .cellHeight = worldUnitsToMetres(m_worldInfo.cellHeight),
+  };
+
+  m_terrainBuilder = createTerrainBuilder(terrainConfig, ecs, modelLoader, m_renderResourceLoader,
+    m_resourceManager, m_fileSystem, m_logger);
 }
 
 std::vector<EntityId> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
+  auto& cellSlice = m_cellSlices.at(cellSliceId);
   std::vector<EntityId> entities;
 
-  auto& cellSlice = m_cellSlices.at(cellSliceId);
+  if (cellSlice.terrain) {
+    assert(cellSlice.terrain.ready());
+    entities = m_terrainBuilder->createEntities(cellSlice.terrain.id());
+  }
 
   for (auto& entityXml : cellSlice.pendingEntities) {
     auto type = entityXml->attribute("type");
@@ -139,14 +162,22 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 
     ASSERT(cellSliceXml->name() == "cell-slice", "Expected <cell-slice> element");
 
-    for (auto& entityXml : *cellSliceXml) {
-      auto type = entityXml.attribute("type");
+    auto i = cellSliceXml->child("entities");
+    if (i != cellSliceXml->end()) {
+      for (auto& entityXml : *i) {
+        auto type = entityXml.attribute("type");
 
-      if (!m_entityFactory.hasPrefab(type)) {
-        m_cellSlices[id].prefabs.push_back(m_entityFactory.loadPrefabAsync(type));
+        if (!m_entityFactory.hasPrefab(type)) {
+          m_cellSlices[id].prefabs.push_back(m_entityFactory.loadPrefabAsync(type));
+        }
+
+        m_cellSlices[id].pendingEntities.push_back(entityXml.clone());
       }
+    }
 
-      m_cellSlices[id].pendingEntities.push_back(entityXml.clone());
+    i = cellSliceXml->child("terrain");
+    if (i != cellSliceXml->end()) {
+      m_cellSlices[id].terrain = m_terrainBuilder->loadTerrainRegionAsync(x, y, i->clone());
     }
 
     return ManagedResource{
@@ -163,20 +194,11 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
     .y = y,
     .sliceIdx = sliceIdx,
     .prefabs = {},
-    .pendingEntities = {}
+    .pendingEntities = {},
+    .terrain = {}
   }});
 
   return handle;
-}
-
-TerrainConfig WorldLoaderImpl::loadTerrainConfig(const XmlNode& terrainXml)
-{
-  auto heightMap = terrainXml.attribute("height-map");
-  auto heightMapTextureData = m_fileSystem.readAppDataFile(fs::path{"textures"} / heightMap);
-
-  // TODO
-  return TerrainConfig{
-  };
 }
 
 void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
@@ -191,11 +213,12 @@ void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
 
 } // namespace
 
-WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, EntityFactory& entityFactory,
-  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager)
+WorldLoaderPtr createWorldLoader(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+  ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
+  ResourceManager& resourceManager, Logger& logger)
 {
-  return std::make_unique<WorldLoaderImpl>(fileSystem, entityFactory, renderResourceLoader,
-    resourceManager);
+  return std::make_unique<WorldLoaderImpl>(ecs, fileSystem, entityFactory, modelLoader,
+    renderResourceLoader, resourceManager, logger);
 }
 
 } // namespace lithic3d

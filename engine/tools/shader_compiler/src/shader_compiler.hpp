@@ -3,11 +3,13 @@
 #include <lithic3d/vulkan/shader.hpp>
 #include <filesystem>
 
+namespace lithic3d
+{
+
 class ShaderCompiler
 {
   public:
-    virtual lithic3d::render::ShaderProgram compileShaderProgram(
-      const lithic3d::render::ShaderProgramSpec& spec) = 0;
+    virtual render::ShaderProgram compileShaderProgram(const render::ShaderProgramSpec& spec) = 0;
 
     virtual ~ShaderCompiler() = default;
 };
@@ -16,3 +18,5 @@ using ShaderCompilerPtr = std::unique_ptr<ShaderCompiler>;
 
 ShaderCompilerPtr createShaderCompiler(const std::filesystem::path& sourcesDir,
   const std::filesystem::path& outputDir);
+
+} // namespace lithic3d

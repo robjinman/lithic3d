@@ -169,7 +169,7 @@ Application::Application()
   logger->info("Compiling shaders...");
 
   auto manifest = fileSystem->readAppDataFile(m_config.shaderManifest);
-  auto specs = parseShaderManifest(manifest);
+  auto specs = parseShaderManifest(manifest, *logger);
   for (auto& spec : specs) {
     renderer->compileShader(spec);
   }

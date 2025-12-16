@@ -26,7 +26,7 @@ class PlayerImpl : public Player
     Vec3f m_position;
     float m_speed = metresToWorldUnits(9.f);
     float m_radius = metresToWorldUnits(0.4f);
-    float m_tallness = metresToWorldUnits(1.7f);
+    float m_tallness = metresToWorldUnits(2.7f);
     float m_stepHeight = metresToWorldUnits(0.3f);
     float m_bounceHeight = metresToWorldUnits(0.035f);
     float m_bounceRate = 3.5f;

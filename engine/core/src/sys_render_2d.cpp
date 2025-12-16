@@ -45,14 +45,15 @@ Mat4x4f screenToWorld(const Mat4x4f& transform, float aspect)
 // TODO: Remove normals
 MeshPtr quad()
 {
-  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+  MeshPtr mesh = std::make_unique<Mesh>();
+  mesh->featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
     .flags{}
-  });
+  };
   mesh->featureSet.flags.set(MeshFeatures::IsQuad);
   mesh->attributeBuffers = {
     Buffer{
@@ -147,14 +148,15 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     });
   }
 
-  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+  MeshPtr mesh = std::make_unique<Mesh>();
+  mesh->featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
     .flags{}
-  });
+  };
   mesh->featureSet.flags.set(MeshFeatures::IsDynamicText, dynamic);
   mesh->attributeBuffers = {
     Buffer{

@@ -7,7 +7,7 @@
     <mesh-features>
       <vertex-layout>
         <position>true</position>
-        <normal>*</normal>
+        <normal>true</normal> <!-- TODO: Remove normals -->
         <uv>true</uv>
         <tangent>false</tangent>
         <joint-indices>false</joint-indices>
@@ -16,6 +16,7 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>false</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>false</is-animated>
         <!--<has-tangents>false</has-tangents>-->
         <casts-shadow>false</casts-shadow>
@@ -52,6 +53,7 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>false</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>false</is-animated>
         <!--<has-tangents>*</has-tangents>-->
         <casts-shadow>*</casts-shadow>
@@ -65,7 +67,7 @@
         <has-texture>*</has-texture>
         <has-normal-map>*</has-normal-map>
         <has-cube-map>false</has-cube-map>
-        <is-double-sided>*</is-double-sided>
+        <is-double-sided>false</is-double-sided>
       </flags>
     </material-features>
   </shader>
@@ -88,6 +90,7 @@
       <flags>
         <is-instanced>*</is-instanced>
         <is-skybox>false</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>true</is-animated>
         <!--<has-tangents>*</has-tangents>-->
         <casts-shadow>*</casts-shadow>
@@ -123,6 +126,7 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>true</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>false</is-animated>
         <!--<has-tangents>false</has-tangents>-->
         <casts-shadow>false</casts-shadow>

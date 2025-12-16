@@ -25,7 +25,7 @@
     </mesh-features>
     <material-features>
       <flags>
-        <has-transparency>false</has-transparency>
+        <has-transparency>hello</has-transparency>
         <has-texture>*</has-texture>
         <has-normal-map>false</has-normal-map>
         <has-cube-map>false</has-cube-map>

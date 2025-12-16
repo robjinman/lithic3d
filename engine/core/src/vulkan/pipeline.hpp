@@ -18,6 +18,7 @@ enum class RenderNodeType
 {
   DefaultModel,
   InstancedModel,
+  TerrainChunk,
   Skybox,
   Sprite,
   Quad,
@@ -31,8 +32,8 @@ struct RenderNode
 
   RenderNodeType type;
   ResourceId mesh = NULL_RESOURCE_ID;
-  MeshFeatureSet meshFeatures;
   ResourceId material = NULL_RESOURCE_ID;
+  MeshFeatureSet meshFeatures;
   MaterialFeatureSet materialFeatures;
   uint32_t scissorId = 0;
 

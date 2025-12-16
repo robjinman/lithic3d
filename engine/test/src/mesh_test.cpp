@@ -61,14 +61,15 @@ TEST_F(MeshTest, calcOffsetInVertex_with_missing_attribute)
 
 TEST_F(MeshTest, createVertexArray_single_vertex_all_attributes)
 {
-  Mesh mesh{MeshFeatureSet{
+  Mesh mesh;
+  mesh.featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
     .flags = 0
-  }};
+  };
   mesh.attributeBuffers.push_back(createBuffer<Vec3f>({{ 1, 2, 3 }}, BufferUsage::AttrPosition));
   mesh.attributeBuffers.push_back(createBuffer<Vec3f>({{ 4, 5, 6 }}, BufferUsage::AttrNormal));
   mesh.attributeBuffers.push_back(createBuffer<Vec2f>({{ 7, 8 }}, BufferUsage::AttrTexCoord));
@@ -90,14 +91,15 @@ TEST_F(MeshTest, createVertexArray_single_vertex_all_attributes)
 
 TEST_F(MeshTest, createVertexArray_two_vertices)
 {
-  Mesh mesh{MeshFeatureSet{
+  Mesh mesh;
+  mesh.featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
     .flags = 0
-  }};
+  };
   mesh.attributeBuffers.push_back(createBuffer<Vec3f>({
     { 1, 2, 3 },
     { 4, 5, 6 }

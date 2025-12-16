@@ -25,6 +25,21 @@ Vector<float, N> metresToWorldUnits(const Vector<float, N>& v)
   return k;
 }
 
+constexpr float worldUnitsToMetres(float x)
+{
+  return x / WORLD_UNITS_PER_METRE;
+}
+
+template<size_t N>
+Vector<float, N> worldUnitsToMetres(const Vector<float, N>& v)
+{
+  Vector<float, N> k;
+  for (size_t i = 0; i < N; ++i) {
+    k[i] = worldUnitsToMetres(v[i]);
+  }
+  return k;
+}
+
 using ScissorId = size_t;
 
 inline float pxToUvX(float px, float textureWidthPx)

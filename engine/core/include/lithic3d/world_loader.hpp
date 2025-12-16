@@ -33,11 +33,14 @@ class WorldLoader
 
 using WorldLoaderPtr = std::unique_ptr<WorldLoader>;
 
+class Ecs;
 class FileSystem;
 class EntityFactory;
+class ModelLoader;
 class RenderResourceLoader;
 
-WorldLoaderPtr createWorldLoader(FileSystem& fileSystem, EntityFactory& entityFactory,
-  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager);
+WorldLoaderPtr createWorldLoader(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+  ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
+  ResourceManager& resourceManager, Logger& logger);
 
 } // namespace lithic3d

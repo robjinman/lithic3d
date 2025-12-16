@@ -3,9 +3,12 @@
 #include "lithic3d/trace.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
+#include <unordered_map>
 
 namespace lithic3d
 {
+
+namespace fs = std::filesystem;
 
 using render::MeshPtr;
 using render::MeshHandle;
@@ -21,11 +24,17 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
     RenderResourceLoaderImpl(ResourceManager& resourceManager, FileSystem& fileSystem,
       render::Renderer& renderer, Logger& logger);
 
-    ResourceHandle loadTextureAsync(const std::filesystem::path& path) override;
-    ResourceHandle loadNormalMapAsync(const std::filesystem::path& path) override;
-    ResourceHandle loadCubeMapAsync(const std::array<std::filesystem::path, 6>& paths) override;
+    ResourceHandle loadTextureAsync(const fs::path& path) override;
+    ResourceHandle loadNormalMapAsync(const fs::path& path) override;
+    ResourceHandle loadCubeMapAsync(const std::array<fs::path, 6>& paths) override;
     MaterialHandle loadMaterialAsync(render::MaterialPtr material) override;
     MeshHandle loadMeshAsync(render::MeshPtr mesh) override;
+
+    bool hasMaterial(const std::string& name) const override;
+    bool hasTexture(const std::filesystem::path& path) const override;
+
+    ResourceHandle getMaterialHandle(const std::string& name) const override;
+    ResourceHandle getTextureHandle(const std::filesystem::path& path) const override;
 
     ~RenderResourceLoaderImpl() override;
 
@@ -34,6 +43,8 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
     ResourceManager& m_resourceManager;
     FileSystem& m_fileSystem;
     render::Renderer& m_renderer;
+    std::unordered_map<std::string, ResourceId> m_materials;
+    std::unordered_map<std::filesystem::path, ResourceId> m_textures;
 };
 
 RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceManager,
@@ -44,7 +55,31 @@ RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceMana
   , m_renderer(renderer)
 {}
 
-ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const std::filesystem::path& path)
+bool RenderResourceLoaderImpl::hasMaterial(const std::string& name) const
+{
+  return m_materials.contains(name);
+}
+
+bool RenderResourceLoaderImpl::hasTexture(const std::filesystem::path& path) const
+{
+  return m_textures.contains(path);
+}
+
+ResourceHandle RenderResourceLoaderImpl::getMaterialHandle(const std::string& name) const
+{
+  auto i = m_materials.find(name);
+  ASSERT(i != m_materials.end(), "No material with name '" << name << "' loaded");
+  return m_resourceManager.getHandle(i->second);
+}
+
+ResourceHandle RenderResourceLoaderImpl::getTextureHandle(const std::filesystem::path& path) const
+{
+  auto i = m_textures.find(path);
+  ASSERT(i != m_textures.end(), "No texture with path '" << path << "' loaded");
+  return m_resourceManager.getHandle(i->second);
+}
+
+ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path)
 {
   DBG_TRACE(m_logger);
 
@@ -52,7 +87,7 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const std::filesystem:
     DBG_TRACE(m_logger);
 
     auto data = m_fileSystem.readAppDataFile(path);
-    auto texture = render::loadTexture(data);
+    auto texture = render::loadRgbaTexture(data);
     m_renderer.addTexture(id, std::move(texture));
 
     return ManagedResource{
@@ -64,7 +99,7 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const std::filesystem:
   });
 }
 
-ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const std::filesystem::path& path)
+ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const fs::path& path)
 {
   DBG_TRACE(m_logger);
 
@@ -72,7 +107,7 @@ ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const std::filesyste
     DBG_TRACE(m_logger);
 
     auto data = m_fileSystem.readAppDataFile(path);
-    auto texture = render::loadTexture(data);
+    auto texture = render::loadRgbaTexture(data);
     m_renderer.addNormalMap(id, std::move(texture));
 
     return ManagedResource{
@@ -85,7 +120,7 @@ ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const std::filesyste
 }
 
 ResourceHandle RenderResourceLoaderImpl::loadCubeMapAsync(
-  const std::array<std::filesystem::path, 6>& paths)
+  const std::array<fs::path, 6>& paths)
 {
   DBG_TRACE(m_logger);
 
@@ -96,7 +131,7 @@ ResourceHandle RenderResourceLoaderImpl::loadCubeMapAsync(
 
     for (size_t i = 0; i < 6; ++i) {
       auto data = m_fileSystem.readAppDataFile(paths[i]);
-      textures[i] = render::loadTexture(data);
+      textures[i] = render::loadRgbaTexture(data);
     }
 
     m_renderer.addCubeMap(id, std::move(textures));

@@ -30,6 +30,22 @@ layout(push_constant) uniform PushConstants
   layout(offset = 64) vec4 colour;
 } constants;
 
+vec4 computeTexelFromSplats(vec2 texCoord)
+{
+  // Number of tiles to 1 cell length
+  // TODO: Don't hard-code
+  float numTiles = 10.0;
+
+  vec4 splat = texture(texSampler[0], texCoord);
+
+  vec4 texel = splat[0] * texture(texSampler[1], texCoord * numTiles)
+    + splat[1] * texture(texSampler[2], texCoord * numTiles)
+    + splat[2] * texture(texSampler[3], texCoord * numTiles)
+    + (1.0 - splat[3]) * texture(texSampler[4], texCoord * numTiles);
+
+  return vec4(texel.xyz, 1);
+}
+
 void main()
 {
 #ifdef FEATURE_NORMAL_MAPPING
@@ -47,7 +63,7 @@ void main()
 #endif
 
 #ifdef FEATURE_TEXTURE_MAPPING
-  vec4 texel = computeTexel(inTexCoord);
+  vec4 texel = computeTexelFromSplats(inTexCoord);
 #else
   vec4 texel = material.colour;
 #endif

@@ -49,7 +49,7 @@ MaterialHandle FactoryImpl::createMaterial(const std::filesystem::path& textureP
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  material->texture = m_renderResourceLoader.loadTextureAsync(texturePath);
+  material->textures = { m_renderResourceLoader.loadTextureAsync(texturePath) };
 
   return m_renderResourceLoader.loadMaterialAsync(std::move(material));
 }

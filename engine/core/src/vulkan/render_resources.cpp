@@ -191,8 +191,8 @@ class RenderResourcesImpl : public RenderResources
     void createNormalMapSampler();
     void createCubeMapSampler();
     void createDescriptorPool();
-    void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler,
-      uint32_t binding);
+    void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet,
+      const std::vector<VkImageView>& imageViews, VkSampler sampler, uint32_t binding);
 
     void createUbos();
     void createShadowMap();
@@ -443,13 +443,16 @@ void RenderResourcesImpl::updateJointTransforms(ResourceId id, const std::vector
 }
 
 void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSet,
-  VkImageView imageView, VkSampler sampler, uint32_t binding)
+  const std::vector<VkImageView>& imageViews, VkSampler sampler, uint32_t binding)
 {
-  VkDescriptorImageInfo imageInfo{
-    .sampler = sampler,
-    .imageView = imageView,
-    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-  };
+  std::vector<VkDescriptorImageInfo> imageInfos;
+  for (auto imageView : imageViews) {
+    imageInfos.push_back(VkDescriptorImageInfo{
+      .sampler = sampler,
+      .imageView = imageView,
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    });
+  }
 
   VkWriteDescriptorSet samplerDescriptorWrite{
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -457,9 +460,9 @@ void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSe
     .dstSet = descriptorSet,
     .dstBinding = binding,
     .dstArrayElement = 0,
-    .descriptorCount = 1,
+    .descriptorCount = imageInfos.size(),
     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .pImageInfo = &imageInfo,
+    .pImageInfo = imageInfos.data(),
     .pBufferInfo = nullptr,
     .pTexelBufferView = nullptr
   };
@@ -520,20 +523,25 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
   {
     std::scoped_lock lock{m_mutex};
 
-    // TODO: Use array of descriptors for textures, normal maps, etc.?
     if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
-      VkImageView imageView = m_textures.at(material->texture.id())->image->vkImageView();
-      addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_textureSampler,
+      std::vector<VkImageView> imageViews;
+      for (auto& texture : material->textures) {
+        imageViews.push_back(m_textures.at(texture.id())->image->vkImageView());
+      }
+      addSamplerToDescriptorSet(materialData->descriptorSet, imageViews, m_textureSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
     }
     if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
-      VkImageView imageView = m_textures.at(material->normalMap.id())->image->vkImageView();
-      addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_normalMapSampler,
+      std::vector<VkImageView> imageViews;
+      for (auto& texture : material->textures) {
+        imageViews.push_back(m_textures.at(texture.id())->image->vkImageView());
+      }
+      addSamplerToDescriptorSet(materialData->descriptorSet, imageViews, m_normalMapSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
     }
     if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
       VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView();
-      addSamplerToDescriptorSet(materialData->descriptorSet, imageView, m_cubeMapSampler,
+      addSamplerToDescriptorSet(materialData->descriptorSet, { imageView }, m_cubeMapSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
     }
 
@@ -817,7 +825,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
   VkDescriptorSetLayoutBinding textureSamplerLayoutBinding{
     .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler),
     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
+    .descriptorCount = 5,
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .pImmutableSamplers = nullptr
   };
@@ -825,7 +833,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
   VkDescriptorSetLayoutBinding normalMapLayoutBinding{
     .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler),
     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
+    .descriptorCount = 5,
     .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
     .pImmutableSamplers = nullptr
   };
@@ -1053,12 +1061,6 @@ void RenderResourcesImpl::createOverlayPassDescriptorSet()
       .buffer = m_overlayCameraUbo[i]->vkBuffer(),
       .offset = 0,
       .range = sizeof(CameraTransformsUbo)
-    };
-
-    VkDescriptorImageInfo imageInfo{
-      .sampler = m_shadowMapSampler,
-      .imageView = m_shadowMapImage->vkImageView(), // TODO: Need this?
-      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
     };
 
     std::vector<VkWriteDescriptorSet> descriptorWrites{

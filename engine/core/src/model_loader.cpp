@@ -235,7 +235,8 @@ MaterialFeatureSet createMaterialFeatureSet(const gltf::MaterialDesc& materialDe
 render::MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
   const std::vector<std::vector<char>>& dataBuffers)
 {
-  auto mesh = std::make_unique<Mesh>(createMeshFeatureSet(meshDesc));
+  auto mesh = std::make_unique<Mesh>();
+  mesh->featureSet = createMeshFeatureSet(meshDesc);
   mesh->transform = meshDesc.transform;
 
   // TODO: Set mesh rest pose
@@ -328,12 +329,15 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
   std::filesystem::path texturesPath = "textures";
 
   if (!desc.baseColourTexture.empty()) {
-    material->texture =
-      m_renderResourceLoader.loadTextureAsync(texturesPath / desc.baseColourTexture);
+    material->textures = {
+      m_renderResourceLoader.loadTextureAsync(texturesPath / desc.baseColourTexture)
+    };
   }
 
   if (!desc.normalMap.empty()) {
-    material->normalMap = m_renderResourceLoader.loadNormalMapAsync(texturesPath / desc.normalMap);
+    material->normalMaps = {
+      m_renderResourceLoader.loadNormalMapAsync(texturesPath / desc.normalMap)
+    };
   }
 
   // TODO: Cube maps?

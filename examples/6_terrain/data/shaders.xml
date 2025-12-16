@@ -16,6 +16,7 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>false</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>false</is-animated>
         <!--<has-tangents>false</has-tangents>-->
         <casts-shadow>false</casts-shadow>
@@ -51,6 +52,7 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>false</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>false</is-animated>
         <!--<has-tangents>*</has-tangents>-->
         <casts-shadow>true</casts-shadow>
@@ -63,6 +65,78 @@
         <has-transparency>false</has-transparency>
         <has-texture>true</has-texture>
         <has-normal-map>true</has-normal-map>
+        <has-cube-map>false</has-cube-map>
+        <is-double-sided>false</is-double-sided>
+      </flags>
+    </material-features>
+  </shader>
+
+  <!-- Terrain -->
+  <shader>
+    <render-passes>
+      <render-pass>main</render-pass>
+    </render-passes>
+    <mesh-features>
+      <vertex-layout>
+        <position>true</position>
+        <normal>true</normal>
+        <uv>true</uv>
+        <tangent>false</tangent>
+        <joint-indices>false</joint-indices>
+        <joint-weights>false</joint-weights>
+      </vertex-layout>
+      <flags>
+        <is-instanced>false</is-instanced>
+        <is-skybox>false</is-skybox>
+        <is-terrain>true</is-terrain>
+        <is-animated>false</is-animated>
+        <!--<has-tangents>*</has-tangents>-->
+        <casts-shadow>true</casts-shadow>
+        <is-quad>false</is-quad>
+        <is-dynamic-text>false</is-dynamic-text>
+      </flags>
+    </mesh-features>
+    <material-features>
+      <flags>
+        <has-transparency>false</has-transparency>
+        <has-texture>true</has-texture>
+        <has-normal-map>false</has-normal-map>
+        <has-cube-map>false</has-cube-map>
+        <is-double-sided>false</is-double-sided>
+      </flags>
+    </material-features>
+  </shader>
+
+  <!-- Terrain shadow pass -->
+  <shader>
+    <render-passes>
+      <render-pass>shadow</render-pass>
+    </render-passes>
+    <mesh-features>
+      <vertex-layout>
+        <position>true</position>
+        <normal>true</normal>
+        <uv>true</uv>
+        <tangent>false</tangent>
+        <joint-indices>false</joint-indices>
+        <joint-weights>false</joint-weights>
+      </vertex-layout>
+      <flags>
+        <is-instanced>false</is-instanced>
+        <is-skybox>false</is-skybox>
+        <is-terrain>true</is-terrain>
+        <is-animated>false</is-animated>
+        <!--<has-tangents>*</has-tangents>-->
+        <casts-shadow>true</casts-shadow>
+        <is-quad>false</is-quad>
+        <is-dynamic-text>false</is-dynamic-text>
+      </flags>
+    </mesh-features>
+    <material-features>
+      <flags>
+        <has-transparency>false</has-transparency>
+        <has-texture>false</has-texture>
+        <has-normal-map>false</has-normal-map>
         <has-cube-map>false</has-cube-map>
         <is-double-sided>false</is-double-sided>
       </flags>
@@ -85,6 +159,7 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>false</is-skybox>
+        <is-terrain>false</is-terrain>>
         <is-animated>false</is-animated>
         <!--<has-tangents>*</has-tangents>-->
         <casts-shadow>true</casts-shadow>

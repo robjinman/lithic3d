@@ -15,6 +15,12 @@ class RenderResourceLoader
     virtual render::MaterialHandle loadMaterialAsync(render::MaterialPtr material) = 0;
     virtual render::MeshHandle loadMeshAsync(render::MeshPtr mesh) = 0;
 
+    virtual bool hasTexture(const std::filesystem::path& path) const = 0;
+    virtual bool hasMaterial(const std::string& name) const = 0;
+
+    virtual ResourceHandle getTextureHandle(const std::filesystem::path& path) const = 0;
+    virtual ResourceHandle getMaterialHandle(const std::string& name) const = 0;
+    
     virtual ~RenderResourceLoader() = default;
 };
 

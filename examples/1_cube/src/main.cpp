@@ -100,7 +100,9 @@ EntityId Demo::constructCaption()
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  material->texture = m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
+  material->textures = {
+    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait()
+  };
 
   DText render{
     .scissor = 0,

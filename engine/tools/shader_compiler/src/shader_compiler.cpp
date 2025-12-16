@@ -1,5 +1,4 @@
 #include "shader_compiler.hpp"
-#include <lithic3d/vulkan/shader.hpp>
 #include <lithic3d/utils.hpp>
 #include <shaderc/shaderc.hpp>
 #include <cstring>
@@ -8,9 +7,10 @@
 
 namespace fs = std::filesystem;
 
-using namespace lithic3d;
 using namespace lithic3d::render;
 
+namespace lithic3d
+{
 namespace
 {
 
@@ -88,13 +88,13 @@ struct ShaderSource
 class ShaderCompilerImpl : public ShaderCompiler
 {
   public:
-    ShaderCompilerImpl(const std::filesystem::path& sourcesDir, const std::filesystem::path& outputDir);
+    ShaderCompilerImpl(const fs::path& sourcesDir, const fs::path& outputDir);
 
-    ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec);
+    ShaderProgram compileShaderProgram(const ShaderProgramSpec& spec) override;
 
   private:
-    std::filesystem::path m_sourcesDir;
-    std::filesystem::path m_outputDir;
+    fs::path m_sourcesDir;
+    fs::path m_outputDir;
 
     ShaderByteCode compileShader(const ShaderSource& source);
     ShaderSource loadVertShaderSource(const ShaderProgramSpec& spec) const;
@@ -147,6 +147,9 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
     if (spec.renderPass == RenderPass::Main) {
       if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
         shader = "main_skybox";
+      }
+      else if (spec.meshFeatures.flags.test(MeshFeatures::IsTerrain)) {
+        shader = "main_terrain";
       }
     }
 
@@ -201,7 +204,7 @@ ShaderSource ShaderCompilerImpl::loadVertShaderSource(const ShaderProgramSpec& s
     source.defines.push_back("FEATURE_MATERIALS");
 
     if (spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
-      //assert(spec.meshFeatures.flags.test(MeshFeatures::HasTangents));
+      assert(spec.meshFeatures.flags.test(MeshFeatures::HasTangents));
       source.defines.push_back("FEATURE_NORMAL_MAPPING");
     }
 
@@ -232,7 +235,7 @@ ShaderSource ShaderCompilerImpl::loadFragShaderSource(const ShaderProgramSpec& s
     }
 
     if (spec.materialFeatures.flags.test(MaterialFeatures::HasNormalMap)) {
-      //assert(spec.meshFeatures.flags.test(MeshFeatures::HasTangents));
+      assert(spec.meshFeatures.flags.test(MeshFeatures::HasTangents));
       source.defines.push_back("FEATURE_NORMAL_MAPPING");
     }
 
@@ -303,8 +306,9 @@ ShaderByteCode ShaderCompilerImpl::compileShader(const ShaderSource& source)
 
 } // namespace
 
-ShaderCompilerPtr createShaderCompiler(const std::filesystem::path& sourcesDir,
-  const std::filesystem::path& outputDir)
+ShaderCompilerPtr createShaderCompiler(const fs::path& sourcesDir, const fs::path& outputDir)
 {
   return std::make_unique<ShaderCompilerImpl>(sourcesDir, outputDir);
 }
+
+} // namespace lithic3d

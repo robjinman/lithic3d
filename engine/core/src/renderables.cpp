@@ -28,14 +28,16 @@ std::ostream& operator<<(std::ostream& stream, const render::MaterialFeatureSet&
 
 namespace render
 {
+namespace
+{
 
-TexturePtr loadTexture(const std::vector<char>& data)
+TexturePtr loadTexture(const std::vector<char>& data, int stbPixelLayout)
 {
   int width = 0;
   int height = 0;
   int channels = 0;
   stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(data.data()),
-    static_cast<int>(data.size()), &width, &height, &channels, STBI_rgb_alpha);
+    static_cast<int>(data.size()), &width, &height, &channels, stbPixelLayout);
 
   if (!pixels) {
     EXCEPTION("Failed to load texture image");
@@ -53,6 +55,18 @@ TexturePtr loadTexture(const std::vector<char>& data)
   return texture;
 }
 
+} // namespace
+
+TexturePtr loadRgbaTexture(const std::vector<char>& data)
+{
+  return loadTexture(data, STBI_rgb_alpha);
+}
+
+TexturePtr loadGreyscaleTexture(const std::vector<char>& data)
+{
+  return loadTexture(data, STBI_grey);
+}
+
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
 {
   float W = size[0];
@@ -66,14 +80,15 @@ MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
   float u = textureSize[0];
   float v = textureSize[1];
 
-  MeshPtr mesh = std::make_unique<Mesh>(MeshFeatureSet{
+  MeshPtr mesh = std::make_unique<Mesh>();
+  mesh->featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
     .flags{}
-  });
+  };
   // Viewed from above
   //
   // A +---+ B
@@ -223,7 +238,8 @@ MeshPtr mergeMeshes(const Mesh& A, const Mesh& B)
   DBG_ASSERT(A.attributeBuffers.size() == B.attributeBuffers.size(),
     "Cannot merge meshes with different number of attribute buffers");
 
-  MeshPtr mesh = std::make_unique<Mesh>(A.featureSet);
+  MeshPtr mesh = std::make_unique<Mesh>();
+  mesh->featureSet = A.featureSet;
 
   size_t numBuffers = A.attributeBuffers.size();
   DBG_ASSERT(numBuffers > 0, "Cannot merge meshes with no attribute buffers");

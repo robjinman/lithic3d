@@ -63,8 +63,9 @@ Demo::Demo(Engine& engine)
     m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem(),
     m_engine.logger());
 
-  m_worldLoader = createWorldLoader(m_engine.fileSystem(), *m_entityFactory,
-    m_engine.renderResourceLoader(), m_engine.resourceManager());
+  m_worldLoader = createWorldLoader(m_engine.ecs(), m_engine.fileSystem(), *m_entityFactory,
+    m_engine.modelLoader(), m_engine.renderResourceLoader(), m_engine.resourceManager(),
+    m_engine.logger());
 
   WorldTraversalOptions options{
     .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
@@ -125,7 +126,9 @@ EntityId Demo::constructCaption()
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  material->texture = m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait();
+  material->textures = {
+    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait()
+  };
 
   DText render{
     .scissor = 0,

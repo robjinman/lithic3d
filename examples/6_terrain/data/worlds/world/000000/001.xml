@@ -1,9 +1,11 @@
 <cell-slice>
-  <entity type="monkey">
-    <transform>
-      <pos x="0.5" y="1.0" z="5.0"/>
-      <ori x="0" y="0" z="0"/>
-      <scale x="6" y="6" z="6"/>
-    </transform>
-  </entity>
+  <entities>
+    <entity type="monkey">
+      <transform>
+        <pos x="15.0" y="2.5" z="15.0"/>
+        <ori x="0" y="0" z="0"/>
+        <scale x="6" y="6" z="6"/>
+      </transform>
+    </entity>
+  </entities>
 </cell-slice>

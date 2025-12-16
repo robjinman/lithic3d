@@ -1,11 +1,2 @@
-<world grid-width="4" grid-height="4" cell-width="10.0" cell-height="10.0">
-  <terrain height-map="terrain_height_map.png">
-    <textures>
-      <texture name="grass" file="grass.png"/>
-      <texture name="dirt" file="dirt.png"/>
-      <texture name="sand" file="sand.png"/>
-      <texture name="pebbles" file="pebbles.png"/>
-    </textures>
-    <texture-map texture="terrain_texture_map.png" r="grass" g="dirt" b="sand" a="pebbles"/>
-  </terrain>
+<world grid-width="4" grid-height="4" cell-width="50.0" cell-height="50.0">
 </world>

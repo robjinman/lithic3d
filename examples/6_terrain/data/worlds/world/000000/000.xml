@@ -1,9 +1,10 @@
 <cell-slice>
-  <entity type="ground">
-    <transform>
-      <pos x="5" y="-1" z="5"/>
-      <ori x="0" y="0" z="0"/>
-      <scale x="50" y="1" z="50"/>
-    </transform>
-  </entity>
+  <terrain>
+    <splat-map>
+      <texture file="grass.png"/>
+      <texture file="dirt.png"/>
+      <texture file="sand.png"/>
+      <texture file="pebbles.png"/>
+    </splat-map>
+  </terrain>
 </cell-slice>

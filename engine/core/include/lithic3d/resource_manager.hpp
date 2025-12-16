@@ -135,6 +135,7 @@ class ResourceManager
 
   public:
     virtual ResourceHandle loadResource(ResourceLoader&& loader) = 0;
+    virtual ResourceHandle getHandle(ResourceId id) const = 0;
     virtual void waitAll() = 0;
     virtual Thread& thread() = 0;
     virtual void deactivate() = 0;

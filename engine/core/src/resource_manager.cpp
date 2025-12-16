@@ -18,6 +18,7 @@ class ResourceManagerImpl : public ResourceManager
     ResourceManagerImpl(Logger& logger);
 
     ResourceHandle loadResource(ResourceLoader&& loader) override;
+    ResourceHandle getHandle(ResourceId id) const override;
     void waitAll() override;
     Thread& thread() override;
     void deactivate() override;
@@ -30,6 +31,7 @@ class ResourceManagerImpl : public ResourceManager
     std::atomic<ResourceId> m_nextResourceId = NULL_RESOURCE_ID + 1;
     Thread m_thread;
     std::unordered_map<ResourceId, ManagedResource> m_resources;
+    std::unordered_map<ResourceId, std::weak_ptr<Resource>> m_pointers;
 
     void unload(ResourceId id) override;
 };
@@ -37,6 +39,11 @@ class ResourceManagerImpl : public ResourceManager
 ResourceManagerImpl::ResourceManagerImpl(Logger& logger)
   : m_logger(logger)
 {
+}
+
+ResourceHandle ResourceManagerImpl::getHandle(ResourceId id) const
+{
+  return ResourceHandle{id, m_pointers.at(id).lock()};
 }
 
 void ResourceManagerImpl::deactivate()
@@ -80,6 +87,7 @@ void ResourceManagerImpl::unload(ResourceId id)
 
       // i might be invalid after calling unloader, so use id instead
       m_resources.erase(id);
+      m_pointers.erase(id);
     }
   };
 
@@ -119,12 +127,18 @@ ResourceHandle ResourceManagerImpl::loadResource(ResourceLoader&& loader)
     loadResource();
 
     std::promise<void> promise;
-    return ResourceHandle(id, std::make_shared<Resource>(id, *this, promise.get_future()));
+    auto pointer = std::make_shared<Resource>(id, *this, promise.get_future());
+    m_pointers.insert({ id, pointer });
+
+    return ResourceHandle(id, pointer);
   }
 
   auto future = m_thread.run<void>(std::move(loadResource));
 
-  return ResourceHandle(id, std::make_shared<Resource>(id, *this, std::move(future)));
+  auto pointer = std::make_shared<Resource>(id, *this, std::move(future));
+  m_pointers.insert({ id, pointer });
+
+  return ResourceHandle(id, pointer);
 }
 
 ResourceManagerImpl::~ResourceManagerImpl()

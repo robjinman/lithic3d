@@ -86,6 +86,7 @@ namespace MeshFeatures
 enum Enum : uint32_t
 {
   IsInstanced,
+  IsTerrain,
   IsSkybox,
   IsAnimated,
   HasTangents,
@@ -136,9 +137,9 @@ struct Material
   std::string name;
   MaterialFeatureSet featureSet;
   Vec4f colour = { 1, 1, 1, 1 };
-  ResourceHandle texture;
+  std::vector<ResourceHandle> textures;
+  std::vector<ResourceHandle> normalMaps;
   ResourceHandle cubeMap;
-  ResourceHandle normalMap;
   float metallicFactor = 0.f;
   float roughnessFactor = 0.f;
 };
@@ -190,10 +191,6 @@ inline size_t calcOffsetInVertex(const VertexLayout& layout, BufferUsage attribu
 
 struct Mesh
 {
-  Mesh(const MeshFeatureSet& features)
-    : featureSet(features)
-  {}
-
   Mat4x4f transform = identityMatrix<4>();
   MeshFeatureSet featureSet;
   std::vector<Buffer> attributeBuffers;
@@ -255,7 +252,8 @@ inline std::span<uint16_t> getIndexBufferData(Mesh& mesh)
   return std::span<uint16_t>(const_cast<uint16_t*>(span.data()), span.size());
 }
 
-TexturePtr loadTexture(const std::vector<char>& data);
+TexturePtr loadRgbaTexture(const std::vector<char>& data);
+TexturePtr loadGreyscaleTexture(const std::vector<char>& data);
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize);
 MeshPtr mergeMeshes(const Mesh& A, const Mesh& B);
 std::vector<char> createVertexArray(const Mesh& mesh);
