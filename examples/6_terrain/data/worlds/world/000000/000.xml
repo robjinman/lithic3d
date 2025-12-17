@@ -4,7 +4,7 @@
       <texture file="grass.png"/>
       <texture file="dirt.png"/>
       <texture file="sand.png"/>
-      <texture file="pebbles.png"/>
+      <texture file="snow.png"/>
     </splat-map>
   </terrain>
 </cell-slice>

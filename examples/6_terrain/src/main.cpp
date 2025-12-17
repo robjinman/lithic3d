@@ -274,7 +274,9 @@ bool Demo::update()
 {
   processKeyboardInput();
   processMouseInput();
-  gravity();
+  if (!m_freeflyMode) {
+    gravity();
+  }
   m_engine.update(m_inputState);
   m_worldGrid->update(m_player->getPosition());
 
@@ -285,8 +287,16 @@ void Demo::onKeyDown(KeyboardKey key)
 {
   m_inputState.keysPressed.insert(key);
 
-  if (key == KeyboardKey::F) {
-    m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
+  switch (key) {
+    case KeyboardKey::F: {
+      m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
+      break;
+    }
+    case KeyboardKey::Space: {
+      m_freeflyMode = !m_freeflyMode;
+      break;
+    }
+    default: break;
   }
 }
 
