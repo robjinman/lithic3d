@@ -460,7 +460,7 @@ void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSe
     .dstSet = descriptorSet,
     .dstBinding = binding,
     .dstArrayElement = 0,
-    .descriptorCount = imageInfos.size(),
+    .descriptorCount = static_cast<uint32_t>(imageInfos.size()),
     .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
     .pImageInfo = imageInfos.data(),
     .pBufferInfo = nullptr,
@@ -533,8 +533,8 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
     }
     if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
       std::vector<VkImageView> imageViews;
-      for (auto& texture : material->textures) {
-        imageViews.push_back(m_textures.at(texture.id())->image->vkImageView());
+      for (auto& normalMap : material->normalMaps) {
+        imageViews.push_back(m_textures.at(normalMap.id())->image->vkImageView());
       }
       addSamplerToDescriptorSet(materialData->descriptorSet, imageViews, m_normalMapSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));

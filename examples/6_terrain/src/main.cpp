@@ -49,6 +49,7 @@ class Demo : public Game
     float m_playerVerticalVelocity = 0.f;
     bool m_freeflyMode = false;
 
+    void constructSkybox();
     EntityId constructLight();
     EntityId constructCaption();
     void processMouseInput();
@@ -78,6 +79,7 @@ Demo::Demo(Engine& engine)
 
   m_player = createPlayer(m_engine.ecs().system<SysRender3d>().camera());
 
+  constructSkybox();
   m_light = constructLight();
   m_caption = constructCaption();
 
@@ -89,8 +91,12 @@ EntityId Demo::constructLight()
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
 
+  float pitch = degreesToRadians(-45.f);
+  float yaw = degreesToRadians(180.f);
+  auto m = createTransform(metresToWorldUnits(Vec3f{ 0.f, 10.f, 0.f }), Vec3f{ pitch, yaw, 0 });
+
   DSpatial spatial{
-    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
+    .transform = m,
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -98,13 +104,56 @@ EntityId Demo::constructLight()
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
   auto light = std::make_unique<DLight>();
-  light->colour = { 1.f, 0.9f, 0.9f };
-  light->ambient = 0.4f;
-  light->specular = 0.9f;
+  light->colour = { 1.f, 1.f, 1.f };
+  light->ambient = 0.5f;
+  light->specular = 1.0f;
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
   return id;
+}
+
+void Demo::constructSkybox()
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>(id);
+
+  auto mesh = render::cuboid({ 9999.f, 9999.f, 9999.f }, { 1.f, 1.f });
+  mesh->attributeBuffers.resize(1); // Just keep the positions
+  mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
+  mesh->featureSet.flags.set(MeshFeatures::IsSkybox, true);
+  uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
+  std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));
+
+  auto material = std::make_unique<Material>();
+  material->featureSet.flags.set(MaterialFeatures::HasCubeMap, true);
+  material->cubeMap = m_engine.renderResourceLoader().loadCubeMapAsync({
+    "textures/skybox/right.png",
+    "textures/skybox/left.png",
+    "textures/skybox/top.png",
+    "textures/skybox/bottom.png",
+    "textures/skybox/front.png",
+    "textures/skybox/back.png"
+  });
+
+  auto render = std::make_unique<DSkybox>();
+  render->model = std::make_unique<Submodel>();
+  render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+  render->model->material =
+    m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait();
+
+  sysRender3d.addEntity(id, std::move(render));
+
+  DSpatial spatial{
+    .transform = identityMatrix<4>(),
+    .parent = sysSpatial.root(),
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
 }
 
 EntityId Demo::constructCaption()

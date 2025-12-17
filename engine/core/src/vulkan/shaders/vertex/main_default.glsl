@@ -88,6 +88,6 @@ void main()
 #elif defined(ATTR_NORMAL)
   outNormal = mat3(modelMatrix) * inNormal;
 #else
-  outNormal = vec3(0, 0, -1);
+  outNormal = vec3(0, 1, 0);
 #endif
 }

@@ -15,19 +15,26 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"Suzanne"
+			"name":"Cube.001_cell.014",
+			"scale":[
+				1.1133008003234863,
+				1.1133008003234863,
+				1.1133008003234863
+			],
+			"translation":[
+				-1.8641334772109985,
+				1.544750690460205,
+				-0.24591632187366486
+			]
 		}
 	],
 	"materials":[
 		{
 			"doubleSided":false,
-			"name":"Material.001",
-			"normalTexture":{
-				"index":0
-			},
+			"name":"stone",
 			"pbrMetallicRoughness":{
 				"baseColorTexture":{
-					"index":1
+					"index":0
 				},
 				"metallicFactor":0,
 				"roughnessFactor":0.5
@@ -36,7 +43,7 @@
 	],
 	"meshes":[
 		{
-			"name":"Suzanne.001",
+			"name":"Cube.001_cell.013",
 			"primitives":[
 				{
 					"attributes":{
@@ -54,83 +61,74 @@
 		{
 			"sampler":0,
 			"source":0
-		},
-		{
-			"sampler":0,
-			"source":1
 		}
 	],
 	"images":[
 		{
 			"mimeType":"image/png",
-			"name":"bricks_normal",
-			"uri":"bricks_normal.png"
-		},
-		{
-			"mimeType":"image/png",
-			"name":"bricks_colour",
-			"uri":"bricks_colour.png"
+			"name":"stone",
+			"uri":"stone.png"
 		}
 	],
 	"accessors":[
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":2865,
+			"count":18250,
 			"max":[
-				1.3671875,
-				0.984375,
-				0.8515625
+				5.149350643157959,
+				1.5829696655273438,
+				0.6041891574859619
 			],
 			"min":[
-				-1.3671875,
-				-0.984375,
-				-0.8515625
+				-1.8156177997589111,
+				-1.1789219379425049,
+				-0.15620875358581543
 			],
 			"type":"VEC3"
 		},
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":2865,
+			"count":18250,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":2865,
+			"count":18250,
 			"type":"VEC2"
 		},
 		{
 			"bufferView":3,
 			"componentType":5123,
-			"count":2901,
+			"count":18252,
 			"type":"SCALAR"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":34380,
+			"byteLength":219000,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":34380,
-			"byteOffset":34380,
+			"byteLength":219000,
+			"byteOffset":219000,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":22920,
-			"byteOffset":68760,
+			"byteLength":146000,
+			"byteOffset":438000,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":5802,
-			"byteOffset":91680,
+			"byteLength":36504,
+			"byteOffset":584000,
 			"target":34963
 		}
 	],
@@ -142,8 +140,8 @@
 	],
 	"buffers":[
 		{
-			"byteLength":97484,
-			"uri":"monkey.bin"
+			"byteLength":620504,
+			"uri":"wall.bin"
 		}
 	]
 }

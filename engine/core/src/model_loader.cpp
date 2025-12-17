@@ -7,6 +7,7 @@
 #include "lithic3d/strings.hpp"
 #include "lithic3d/thread.hpp"
 #include <set>
+#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -335,6 +336,7 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
   }
 
   if (!desc.normalMap.empty()) {
+    std::cout << "NORMAL MAP = " << desc.normalMap << std::endl;
     material->normalMaps = {
       m_renderResourceLoader.loadNormalMapAsync(texturesPath / desc.normalMap)
     };

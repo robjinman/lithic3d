@@ -56,6 +56,6 @@ void main()
 //    discard;
 //  }
 //  else {
-    outColour = constants.colour * vec4(light, 1.0) * texel;
+    outColour = constants.colour * vec4(light, 1) * texel;
 //  }
 }
