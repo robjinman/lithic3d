@@ -294,7 +294,7 @@ class ResourceManagerTest : public testing::Test
     std::unique_ptr<DObjectFactory> m_dObjectFactory;
 };
 
-TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
+TEST_F(ResourceManagerTest, loads_and_unloads_resource)
 {
   testing::Sequence seq;
   EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
@@ -313,7 +313,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsResource)
   m_delegate->testComplete();
 }
 
-TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
+TEST_F(ResourceManagerTest, loads_and_unloads_transitive_dependencies)
 {
   testing::Sequence seq;
   EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
@@ -336,7 +336,7 @@ TEST_F(ResourceManagerTest, loadsAndUnloadsTransitiveDependencies)
   m_delegate->testComplete();
 }
 
-TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
+TEST_F(ResourceManagerTest, does_not_unload_still_used_dependency)
 {
   testing::Sequence seq;
   EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);
@@ -372,7 +372,7 @@ TEST_F(ResourceManagerTest, doesNotUnloadStillUsedDependency)
   m_delegate->testComplete();
 }
 
-TEST_F(ResourceManagerTest, unloadsSharedDependencyWhenNoLongerUsed)
+TEST_F(ResourceManagerTest, unloads_shared_dependency_when_no_longer_used)
 {
   testing::Sequence seq;
   EXPECT_CALL(*m_delegate, loadAObject).Times(1).InSequence(seq);

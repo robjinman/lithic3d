@@ -23,7 +23,7 @@
 #include "window_delegate.hpp"
 #include "sys_render_3d.hpp"
 #include "math.hpp"
-#include "spatial_container.hpp"
+#include "loose_octree.hpp"
 #include "sys_render_2d.hpp"
 #include "sys_collision.hpp"
 #include "input.hpp"

@@ -72,7 +72,7 @@ Demo::Demo(Engine& engine)
     .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
   };
 
-  m_worldGrid = createWorldGrid(options, *m_worldLoader, m_engine.eventSystem(), m_engine.logger());
+  m_worldGrid = createWorldGrid(options, *m_worldLoader, m_engine.ecs(), m_engine.logger());
 
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());

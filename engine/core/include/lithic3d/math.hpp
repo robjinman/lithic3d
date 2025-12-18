@@ -445,6 +445,7 @@ std::ostream& operator<<(std::ostream& stream, const Matrix<T, ROWS, COLS>& m)
 }
 
 using Vec2i = Vector<int, 2>;
+using Vec2u = Vector<uint32_t, 2>;
 using Vec2f = Vector<float, 2>;
 using Vec3f = Vector<float, 3>;
 using Vec3i = Vector<int, 3>;

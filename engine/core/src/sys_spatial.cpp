@@ -32,7 +32,7 @@ class SysSpatialImpl : public SysSpatial
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     GraphPtr<EntityId, NULL_ENTITY_ID> m_sceneGraph;
-    SpatialContainerPtr m_spatialContainer;
+    LooseOctreePtr m_octree;
 
     void updateBoundingBox(EntityId entityId, const Mat4x4f& m);
 };
@@ -44,12 +44,12 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem)
   EntityId root = m_ecs.idGen().getNewEntityId();
   m_ecs.componentStore().allocate<DSpatial>(id);
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
-  m_spatialContainer = createSpatialContainer();
+  m_octree = createLooseOctree({ 0.f, -100.f, 0.f }, 10000.f); // TODO
 }
 
 EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const
 {
-  return m_spatialContainer->getIntersecting(frustum);
+  return m_octree->getIntersecting(frustum);
 }
 
 EntityId SysSpatialImpl::root() const
@@ -73,7 +73,7 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 void SysSpatialImpl::removeEntity(EntityId entityId)
 {
   m_sceneGraph->removeItem(entityId);
-  m_spatialContainer->remove(entityId);
+  m_octree->remove(entityId);
 }
 
 bool SysSpatialImpl::hasEntity(EntityId entityId) const
@@ -135,7 +135,7 @@ void SysSpatialImpl::updateBoundingBox(EntityId entityId, const Mat4x4f& m)
   Vec3f pos = box.worldSpaceAabb.min + (box.worldSpaceAabb.max - box.worldSpaceAabb.min) * 0.5f;
   float radius = (box.worldSpaceAabb.max - box.worldSpaceAabb.min).magnitude() * 0.5f;
 
-  m_spatialContainer->move(entityId, pos, radius);
+  m_octree->move(entityId, pos, radius);
 }
 
 void SysSpatialImpl::update(Tick, const InputState&)

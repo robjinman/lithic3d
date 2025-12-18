@@ -7,7 +7,7 @@
 namespace lithic3d
 {
 
-constexpr uint32_t NUM_WORLD_SLICES = 6;
+constexpr int NUM_WORLD_SLICES = 6;
 
 struct WorldTraversalOptions
 {
@@ -28,10 +28,10 @@ class WorldGrid
 using WorldGridPtr = std::unique_ptr<WorldGrid>;
 
 class WorldLoader;
-class EventSystem;
+class Ecs;
 class Logger;
 
 WorldGridPtr createWorldGrid(const WorldTraversalOptions& options, WorldLoader& worldLoader,
-  EventSystem& eventSystem, Logger& logger);
+  Ecs& ecs, Logger& logger);
 
 }

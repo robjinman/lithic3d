@@ -4,7 +4,7 @@
 #include "component_types.hpp"
 #include "event_system.hpp"
 #include "systems.hpp"
-#include "spatial_container.hpp"
+#include "loose_octree.hpp"
 
 namespace lithic3d
 {
