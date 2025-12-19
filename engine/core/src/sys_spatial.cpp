@@ -42,7 +42,7 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem)
   , m_eventSystem(eventSystem)
 {
   EntityId root = m_ecs.idGen().getNewEntityId();
-  m_ecs.componentStore().allocate<DSpatial>(id);
+  m_ecs.componentStore().allocate<DSpatial>(root);
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
   m_octree = createLooseOctree({ 0.f, -100.f, 0.f }, 10000.f); // TODO
 }
