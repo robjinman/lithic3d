@@ -392,6 +392,12 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
   if (i == m_meshes.end()) {
     return;
   }
+
+  if (i->second->objectDescriptorSets.size() > 0) {
+    vkFreeDescriptorSets(m_device, m_descriptorPool, i->second->objectDescriptorSets.size(),
+      i->second->objectDescriptorSets.data());
+  }
+
   m_meshes.erase(i);
 }
 
@@ -562,6 +568,8 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
     return;
   }
 
+  vkFreeDescriptorSets(m_device, m_descriptorPool, 1, &i->second->descriptorSet);
+
   m_materials.erase(i);
 }
 
@@ -716,7 +724,7 @@ void RenderResourcesImpl::createDescriptorPool()
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .pNext = nullptr,
-    .flags = 0,
+    .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
     .maxSets = 200, // TODO
     .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
     .pPoolSizes = poolSizes.data()
