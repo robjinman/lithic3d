@@ -8,10 +8,10 @@
 #include "lithic3d/ecs.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_render_3d.hpp"
+#include "lithic3d/sys_collision.hpp"
 #include "lithic3d/model_loader.hpp"
 #include <cassert>
 #include <map>
-#include <iostream> // TODO
 
 namespace fs = std::filesystem;
 
@@ -32,6 +32,7 @@ namespace
 
 struct TerrainRegion
 {
+  render::TexturePtr heightMap;
   ResourceHandle model;
   Vec3f position;
 };
@@ -84,6 +85,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
+  auto& sysCollision = m_ecs.system<SysCollision>();
 
   auto& region = m_regions.at(regionId);
 
@@ -112,6 +114,8 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
   render->model = region.model;
 
   sysRender3d.addEntity(id, std::move(render));
+
+  // TODO: Create collision component
 
   return { id };
 }
@@ -265,6 +269,7 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     model->submodels.push_back(std::move(submodel));
 
     TerrainRegion region;
+    region.heightMap = std::move(heightMap);
     region.position = metresToWorldUnits(Vec3f{
       x * m_config.cellWidth,
       0.f,
@@ -272,7 +277,7 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     });
     region.model = m_modelLoader.loadModelAsync(std::move(model));
 
-    m_regions.insert({ id, region });
+    m_regions.insert({ id, std::move(region) });
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {

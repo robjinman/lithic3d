@@ -18,7 +18,8 @@ enum ComponentTypeId : ComponentType
   CTextboxTypeId          = 1u << 8,
   CBoundingBoxTypeId      = 1u << 9,
   CMaterial2dTypeId       = 1u << 10,
-  CMesh2dTypeId           = 1u << 11
+  CMesh2dTypeId           = 1u << 11,
+  CSphereTypeId           = 1u << 12
 };
 
 } // namespace lithic3d

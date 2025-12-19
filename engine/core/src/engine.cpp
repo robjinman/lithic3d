@@ -11,6 +11,7 @@
 #include "lithic3d/sys_render_2d.hpp"
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/sys_collision.hpp"
 #include "lithic3d/sys_ui.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/resource_manager.hpp"
@@ -84,6 +85,7 @@ EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr r
   m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, *m_fileSystem,
     *m_logger);
 
+  auto sysCollision = createSysCollision(*m_ecs, *m_eventSystem, *m_logger);
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
   auto sysRender3d = createSysRender3d(*m_ecs, *m_modelLoader, *m_renderer, *m_logger);
@@ -92,6 +94,7 @@ EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr r
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysUi = createSysUi(*m_ecs, *m_logger);
 
+  m_ecs->addSystem(COLLISION_SYSTEM, std::move(sysCollision));
   m_ecs->addSystem(RENDER_2D_SYSTEM, std::move(sysRender2d));
   m_ecs->addSystem(RENDER_3D_SYSTEM, std::move(sysRender3d));
   m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
