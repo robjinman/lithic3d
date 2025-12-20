@@ -11,6 +11,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <span>
+#include <cstring>
 #include <concepts>
 
 namespace lithic3d
@@ -74,52 +75,62 @@ struct IComponentArray
   virtual ~IComponentArray() = default;
 };
 
-using ComponentArrayPtr = std::unique_ptr<IComponentArray>;
-
-template<typename T>
-class ComponentArray : public IComponentArray
+class ComponentArray
 {
-  static_assert(std::is_default_constructible_v<T>);
-  //static_assert(std::is_trivially_copyable_v<T>);
-  static_assert(T::TypeId && (T::TypeId & (T::TypeId - 1)) == 0, "TypeId must be power of 2");
-
   friend class ComponentArrayGroup;
 
   public:
-    ComponentArray()
+    ComponentArray(size_t componentSize)
+      : m_componentSize(componentSize)
     {
       m_data.reserve(1000);
     }
 
-    size_t componentSize() const override
+    size_t componentSize() const
     {
-      return sizeof(T);
+      return m_componentSize;
     }
 
-    char* data() override
+    char* data()
     {
       return reinterpret_cast<char*>(m_data.data());
     }
 
-    size_t size() const override
+    size_t size() const
     {
-      return m_data.size();
-    }
-
-    void resize(size_t size) override
-    {
-      m_data.resize(size);
+      return m_numElements;
     }
 
   private:
-    std::vector<T> m_data;
+    std::vector<std::max_align_t> m_data;
+    size_t m_numElements = 0;
+    size_t m_componentSize;
 
-    void remove(size_t index) override
+    void resize(size_t size)
     {
-      std::swap(m_data[index], m_data[m_data.size() - 1]);
-      m_data.pop_back();
+      size_t bytes = size * m_componentSize;
+      size_t n = (bytes + sizeof(std::max_align_t) - 1) / sizeof(std::max_align_t); // Rounds up
+      m_data.resize(n);
+      m_numElements = size;
+    }
+
+    void remove(size_t index)
+    {
+      size_t elementByteOffset = index * m_componentSize;
+      char* data = reinterpret_cast<char*>(m_data.data());
+
+      size_t numElements = size();
+
+      size_t lastIndex = numElements - 1;
+      size_t lastElementByteOffset = lastIndex * m_componentSize;
+
+      memcpy(data + elementByteOffset, data + lastElementByteOffset, m_componentSize);
+
+      resize(numElements - 1);
     }
 };
+
+using ComponentArrayPtr = std::unique_ptr<ComponentArray>;
 
 class ComponentArrayGroup
 {
@@ -139,7 +150,7 @@ class ComponentArrayGroup
     {
       auto i = m_componentData.find(T::TypeId);
       if (i == m_componentData.end()) {
-        i = m_componentData.insert({ T::TypeId, std::make_unique<ComponentArray<T>>() }).first;
+        i = m_componentData.insert({ T::TypeId, std::make_unique<ComponentArray>(sizeof(T)) }).first;
       }
 
       i->second->resize(m_entityIds.size());
