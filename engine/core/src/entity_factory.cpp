@@ -141,26 +141,7 @@ std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab)
   std::vector<ComponentSpec> specs;
 
   if (prefab.spatial.has_value()) {
-    specs.push_back(ComponentSpec{
-      .id = CSpatialFlags::TypeId,
-      .size = sizeof(CSpatialFlags),
-      .alignment = alignof(CSpatialFlags)
-    });
-    specs.push_back(ComponentSpec{
-      .id = CLocalTransform::TypeId,
-      .size = sizeof(CLocalTransform),
-      .alignment = alignof(CLocalTransform)
-    });
-    specs.push_back(ComponentSpec{
-      .id = CGlobalTransform::TypeId,
-      .size = sizeof(CGlobalTransform),
-      .alignment = alignof(CGlobalTransform)
-    });
-    specs.push_back(ComponentSpec{
-      .id = CBoundingBox::TypeId,
-      .size = sizeof(CBoundingBox),
-      .alignment = alignof(CBoundingBox)
-    });
+    extractSpecs<DSpatial>(specs);
   }
 
   if (prefab.model.has_value()) {

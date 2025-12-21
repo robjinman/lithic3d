@@ -75,6 +75,22 @@ concept DeclaresRequiredComponents = requires { typename T::RequiredComponents; 
 template<DeclaresRequiredComponents... Ts>
 using extract_components = typename concat_n<typename Ts::RequiredComponents...>::type;
 
+template<ComponentType... Ts>
+void extractSpecs(std::vector<ComponentSpec>& specs, type_list<Ts...>)
+{
+  (specs.push_back(ComponentSpec{
+    .id = Ts::TypeId,
+    .size = sizeof(Ts),
+    .alignment = alignof(Ts)
+  }), ...);
+}
+
+template<DeclaresRequiredComponents T>
+void extractSpecs(std::vector<ComponentSpec>& specs)
+{
+  extractSpecs(specs, (typename T::RequiredComponents){});
+}
+
 class ComponentArray
 {
   friend class ComponentArrayGroup;
