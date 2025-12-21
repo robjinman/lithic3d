@@ -29,6 +29,7 @@ struct AnimationState
   std::optional<QueuedAnimation> next;
 };
 
+// TODO: Rename this. It isn't a component store component
 struct CAnimation2d
 {
   std::map<HashedString, Animation2dId> animations;

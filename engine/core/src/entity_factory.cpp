@@ -136,6 +136,39 @@ ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
   });
 }
 
+std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab)
+{
+  std::vector<ComponentSpec> specs;
+
+  if (prefab.spatial.has_value()) {
+    specs.push_back(ComponentSpec{
+      .id = CSpatialFlags::TypeId,
+      .size = sizeof(CSpatialFlags),
+      .alignment = alignof(CSpatialFlags)
+    });
+    specs.push_back(ComponentSpec{
+      .id = CLocalTransform::TypeId,
+      .size = sizeof(CLocalTransform),
+      .alignment = alignof(CLocalTransform)
+    });
+    specs.push_back(ComponentSpec{
+      .id = CGlobalTransform::TypeId,
+      .size = sizeof(CGlobalTransform),
+      .alignment = alignof(CGlobalTransform)
+    });
+    specs.push_back(ComponentSpec{
+      .id = CBoundingBox::TypeId,
+      .size = sizeof(CBoundingBox),
+      .alignment = alignof(CBoundingBox)
+    });
+  }
+
+  if (prefab.model.has_value()) {
+  }
+
+  return specs;
+}
+
 EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x4f& transform) const
 {
   std::scoped_lock lock{m_mutex};
@@ -145,9 +178,9 @@ EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x
   auto id = m_ecs.idGen().getNewEntityId();
 
   m_logger.debug(STR("Constructing entity " << id << " of type " << type));
-  m_logger.debug(STR(transform));
 
-  m_ecs.componentStore().allocate<DSpatial, DModel>(id); // TODO
+  auto specs = getComponentSpecs(prefab);
+  m_ecs.componentStore().allocateEntity(id, specs);
 
   if (prefab.spatial.has_value()) {
     auto spatial = prefab.spatial.value();

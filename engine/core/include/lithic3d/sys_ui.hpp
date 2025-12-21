@@ -41,7 +41,7 @@ struct CUi
 {
   bool mouseOver = false;
 
-  static constexpr ComponentType TypeId = CUiTypeId;
+  static constexpr ComponentTypeId TypeId = CUiTypeId;
 };
 
 struct DUi

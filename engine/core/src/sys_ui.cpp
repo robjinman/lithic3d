@@ -87,7 +87,7 @@ void SysUiImpl::addEntity(EntityId id, const DUi& data)
   assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
   assertHasComponent<CUi>(m_ecs.componentStore(), id);
 
-  auto& component = m_ecs.componentStore().component<CUi>(id);
+  auto& component = m_ecs.componentStore().instantiate<CUi>(id);
   component = CUi{};
 
   m_componentData.insert({ id, ItemData{

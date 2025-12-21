@@ -112,7 +112,7 @@ struct CTextbox
 {
   uint32_t cursorPos = 0;
 
-  static constexpr ComponentType TypeId = CTextboxTypeId;
+  static constexpr ComponentTypeId TypeId = CTextboxTypeId;
 };
 
 struct DTextbox

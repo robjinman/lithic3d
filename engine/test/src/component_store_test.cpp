@@ -96,7 +96,7 @@ TEST_F(EcsTest, store_and_retrieve_single_component)
 
 struct ComponentA
 {
-  static constexpr ComponentType TypeId = 1 << 1;
+  static constexpr ComponentTypeId TypeId = 1 << 1;
 
   float a;
   float b;
@@ -104,7 +104,7 @@ struct ComponentA
 
 struct ComponentB
 {
-  static constexpr ComponentType TypeId = 1 << 2;
+  static constexpr ComponentTypeId TypeId = 1 << 2;
 
   int a;
   int b;
@@ -113,7 +113,7 @@ struct ComponentB
 
 struct ComponentC
 {
-  static constexpr ComponentType TypeId = 1 << 3;
+  static constexpr ComponentTypeId TypeId = 1 << 3;
 
   short a;
   double b;
@@ -123,7 +123,7 @@ struct ComponentC
 
 struct ComponentD
 {
-  static constexpr ComponentType TypeId = 1 << 4;
+  static constexpr ComponentTypeId TypeId = 1 << 4;
 
   char a;
 };

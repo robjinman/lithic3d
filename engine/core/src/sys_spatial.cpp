@@ -42,7 +42,12 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem)
   , m_eventSystem(eventSystem)
 {
   EntityId root = m_ecs.idGen().getNewEntityId();
+
   m_ecs.componentStore().allocate<DSpatial>(root);
+  m_ecs.componentStore().instantiate<CLocalTransform>(root);
+  m_ecs.componentStore().instantiate<CGlobalTransform>(root);
+  m_ecs.componentStore().instantiate<CSpatialFlags>(root);
+
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
   m_octree = createLooseOctree({ 0.f, -100.f, 0.f }, 10000.f); // TODO
 }
@@ -62,12 +67,13 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
   auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(data.parent);
 
   m_sceneGraph->addItem(entityId, data.parent);
-  m_ecs.componentStore().component<CLocalTransform>(entityId).transform = data.transform;
-  m_ecs.componentStore().component<CSpatialFlags>(entityId) = CSpatialFlags{
+  m_ecs.componentStore().instantiate<CLocalTransform>(entityId).transform = data.transform;
+  m_ecs.componentStore().instantiate<CSpatialFlags>(entityId) = CSpatialFlags{
     .enabled = data.enabled,
     .parentEnabled = parentFlags.parentEnabled && parentFlags.enabled
   };
-  m_ecs.componentStore().component<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
+  m_ecs.componentStore().instantiate<CGlobalTransform>(entityId);
+  m_ecs.componentStore().instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
 }
 
 void SysSpatialImpl::removeEntity(EntityId entityId)

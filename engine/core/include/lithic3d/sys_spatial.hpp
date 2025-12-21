@@ -37,14 +37,14 @@ struct CLocalTransform
 {
   Mat4x4f transform = identityMatrix<4>();
 
-  static constexpr ComponentType TypeId = CLocalTransformTypeId;
+  static constexpr ComponentTypeId TypeId = CLocalTransformTypeId;
 };
 
 struct CGlobalTransform
 {
   Mat4x4f transform = identityMatrix<4>();
 
-  static constexpr ComponentType TypeId = CGlobalTransformTypeId;
+  static constexpr ComponentTypeId TypeId = CGlobalTransformTypeId;
 };
 
 struct CSpatialFlags
@@ -54,7 +54,7 @@ struct CSpatialFlags
 
   // TODO: Static
 
-  static constexpr ComponentType TypeId = CSpatialFlagsTypeId;
+  static constexpr ComponentTypeId TypeId = CSpatialFlagsTypeId;
 };
 
 struct CBoundingBox
@@ -62,7 +62,7 @@ struct CBoundingBox
   Aabb modelSpaceAabb;
   Aabb worldSpaceAabb;
 
-  static constexpr ComponentType TypeId = CBoundingBoxTypeId;
+  static constexpr ComponentTypeId TypeId = CBoundingBoxTypeId;
 };
 
 struct DSpatial

@@ -11,7 +11,7 @@ struct CSphere
 {
   float radius = 0.f;
 
-  static constexpr ComponentType TypeId = CSphereTypeId;
+  static constexpr ComponentTypeId TypeId = CSphereTypeId;
 };
 
 struct DSphere

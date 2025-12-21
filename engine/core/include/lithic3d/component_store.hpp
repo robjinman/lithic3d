@@ -6,8 +6,7 @@
 #include "entity_id.hpp"
 #include "exception.hpp"
 #include <vector>
-#include <unordered_map>
-#include <map> // TODO
+#include <map>
 #include <cassert>
 #include <stdexcept>
 #include <span>
@@ -17,15 +16,27 @@
 namespace lithic3d
 {
 
-using ComponentType = uint64_t;
+using ComponentTypeId = uint64_t;
 
-template<typename... Ts>
+struct ComponentSpec
+{
+  ComponentTypeId id;
+  size_t size;
+  size_t alignment;
+};
+
+template<typename T>
+concept ComponentType = requires {
+  std::integral_constant<ComponentTypeId, T::TypeId>{};
+};
+
+template<ComponentType... Ts>
 struct type_list {};
 
 template<typename>
 struct is_type_list : std::false_type {};
 
-template<typename... Ts>
+template<ComponentType... Ts>
 struct is_type_list<type_list<Ts...>> : std::true_type {};
 
 template<typename T> constexpr bool is_type_list_v = is_type_list<T>::value;
@@ -36,7 +47,7 @@ concept TypeList = is_type_list<T>::value;
 template<TypeList List1, TypeList List2>
 struct concat_2;
 
-template<typename... Ts, typename... Us>
+template<ComponentType... Ts, ComponentType... Us>
 struct concat_2<type_list<Ts...>, type_list<Us...>>
 {
   using type = type_list<Ts..., Us...>;
@@ -64,24 +75,14 @@ concept DeclaresRequiredComponents = requires { typename T::RequiredComponents; 
 template<DeclaresRequiredComponents... Ts>
 using extract_components = typename concat_n<typename Ts::RequiredComponents...>::type;
 
-struct IComponentArray
-{
-  virtual size_t componentSize() const = 0;
-  virtual void remove(size_t index) = 0;
-  virtual char* data() = 0;
-  virtual size_t size() const = 0;
-  virtual void resize(size_t size) = 0;
-
-  virtual ~IComponentArray() = default;
-};
-
 class ComponentArray
 {
   friend class ComponentArrayGroup;
 
   public:
-    ComponentArray(size_t componentSize)
+    ComponentArray(size_t componentSize, size_t alignment)
       : m_componentSize(componentSize)
+      , m_alignment(alignment)
     {
       m_data.reserve(1000);
     }
@@ -93,7 +94,7 @@ class ComponentArray
 
     char* data()
     {
-      return reinterpret_cast<char*>(m_data.data());
+      return reinterpret_cast<char*>(m_alignedPtr);
     }
 
     size_t size() const
@@ -102,15 +103,19 @@ class ComponentArray
     }
 
   private:
-    std::vector<std::max_align_t> m_data;
+    std::vector<char> m_data;
+    void* m_alignedPtr = nullptr;
     size_t m_numElements = 0;
     size_t m_componentSize;
+    size_t m_alignment;
 
     void resize(size_t size)
     {
-      size_t bytes = size * m_componentSize;
-      size_t n = (bytes + sizeof(std::max_align_t) - 1) / sizeof(std::max_align_t); // Rounds up
+      size_t n = size * m_componentSize + m_alignment - 1;
       m_data.resize(n);
+      void* raw = m_data.data();
+      m_alignedPtr = std::align(m_alignment, m_componentSize, raw, n);
+
       m_numElements = size;
     }
 
@@ -137,20 +142,31 @@ class ComponentArrayGroup
   friend class ComponentStore;
 
   public:
-    template<typename... Ts>  // Beware, we might have duplicate types
+    template<ComponentType... Ts>  // Beware, we might have duplicate types
     void allocate(EntityId entityId)
     {
       m_entityIds.push_back(entityId);
       m_indices.insert({ entityId, m_entityIds.size() - 1 });
-      (allocate<Ts>(), ...);
+      (allocate(Ts::TypeId, sizeof(Ts), alignof(Ts)), ...);
     }
 
-    template<typename T>
-    void allocate()
+    // Dynamic version
+    void allocate(EntityId entityId, const std::vector<ComponentSpec>& specs)
     {
-      auto i = m_componentData.find(T::TypeId);
+      m_entityIds.push_back(entityId);
+      m_indices.insert({ entityId, m_entityIds.size() - 1 });
+
+      for (auto& spec : specs) {
+        allocate(spec.id, spec.size, spec.alignment);
+      }
+    }
+
+    void allocate(ComponentTypeId typeId, size_t componentSize, size_t alignment)
+    {
+      auto i = m_componentData.find(typeId);
       if (i == m_componentData.end()) {
-        i = m_componentData.insert({ T::TypeId, std::make_unique<ComponentArray>(sizeof(T)) }).first;
+        auto array = std::make_unique<ComponentArray>(componentSize, alignment);
+        i = m_componentData.insert({ typeId, std::move(array) }).first;
       }
 
       i->second->resize(m_entityIds.size());
@@ -158,26 +174,26 @@ class ComponentArrayGroup
       assert(m_entityIds.size() == m_indices.size());
     }
 
-    template<typename T>
+    template<ComponentType T>
     std::span<T> components()
     {
       auto span = constComponents<T>();
       return std::span<T>{const_cast<T*>(span.data()), span.size()};
     }
 
-    template<typename T>
+    template<ComponentType T>
     std::span<const T> components() const
     {
       return constComponents<T>();
     }
 
-    template<typename T>
+    template<ComponentType T>
     T& component(EntityId entityId)
     {
       return components<T>()[entityPosition(entityId)];
     }
 
-    template<typename T>
+    template<ComponentType T>
     const T& component(EntityId entityId) const
     {
       return components<T>()[entityPosition(entityId)];
@@ -209,11 +225,11 @@ class ComponentArrayGroup
     }
 
   private:
-    std::map<ComponentType, ComponentArrayPtr> m_componentData;
+    std::map<ComponentTypeId, ComponentArrayPtr> m_componentData;
     std::vector<EntityId> m_entityIds;
     std::map<EntityId, size_t> m_indices;
 
-    template<typename T>
+    template<ComponentType T>
     std::span<const T> constComponents() const
     {
       auto i = m_componentData.find(T::TypeId);
@@ -352,7 +368,7 @@ class ComponentStore
         Archetype m_mask;
     };
 
-    template<typename... Ts>
+    template<ComponentType... Ts>
     void allocateEntity(EntityId entityId)
     {
       Archetype archetype = (Ts::TypeId | ...);
@@ -363,7 +379,7 @@ class ComponentStore
       m_archetypes[entityId] = archetype;
     }
 
-    template<typename... Ts>
+    template<ComponentType... Ts>
     void allocateEntity(EntityId entityId, type_list<Ts...>)
     {
       allocateEntity<Ts...>(entityId);
@@ -375,21 +391,42 @@ class ComponentStore
       allocateEntity(entityId, extract_components<Ts...>{});
     }
 
-    template<typename... Ts>
+    // Dynamic version
+    void allocateEntity(EntityId entityId, const std::vector<ComponentSpec>& specs)
+    {
+      Archetype archetype = 0;
+      for (auto& spec : specs) {
+        archetype |= spec.id;
+      }
+
+      ASSERT(!m_archetypes.contains(entityId), "Entity ID " << entityId << " already taken");
+
+      m_groups[archetype].allocate(entityId, specs);
+      m_archetypes[entityId] = archetype;
+    }
+
+    template<ComponentType T>
+    T& instantiate(EntityId entityId)
+    {
+      auto addr = &component<T>(entityId);
+      return *std::launder(new (addr) T{});
+    }
+
+    template<ComponentType... Ts>
     View<false> components()
     {
       Archetype mask = (Ts::TypeId | ...);
       return View<false>{m_groups, mask};
     }
 
-    template<typename... Ts>
+    template<ComponentType... Ts>
     View<true> components() const
     {
       Archetype mask = (Ts::TypeId | ...);
       return View<true>{m_groups, mask};
     }
 
-    template<typename T>
+    template<ComponentType T>
     T& component(EntityId entityId)
     {
       auto i = m_archetypes.find(entityId);
@@ -399,7 +436,7 @@ class ComponentStore
       return m_groups.at(i->second).component<T>(entityId);
     }
 
-    template<typename T>
+    template<ComponentType T>
     const T& component(EntityId entityId) const
     {
       return (const_cast<ComponentStore*>(this)->component<T>(entityId));
@@ -420,7 +457,7 @@ class ComponentStore
       return m_groups.at(m_archetypes.at(entityId));
     }
 
-    template<typename T>
+    template<ComponentType T>
     bool hasComponentForEntity(EntityId entityId) const
     {
       auto i = m_archetypes.find(entityId);

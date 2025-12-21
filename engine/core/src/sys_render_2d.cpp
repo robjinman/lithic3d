@@ -263,7 +263,7 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
   assertHasComponent<CMesh2d>(m_componentStore, entityId);
   assertHasComponent<CMaterial2d>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender2d>(entityId) = CRender2d{
+  m_componentStore.instantiate<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
@@ -272,7 +272,7 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
 
   // TODO: Assert material features are supported?
 
-  m_componentStore.component<CSprite>(entityId) = CSprite{
+  m_componentStore.instantiate<CSprite>(entityId) = CSprite{
     .textureRect = data.textureRect,
     .isText = true
   };
@@ -280,12 +280,12 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DText& data)
   auto mesh = textItemMesh(data.text, data.text.size(), data.textureRect, false);
   auto meshHandle = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
 
-  m_componentStore.component<CMesh2d>(entityId) = CMesh2d{
+  m_componentStore.instantiate<CMesh2d>(entityId) = CMesh2d{
     .id = meshHandle.resource.id(),
     .features = meshHandle.features
   };
 
-  m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
+  m_componentStore.instantiate<CMaterial2d>(entityId) = CMaterial2d{
     .id = data.material.resource.id(),
     .features = data.material.features
   };
@@ -306,19 +306,19 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
   assertHasComponent<CMesh2d>(m_componentStore, entityId);
   assertHasComponent<CMaterial2d>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender2d>(entityId) = CRender2d{
+  m_componentStore.instantiate<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
     .scissor = data.scissor
   };
 
-  m_componentStore.component<CSprite>(entityId) = CSprite{
+  m_componentStore.instantiate<CSprite>(entityId) = CSprite{
     .textureRect = data.textureRect,
     .isText = true
   };
 
-  auto& c = m_componentStore.component<CDynamicText>(entityId);
+  auto& c = m_componentStore.instantiate<CDynamicText>(entityId);
   size_t len = data.text.length();
   ASSERT(len <= DYNAMIC_TEXT_MAX_LEN, "Dynamic text length must not exceed "
     << DYNAMIC_TEXT_MAX_LEN << " bytes");
@@ -331,12 +331,12 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DDynamicText& data)
 
   auto meshHandle = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
 
-  m_componentStore.component<CMesh2d>(entityId) = CMesh2d{
+  m_componentStore.instantiate<CMesh2d>(entityId) = CMesh2d{
     .id = meshHandle.resource.id(),
     .features = meshFeatures
   };
 
-  m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
+  m_componentStore.instantiate<CMaterial2d>(entityId) = CMaterial2d{
     .id = data.material.resource.id(),
     .features = data.material.features
   };
@@ -352,14 +352,14 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DQuad& data)
   assertHasComponent<CRender2d>(m_componentStore, entityId);
   assertHasComponent<CQuad>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender2d>(entityId) = CRender2d{
+  m_componentStore.instantiate<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
     .scissor = data.scissor
   };
 
-  m_componentStore.component<CQuad>(entityId) = CQuad{
+  m_componentStore.instantiate<CQuad>(entityId) = CQuad{
     .radius = data.radius
   };
 }
@@ -372,19 +372,19 @@ void SysRender2dImpl::addEntity(EntityId entityId, const DSprite& data)
   assertHasComponent<CSprite>(m_componentStore, entityId);
   assertHasComponent<CMaterial2d>(m_componentStore, entityId);
 
-  m_componentStore.component<CRender2d>(entityId) = CRender2d{
+  m_componentStore.instantiate<CRender2d>(entityId) = CRender2d{
     .colour = data.colour,
     .zIndex = data.zIndex,
     .visible = true,
     .scissor = data.scissor
   };
 
-  m_componentStore.component<CSprite>(entityId) = CSprite{
+  m_componentStore.instantiate<CSprite>(entityId) = CSprite{
     .textureRect = data.textureRect,
     .isText = false
   };
 
-  m_componentStore.component<CMaterial2d>(entityId) = CMaterial2d{
+  m_componentStore.instantiate<CMaterial2d>(entityId) = CMaterial2d{
     .id = data.material.resource.id(),
     .features = data.material.features
   };

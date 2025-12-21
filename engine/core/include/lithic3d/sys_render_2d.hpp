@@ -21,7 +21,7 @@ struct CRender2d
   bool visible = true;
   ScissorId scissor = 0;
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CRender2dTypeId;
+  static constexpr ComponentTypeId TypeId = CRender2dTypeId;
 };
 
 struct CMesh2d
@@ -29,7 +29,7 @@ struct CMesh2d
   ResourceId id = NULL_RESOURCE_ID;
   render::MeshFeatureSet features;
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CMesh2dTypeId;
+  static constexpr ComponentTypeId TypeId = CMesh2dTypeId;
 };
 
 struct CMaterial2d
@@ -37,7 +37,7 @@ struct CMaterial2d
   ResourceId id = NULL_RESOURCE_ID;
   render::MaterialFeatureSet features;
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CMaterial2dTypeId;
+  static constexpr ComponentTypeId TypeId = CMaterial2dTypeId;
 };
 
 struct CSprite
@@ -45,21 +45,21 @@ struct CSprite
   Rectf textureRect;
   bool isText = false; // TODO: Remove?
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CSpriteTypeId;
+  static constexpr ComponentTypeId TypeId = CSpriteTypeId;
 };
 
 struct CDynamicText
 {
   char text[DYNAMIC_TEXT_MAX_LEN + 1];  // Null-terminated
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CDynamicTextTypeId;
+  static constexpr ComponentTypeId TypeId = CDynamicTextTypeId;
 };
 
 struct CQuad
 {
   float radius = 0.f; // For rounded corners
 
-  static constexpr ComponentType TypeId = ComponentTypeId::CQuadTypeId;
+  static constexpr ComponentTypeId TypeId = CQuadTypeId;
 };
 
 struct DSprite

@@ -203,9 +203,9 @@ void LooseOctreeImpl::getIntersecting(const OctreeNode& node, const Frustum& fru
       continue;
     }
 
-    if (intersectsFrustum(*child, frustum)) {
+    //if (intersectsFrustum(*child, frustum)) {
       getIntersecting(*child, frustum, entities);
-    }
+    //}
   }
 }
 

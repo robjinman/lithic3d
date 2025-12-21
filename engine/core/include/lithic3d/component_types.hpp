@@ -5,7 +5,7 @@
 namespace lithic3d
 {
 
-enum ComponentTypeId : ComponentType
+enum : ComponentTypeId
 {
   CLocalTransformTypeId   = 1u << 0,
   CGlobalTransformTypeId  = 1u << 1,
