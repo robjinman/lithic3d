@@ -32,7 +32,7 @@ class SysUi : public System
       return nextId++;
     }
 
-    static const SystemId id = UI_SYSTEM;
+    static const SystemId id = Systems::Ui;
 };
 
 using SysUiPtr = std::unique_ptr<SysUi>;

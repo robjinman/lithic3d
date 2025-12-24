@@ -327,6 +327,11 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
   material->colour = desc.baseColourFactor;
   material->featureSet = createMaterialFeatureSet(desc);
 
+  // TODO: Remove this. We need to provide material customisation
+  if (material->name == "models/weapons/rocketlauncher/rocketlauncher_fx") {
+    material->featureSet.flags.set(MaterialFeatures::HasTransparency);
+  }
+
   std::filesystem::path texturesPath = "textures";
 
   if (!desc.baseColourTexture.empty()) {
@@ -336,7 +341,6 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
   }
 
   if (!desc.normalMap.empty()) {
-    std::cout << "NORMAL MAP = " << desc.normalMap << std::endl;
     material->normalMaps = {
       m_renderResourceLoader.loadNormalMapAsync(texturesPath / desc.normalMap)
     };

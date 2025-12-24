@@ -5,6 +5,8 @@
 #include "event_system.hpp"
 #include "systems.hpp"
 #include "loose_octree.hpp"
+#include "utils.hpp"
+#include <bitset>
 
 namespace lithic3d
 {
@@ -47,12 +49,19 @@ struct CGlobalTransform
   static constexpr ComponentTypeId TypeId = CGlobalTransformTypeId;
 };
 
+namespace SpatialFlags
+{
+  enum : size_t
+  {
+    Enabled,
+    ParentEnabled,
+    Dirty
+  };
+}
+
 struct CSpatialFlags
 {
-  bool enabled = true; // TODO: Replace with bitset
-  bool parentEnabled = true;
-
-  // TODO: Static
+  std::bitset<32> flags{bitflag(SpatialFlags::Enabled) | bitflag(SpatialFlags::ParentEnabled)};
 
   static constexpr ComponentTypeId TypeId = CSpatialFlagsTypeId;
 };
@@ -91,7 +100,7 @@ class SysSpatial : public System
 
     virtual ~SysSpatial() = default;
 
-    static const SystemId id = SPATIAL_SYSTEM;
+    static const SystemId id = Systems::Spatial;
 };
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;

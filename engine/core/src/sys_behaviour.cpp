@@ -76,7 +76,7 @@ void SysBehaviourImpl::processEvent(const Event& event)
     auto i = m_subscriptions.find(event.name);
     if (i != m_subscriptions.end()) {
       for (auto id : i->second) {
-        if (m_componentStore.component<CSpatialFlags>(id).enabled) {
+        if (m_componentStore.component<CSpatialFlags>(id).flags.test(SpatialFlags::Enabled)) {
           auto& behaviours = m_behaviours.at(id);
           for (auto& entry : behaviours) {
             entry.second->processEvent(event);
@@ -91,7 +91,7 @@ void SysBehaviourImpl::processEvent(const Event& event)
     for (auto id : event.targets.value()) {
       auto i = m_behaviours.find(id);
       if (i != m_behaviours.end()) {
-        if (m_componentStore.component<CSpatialFlags>(id).enabled) {
+        if (m_componentStore.component<CSpatialFlags>(id).flags.test(SpatialFlags::Enabled)) {
           auto& behaviours = i->second;
           for (auto& entry : behaviours) {
             entry.second->processEvent(event);

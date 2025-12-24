@@ -142,7 +142,7 @@ class SysRender2d : public System
 
     virtual ~SysRender2d() = default;
 
-    static const SystemId id = RENDER_2D_SYSTEM;
+    static const SystemId id = Systems::Render2d;
 };
 
 using SysRender2dPtr = std::unique_ptr<SysRender2d>;

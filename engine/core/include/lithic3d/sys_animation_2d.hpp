@@ -68,7 +68,7 @@ class SysAnimation2d : public System
 
     virtual ~SysAnimation2d() = default;
 
-    static const SystemId id = ANIMATION_2D_SYSTEM;
+    static const SystemId id = Systems::Animation2d;
 };
 
 using SysAnimation2dPtr = std::unique_ptr<SysAnimation2d>;

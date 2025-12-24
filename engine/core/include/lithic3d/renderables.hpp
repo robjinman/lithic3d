@@ -24,7 +24,7 @@ std::vector<char> toBytes(const std::vector<T>& data)
 {
   const char* p = reinterpret_cast<const char*>(data.data());
   size_t n = data.size() * sizeof(T);
-  return std::vector<char>(p, p + n); // TODO: Alignment?
+  return std::vector<char>(p, p + n);
 }
 
 template<typename T>
@@ -45,13 +45,7 @@ struct Texture
 };
 
 using TexturePtr = std::unique_ptr<Texture>;
-/*
-struct MaterialResource
-{
-  std::string fileName;
-  ResourceHandle handle;
-};
-*/
+
 enum class BufferUsage : uint8_t
 {
   None = 0,
@@ -95,11 +89,6 @@ enum Enum : uint32_t
   IsDynamicText
 };
 using Flags = std::bitset<32>;
-}
-
-constexpr uint32_t bitflag(uint32_t pos)
-{
-  return 1u << pos;
 }
 
 using VertexLayout = std::array<BufferUsage, MAX_ATTRIBUTES>;
@@ -157,6 +146,8 @@ struct MaterialHandle
     return *this;
   }
 };
+
+// TODO: Rethink mesh buffers. Need to comply with strict aliasing and alignment rules.
 
 struct Buffer
 {

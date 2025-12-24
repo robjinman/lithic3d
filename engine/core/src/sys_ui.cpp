@@ -257,23 +257,25 @@ void SysUiImpl::processMouseInput(float mouseX, float mouseY,
   auto groups = m_ecs.componentStore().components<CSpatialFlags, CGlobalTransform, CUi>();
 
   for (auto& group : groups) {
-    auto flags = group.components<CSpatialFlags>();
-    auto transforms = group.components<CGlobalTransform>();
+    auto flagsComps = group.components<CSpatialFlags>();
+    auto transformComps = group.components<CGlobalTransform>();
     auto uiComps = group.components<CUi>();
     auto n = group.numEntities();
 
     // Fast loop. Don't access m_componentData on every iteration.
     for (size_t i = 0; i < n; ++i) {
-      if (!(flags[i].enabled && flags[i].parentEnabled)) {
+      auto& flags = flagsComps[i].flags;
+
+      if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
         continue;
       }
 
-      auto& t = transforms[i];
+      auto& transform = transformComps[i].transform;
       auto& uiComp = uiComps[i];
       EntityId id = group.entityIds()[i];
 
-      Vec2f pos{ t.transform.at(0, 3), t.transform.at(1, 3) };
-      Vec2f size{ t.transform.at(0, 0), t.transform.at(1, 1) };
+      Vec2f pos{ transform.at(0, 3), transform.at(1, 3) };
+      Vec2f size{ transform.at(0, 0), transform.at(1, 1) };
 
       if (inRange(mouseX, pos[0], pos[0] + size[0]) && inRange(mouseY, pos[1], pos[1] + size[1])) {
         auto& componentData = m_componentData.at(id);
@@ -315,8 +317,8 @@ void SysUiImpl::processKeyPress(KeyboardKey key)
     return;
   }
 
-  auto flags = m_ecs.componentStore().component<CSpatialFlags>(group.focusedItem);
-  if (!(flags.enabled && flags.parentEnabled)) {
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(group.focusedItem).flags;
+  if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
     return;
   }
 

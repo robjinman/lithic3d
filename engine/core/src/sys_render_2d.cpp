@@ -31,7 +31,6 @@ using render::RenderPass;
 using render::Buffer;
 using render::BufferUsage;
 using render::toBytes;
-using render::bitflag;
 
 namespace
 {
@@ -460,7 +459,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
     auto renderComps = group.components<CRender2d>();
     auto spriteComps = group.components<CSprite>();
     auto globalTs = group.components<CGlobalTransform>();
-    auto flags = group.components<CSpatialFlags>();
+    auto flagsComps = group.components<CSpatialFlags>();
     auto dynamicTextComps = group.components<CDynamicText>();
     auto quadComps = group.components<CQuad>();
     auto meshComps = group.components<CMesh2d>();
@@ -469,11 +468,12 @@ void SysRender2dImpl::update(Tick, const InputState&)
 
     for (size_t i = 0; i < n; ++i) {
       auto& renderComp = renderComps[i];
+      auto& flags = flagsComps[i].flags;
 
       if (!renderComp.visible) {
         continue;
       }
-      if (!(flags[i].enabled && flags[i].parentEnabled)) {
+      if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
         continue;
       }
 

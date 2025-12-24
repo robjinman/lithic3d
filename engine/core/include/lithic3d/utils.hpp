@@ -8,6 +8,11 @@
 namespace lithic3d
 {
 
+constexpr uint32_t bitflag(uint32_t pos)
+{
+  return 1u << pos;
+}
+
 template<typename T>
 bool inRange(T value, T min, T max)
 {

@@ -94,13 +94,13 @@ EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr r
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysUi = createSysUi(*m_ecs, *m_logger);
 
-  m_ecs->addSystem(COLLISION_SYSTEM, std::move(sysCollision));
-  m_ecs->addSystem(RENDER_2D_SYSTEM, std::move(sysRender2d));
-  m_ecs->addSystem(RENDER_3D_SYSTEM, std::move(sysRender3d));
-  m_ecs->addSystem(SPATIAL_SYSTEM, std::move(sysSpatial));
-  m_ecs->addSystem(ANIMATION_2D_SYSTEM, std::move(sysAnimation2d));
-  m_ecs->addSystem(BEHAVIOUR_SYSTEM, std::move(sysBehaviour));
-  m_ecs->addSystem(UI_SYSTEM, std::move(sysUi));
+  m_ecs->addSystem(Systems::Collision, std::move(sysCollision));
+  m_ecs->addSystem(Systems::Render2d, std::move(sysRender2d));
+  m_ecs->addSystem(Systems::Render3d, std::move(sysRender3d));
+  m_ecs->addSystem(Systems::Spatial, std::move(sysSpatial));
+  m_ecs->addSystem(Systems::Animation2d, std::move(sysAnimation2d));
+  m_ecs->addSystem(Systems::Behaviour, std::move(sysBehaviour));
+  m_ecs->addSystem(Systems::Ui, std::move(sysUi));
 
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 }

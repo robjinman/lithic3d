@@ -5,6 +5,7 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_render_3d.hpp"
+#include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 
 namespace fs = std::filesystem;
@@ -27,6 +28,8 @@ struct Prefab
 {
   std::optional<DSpatial> spatial;
   std::optional<DModelPtr> model;
+  std::optional<DCollision> collision;
+  // ...
 };
 
 class EntityFactoryImpl : public EntityFactory

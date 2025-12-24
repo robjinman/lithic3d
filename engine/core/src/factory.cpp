@@ -2,6 +2,7 @@
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/render_resource_loader.hpp"
+#include "lithic3d/utils.hpp"
 
 namespace lithic3d
 {
@@ -13,7 +14,6 @@ using render::MaterialHandle;
 using render::MeshFeatureSet;
 namespace MeshFeatures = render::MeshFeatures;
 using render::MeshHandle;
-using render::bitflag;
 using render::BufferUsage;
 
 namespace

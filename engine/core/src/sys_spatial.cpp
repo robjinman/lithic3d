@@ -64,14 +64,15 @@ EntityId SysSpatialImpl::root() const
 
 void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
-  auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(data.parent);
+  auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(data.parent).flags;
 
   m_sceneGraph->addItem(entityId, data.parent);
   m_ecs.componentStore().instantiate<CLocalTransform>(entityId).transform = data.transform;
-  m_ecs.componentStore().instantiate<CSpatialFlags>(entityId) = CSpatialFlags{
-    .enabled = data.enabled,
-    .parentEnabled = parentFlags.parentEnabled && parentFlags.enabled
-  };
+  auto& flags = m_ecs.componentStore().instantiate<CSpatialFlags>(entityId).flags;
+  flags.set(SpatialFlags::Enabled, data.enabled);
+  flags.set(SpatialFlags::ParentEnabled,
+    parentFlags.test(SpatialFlags::ParentEnabled) && parentFlags.test(SpatialFlags::Enabled));  
+
   m_ecs.componentStore().instantiate<CGlobalTransform>(entityId);
   m_ecs.componentStore().instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
 }
@@ -176,16 +177,17 @@ void SysSpatialImpl::update(Tick, const InputState&)
 void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 {
   auto& node = *m_sceneGraph->nodes.at(entityId);
-  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(entityId);
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(entityId).flags;
 
-  if (flags.enabled == enabled) {
+  if (flags.test(SpatialFlags::Enabled) == enabled) {
     return;
   }
 
-  flags.enabled = enabled;
+  flags.set(SpatialFlags::Enabled, enabled);
 
   EntityId prevParentId = entityId;
-  bool parentEnabled = flags.parentEnabled && flags.enabled;
+  bool parentEnabled = flags.test(SpatialFlags::ParentEnabled)
+    && flags.test(SpatialFlags::Enabled); // TODO: Why?
 
   // Propagate flags to descendents
   for (size_t i = node.index + 1; i <= node.index + node.numDescendents; ++i) {
@@ -193,13 +195,14 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
     auto parentId = m_sceneGraph->parents[i];
 
     if (parentId != prevParentId) {
-      auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(parentId);
-      parentEnabled = parentFlags.parentEnabled && parentFlags.enabled;
+      auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(parentId).flags;
+      parentEnabled = parentFlags.test(SpatialFlags::ParentEnabled) &&
+        parentFlags.test(SpatialFlags::Enabled);
       prevParentId = parentId;
     }
 
-    auto& descendentFlags = m_ecs.componentStore().component<CSpatialFlags>(entityId);
-    descendentFlags.parentEnabled = parentEnabled;
+    auto& descendentFlags = m_ecs.componentStore().component<CSpatialFlags>(entityId).flags;
+    descendentFlags.set(SpatialFlags::ParentEnabled, parentEnabled);
   }
 
   if (enabled) {

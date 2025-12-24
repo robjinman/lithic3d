@@ -60,7 +60,7 @@
     </mesh-features>
     <material-features>
       <flags>
-        <has-transparency>false</has-transparency>
+        <has-transparency>*</has-transparency>
         <has-texture>true</has-texture>
         <has-normal-map>false</has-normal-map>
         <has-cube-map>false</has-cube-map>
@@ -129,7 +129,7 @@
     </mesh-features>
     <material-features>
       <flags>
-        <has-transparency>false</has-transparency>
+        <has-transparency>*</has-transparency>
         <has-texture>true</has-texture>
         <has-normal-map>true</has-normal-map>
         <has-cube-map>false</has-cube-map>

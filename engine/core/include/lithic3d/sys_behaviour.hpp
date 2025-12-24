@@ -29,7 +29,7 @@ class SysBehaviour : public System
 
     virtual ~SysBehaviour() = default;
 
-    static const SystemId id = BEHAVIOUR_SYSTEM;
+    static const SystemId id = Systems::Behaviour;
 };
 
 using SysBehaviourPtr = std::unique_ptr<SysBehaviour>;

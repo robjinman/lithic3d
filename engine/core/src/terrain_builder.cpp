@@ -25,14 +25,13 @@ using render::Material;
 using render::MaterialHandle;
 using render::Texture;
 using render::BufferUsage;
-using render::bitflag;
 
 namespace
 {
 
 struct TerrainRegion
 {
-  render::TexturePtr heightMap;
+  HeightMap heightMap;
   ResourceHandle model;
   Vec3f position;
 };
@@ -42,6 +41,20 @@ std::string cellName(uint32_t x, uint32_t y)
   std::stringstream ss;
   ss << std::setw(3) << std::setfill('0') << x << std::setw(3) << std::setfill('0') << y;
   return ss.str();
+}
+
+std::vector<float> constructHeightMap(const Mesh& mesh)
+{
+  size_t n = mesh.attributeBuffers[0].numElements();
+  auto positions = reinterpret_cast<const Vec3f*>(mesh.attributeBuffers[0].data.data());
+
+  std::vector<float> heightMap(n);
+
+  for (size_t i = 0; i < n; ++i) {
+    heightMap[i] = positions[i][1];
+  }
+
+  return heightMap;
 }
 
 class TerrainBuilderImpl : public TerrainBuilder
@@ -115,7 +128,9 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 
   sysRender3d.addEntity(id, std::move(render));
 
-  // TODO: Create collision component
+  DTerrainChunk collision{
+    .heightMap = region.heightMap
+  };
 
   return { id };
 }
@@ -231,10 +246,16 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
   auto loader = [this, x, y, terrainXml = std::move(terrainXml)](ResourceId id) mutable {
     const auto cellPath = fs::path{"worlds"} / m_config.world / cellName(x, y);
 
-    auto heightMapData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
-    auto heightMap = render::loadGreyscaleTexture(heightMapData);
+    auto heightMapTextureData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
+    auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
 
-    auto mesh = constructMesh(*heightMap);
+    auto mesh = constructMesh(*heightMapTexture);
+    HeightMap heightMap;
+    heightMap.widthPx = heightMapTexture->width;
+    heightMap.heightPx = heightMapTexture->height;
+    heightMap.width = m_config.cellWidth;
+    heightMap.height = m_config.cellHeight;
+    heightMap.data = constructHeightMap(*mesh);
 
     render::MaterialFeatureSet materialFeatures{
       .flags = bitflag(render::MaterialFeatures::HasTexture)
@@ -269,7 +290,7 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     model->submodels.push_back(std::move(submodel));
 
     TerrainRegion region;
-    region.heightMap = std::move(heightMap);
+    region.heightMap = heightMap;
     region.position = metresToWorldUnits(Vec3f{
       x * m_config.cellWidth,
       0.f,

@@ -73,7 +73,7 @@ class SysRender3d : public System
 
     virtual ~SysRender3d() {}
 
-    static const SystemId id = RENDER_3D_SYSTEM;
+    static const SystemId id = Systems::Render3d;
 };
 
 using SysRender3dPtr = std::unique_ptr<SysRender3d>;

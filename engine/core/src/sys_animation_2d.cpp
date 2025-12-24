@@ -209,8 +209,8 @@ void SysAnimation2dImpl::update(Tick, const InputState&)
     auto entityId = i->first;
     auto& animState = i->second;
 
-    auto& flags = m_componentStore.component<CSpatialFlags>(entityId);
-    if (!(flags.enabled && flags.parentEnabled)) {
+    auto& flags = m_componentStore.component<CSpatialFlags>(entityId).flags;
+    if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
       ++i;
       continue;
     }

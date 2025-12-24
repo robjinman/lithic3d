@@ -7,25 +7,19 @@
 namespace lithic3d
 {
 
-struct CSphere
+struct CCollision
 {
-  float radius = 0.f;
+  float mass = 1.f;
+  Vec3f velocity;
+  Vec3f acceleration;
+  float damping = 0.f;
 
-  static constexpr ComponentTypeId TypeId = CSphereTypeId;
-};
-
-struct DSphere
-{
-  using RequiredComponents = type_list<
-    CSpatialFlags, CLocalTransform, CGlobalTransform, CBoundingBox, CSphere
-  >;
-
-  float radius = 0.f;
+  static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };
 
 struct HeightMap
 {
-  float width = 0.f;
+  float width = 0.f;  // World units
   float height = 0.f;
   size_t widthPx = 0.f;
   size_t heightPx = 0.f;
@@ -48,6 +42,21 @@ struct HeightMap
   }
 };
 
+namespace CollisionFlags
+{
+  enum : size_t
+  {
+    Gravity,
+    Stationary
+  };
+}
+
+struct DCollision
+{
+  float mass = 1.f;
+  std::bitset<16> flags;
+};
+
 struct DTerrainChunk
 {
   using RequiredComponents = type_list<
@@ -60,10 +69,10 @@ struct DTerrainChunk
 class SysCollision : public System
 {
   public:
-    virtual void addEntity(EntityId id, const DSphere& data) = 0;
+    virtual void addEntity(EntityId id, const DCollision& data) = 0;
     virtual void addEntity(EntityId id, const DTerrainChunk data) = 0;
 
-    static const SystemId id = COLLISION_SYSTEM;
+    static const SystemId id = Systems::Collision;
 };
 
 using SysCollisionPtr = std::unique_ptr<SysCollision>;
