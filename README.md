@@ -170,7 +170,7 @@ If Vulkan isn't found, source the setup-env.sh file before building for iOS
 To install on the device
 
 ```
-    xcrun devicectl device install app --device <id> ./build/ios/debug/Debug-iphoneos/game.app
+    xcrun devicectl device install app --device <id> ./build/ios/debug/engine/Debug-iphoneos/game.app
 ```
 
 You can obtain the device ID with

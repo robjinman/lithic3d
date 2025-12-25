@@ -178,7 +178,7 @@ else()
       "-framework IOSurface"
       "-framework GameController"
     )
-    #set(CMAKE_OSX_DEPLOYMENT_TARGET "17")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "26.1" CACHE STRING "Minimum OS X deployment version" FORCE)
     set(CMAKE_XCODE_GENERATE_SCHEME "TRUE")
     set(CMAKE_XCODE_SCHEME_ENABLE_GPU_API_VALIDATION "FALSE")
     set(CMAKE_XCODE_SCHEME_ENABLE_GPU_FRAME_CAPTURE_MODE "DISABLED")
