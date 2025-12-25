@@ -89,6 +89,9 @@ class GpuImage;
 class RenderResources
 {
   public:
+    // Threads: render
+    virtual void update() = 0;
+
     // Textures
     //
     // Threads: resource

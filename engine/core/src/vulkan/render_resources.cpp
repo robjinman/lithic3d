@@ -5,6 +5,7 @@
 #include "lithic3d/trace.hpp"
 #include "lithic3d/utils.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/time.hpp"
 #include <map>
 #include <array>
 #include <cstring>
@@ -96,6 +97,8 @@ class RenderResourcesImpl : public RenderResources
     RenderResourcesImpl(std::thread::id id, GpuBufferManager& bufferManager,
       VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger);
 
+    void update() override;
+
     // Descriptor sets
     //
     VkDescriptorSetLayout getDescriptorSetLayout(DescriptorSetNumber number) const override;
@@ -157,6 +160,7 @@ class RenderResourcesImpl : public RenderResources
 
     Logger& m_logger;
     GpuBufferManager& m_bufferManager;
+    Scheduler m_scheduler;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkCommandPool m_commandPool;
@@ -237,6 +241,11 @@ inline void RenderResourcesImpl::assertResourceThread() const
   ASSERT(std::this_thread::get_id() == m_resourceThreadId, "Must be on resource manager thread");
 }
 
+void RenderResourcesImpl::update()
+{
+  m_scheduler.update();
+}
+
 void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
 {
   DBG_TRACE(m_logger);
@@ -287,14 +296,16 @@ void RenderResourcesImpl::removeTexture(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  std::scoped_lock lock{m_mutex};
+  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+    std::scoped_lock lock{m_mutex};
 
-  auto i = m_textures.find(id);
-  if (i == m_textures.end()) {
-    return;
-  }
+    auto i = m_textures.find(id);
+    if (i == m_textures.end()) {
+      return;
+    }
 
-  m_textures.erase(i);
+    m_textures.erase(i);
+  });
 }
 
 void RenderResourcesImpl::removeCubeMap(ResourceId id)
@@ -302,14 +313,16 @@ void RenderResourcesImpl::removeCubeMap(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  std::scoped_lock lock{m_mutex};
+  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+    std::scoped_lock lock{m_mutex};
 
-  auto i = m_cubeMaps.find(id);
-  if (i == m_cubeMaps.end()) {
-    return;
-  }
+    auto i = m_cubeMaps.find(id);
+    if (i == m_cubeMaps.end()) {
+      return;
+    }
 
-  m_cubeMaps.erase(i);
+    m_cubeMaps.erase(i);
+  });
 }
 
 void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
@@ -386,19 +399,21 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  std::scoped_lock lock{m_mutex};
+  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+    std::scoped_lock lock{m_mutex};
 
-  auto i = m_meshes.find(id);
-  if (i == m_meshes.end()) {
-    return;
-  }
+    auto i = m_meshes.find(id);
+    if (i == m_meshes.end()) {
+      return;
+    }
 
-  if (i->second->objectDescriptorSets.size() > 0) {
-    vkFreeDescriptorSets(m_device, m_descriptorPool, i->second->objectDescriptorSets.size(),
-      i->second->objectDescriptorSets.data());
-  }
+    if (i->second->objectDescriptorSets.size() > 0) {
+      vkFreeDescriptorSets(m_device, m_descriptorPool, i->second->objectDescriptorSets.size(),
+        i->second->objectDescriptorSets.data());
+    }
 
-  m_meshes.erase(i);
+    m_meshes.erase(i);
+  });
 }
 
 MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
@@ -561,16 +576,18 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  std::scoped_lock lock{m_mutex};
+  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+    std::scoped_lock lock{m_mutex};
 
-  auto i = m_materials.find(id);
-  if (i == m_materials.end()) {
-    return;
-  }
+    auto i = m_materials.find(id);
+    if (i == m_materials.end()) {
+      return;
+    }
 
-  vkFreeDescriptorSets(m_device, m_descriptorPool, 1, &i->second->descriptorSet);
+    vkFreeDescriptorSets(m_device, m_descriptorPool, 1, &i->second->descriptorSet);
 
-  m_materials.erase(i);
+    m_materials.erase(i);
+  });
 }
 
 VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(ResourceId id) const

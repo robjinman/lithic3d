@@ -31,7 +31,6 @@ class Demo : public Game
   private:
     Engine& m_engine;
     FactoryPtr m_factory;
-    Scheduler m_scheduler;
     EntityId m_cube = NULL_ENTITY_ID;
     EntityId m_quad = NULL_ENTITY_ID;
     ResourceHandle m_cubeModel;
@@ -82,9 +81,7 @@ void Demo::loadCubeResources()
 
 void Demo::unloadCubeResources()
 {
-  m_scheduler.run(3, [this]() {
-    m_cubeModel = ResourceHandle{};
-  });
+  m_cubeModel = ResourceHandle{};
 }
 
 bool Demo::cubeResourcesReady() const
@@ -243,7 +240,6 @@ bool Demo::update()
   rotateQuad();
   rotateCube();
   m_engine.update({});
-  m_scheduler.update();
 
   if (m_loadingCube) {
     if (cubeResourcesReady()) {

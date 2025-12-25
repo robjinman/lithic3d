@@ -238,8 +238,14 @@ class Vector
       return true;
     }
 
-    bool operator!=(const Vector<T, N>& rhs) const {
+    bool operator!=(const Vector<T, N>& rhs) const
+    {
       return !(*this == rhs);
+    }
+
+    bool operator<(const Vector<T, N>& rhs) const
+    {
+      return squareMagnitude() < rhs.squareMagnitude();
     }
 
     T dot(const Vector<T, N>& rhs) const

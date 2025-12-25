@@ -3,6 +3,7 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/work_queue.hpp"
+#include "lithic3d/strings.hpp"
 #include <vk_mem_alloc.h>
 #include <cstring>
 

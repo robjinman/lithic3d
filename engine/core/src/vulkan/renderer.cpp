@@ -626,7 +626,7 @@ void RendererImpl::drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeature
 void RendererImpl::drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
   const Vec4f& colour, const Mat4x4f& transform)
 {
-  //DBG_TRACE(m_logger);
+  DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
@@ -816,6 +816,7 @@ void RendererImpl::renderLoop()
 {
   try {
     while (m_running) {
+      m_resources->update();
       m_workQueue.runAll();
 
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
