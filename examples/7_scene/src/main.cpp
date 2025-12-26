@@ -161,7 +161,8 @@ EntityId Demo::constructModel()
   float x = 0.f;
   float z = 0.f;
 
-  auto m = translationMatrix4x4(metresToWorldUnits(Vec3f{ x, 0.f, z }));
+  auto m = translationMatrix4x4(metresToWorldUnits(Vec3f{ x, 0.f, z }))
+    * scaleMatrix4x4(Vec3f{ 10.f, 10.f, 10.f });
 
   DSpatial spatial{
     .transform = m,

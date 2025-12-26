@@ -1,5 +1,5 @@
 Conventions
------------
+===========
 
 Systems inherit System and are prefixed with Sys, e.g. SysRender. They should define a static data member of type SystemId that is unique to the class.
 
