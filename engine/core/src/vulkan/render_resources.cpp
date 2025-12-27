@@ -880,6 +880,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
   };
 
   // TODO: Remove this?
+  /*
   std::array<VkDescriptorBindingFlags, 4> bindingFlags = {
     VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
     VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT,
@@ -892,7 +893,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
     .pNext = nullptr,
     .bindingCount = static_cast<uint32_t>(bindingFlags.size()),
     .pBindingFlags = bindingFlags.data()
-  };
+  };*/
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,

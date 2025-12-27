@@ -134,13 +134,13 @@ MaterialDesc extractMaterial(const nlohmann::json& root, unsigned long materialI
 }
 
 void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
-  std::vector<MeshDesc>& meshDescs, const Mat4x4f& parentTransform)
+  std::vector<MeshDesc>& meshDescs, const Mat4x4f& /*parentTransform*/)
 {
   auto& nodes = root.at("nodes");
   auto& node = nodes[nodeIndex];
 
   Mat4x4f localTransform = extractTransform(node).toMatrix();
-  Mat4x4f globalTransform = /*parentTransform **/ localTransform;
+  Mat4x4f globalTransform = /*parentTransform **/ localTransform; // TODO: Use parent transform?
 
   auto iMeshIndex = node.find("mesh");
   if (iMeshIndex != node.end()) {

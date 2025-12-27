@@ -17,7 +17,7 @@ class SysSpatialImpl : public SysSpatial
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
-    void processEvent(const Event& event) override {}
+    void processEvent(const Event&) override {}
 
     void transformEntity(EntityId id, const Mat4x4f& m) override;
     void setEntityTransform(EntityId id, const Mat4x4f& m) override;

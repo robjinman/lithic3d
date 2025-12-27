@@ -1,6 +1,7 @@
 #include "lithic3d/event_system.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/utils.hpp"
+#include "lithic3d/trace.hpp"
 #include <map>
 #include <list>
 
@@ -12,7 +13,7 @@ namespace
 class EventSystemImpl : public EventSystem
 {
   public:
-    EventSystemImpl(Logger& logger);
+    explicit EventSystemImpl(Logger& logger);
 
     void listen(EventHandlerFn handler) override;
     void listen(HashedString name, EventHandlerFn handler) override;
@@ -20,6 +21,8 @@ class EventSystemImpl : public EventSystem
     void scheduleEvent(Tick delay, EventPtr event) override;
     void processEvents() override;
     void dropEvents() override;
+
+    ~EventSystemImpl() override;
 
   private:
     Logger& m_logger;
@@ -99,6 +102,11 @@ void EventSystemImpl::processScheduledEvents()
   for (auto& event : toProcess) {
     raiseEvent(*event);
   }
+}
+
+EventSystemImpl::~EventSystemImpl()
+{
+  DBG_TRACE(m_logger);
 }
 
 } // namespace

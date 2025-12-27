@@ -98,7 +98,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
-  auto& sysCollision = m_ecs.system<SysCollision>();
+  //auto& sysCollision = m_ecs.system<SysCollision>();
 
   auto& region = m_regions.at(regionId);
 

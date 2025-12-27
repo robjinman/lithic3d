@@ -40,7 +40,7 @@ struct Light
   Vec3f colour;
   float ambient;
   float specular;
-  uint8_t _pad2[12];
+  uint8_t _pad1[12];
 };
 
 struct LightingUbo

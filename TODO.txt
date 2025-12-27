@@ -1,0 +1,3 @@
+* Hide world units from application developer (expose only metres)
+* Improve shader manifest
+  - Remove need to specify every feature flag (can be false by default)

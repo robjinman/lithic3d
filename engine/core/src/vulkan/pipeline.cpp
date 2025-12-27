@@ -528,6 +528,10 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
         .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
       };
       break;
+    case RenderPass::Ssr:
+      // TODO
+      EXCEPTION("Not implemented");
+      break;
   }
 
   m_dynamicScissor = spec.renderPass == RenderPass::Main || spec.renderPass == RenderPass::Overlay;

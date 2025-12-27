@@ -105,7 +105,7 @@ DModelPtr EntityFactoryImpl::constructDModel(const XmlNode& modelXml) const
 
 ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
 {
-  return m_resourceManager.loadResource([this, name](ResourceId id) {
+  return m_resourceManager.loadResource([this, name](ResourceId) {
     const fs::path prefabsPath = "prefabs";
     auto data = m_fileSystem.readAppDataFile(prefabsPath / STR(name << ".xml"));
     auto entityXml = parseXml(data);

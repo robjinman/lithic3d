@@ -8,6 +8,7 @@
 #include <lithic3d/window_delegate.hpp>
 #include <lithic3d/file_system.hpp>
 #include <lithic3d/audio_system.hpp>
+#include <lithic3d/shader_manifest.hpp>
 #include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <android/log.h>
@@ -124,12 +125,26 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
   LoggerPtr logger)
 {
   auto audioSystem = createAudioSystem(*fileSystem);
-  auto renderer = createRenderer(std::move(windowDelegate), *fileSystem, *logger, {});
+  auto resourceManager = createResourceManager(*logger);
+  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
+    {});
 
   m_screenSize = renderer->getScreenSize();
 
-  m_engine = createEngine(std::move(renderer), std::move(audioSystem), std::move(fileSystem),
-    std::move(logger));
+  logger->info("Compiling shaders...");
+
+  auto config = getGameConfig();
+
+  auto manifest = fileSystem->readAppDataFile(config.shaderManifest);
+  auto specs = parseShaderManifest(manifest, *logger);
+  for (auto& spec : specs) {
+    renderer->compileShader(spec);
+  }
+
+  logger->info("Finished compiling shaders");
+  
+  m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
+    std::move(fileSystem), std::move(logger));
 
   m_game = createGame(*m_engine);
 }

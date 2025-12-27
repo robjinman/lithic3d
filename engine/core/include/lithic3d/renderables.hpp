@@ -205,7 +205,7 @@ struct MeshHandle
 
 struct BitmapFont
 {
-  ResourceHandle material;
+  MaterialHandle material;
   Rectf textureSection;
 };
 

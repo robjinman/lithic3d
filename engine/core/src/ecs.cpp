@@ -3,6 +3,7 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/component_store.hpp"
 #include "lithic3d/events.hpp"
+#include "lithic3d/trace.hpp"
 #include <map>
 
 namespace lithic3d
@@ -24,6 +25,8 @@ class EcsImpl : public Ecs
     ComponentStore& componentStore() override;
     const ComponentStore& componentStore() const override;
     EntityIdAllocator& idGen() override;
+
+    ~EcsImpl() override;
 
   private:
     Logger& m_logger;
@@ -115,6 +118,11 @@ void EcsImpl::deletePending()
     removeEntity(id);
   }
   m_pendingDeletion.clear();
+}
+
+EcsImpl::~EcsImpl()
+{
+  DBG_TRACE(m_logger);
 }
 
 } // namespace

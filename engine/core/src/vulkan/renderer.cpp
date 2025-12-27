@@ -470,6 +470,10 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
         }, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H });
         break;
       }
+      case RenderPass::Ssr: {
+        // TODO
+        break;
+      }
     }
   };
 
@@ -937,9 +941,11 @@ void RendererImpl::updateLightingUbo(RenderPass renderPass)
 
     lightingUbo.lights[i] = Light{
       .worldPos = light.position,
+      ._pad0{},
       .colour = light.colour,
       .ambient = light.ambient,
-      .specular = light.specular
+      .specular = light.specular,
+      ._pad1{}
     };
   }
 
@@ -1858,8 +1864,8 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
     VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
-void RendererImpl::doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
-  bool shouldClear)
+void RendererImpl::doSsrRenderPass(VkCommandBuffer /*commandBuffer*/, uint32_t /*imageIndex*/,
+  bool /*shouldClear*/)
 {
   // TODO
 }

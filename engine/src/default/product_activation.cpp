@@ -66,7 +66,8 @@ EntityId ProductActivationImpl::constructRoot()
   DSpatial spatial{
     .transform = identityMatrix<4>(),
     .parent = sysSpatial.root(),
-    .enabled = false
+    .enabled = false,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);
@@ -89,7 +90,8 @@ EntityId ProductActivationImpl::constructPrompt()
     .transform = translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
       scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f }),
     .parent = m_rootId,
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);
@@ -140,7 +142,8 @@ EntityId ProductActivationImpl::constructTextbox()
     .transform = translationMatrix4x4(Vec3f{ pos[0], pos[1], 0.f }) *
       scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f }),
     .parent = m_rootId,
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);

@@ -39,7 +39,9 @@ class ExampleSystem
     {
       m_componentStore.component<CExampleData>(id) = CExampleData{
         .a = data.a + data.c,
-        .b = data.b
+        .b = data.b,
+        ._d{},
+        ._e{}
       };
     }
 
