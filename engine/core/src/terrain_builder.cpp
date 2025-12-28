@@ -199,8 +199,8 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
     uint32_t pixelX = i % heightMap.width;
     uint32_t pixelY = i / heightMap.height;
 
-    float uvX = static_cast<float>(pixelX) / heightMap.width;
-    float uvY = static_cast<float>(pixelY) / heightMap.height;
+    float uvX = static_cast<float>(pixelX) / (heightMap.width - 1);
+    float uvY = static_cast<float>(pixelY) / (heightMap.height - 1);
     float x = uvX * cellWidth;
     float z = uvY * cellHeight;
 

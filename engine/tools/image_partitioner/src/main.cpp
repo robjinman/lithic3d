@@ -32,12 +32,12 @@ int main(int argc, const char** argv)
     po::options_description desc{"Partition height maps and splat maps"};
     auto vm = parseProgramArgs(desc, argc, argv);
 
-    po::notify(vm);
-
     if (vm.count("help") || argc == 1) {
       std::cout << desc << std::endl;
       return EXIT_SUCCESS;
     }
+
+    po::notify(vm);
 
     fs::path inputFilePath;
     ImageType type = ImageType::HeightMap;

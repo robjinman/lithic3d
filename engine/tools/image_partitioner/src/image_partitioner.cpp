@@ -8,13 +8,34 @@
 
 namespace fs = std::filesystem;
 
-void copyRegion(const unsigned char* src, int srcStride, int x, int y, int w, int h, int channels,
-  unsigned char* dest)
+// Copies cell (cellX, cellY) of size (cellW, cellH) into destination buffer. Cells overlap by 1
+// pixel in each direction, so destination buffer should be of size (cellW + 1, cellH + 1).
+void copyRegion(const unsigned char* src, int srcW, int srcH, int cellX, int cellY, int cellW,
+  int cellH, int channels, unsigned char* dest)
 {
-  for (int row = 0; row < h; ++row) {
-    int destOffset = w * channels * row;
-    int srcOffset = (y + row) * srcStride + x * channels;
-    std::memcpy(dest + destOffset, src + srcOffset, w * channels);
+  int srcStride = srcW * channels;
+  int destStride = (cellW + 1) * channels;
+
+  auto copyRow = [=](int srcRow, int destRow) {
+    int srcX = cellX * cellW;
+    int rowW = cellW;
+    int destX = 1;
+
+    if (srcX > 0) {
+      --srcX;
+      ++rowW;
+      --destX;
+    }
+
+    std::memcpy(dest + destRow * destStride + destX * channels,
+      src + srcRow * srcStride + srcX * channels, rowW * channels);
+  };
+
+  for (int row = -1; row < cellH; ++row) {
+    int srcRow = cellY * cellH + row;
+    if (srcRow > 0) {
+      copyRow(srcRow, row + 1);
+    }
   }
 }
 
@@ -45,19 +66,10 @@ void partitionHeightMap(const fs::path& filePath, uint32_t cellsX, uint32_t cell
 
   for (int j = 0; j < cellsY; ++j) {
     for (int i = 0; i < cellsX; ++i) {
-      int dx0 = i > 0 ? -1 : 0;
-      int dx1 = i + 1 < cellsX ? 1 : 0;
-      int dy0 = j > 0 ? -1 : 0;
-      int dy1 = j + 1 < cellsY ? 1 : 0;
-
-      int w = cellW - dx0 + dx1;
-      int h = cellH - dy0 + dy1;
-
       std::vector<unsigned char> cellData;
-      cellData.resize(w * h * channels);
+      cellData.resize((cellW + 1) * (cellH + 1) * channels);
 
-      copyRegion(data, width * channels, i * cellW + dx0, j * cellH + dy0, w, h, channels,
-        cellData.data());
+      copyRegion(data, width, height, i, j, cellW, cellH, channels, cellData.data());
 
       ss.str("");
       ss << std::setw(3) << std::setfill('0') << i << std::setw(3) << std::setfill('0') << j;
@@ -67,7 +79,9 @@ void partitionHeightMap(const fs::path& filePath, uint32_t cellsX, uint32_t cell
 
       std::cout << "Writing file " << outputPath << std::endl;
 
-      if (stbi_write_png(outputPath.c_str(), w, h, channels, cellData.data(), w * channels) == 0) {
+      if (stbi_write_png(outputPath.c_str(), cellW + 1, cellH + 1, channels, cellData.data(),
+        (cellW + 1) * channels) == 0) {
+
         throw std::runtime_error("Writing png failed");
       }
     }
