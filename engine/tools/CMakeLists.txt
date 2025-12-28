@@ -5,4 +5,5 @@ if(NOT (PLATFORM_WINDOWS AND CMAKE_BUILD_TYPE STREQUAL "Debug"))
   add_subdirectory(shader_compiler)
 endif()
 
+add_subdirectory(image_partitioner)
 add_subdirectory(world_editor)
