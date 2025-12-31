@@ -4,6 +4,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 #include <sstream>
+#include <vector>
+#include <cstring>
 #include <iostream> // TODO
 
 namespace fs = std::filesystem;

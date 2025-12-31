@@ -5,7 +5,9 @@
 #include <stb_image_write.h>
 #include <sstream>
 #include <fstream>
-#include <iostream> // TODO
+#include <vector>
+#include <cstring>
+#include <iostream>
 
 namespace fs = std::filesystem;
 

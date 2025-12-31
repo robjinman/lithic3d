@@ -146,6 +146,8 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
   ASSERT(heightMap.channels == 1,
     "Height map has " << heightMap.channels << " channels; expected 1");
 
+  assert(heightMap.width > 0);
+  assert(heightMap.height > 0);
   assert(heightMap.data.size() == heightMap.width * heightMap.height);
 
   float minHeight = metresToWorldUnits(m_config.minHeight);

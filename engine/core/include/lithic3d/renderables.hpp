@@ -13,6 +13,7 @@
 #include <optional>
 #include <array>
 #include <bitset>
+#include <cstring>
 
 namespace lithic3d
 {
