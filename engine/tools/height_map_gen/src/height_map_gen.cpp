@@ -11,21 +11,29 @@
 
 namespace fs = std::filesystem;
 
+namespace lithic3d
+{
+namespace tools
+{
+
 void genHeightMap(const std::filesystem::path& inputFilePath,
   const std::filesystem::path& outputFilePath, float maxElevation)
 {
+  const size_t tileWidth = 18000;
+  const size_t tileHeight = 18000;
+
   std::ifstream stream{inputFilePath, std::ios::binary};
 
-  std::vector<char> buffer(18000 * 4);
+  std::vector<char> buffer(tileWidth * sizeof(float));
   std::vector<float> data(buffer.size() / sizeof(float));
-  std::vector<char> image(18000 * 18000);
+  std::vector<char> image(tileWidth * tileHeight);
 
   size_t totalBytesRead = 0;
   while (!stream.eof()) {
     stream.read(buffer.data(), buffer.size());
 
     size_t bytesRead = stream.gcount();
-    size_t numFloatsRead = bytesRead / 4;
+    size_t numFloatsRead = bytesRead / sizeof(float);
 
     if (bytesRead == 0) {
       assert(stream.eof());
@@ -34,7 +42,7 @@ void genHeightMap(const std::filesystem::path& inputFilePath,
 
     std::memcpy(data.data(), buffer.data(), buffer.size());
 
-    size_t n = totalBytesRead / 4;
+    size_t n = totalBytesRead / sizeof(float);
 
     for (size_t i = 0; i < numFloatsRead; ++i) {
       float value = std::max(data[i], 0.f);
@@ -45,7 +53,11 @@ void genHeightMap(const std::filesystem::path& inputFilePath,
     totalBytesRead += bytesRead;
   }
 
+  // TODO: Logger
   std::cout << "Total bytes read: " << totalBytesRead << std::endl;
 
-  stbi_write_png(outputFilePath.c_str(), 18000, 18000, 1, image.data(), 18000);
+  stbi_write_png(outputFilePath.c_str(), tileWidth, tileHeight, 1, image.data(), tileWidth);
 }
+
+} // namespace tools
+} // namespace lithic3d

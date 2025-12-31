@@ -10,6 +10,13 @@
 
 namespace fs = std::filesystem;
 
+namespace lithic3d
+{
+namespace tools
+{
+namespace
+{
+
 // Copies cell (cellX, cellY) of size (cellW, cellH) into destination buffer. Cells overlap by 1
 // pixel in each direction, so destination buffer should be of size (cellW + 1, cellH + 1).
 void copyRegion(const unsigned char* src, int srcW, int srcH, int cellX, int cellY, int cellW,
@@ -133,6 +140,8 @@ void partitionSplatMap(const fs::path& filePath, uint32_t cellsX, uint32_t cells
   }
 }
 
+} // namespace
+
 void partitionImage(const fs::path& filePath, ImageType type, uint32_t cellsX, uint32_t cellsY,
   const fs::path& outputDir)
 {
@@ -141,3 +150,6 @@ void partitionImage(const fs::path& filePath, ImageType type, uint32_t cellsX, u
     case ImageType::SplatMap: return partitionSplatMap(filePath, cellsX, cellsY, outputDir);
   }
 }
+
+} // namespace tools
+} // namespace lithic3d

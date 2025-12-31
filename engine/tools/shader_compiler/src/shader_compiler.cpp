@@ -11,6 +11,8 @@ using namespace lithic3d::render;
 
 namespace lithic3d
 {
+namespace tools
+{
 namespace
 {
 
@@ -311,4 +313,5 @@ ShaderCompilerPtr createShaderCompiler(const fs::path& sourcesDir, const fs::pat
   return std::make_unique<ShaderCompilerImpl>(sourcesDir, outputDir);
 }
 
+} // namespace tools
 } // namespace lithic3d

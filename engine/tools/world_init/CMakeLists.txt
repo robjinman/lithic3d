@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(LIB_TARGET "image_partitioner_lib")
-set(EXE_TARGET "image_partitioner")
+set(LIB_TARGET "world_init_lib")
+set(EXE_TARGET "world_init")
 
-set(IMAGE_PARTITIONER_LIB_TARGET "${LIB_TARGET}" PARENT_SCOPE)
+set(wORLD_INIT_LIB_TARGET "${LIB_TARGET}" PARENT_SCOPE)
 
-find_package(Stb REQUIRED)
 find_package(Boost COMPONENTS program_options REQUIRED)
 
 file(GLOB LIB_SOURCES
@@ -21,7 +20,11 @@ add_library(${LIB_TARGET} ${LIB_SOURCES})
 target_include_directories(${LIB_TARGET}
   PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${Stb_INCLUDE_DIR}"
+)
+
+target_link_libraries(${LIB_TARGET}
+  PRIVATE
+    ${IMAGE_PARTITIONER_LIB_TARGET}
 )
 
 target_compile_options(${LIB_TARGET} PUBLIC "$<$<CONFIG:DEBUG>:${DEBUG_COMPILE_FLAGS}>")

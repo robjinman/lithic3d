@@ -7,20 +7,9 @@
 #include <set>
 
 namespace fs = std::filesystem;
-
 using namespace lithic3d;
-using namespace lithic3d::render;
 
-std::string shaderTypeName(lithic3d::render::ShaderType type)
-{
-  switch (type) {
-    case ShaderType::Vertex: return "vertex";
-    case ShaderType::Fragment: return "fragment";
-  }
-
-  return "";
-}
-
+// TODO: Use boost::program_options
 int main(int argc, char** argv)
 {
   if (argc != 4) {
@@ -36,7 +25,7 @@ int main(int argc, char** argv)
 
   std::filesystem::create_directories(outputDir);
 
-  auto compiler = createShaderCompiler(sourcesDir, outputDir);
+  auto compiler = tools::createShaderCompiler(sourcesDir, outputDir);
 
   auto data = readBinaryFile(manifestPath);
   auto specs = parseShaderManifest(data, *logger);
@@ -46,7 +35,7 @@ int main(int argc, char** argv)
   for (auto& entry : fs::directory_iterator{outputDir}) {
     auto& path = entry.path();
     if (path.extension() == ".spv") {
-      std::cout << "Deleting " << path << std::endl;
+      std::cout << "Deleting " << path << std::endl; // TODO: Use logger
       std::filesystem::remove(path);
     }
   }

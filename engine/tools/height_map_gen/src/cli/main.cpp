@@ -41,7 +41,7 @@ int main(int argc, const char** argv)
     float maxElevation = vm.at("max-elevation").as<float>();
     fs::path outputFilePath = vm.at("output-file").as<std::string>();
 
-    genHeightMap(inputFilePath, outputFilePath, maxElevation);
+    lithic3d::tools::genHeightMap(inputFilePath, outputFilePath, maxElevation);
   }
   catch (const std::exception& ex) {
     std::cerr << ex.what() << std::endl;

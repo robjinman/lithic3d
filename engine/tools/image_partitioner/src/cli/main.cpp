@@ -5,6 +5,8 @@
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
 
+using lithic3d::tools::ImageType;
+
 namespace
 {
 
@@ -57,7 +59,7 @@ int main(int argc, const char** argv)
     auto height = vm.at("height").as<uint32_t>();
     fs::path outputDir = vm.at("output-dir").as<std::string>();
 
-    partitionImage(inputFilePath, type, width, height, outputDir);
+    lithic3d::tools::partitionImage(inputFilePath, type, width, height, outputDir);
   }
   catch (const std::exception& ex) {
     std::cerr << ex.what() << std::endl;

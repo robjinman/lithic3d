@@ -5,6 +5,8 @@
 
 namespace lithic3d
 {
+namespace tools
+{
 
 class ShaderCompiler
 {
@@ -19,4 +21,5 @@ using ShaderCompilerPtr = std::unique_ptr<ShaderCompiler>;
 ShaderCompilerPtr createShaderCompiler(const std::filesystem::path& sourcesDir,
   const std::filesystem::path& outputDir);
 
+} // namespace tools
 } // namespace lithic3d
