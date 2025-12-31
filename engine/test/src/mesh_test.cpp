@@ -70,9 +70,12 @@ TEST_F(MeshTest, createVertexArray_single_vertex_all_attributes)
     },
     .flags = 0
   };
-  mesh.attributeBuffers.push_back(createBuffer<Vec3f>({{ 1, 2, 3 }}, BufferUsage::AttrPosition));
-  mesh.attributeBuffers.push_back(createBuffer<Vec3f>({{ 4, 5, 6 }}, BufferUsage::AttrNormal));
-  mesh.attributeBuffers.push_back(createBuffer<Vec2f>({{ 7, 8 }}, BufferUsage::AttrTexCoord));
+  mesh.attributeBuffers.emplace_back(Buffer{AlignedBytes{std::vector<Vec3f>{Vec3f{ 1, 2, 3 }}},
+    BufferUsage::AttrPosition});
+  mesh.attributeBuffers.emplace_back(Buffer{AlignedBytes{std::vector<Vec3f>{Vec3f{ 4, 5, 6 }}},
+    BufferUsage::AttrNormal});
+  mesh.attributeBuffers.emplace_back(Buffer{AlignedBytes{std::vector<Vec2f>{Vec2f{ 7, 8 }}},
+    BufferUsage::AttrTexCoord});
   auto vertexData = createVertexArray(mesh);
 
   struct Vertex
@@ -81,12 +84,18 @@ TEST_F(MeshTest, createVertexArray_single_vertex_all_attributes)
     Vec3f normal;
     Vec2f texCoord;
   };
-  auto vertices = fromBytes<Vertex>(vertexData);
 
-  ASSERT_EQ(1, vertices.size());
-  EXPECT_EQ(Vec3f({ 1, 2, 3 }), vertices[0].pos);
-  EXPECT_EQ(Vec3f({ 4, 5, 6 }), vertices[0].normal);
-  EXPECT_EQ(Vec2f({ 7, 8 }), vertices[0].texCoord);
+  Vertex vertex;
+  char* ptr = vertexData.data();
+  std::memcpy(&vertex.pos, ptr, sizeof(Vec3f));
+  ptr += sizeof(Vec3f);
+  std::memcpy(&vertex.normal, ptr, sizeof(Vec3f));
+  ptr += sizeof(Vec3f);
+  std::memcpy(&vertex.texCoord, ptr, sizeof(Vec2f));
+
+  EXPECT_EQ(Vec3f({ 1, 2, 3 }), vertex.pos);
+  EXPECT_EQ(Vec3f({ 4, 5, 6 }), vertex.normal);
+  EXPECT_EQ(Vec2f({ 7, 8 }), vertex.texCoord);
 }
 
 TEST_F(MeshTest, createVertexArray_two_vertices)
@@ -100,18 +109,27 @@ TEST_F(MeshTest, createVertexArray_two_vertices)
     },
     .flags = 0
   };
-  mesh.attributeBuffers.push_back(createBuffer<Vec3f>({
-    { 1, 2, 3 },
-    { 4, 5, 6 }
-  }, BufferUsage::AttrPosition));
-  mesh.attributeBuffers.push_back(createBuffer<Vec3f>({
-    { 7, 8, 9 },
-    { 10, 11, 12 }
-  }, BufferUsage::AttrNormal));
-  mesh.attributeBuffers.push_back(createBuffer<Vec2f>({
-    { 13, 14 },
-    { 15, 16 }
-  }, BufferUsage::AttrTexCoord));
+  mesh.attributeBuffers.emplace_back(Buffer{
+    AlignedBytes{std::vector<Vec3f>{
+      Vec3f{ 1, 2, 3 },
+      Vec3f{ 4, 5, 6 }
+    }},
+    BufferUsage::AttrPosition
+  });
+  mesh.attributeBuffers.emplace_back(Buffer{
+    AlignedBytes{std::vector<Vec3f>{
+      Vec3f{ 7, 8, 9 },
+      Vec3f{ 10, 11, 12 }
+    }},
+    BufferUsage::AttrNormal
+  });
+  mesh.attributeBuffers.emplace_back(Buffer{
+    AlignedBytes{std::vector<Vec2f>{
+      Vec2f{ 13, 14 },
+      Vec2f{ 15, 16 }
+    }},
+    BufferUsage::AttrTexCoord
+  });
   auto vertexData = createVertexArray(mesh);
 
   struct Vertex
@@ -120,9 +138,21 @@ TEST_F(MeshTest, createVertexArray_two_vertices)
     Vec3f normal;
     Vec2f texCoord;
   };
-  auto vertices = fromBytes<Vertex>(vertexData);
 
-  ASSERT_EQ(2, vertices.size());
+  std::array<Vertex, 2> vertices;
+  char* ptr = vertexData.data();
+  std::memcpy(&vertices[0].pos, ptr, sizeof(Vec3f));
+  ptr += sizeof(Vec3f);
+  std::memcpy(&vertices[0].normal, ptr, sizeof(Vec3f));
+  ptr += sizeof(Vec3f);
+  std::memcpy(&vertices[0].texCoord, ptr, sizeof(Vec2f));
+  ptr += sizeof(Vec2f);
+  std::memcpy(&vertices[1].pos, ptr, sizeof(Vec3f));
+  ptr += sizeof(Vec3f);
+  std::memcpy(&vertices[1].normal, ptr, sizeof(Vec3f));
+  ptr += sizeof(Vec3f);
+  std::memcpy(&vertices[1].texCoord, ptr, sizeof(Vec2f));
+
   EXPECT_EQ(Vec3f({ 1, 2, 3 }), vertices[0].pos);
   EXPECT_EQ(Vec3f({ 7, 8, 9 }), vertices[0].normal);
   EXPECT_EQ(Vec2f({ 13, 14 }), vertices[0].texCoord);

@@ -30,7 +30,7 @@ using render::MeshHandle;
 using render::RenderPass;
 using render::Buffer;
 using render::BufferUsage;
-using render::toBytes;
+using render::AlignedBytes;
 
 namespace
 {
@@ -54,40 +54,35 @@ MeshPtr quad()
     .flags{}
   };
   mesh->featureSet.flags.set(MeshFeatures::IsQuad);
-  mesh->attributeBuffers = {
-    Buffer{
-      .usage = BufferUsage::AttrPosition,
-      .data = toBytes(std::vector<Vec3f>{
-        { 0, 0, 0 },
-        { 1, 0, 0 },
-        { 1, 1, 0 },
-        { 0, 1, 0 }
-      })
-    },
-    Buffer{
-      .usage = BufferUsage::AttrNormal,
-      .data = toBytes(std::vector<Vec3f>{
-        { 0, 0, 1 },
-        { 0, 0, 1 },
-        { 0, 0, 1 },
-        { 0, 0, 1 }
-      })
-    },
-    Buffer{
-      .usage = BufferUsage::AttrTexCoord,
-      .data = toBytes(std::vector<Vec2f>{
-        { 0, 1 },
-        { 1, 1 },
-        { 1, 0 },
-        { 0, 0 }
-      })
-    }
-  };
-  mesh->indexBuffer = Buffer{
-    .usage = BufferUsage::Index,
-    .data = toBytes(std::vector<uint16_t>{
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{
+    std::vector<Vec3f>{
+      { 0, 0, 0 },
+      { 1, 0, 0 },
+      { 1, 1, 0 },
+      { 0, 1, 0 }
+    }}, BufferUsage::AttrPosition
+  });
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{
+    std::vector<Vec3f>{
+      { 0, 0, 1 },
+      { 0, 0, 1 },
+      { 0, 0, 1 },
+      { 0, 0, 1 }
+    }}, BufferUsage::AttrNormal
+  });
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{
+    std::vector<Vec2f>{
+      { 0, 1 },
+      { 1, 1 },
+      { 1, 0 },
+      { 0, 0 }
+    }}, BufferUsage::AttrTexCoord
+  });
+  mesh->indexBuffer = Buffer{AlignedBytes{
+    std::vector<uint16_t>{
       0, 1, 2, 0, 2, 3
-    })
+    }},
+    BufferUsage::Index
   };
 
   return mesh;
@@ -106,7 +101,7 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
 
   std::vector<Vec3f> positions;
   std::vector<Vec3f> normals;
-  std::vector<Vec2f> uVs;
+  std::vector<Vec2f> uvs;
   std::vector<uint16_t> indices;
 
   for (size_t i = 0; i < length; ++i) {
@@ -132,10 +127,10 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     float y0 = uvRect.y + glyphH * row;
     float y1 = y0 + glyphH;
 
-    uVs.push_back({ x0, y1 });
-    uVs.push_back({ x1, y1 });
-    uVs.push_back({ x1, y0 });
-    uVs.push_back({ x0, y0 });
+    uvs.push_back({ x0, y1 });
+    uvs.push_back({ x1, y1 });
+    uvs.push_back({ x1, y0 });
+    uvs.push_back({ x0, y0 });
 
     indices.insert(indices.end(), {
       static_cast<uint16_t>(i * 4),
@@ -157,24 +152,10 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     .flags{}
   };
   mesh->featureSet.flags.set(MeshFeatures::IsDynamicText, dynamic);
-  mesh->attributeBuffers = {
-    Buffer{
-      .usage = BufferUsage::AttrPosition,
-      .data = toBytes(positions)
-    },
-    Buffer{
-      .usage = BufferUsage::AttrNormal,
-      .data = toBytes(normals)
-    },
-    Buffer{
-      .usage = BufferUsage::AttrTexCoord,
-      .data = toBytes(uVs)
-    }
-  };
-  mesh->indexBuffer = Buffer{
-    .usage = BufferUsage::Index,
-    .data = toBytes(indices)
-  };
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{positions}, BufferUsage::AttrPosition});
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{normals}, BufferUsage::AttrNormal});
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{uvs}, BufferUsage::AttrTexCoord});
+  mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
 
   return mesh;
 }

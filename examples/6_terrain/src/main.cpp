@@ -125,8 +125,8 @@ void Demo::constructSkybox()
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
   mesh->featureSet.flags.set(MeshFeatures::IsSkybox, true);
-  uint16_t* indexData = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
-  std::reverse(indexData, indexData + mesh->indexBuffer.data.size() / sizeof(uint16_t));
+  auto indices = mesh->indexBuffer.data.data<uint16_t>();
+  std::reverse(indices.begin(), indices.end());
 
   auto material = std::make_unique<Material>();
   material->featureSet.flags.set(MaterialFeatures::HasCubeMap, true);

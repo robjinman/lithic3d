@@ -5,7 +5,7 @@
 
 using namespace lithic3d;
 
-class EcsTest : public testing::Test
+class ComponentStoreTest : public testing::Test
 {
   public:
     virtual void SetUp() override {}
@@ -61,7 +61,7 @@ class ExampleSystem
     static_assert(sizeof(CExampleData) == sizeof(CExampleView));
 };
 
-TEST_F(EcsTest, store_and_retrieve_single_component)
+TEST_F(ComponentStoreTest, store_and_retrieve_single_component)
 {
   ComponentStore componentStore;
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
@@ -130,7 +130,7 @@ struct ComponentD
   char a;
 };
 
-TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
+TEST_F(ComponentStoreTest, store_and_retrieve_2_components_of_1_entity)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -173,7 +173,7 @@ TEST_F(EcsTest, store_and_retrieve_2_components_of_1_entity)
   }
 }
 
-TEST_F(EcsTest, store_2_entities_with_single_component)
+TEST_F(ComponentStoreTest, store_2_entities_with_single_component)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -220,7 +220,7 @@ TEST_F(EcsTest, store_2_entities_with_single_component)
   }
 }
 
-TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
+TEST_F(ComponentStoreTest, store_2_entities_overlapping_archetypes)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -292,7 +292,7 @@ TEST_F(EcsTest, store_2_entities_overlapping_archetypes)
   EXPECT_TRUE(i == view.end());
 }
 
-TEST_F(EcsTest, get_entity_by_id)
+TEST_F(ComponentStoreTest, get_entity_by_id)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -327,7 +327,7 @@ TEST_F(EcsTest, get_entity_by_id)
   EXPECT_EQ(4.f, c.b);
 }
 
-TEST_F(EcsTest, remove_only_entity)
+TEST_F(ComponentStoreTest, remove_only_entity)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -359,7 +359,7 @@ TEST_F(EcsTest, remove_only_entity)
   EXPECT_EQ(0, group.numEntities());
 }
 
-TEST_F(EcsTest, cannot_modify_const_componentStore)
+TEST_F(ComponentStoreTest, cannot_modify_const_componentStore)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -406,7 +406,7 @@ TEST_F(EcsTest, cannot_modify_const_componentStore)
 }
 
 
-TEST_F(EcsTest, hasComponentForEntity)
+TEST_F(ComponentStoreTest, hasComponentForEntity)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -418,7 +418,7 @@ TEST_F(EcsTest, hasComponentForEntity)
   EXPECT_FALSE(componentStore.hasComponentForEntity<ComponentB>(entityId));
 }
 
-TEST_F(EcsTest, duplicates_ok)
+TEST_F(ComponentStoreTest, duplicates_ok)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;
@@ -435,7 +435,7 @@ TEST_F(EcsTest, duplicates_ok)
   ASSERT_EQ(2, (*compAView.begin()).components<ComponentA>().size());
 }
 
-TEST_F(EcsTest, order_invariant)
+TEST_F(ComponentStoreTest, order_invariant)
 {
   auto idGen = createEntityIdAllocator(NULL_ENTITY_ID);
   ComponentStore componentStore;

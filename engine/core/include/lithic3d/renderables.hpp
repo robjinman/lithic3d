@@ -19,22 +19,125 @@ namespace lithic3d
 namespace render
 {
 
-template<typename T>
-std::vector<char> toBytes(const std::vector<T>& data)
+class AlignedBytes
 {
-  const char* p = reinterpret_cast<const char*>(data.data());
-  size_t n = data.size() * sizeof(T);
-  return std::vector<char>(p, p + n);
-}
+  public:
+    template<typename T>
+    AlignedBytes(size_t numElements, T initialValue)
+      : m_numElements(numElements)
+      , m_elementSize(sizeof(T))
+    {
+      size_t n = sizeof(T) * numElements + alignof(T) - 1;
+      m_data.resize(n);
+      void* raw = m_data.data();
+      m_alignedPtr = reinterpret_cast<char*>(std::align(alignof(T), sizeof(T), raw, n));
 
-template<typename T>
-std::vector<T> fromBytes(const std::vector<char>& data)
-{
-  const T* p = reinterpret_cast<const T*>(data.data());
-  DBG_ASSERT(data.size() % sizeof(T) == 0, "Cannot convert vector");
-  size_t n = data.size() / sizeof(T);
-  return std::vector<T>(p, p + n);
-}
+      new (m_alignedPtr) T[numElements];
+
+      for (size_t i = 0; i < numElements; ++i) {
+        std::memcpy(m_alignedPtr + i * sizeof(T), &initialValue, sizeof(T));
+      }
+    }
+
+    template<typename T>
+    explicit AlignedBytes(const std::vector<T>& data)
+      : m_numElements(data.size())
+      , m_elementSize(sizeof(T))
+    {
+      size_t n = sizeof(T) * data.size() + alignof(T) - 1;
+      m_data.resize(n);
+      void* raw = m_data.data();
+      m_alignedPtr = reinterpret_cast<char*>(std::align(alignof(T), sizeof(T), raw, n));
+
+      std::memcpy(m_alignedPtr, data.data(), data.size() * sizeof(T));
+    }
+
+    AlignedBytes(const AlignedBytes&) = delete;
+
+    AlignedBytes(AlignedBytes&& mv)
+      : m_numElements(mv.m_numElements)
+      , m_elementSize(mv.m_elementSize)
+      , m_data(std::move(mv.m_data))
+      , m_alignedPtr(mv.m_alignedPtr)
+    {}
+
+    AlignedBytes& operator=(const AlignedBytes&) = delete;
+
+    AlignedBytes& operator=(AlignedBytes&& rhs)
+    {
+      m_numElements = rhs.m_numElements;
+      m_elementSize = rhs.m_elementSize;
+      m_data = std::move(rhs.m_data);
+      m_alignedPtr = rhs.m_alignedPtr;
+
+      return *this;
+    }
+
+    char* rawBytes()
+    {
+      return m_alignedPtr;
+    }
+
+    const char* rawBytes() const
+    {
+      return m_alignedPtr;
+    }
+
+    char* elementPtr(size_t i)
+    {
+      return m_alignedPtr + i * m_elementSize;
+    }
+
+    const char* elementPtr(size_t i) const
+    {
+      return m_alignedPtr + i * m_elementSize;
+    }
+
+    template<typename T>
+    T& element(size_t i)
+    {
+      return *reinterpret_cast<T*>(elementPtr(i));
+    }
+
+    template<typename T>
+    const T& element(size_t i) const
+    {
+      return *reinterpret_cast<const T*>(elementPtr(i));
+    }
+
+    size_t sizeInBytes() const
+    {
+      return m_numElements * m_elementSize;
+    }
+
+    size_t numElements() const
+    {
+      return m_numElements;
+    }
+
+    size_t elementSize() const
+    {
+      return m_elementSize;
+    }
+
+    template<typename T>
+    std::span<const T> data() const
+    {
+      return std::span<const T>(reinterpret_cast<const T*>(m_alignedPtr), m_numElements);
+    }
+
+    template<typename T>
+    std::span<T> data()
+    {
+      return std::span<T>(reinterpret_cast<T*>(m_alignedPtr), m_numElements);
+    }
+
+  private:
+    size_t m_numElements;
+    size_t m_elementSize;
+    std::vector<char> m_data;
+    char* m_alignedPtr = nullptr;
+};
 
 struct Texture
 {
@@ -147,27 +250,39 @@ struct MaterialHandle
   }
 };
 
-// TODO: Rethink mesh buffers. Need to comply with strict aliasing and alignment rules.
-
-struct Buffer
+class Buffer
 {
-  BufferUsage usage;
-  std::vector<char> data;
+  public:
+    Buffer()
+      : usage(BufferUsage::None)
+      , data{1, 0}
+    {}
 
-  size_t numElements() const
-  {
-    return data.size() / getAttributeSize(usage);
-  }
+    Buffer(AlignedBytes&& data, BufferUsage usage)
+      : usage(usage)
+      , data(std::move(data))
+    {}
+
+    Buffer(const Buffer&) = delete;
+
+    Buffer(Buffer&& mv)
+      : usage(mv.usage)
+      , data(std::move(mv.data))
+    {}
+
+    Buffer& operator=(const Buffer&) = delete;
+
+    Buffer& operator=(Buffer&& rhs)
+    {
+      usage = rhs.usage;
+      data = std::move(rhs.data);
+
+      return *this;
+    }
+
+    BufferUsage usage;
+    AlignedBytes data;
 };
-
-template<typename T>
-Buffer createBuffer(const std::vector<T>& data, BufferUsage usage)
-{
-  return Buffer{
-    .usage = usage,
-    .data = toBytes(data)
-  };
-}
 
 inline size_t calcOffsetInVertex(const VertexLayout& layout, BufferUsage attribute)
 {
@@ -209,44 +324,9 @@ struct BitmapFont
   Rectf textureSection;
 };
 
-template<typename T>
-std::span<const T> getConstBufferData(const Buffer& buffer)
-{
-  size_t attributeSize = getAttributeSize(buffer.usage);
-
-  DBG_ASSERT(buffer.data.size() % attributeSize == 0, "Buffer has unexpected size");
-
-  return std::span<const T>(
-    reinterpret_cast<const T*>(buffer.data.data()),
-    buffer.data.size() / attributeSize
-  );
-}
-
-template<typename T>
-std::span<T> getBufferData(Buffer& buffer)
-{
-  auto span = getConstBufferData<T>(buffer);
-  return std::span<T>(const_cast<T*>(span.data()), span.size());
-}
-
-inline std::span<const uint16_t> getConstIndexBufferData(const Mesh& mesh)
-{
-  return std::span<const uint16_t>(
-    reinterpret_cast<const uint16_t*>(mesh.indexBuffer.data.data()),
-    mesh.indexBuffer.data.size() / sizeof(uint16_t)
-  );
-}
-
-inline std::span<uint16_t> getIndexBufferData(Mesh& mesh)
-{
-  auto span = getConstIndexBufferData(mesh);
-  return std::span<uint16_t>(const_cast<uint16_t*>(span.data()), span.size());
-}
-
 TexturePtr loadRgbaTexture(const std::vector<char>& data);
 TexturePtr loadGreyscaleTexture(const std::vector<char>& data);
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize);
-MeshPtr mergeMeshes(const Mesh& A, const Mesh& B);
 std::vector<char> createVertexArray(const Mesh& mesh);
 
 } // namespace render

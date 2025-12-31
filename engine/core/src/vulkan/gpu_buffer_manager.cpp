@@ -111,8 +111,8 @@ class GpuBufferManagerImpl : public GpuBufferManager
       VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue, Logger& logger);
 
     GpuBufferPtr createUbo(size_t size) override;
-    GpuBufferPtr createVertexBuffer(const std::vector<char>& data) override;
-    GpuBufferPtr createIndexBuffer(const std::vector<char>& data) override;
+    GpuBufferPtr createVertexBuffer(const char* data, size_t size) override;
+    GpuBufferPtr createIndexBuffer(const char* data, size_t size) override;
     GpuBufferPtr createInstanceBuffer(size_t size) override;
     GpuBufferPtr createStagingBuffer(size_t size) override;
     GpuImagePtr createCubeMap(const std::array<TexturePtr, 6>& textures) override;
@@ -136,7 +136,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
 
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-    GpuBufferPtr createDeviceBuffer(const std::vector<char>& data, VkBufferUsageFlags usage);
+    GpuBufferPtr createDeviceBuffer(const char* data, size_t size, VkBufferUsageFlags usage);
     GpuBufferPtr createDeviceBuffer(size_t size, VkBufferUsageFlags usage);
 
     void transitionImageLayout(GpuImageImpl& image, VkImageLayout oldLayout,
@@ -284,15 +284,13 @@ GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
   return buffer;
 }
 
-GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const std::vector<char>& data,
+GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const char* data, size_t size,
   VkBufferUsageFlags usage)
 {
-  VkDeviceSize size = data.size();
-
   auto stagingBufferPtr = createStagingBuffer(size);
   auto& stagingBuffer = dynamic_cast<GpuBufferImpl&>(*stagingBufferPtr);
 
-  memcpy(stagingBuffer.mappedAddress(), data.data(), size);
+  memcpy(stagingBuffer.mappedAddress(), data, size);
   VK_CHECK(vmaFlushAllocation(m_allocator, stagingBuffer.allocation, 0, size),
     "Failed to flush memory ranges");
 
@@ -338,16 +336,16 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(size_t size, VkBufferUsage
   return buffer;
 }
 
-GpuBufferPtr GpuBufferManagerImpl::createVertexBuffer(const std::vector<char>& data)
+GpuBufferPtr GpuBufferManagerImpl::createVertexBuffer(const char* data, size_t size)
 {
   auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-  return createDeviceBuffer(data, usage);
+  return createDeviceBuffer(data, size, usage);
 }
 
-GpuBufferPtr GpuBufferManagerImpl::createIndexBuffer(const std::vector<char>& data)
+GpuBufferPtr GpuBufferManagerImpl::createIndexBuffer(const char* data, size_t size)
 {
   auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-  return createDeviceBuffer(data, usage);
+  return createDeviceBuffer(data, size, usage);
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createInstanceBuffer(size_t size)

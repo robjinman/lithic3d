@@ -330,10 +330,13 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
+  auto vertexArray = createVertexArray(*mesh);
+
   auto data = std::make_unique<MeshData>();
   data->mesh = std::move(mesh);
-  data->vertexBuffer = m_bufferManager.createVertexBuffer(createVertexArray(*data->mesh));
-  data->indexBuffer = m_bufferManager.createIndexBuffer(data->mesh->indexBuffer.data);
+  data->vertexBuffer = m_bufferManager.createVertexBuffer(vertexArray.data(), vertexArray.size());
+  data->indexBuffer = m_bufferManager.createIndexBuffer(data->mesh->indexBuffer.data.rawBytes(),
+    data->mesh->indexBuffer.data.sizeInBytes());
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsInstanced)) {
     data->instanceBuffer =
       m_bufferManager.createInstanceBuffer(data->mesh->maxInstances * sizeof(MeshInstance));
@@ -429,7 +432,7 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
       mesh->indexBuffer->vkBuffer() : VK_NULL_HANDLE,
     .instanceBuffer = mesh->instanceBuffer != nullptr ?
       mesh->instanceBuffer->vkBuffer() : VK_NULL_HANDLE,
-    .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.size() / sizeof(uint16_t)),
+    .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.numElements()),
     .numInstances = mesh->numInstances
   };
 }

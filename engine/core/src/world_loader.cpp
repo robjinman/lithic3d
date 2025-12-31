@@ -114,7 +114,7 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory
   TerrainConfig terrainConfig{
     .world = "world",
     .minHeight = 0.f,
-    .maxHeight = 20.f,
+    .maxHeight = 1.4f,
     .cellWidth = worldUnitsToMetres(m_worldInfo.cellWidth),
     .cellHeight = worldUnitsToMetres(m_worldInfo.cellHeight),
   };

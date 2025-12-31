@@ -23,9 +23,23 @@ using render::MeshHandle;
 namespace MaterialFeatures = render::MaterialFeatures;
 using render::MaterialFeatureSet;
 using render::MaterialHandle;
+using render::AlignedBytes;
 
 namespace
 {
+
+AlignedBytes createAlignedBuffer(BufferUsage usage, size_t numElements)
+{
+  switch (usage) {
+    case BufferUsage::AttrPosition: return AlignedBytes(numElements, Vec3f{});
+    case BufferUsage::AttrNormal: return AlignedBytes(numElements, Vec3f{});
+    case BufferUsage::AttrTexCoord: return AlignedBytes(numElements, Vec2f{});
+    case BufferUsage::AttrJointIndices: return AlignedBytes(numElements, uint8_t{});
+    case BufferUsage::AttrJointWeights: return AlignedBytes(numElements, float{});
+    // TODO
+    default: EXCEPTION("Error creating aligned buffer");
+  }
+}
 
 template<typename T>
 T convert(const char* value, gltf::ComponentType dataType)
@@ -46,6 +60,8 @@ T convert(const char* value, gltf::ComponentType dataType)
     default: EXCEPTION("Cannot convert data type");
   }
 }
+
+// TODO: Remove n and instantiate Vector<T, n> instead
 
 template<typename T>
 size_t convert(const char* src, gltf::ComponentType srcType, uint32_t n, char* dest)
@@ -144,9 +160,9 @@ void computeMeshTangents(Mesh& mesh)
   auto& posBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrPosition);
   auto& uvBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrTexCoord);
 
-  auto positions = render::getConstBufferData<Vec3f>(posBuffer);
-  auto texCoords = render::getConstBufferData<Vec2f>(uvBuffer);
-  auto indices = getConstBufferData<uint16_t>(mesh.indexBuffer);
+  auto positions = posBuffer.data.data<Vec3f>();
+  auto texCoords = uvBuffer.data.data<Vec2f>();
+  auto indices = mesh.indexBuffer.data.data<uint16_t>();
 
   DBG_ASSERT(positions.size() == texCoords.size(), "Expected equal number of positions and UVs");
   DBG_ASSERT(indices.size() % 3 == 0, "Expected indices buffer size to be multiple of 3");
@@ -192,7 +208,7 @@ void computeMeshTangents(Mesh& mesh)
     tangents[cIdx] += T;
   }
 
-  mesh.attributeBuffers.push_back(createBuffer(tangents, BufferUsage::AttrTangent));
+  mesh.attributeBuffers.push_back(Buffer{AlignedBytes{tangents}, BufferUsage::AttrTangent});
 }
 
 MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
@@ -256,17 +272,15 @@ render::MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
 
   for (const auto& bufferDesc : meshDesc.buffers) {
     if (bufferDesc.type == gltf::ElementType::VertexIndex) {
-      mesh->indexBuffer.usage = BufferUsage::Index;
-      mesh->indexBuffer.data.resize(bufferDesc.byteLength);
-      copyToBuffer(dataBuffers, mesh->indexBuffer.data.data(), bufferDesc);
+      std::vector<uint16_t> indices(bufferDesc.size);
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(indices.data()), bufferDesc);
+      mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
     }
     else if (gltf::isAttribute(bufferDesc.type)) {
       auto usage = getUsage(bufferDesc.type);
-      Buffer buffer;
-      buffer.usage = usage;
-      buffer.data.resize(bufferDesc.byteLength);
+      Buffer buffer{createAlignedBuffer(usage, bufferDesc.size), usage};
 
-      copyToBuffer(dataBuffers, buffer.data.data(), bufferDesc);
+      copyToBuffer(dataBuffers, buffer.data.rawBytes(), bufferDesc);
 
       size_t index = std::distance(attributes.begin(), attributes.find(bufferDesc.type));
       mesh->attributeBuffers[index] = std::move(buffer);

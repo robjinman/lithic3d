@@ -25,6 +25,8 @@ using render::Material;
 using render::MaterialHandle;
 using render::Texture;
 using render::BufferUsage;
+using render::Buffer;
+using render::AlignedBytes;
 
 namespace
 {
@@ -45,8 +47,8 @@ std::string cellName(uint32_t x, uint32_t y)
 
 std::vector<float> constructHeightMap(const Mesh& mesh)
 {
-  size_t n = mesh.attributeBuffers[0].numElements();
-  auto positions = reinterpret_cast<const Vec3f*>(mesh.attributeBuffers[0].data.data());
+  size_t n = mesh.attributeBuffers[0].data.numElements();
+  auto positions = mesh.attributeBuffers[0].data.data<Vec3f>();
 
   std::vector<float> heightMap(n);
 
@@ -132,6 +134,8 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
     .heightMap = region.heightMap
   };
 
+  // TODO
+
   return { id };
 }
 
@@ -150,41 +154,15 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
   float cellHeight = metresToWorldUnits(m_config.cellHeight);
   float heightRange = maxHeight - minHeight;
 
-  MeshPtr mesh = std::make_unique<Mesh>();
-
-  mesh->attributeBuffers = {
-    render::Buffer{
-      .usage = BufferUsage::AttrPosition,
-      .data = {}
-    },
-    render::Buffer{
-      .usage = BufferUsage::AttrNormal,
-      .data = {}
-    },
-    render::Buffer{
-      .usage = BufferUsage::AttrTexCoord,
-      .data = {}
-    }
-  };
-  mesh->indexBuffer = render::Buffer{
-    .usage = BufferUsage::Index,
-    .data = {}
-  };
-
   uint32_t numVertices = heightMap.width * heightMap.height;
   size_t numIndices = 6 * (heightMap.width - 1) * (heightMap.height - 1);
 
-  mesh->attributeBuffers[0].data.resize(numVertices * sizeof(Vec3f));
-  mesh->attributeBuffers[1].data.resize(numVertices * sizeof(Vec3f));
-  mesh->attributeBuffers[2].data.resize(numVertices * sizeof(Vec2f));
+  std::vector<Vec3f> positions(numVertices);
+  std::vector<Vec3f> normals(numVertices);
+  std::vector<Vec2f> texCoords(numVertices);
+  std::vector<uint16_t> indices(numIndices);
 
-  mesh->indexBuffer.data.resize(numIndices * sizeof(uint16_t));
-
-  auto positions = reinterpret_cast<Vec3f*>(mesh->attributeBuffers[0].data.data());
-  auto normals = reinterpret_cast<Vec3f*>(mesh->attributeBuffers[1].data.data());
-  auto texCoords = reinterpret_cast<Vec2f*>(mesh->attributeBuffers[2].data.data());
-
-  auto indices = reinterpret_cast<uint16_t*>(mesh->indexBuffer.data.data());
+  MeshPtr mesh = std::make_unique<Mesh>();
 
   mesh->featureSet = render::MeshFeatureSet{
     .vertexLayout = {
@@ -235,6 +213,11 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
       normals[i] = AB.cross(AD).normalise();
     }
   }
+
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{positions}, BufferUsage::AttrPosition});
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{normals}, BufferUsage::AttrNormal});
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{texCoords}, BufferUsage::AttrTexCoord});
+  mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
 
   return mesh;
 }
