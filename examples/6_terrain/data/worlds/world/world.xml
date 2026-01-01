@@ -1,2 +1,1 @@
-<world grid-width="4" grid-height="4" cell-width="50.0" cell-height="50.0">
-</world>
+<world grid-width="4" grid-height="4" cell-width="100" cell-height="100" min-elevation="0" max-elevation="5.0"></world>

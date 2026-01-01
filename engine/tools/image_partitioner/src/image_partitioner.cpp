@@ -117,6 +117,8 @@ void partitionSplatMap(const fs::path& filePath, uint32_t cellsX, uint32_t cells
     throw std::runtime_error("Splat map height must be divisible by number of cells");
   }
 
+  int stride = width * channels;
+
   int cellW = width / cellsX;
   int cellH = height / cellsY;
 
@@ -130,8 +132,9 @@ void partitionSplatMap(const fs::path& filePath, uint32_t cellsX, uint32_t cells
       fs::path outputPath = outputDir / ss.str() / "splat_map.png";
       fs::create_directories(outputDir / ss.str());
 
-      int stride = cellW * channels;
-      int offset = j * stride + i * channels;
+      int offset = j * cellH * stride + i * cellW * channels;
+
+      std::cout << "Writing file " << outputPath.string() << std::endl;
 
       if (stbi_write_png(outputPath.c_str(), cellW, cellH, channels, data + offset, stride) == 0) {
         throw std::runtime_error("Writing png failed");

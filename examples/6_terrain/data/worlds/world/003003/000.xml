@@ -1,9 +1,9 @@
 <cell-slice>
   <terrain>
     <splat-map>
+      <texture file="sand.png"/>
       <texture file="grass.png"/>
       <texture file="dirt.png"/>
-      <texture file="sand.png"/>
       <texture file="snow.png"/>
     </splat-map>
   </terrain>

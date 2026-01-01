@@ -14,6 +14,8 @@ struct WorldInfo
   uint32_t gridHeight = 0;
   float cellWidth = 0;
   float cellHeight = 0;
+  float minElevation = 0.f;
+  float maxElevation = 0.f;
 };
 
 class WorldLoader

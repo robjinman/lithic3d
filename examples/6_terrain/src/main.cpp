@@ -1,4 +1,3 @@
-#include "player.hpp"
 #include <lithic3d/lithic3d.hpp>
 
 namespace fs = std::filesystem;
@@ -9,10 +8,8 @@ using namespace lithic3d::render;
 namespace
 {
 
-const float GRAVITY_STRENGTH = 3.5f;
 const float MOUSE_LOOK_SPEED = 3.5f;
-const float GRAVITATIONAL_CONSTANT =
-  GRAVITY_STRENGTH * metresToWorldUnits(9.8f) / (TICKS_PER_SECOND * TICKS_PER_SECOND);
+const float MOVEMENT_SPEED = metresToWorldUnits(60.f);
 
 class Demo : public Game
 {
@@ -40,21 +37,17 @@ class Demo : public Game
     WorldGridPtr m_worldGrid;
     FactoryPtr m_factory;
     EntityFactoryPtr m_entityFactory;
-    PlayerPtr m_player;
     EntityId m_light;
     EntityId m_caption;
     InputState m_inputState;  // TODO: Engine to maintain input state?
     Vec2f m_leftStickDelta;
     Vec2f m_mouseDelta;
-    float m_playerVerticalVelocity = 0.f;
-    bool m_freeflyMode = false;
 
     void constructSkybox();
     EntityId constructLight();
     EntityId constructCaption();
     void processMouseInput();
     void processKeyboardInput();
-    void gravity();
 };
 
 Demo::Demo(Engine& engine)
@@ -77,13 +70,12 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
-  m_player = createPlayer(m_engine.ecs().system<SysRender3d>().camera());
-
   constructSkybox();
   m_light = constructLight();
   m_caption = constructCaption();
 
-  m_player->setPosition({ 0.5f, 0.f, 0.5f });
+  Vec3f pos{ 25.f, 4.f, 30.f };
+  m_engine.ecs().system<SysRender3d>().camera().setPosition(metresToWorldUnits(pos));
 }
 
 EntityId Demo::constructLight()
@@ -203,10 +195,12 @@ EntityId Demo::constructCaption()
 
 void Demo::processKeyboardInput()
 {
+  auto& camera = m_engine.ecs().system<SysRender3d>().camera();
+
   Vec3f direction{};
-  float speed = m_player->getSpeed();
-  const auto forward = m_player->getDirection();
-  const auto strafe = m_player->getDirection().cross(Vec3f{0, 1, 0});
+  float speed = MOVEMENT_SPEED;
+  const auto forward = camera.getDirection();
+  const auto strafe = forward.cross(Vec3f{0, 1, 0});
 
   if (m_leftStickDelta != Vec2f{}) {
     float threshold = 0.4f;
@@ -215,7 +209,7 @@ void Demo::processKeyboardInput()
       float x = m_leftStickDelta[0];
       float y = -m_leftStickDelta[1];
       direction = forward * y + strafe * x;
-      speed = m_leftStickDelta.magnitude() * m_player->getSpeed();
+      speed = m_leftStickDelta.magnitude() * MOVEMENT_SPEED;
     }
 
     m_leftStickDelta = Vec2f{};
@@ -234,54 +228,31 @@ void Demo::processKeyboardInput()
       direction -= strafe;
     }
   }
-
-  if (m_inputState.keysPressed.contains(KeyboardKey::E)) {
-    if (m_player->getPosition()[1] == 0) {
-      m_playerVerticalVelocity = sqrt(m_player->getJumpHeight() * 2.f * GRAVITATIONAL_CONSTANT);
-    }
-  }
   
   if (direction != Vec3f{}) {
-    if (!m_freeflyMode) {
-      direction[1] = 0;
-    }
-
     direction = direction.normalise();
     auto delta = direction * speed / static_cast<float>(TICKS_PER_SECOND);
 
-    m_player->translate(delta);
+    camera.translate(delta);
   }
 }
 
 void Demo::processMouseInput()
 {
-  m_player->rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
+  auto& camera = m_engine.ecs().system<SysRender3d>().camera();
+
+  camera.rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
   m_mouseDelta = Vec2f{};
-}
-
-void Demo::gravity()
-{
-  m_player->translate(Vec3f{ 0, m_playerVerticalVelocity, 0 });
-  float altitude = m_player->getPosition()[1];
-
-  if (altitude > 0) {
-    m_playerVerticalVelocity =
-      std::max(m_playerVerticalVelocity - GRAVITATIONAL_CONSTANT, -altitude);
-  }
-  else if (altitude == 0) {
-    m_playerVerticalVelocity = 0;
-  }
 }
 
 bool Demo::update()
 {
+  auto& camera = m_engine.ecs().system<SysRender3d>().camera();
+
   processKeyboardInput();
   processMouseInput();
-  if (!m_freeflyMode) {
-    gravity();
-  }
   m_engine.update(m_inputState);
-  m_worldGrid->update(m_player->getPosition());
+  m_worldGrid->update(camera.getPosition());
 
   return true;
 }
@@ -293,10 +264,6 @@ void Demo::onKeyDown(KeyboardKey key)
   switch (key) {
     case KeyboardKey::F: {
       m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
-      break;
-    }
-    case KeyboardKey::Space: {
-      m_freeflyMode = !m_freeflyMode;
       break;
     }
     default: break;

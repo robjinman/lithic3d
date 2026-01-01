@@ -110,11 +110,10 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory
 
   loadWorldInfo(*worldXml);
 
-  // TODO
   TerrainConfig terrainConfig{
-    .world = "world",
-    .minHeight = 0.f,
-    .maxHeight = 1.4f,
+    .world = m_worldName,
+    .minHeight = worldUnitsToMetres(m_worldInfo.minElevation),
+    .maxHeight = worldUnitsToMetres(m_worldInfo.maxElevation),
     .cellWidth = worldUnitsToMetres(m_worldInfo.cellWidth),
     .cellHeight = worldUnitsToMetres(m_worldInfo.cellHeight),
   };
@@ -207,7 +206,9 @@ void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
     .gridWidth = static_cast<uint32_t>(std::stoi(node.attribute("grid-width"))),
     .gridHeight = static_cast<uint32_t>(std::stoi(node.attribute("grid-height"))),
     .cellWidth = metresToWorldUnits(std::stof(node.attribute("cell-width"))),
-    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell-height")))
+    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell-height"))),
+    .minElevation = metresToWorldUnits(std::stof(node.attribute("min-elevation"))),
+    .maxElevation = metresToWorldUnits(std::stof(node.attribute("max-elevation")))
   };
 }
 
