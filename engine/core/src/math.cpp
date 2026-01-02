@@ -239,6 +239,21 @@ Mat4x4f orthographic(float fovX, float fovY, float n, float f)
   return m;
 }
 
+Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
+{
+  Mat4x4f m;
+
+  m.set(0, 0, 2.f / (r - l));
+  m.set(0, 3, (r + l) / (l - r));
+  m.set(1, 1, 2.f / (b - t));
+  m.set(1, 3, (b + t) / (b - t));
+  m.set(2, 2, 1.f / (f - n));
+  m.set(2, 3, -n / (f - n));
+  m.set(3, 3, 1.f);
+
+  return m;
+}
+
 Mat2x2f inverse(const Mat2x2f& M)
 {
   return adjoint(M) / determinant(M);

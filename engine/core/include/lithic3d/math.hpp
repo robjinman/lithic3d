@@ -670,6 +670,7 @@ using Recti = Rect<int>;
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
 Mat4x4f perspective(float fovX, float fovY, float near, float far);
 Mat4x4f orthographic(float fovX, float fovY, float n, float f);
+Mat4x4f orthographic(float l, float r, float t, float b, float n, float f);
 bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
 bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, float radius);

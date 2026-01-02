@@ -36,7 +36,7 @@ struct DLight
   Vec3f colour;
   float ambient = 0.f;
   float specular = 0.f;
-  float zFar = 1500.f; // TODO
+  float zFar = metresToWorldUnits(100.f);
 };
 
 using DLightPtr = std::unique_ptr<DLight>;

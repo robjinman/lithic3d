@@ -134,7 +134,7 @@ void partitionSplatMap(const fs::path& filePath, uint32_t cellsX, uint32_t cells
 
       int offset = j * cellH * stride + i * cellW * channels;
 
-      std::cout << "Writing file " << outputPath.string() << std::endl;
+      std::cout << "Writing file " << outputPath << std::endl;
 
       if (stbi_write_png(outputPath.c_str(), cellW, cellH, channels, data + offset, stride) == 0) {
         throw std::runtime_error("Writing png failed");

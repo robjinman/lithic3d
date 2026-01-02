@@ -96,10 +96,21 @@ EntityId Demo::constructLight()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
+  auto& resourceLoader = m_engine.renderResourceLoader();
+
+  auto lightModel = std::make_unique<Submodel>();
+  auto lightMesh = cuboid(metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f }), { 1.f, 1.f });
+  auto lightMaterial = std::make_unique<Material>();
+  lightMaterial->colour = { 1.f, 0.f, 0.f, 1.f };
+  lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
+  lightModel->material = resourceLoader.loadMaterialAsync(std::move(lightMaterial)).wait();
+
   auto light = std::make_unique<DLight>();
   light->colour = { 1.f, 1.f, 1.f };
   light->ambient = 0.5f;
   light->specular = 1.0f;
+  light->zFar = metresToWorldUnits(100.f);
+  light->submodels.push_back(std::move(lightModel));
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
