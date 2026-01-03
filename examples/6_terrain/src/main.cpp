@@ -37,6 +37,7 @@ class Demo : public Game
     WorldGridPtr m_worldGrid;
     FactoryPtr m_factory;
     EntityFactoryPtr m_entityFactory;
+    EntityId m_sun;
     EntityId m_light;
     EntityId m_caption;
     InputState m_inputState;  // TODO: Engine to maintain input state?
@@ -44,6 +45,7 @@ class Demo : public Game
     Vec2f m_mouseDelta;
 
     void constructSkybox();
+    EntityId constructSun();
     EntityId constructLight();
     EntityId constructCaption();
     void processMouseInput();
@@ -71,6 +73,7 @@ Demo::Demo(Engine& engine)
     m_engine.renderResourceLoader());
 
   constructSkybox();
+  m_sun = constructSun();
   m_light = constructLight();
   m_caption = constructCaption();
 
@@ -78,7 +81,7 @@ Demo::Demo(Engine& engine)
   m_engine.ecs().system<SysRender3d>().camera().setPosition(metresToWorldUnits(pos));
 }
 
-EntityId Demo::constructLight()
+EntityId Demo::constructSun()
 {
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
@@ -98,17 +101,60 @@ EntityId Demo::constructLight()
 
   auto& resourceLoader = m_engine.renderResourceLoader();
 
+  Vec4f colour = { 1.f, 1.f, 1.f, 1.f };
+
   auto lightModel = std::make_unique<Submodel>();
   auto lightMesh = cuboid(metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f }), { 1.f, 1.f });
   auto lightMaterial = std::make_unique<Material>();
-  lightMaterial->colour = { 1.f, 0.f, 0.f, 1.f };
+  lightMaterial->colour = colour;
   lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
   lightModel->material = resourceLoader.loadMaterialAsync(std::move(lightMaterial)).wait();
 
   auto light = std::make_unique<DLight>();
-  light->colour = { 1.f, 1.f, 1.f };
+  light->colour = colour.sub<3>();
   light->ambient = 0.5f;
   light->specular = 1.0f;
+  light->zFar = metresToWorldUnits(100.f);
+  light->submodels.push_back(std::move(lightModel));
+
+  m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
+
+  return id;
+}
+
+EntityId Demo::constructLight()
+{
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
+
+  float pitch = degreesToRadians(-45.f);
+  float yaw = degreesToRadians(180.f);
+  auto m = createTransform(metresToWorldUnits(Vec3f{ 20.f, 5.f, 30.f }), Vec3f{ pitch, yaw, 0 });
+
+  DSpatial spatial{
+    .transform = m,
+    .parent = m_engine.ecs().system<SysSpatial>().root(),
+    .enabled = true,
+    .aabb{}
+  };
+
+  m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
+
+  auto& resourceLoader = m_engine.renderResourceLoader();
+
+  Vec4f colour = { 1.f, 0.2f, 0.f, 1.f };
+
+  auto lightModel = std::make_unique<Submodel>();
+  auto lightMesh = cuboid(metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f }), { 1.f, 1.f });
+  auto lightMaterial = std::make_unique<Material>();
+  lightMaterial->colour = colour;
+  lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
+  lightModel->material = resourceLoader.loadMaterialAsync(std::move(lightMaterial)).wait();
+
+  auto light = std::make_unique<DLight>();
+  light->colour = colour.sub<3>();
+  light->ambient = 0.3f;
+  light->specular = 0.4f;
   light->zFar = metresToWorldUnits(100.f);
   light->submodels.push_back(std::move(lightModel));
 
