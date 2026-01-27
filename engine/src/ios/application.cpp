@@ -55,7 +55,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto platformPaths = createPlatformPaths(bundlePath, appSupportPath);
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
-  auto audioSystem = createAudioSystem(*fileSystem);
+  auto audioSystem = createAudioSystem(*fileSystem, *logger);
   auto resourceManager = createResourceManager(*logger);
 
   render::ScreenMargins margins{

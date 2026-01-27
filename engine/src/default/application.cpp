@@ -161,7 +161,7 @@ Application::Application()
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
   auto windowDelegate = createWindowDelegate(*m_window);
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  auto audioSystem = createAudioSystem(*fileSystem);
+  auto audioSystem = createAudioSystem(*fileSystem, *logger);
   auto resourceManager = createResourceManager(*logger);
   auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
     {});

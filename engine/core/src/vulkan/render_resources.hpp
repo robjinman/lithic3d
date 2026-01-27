@@ -14,7 +14,7 @@ class WorkQueue;
 namespace render
 {
 
-const uint32_t MAX_LIGHTS = 4;
+const uint32_t MAX_POINT_LIGHTS = 4;
 const uint32_t SHADOW_MAP_W = 2048;
 const uint32_t SHADOW_MAP_H = 2048;
 const uint32_t MAX_JOINTS = 128;
@@ -46,8 +46,9 @@ struct Light
 struct LightingUbo
 {
   Vec3f viewPos;
-  uint32_t numLights;
-  Light lights[MAX_LIGHTS];
+  uint32_t numPointLights;
+  Light lights[MAX_POINT_LIGHTS];
+  Light directionalLight;
 };
 
 struct MaterialUbo

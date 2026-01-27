@@ -127,6 +127,7 @@ struct RenderPassState
   std::map<RenderGraph::Key, RenderNode*> lookup;
   Vec3f viewPos;
   Mat4x4f viewMatrix;
+  Mat4x4f projectionMatrix;
 };
 
 struct LightState
@@ -136,13 +137,14 @@ struct LightState
   Vec3f colour;
   float ambient;
   float specular;
-  float zFar;
+//  float zFar;
 };
 
 struct LightingState
 {
-  uint32_t numLights;
-  LightState lights[MAX_LIGHTS];
+  uint32_t numPointLights;
+  LightState pointLights[MAX_POINT_LIGHTS];
+  LightState directionalLight;
 };
 
 struct FrameState
@@ -167,12 +169,13 @@ class RendererImpl : public Renderer
     void onResize() override;
     double frameRate() const override;
     // TODO: Is this just the perspective projection? What about orthographic?
-    const ViewParams& getViewParams() const override;
+    //const ViewParams& getViewParams() const override;
     Vec2i getScreenSize() const override;
     Vec2i getViewportSize() const override;
+    float getViewportRotation() const override;
     const ScreenMargins& getMargins() const override;
     void checkError() const override;
-    Mat4x4f projectionMatrix() const override;
+    //Mat4x4f projectionMatrix() const override;
 
     // Initialisation
     //
@@ -200,7 +203,8 @@ class RendererImpl : public Renderer
     // Per frame draw functions
     //
     void beginFrame(const Vec4f& clearColour) override;
-    void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix) override;
+    void beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix,
+      const Mat4x4f& projectionMatrix) override;
     void setOrderKey(uint32_t order) override;
     void setScissor(const Recti& scissor) override;
     void drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
@@ -216,8 +220,10 @@ class RendererImpl : public Renderer
       const Vec4f& colour, const Mat4x4f& transform) override;
     void drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
       const Vec4f& colour, const Mat4x4f& transform) override;
-    void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
-      const Mat4x4f& transform) override;  // TODO: Replace matrix with screen-space coords?
+    void drawPointLight(const Vec3f& colour, float ambient, float specular,
+      const Mat4x4f& transform) override;
+    void drawDirectionalLight(const Vec3f& colour, float ambient, float specular,
+      const Mat4x4f& transform) override;
     void drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
       const MaterialFeatureSet& materialFeatures, const std::string& text, const Vec4f& colour,
       const Mat4x4f& transform) override;
@@ -252,8 +258,8 @@ class RendererImpl : public Renderer
     void createSwapChain();
     void createSwapChain(VkExtent2D extent);
     void recreateSwapChain();
-    void setOrthographicMatrix(float rotation);
-    void setPerspectiveMatrix(float rotation);
+    //void setOrthographicMatrix(float rotation);
+    //void setPerspectiveMatrix(float rotation);
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
@@ -265,7 +271,7 @@ class RendererImpl : public Renderer
     void doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
     void updateLightingUbo(RenderPass renderPass);
-    void updateLightTransformsUbo();
+    void updateLightTransformsUbo(RenderPass renderPass);
     void updateCameraTransformsUbo(RenderPass renderPass);
     void finishFrame();
     void createSyncObjects();
@@ -283,7 +289,7 @@ class RendererImpl : public Renderer
     ResourceManager& m_resourceManager;
     const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
-    ViewParams m_viewParams;
+    //ViewParams m_viewParams;
     std::unique_ptr<VulkanWindowDelegate> m_window;
     Logger& m_logger;
     WorkQueue m_workQueue;
@@ -301,7 +307,7 @@ class RendererImpl : public Renderer
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
     GpuBufferManagerPtr m_bufferManager;
-    bool m_viewRotated = false;
+    float m_viewportRotation = 0;
     // Equals swapchain extent (with width/height swapped if rotated) with margins subtracted
     Vec2i m_viewDimensions;
     std::vector<VkImageView> m_swapchainImageViews;
@@ -313,8 +319,8 @@ class RendererImpl : public Renderer
 
     size_t m_currentFrame = 0;
     std::atomic<bool> m_framebufferResized = false;
-    Mat4x4f m_perspectiveMatrix;
-    Mat4x4f m_orthographicMatrix;
+    //Mat4x4f m_perspectiveMatrix;
+    //Mat4x4f m_orthographicMatrix;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -349,14 +355,14 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceMa
   ASSERT(m_window != nullptr, "Failed to cast m_window to VulkanWindowDelegate");
 
   m_logger.info(STR("Lithic3D " << getVersionString()));
-
+/*
   m_viewParams = ViewParams{
     .hFov = 0.f,
     .vFov = degreesToRadians(45.f),
     .aspectRatio = 0,
     .nearPlane = 0.1f,
     .farPlane = 10000.f
-  };
+  };*/
 
   m_frameStates.getReadable().renderPasses[RenderPass::Main] = RenderPassState{};
 
@@ -425,12 +431,17 @@ void RendererImpl::checkError() const
   }
 }
 
-Mat4x4f RendererImpl::projectionMatrix() const
-{
+//Mat4x4f RendererImpl::projectionMatrix() const
+//{
   // Slight chance of race condition if swap chain is being recreated
   // TODO: Protect with mutex?
 
-  return m_perspectiveMatrix;
+//  return m_perspectiveMatrix;
+//}
+
+float RendererImpl::getViewportRotation() const
+{
+  return m_viewportRotation;
 }
 
 void RendererImpl::compileShader(const ShaderProgramSpec& spec)
@@ -446,7 +457,7 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
 
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
           m_swapchainImageFormat, depthFormat,
-          m_viewRotated ? rotateMargins(m_margins) : m_margins);
+          m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
       }
@@ -497,10 +508,10 @@ void RendererImpl::onResize()
   m_framebufferResized = true;
 }
 
-const ViewParams& RendererImpl::getViewParams() const
-{
-  return m_viewParams;
-}
+//const ViewParams& RendererImpl::getViewParams() const
+//{
+//  return m_viewParams;
+//}
 
 Vec2i RendererImpl::getScreenSize() const
 {
@@ -696,21 +707,37 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
+void RendererImpl::drawPointLight(const Vec3f& colour, float ambient, float specular,
   const Mat4x4f& transform)
 {
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  ASSERT(frameState.lighting.numLights < MAX_LIGHTS, "Exceeded max lights");
+  ASSERT(frameState.lighting.numPointLights < MAX_POINT_LIGHTS, "Exceeded max point lights");
 
-  LightState& light = frameState.lighting.lights[frameState.lighting.numLights++];
+  LightState& light = frameState.lighting.pointLights[frameState.lighting.numPointLights++];
   light.colour = colour;
   light.ambient = ambient;
   light.specular = specular;
   light.position = getTranslation(transform);
   light.direction = getDirection(transform);
-  light.zFar = zFar;
+  //light.zFar = zFar;
+}
+
+void RendererImpl::drawDirectionalLight(const Vec3f& colour, float ambient, float specular,
+  const Mat4x4f& transform)
+{
+  DBG_TRACE(m_logger);
+
+  FrameState& frameState = m_frameStates.getWritable();
+
+  LightState& light = frameState.lighting.directionalLight;
+  light.colour = colour;
+  light.ambient = ambient;
+  light.specular = specular;
+  light.position = getTranslation(transform);
+  light.direction = getDirection(transform);
+  //light.zFar = zFar;
 }
 
 void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures,
@@ -768,7 +795,7 @@ void RendererImpl::beginFrame(const Vec4f& clearColour)
   DBG_TRACE(m_logger);
 
   VkRect2D defaultScissor{ VkOffset2D{0, 0}, m_swapchainExtent };
-  if (m_viewRotated) {
+  if (m_viewportRotation != 0) {
     defaultScissor = rotateRect(defaultScissor);
   }
 
@@ -804,9 +831,12 @@ void RendererImpl::setScissor(const Recti& scissor)
   state.currentScissor = index;
 }
 
-void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix)
+void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const Mat4x4f& viewMatrix,
+  const Mat4x4f& projectionMatrix)
 {
   DBG_TRACE(m_logger);
+
+  // TODO: Extract viewPos from viewMatrix?
 
   auto& state = m_frameStates.getWritable();
   state.currentRenderPass = renderPass;
@@ -814,6 +844,7 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
   auto& renderPassState = state.renderPasses[renderPass];
   renderPassState.viewPos = viewPos;
   renderPassState.viewMatrix = viewMatrix;
+  renderPassState.projectionMatrix = projectionMatrix;
 }
 
 void RendererImpl::renderLoop()
@@ -897,31 +928,27 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
   auto& frameState = m_frameStates.getReadable();
   auto& renderPassState = frameState.renderPasses.at(renderPass);
 
+  CameraTransformsUbo cameraTransformsUbo{
+    .viewMatrix = renderPassState.viewMatrix,
+    .projMatrix = renderPassState.projectionMatrix
+  };
+
   if (renderPass == RenderPass::Overlay) {
-    CameraTransformsUbo cameraTransformsUbo{
-      .viewMatrix = renderPassState.viewMatrix,
-      .projMatrix = m_orthographicMatrix
-    };
     m_resources->updateOverlayCameraUbo(cameraTransformsUbo, m_currentFrame);
   }
   else {
-    CameraTransformsUbo cameraTransformsUbo{
-      .viewMatrix = renderPassState.viewMatrix,
-      .projMatrix = m_perspectiveMatrix
-    };
     m_resources->updateMainCameraUbo(cameraTransformsUbo, m_currentFrame);
   }
 }
 
-void RendererImpl::updateLightTransformsUbo()
+void RendererImpl::updateLightTransformsUbo(RenderPass renderPass)
 {
   auto& frameState = m_frameStates.getReadable();
+  auto& renderPassState = frameState.renderPasses.at(renderPass);
 
-  // TODO: Currently only the first light can cast shadows
-  const LightState& light = frameState.lighting.lights[0];
   LightTransformsUbo lightTransformsUbo{
-    .viewMatrix = lookAt(light.position, light.position + light.direction),
-    .projMatrix = orthographic(PIf / 2.f, PIf / 2.f, 0.f, light.zFar)
+    .viewMatrix = renderPassState.viewMatrix,
+    .projMatrix = renderPassState.projectionMatrix
   };
   m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
 }
@@ -933,11 +960,19 @@ void RendererImpl::updateLightingUbo(RenderPass renderPass)
 
   LightingUbo lightingUbo{
     .viewPos = renderPassState.viewPos,
-    .numLights = frameState.lighting.numLights,
-    .lights{}
+    .numPointLights = frameState.lighting.numPointLights,
+    .lights{},
+    .directionalLight = {
+      .worldPos = frameState.lighting.directionalLight.position,
+      ._pad0{},
+      .colour = frameState.lighting.directionalLight.colour,
+      .ambient = frameState.lighting.directionalLight.ambient,
+      .specular = frameState.lighting.directionalLight.specular,
+      ._pad1{}
+    }
   };
-  for (uint32_t i = 0; i < frameState.lighting.numLights; ++i) {
-    auto& light = frameState.lighting.lights[i];
+  for (uint32_t i = 0; i < frameState.lighting.numPointLights; ++i) {
+    auto& light = frameState.lighting.pointLights[i];
 
     lightingUbo.lights[i] = Light{
       .worldPos = light.position,
@@ -1110,11 +1145,10 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
     << swapchainSupport.capabilities.currentTransform));
 
   // TODO: Support 270 rotation
-  float rotation = 0;
+  m_viewportRotation = 0;
   if (swapchainSupport.capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
-    rotation = degreesToRadians(90.f);
+    m_viewportRotation = degreesToRadians(90.f);
     std::swap(extent.width, extent.height);
-    m_viewRotated = true;
   }
   else if (swapchainSupport.capabilities.currentTransform
     & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
@@ -1165,10 +1199,10 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   m_swapchainImageFormat = surfaceFormat.format;
   m_swapchainExtent = extent;
 
-  setOrthographicMatrix(rotation);
-  setPerspectiveMatrix(rotation);
+  //setOrthographicMatrix(rotation);
+  //setPerspectiveMatrix(rotation);
 }
-
+/*
 void RendererImpl::setOrthographicMatrix(float rotation)
 {
   float aspect = static_cast<float>(m_viewDimensions[0]) / m_viewDimensions[1];
@@ -1196,8 +1230,8 @@ void RendererImpl::setOrthographicMatrix(float rotation)
 
   Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
   m_orthographicMatrix = rot * m;
-}
-
+}*/
+/*
 void RendererImpl::setPerspectiveMatrix(float rotation)
 {
   float aspect = static_cast<float>(m_viewDimensions[0]) / m_viewDimensions[1];
@@ -1208,7 +1242,7 @@ void RendererImpl::setPerspectiveMatrix(float rotation)
   Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
   m_perspectiveMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
     m_viewParams.nearPlane, m_viewParams.farPlane);
-}
+}*/
 
 void RendererImpl::cleanupSwapChain()
 {
@@ -1553,9 +1587,9 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
 
     if (node->scissorId != scissorId || &pipeline != prevPipeline) {
       scissorId = node->scissorId;
-      auto margins = m_viewRotated ? rotateMargins(m_margins) : m_margins;
+      auto margins = m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins;
 
-      auto rect = m_viewRotated ? rotateRect(scissors[scissorId]) : scissors[scissorId];
+      auto rect = m_viewportRotation != 0 ? rotateRect(scissors[scissorId]) : scissors[scissorId];
       rect.offset.x += margins.left;
       rect.offset.y += margins.top;
 
@@ -1577,7 +1611,7 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
 
 void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 {
-  updateLightTransformsUbo();
+  updateLightTransformsUbo(RenderPass::Shadow);
 
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,

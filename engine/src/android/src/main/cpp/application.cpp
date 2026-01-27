@@ -124,7 +124,7 @@ using ApplicationPtr = std::unique_ptr<Application>;
 Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem,
   LoggerPtr logger)
 {
-  auto audioSystem = createAudioSystem(*fileSystem);
+  auto audioSystem = createAudioSystem(*fileSystem, *logger);
   auto resourceManager = createResourceManager(*logger);
   auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
     {});

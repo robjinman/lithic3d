@@ -4,6 +4,7 @@
 #include <lithic3d/audio_system.hpp>
 #include <lithic3d/exception.hpp>
 #include <lithic3d/file_system.hpp>
+#include <lithic3d/logger.hpp>
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <map>
@@ -34,7 +35,7 @@ ALenum chooseFormat(ALuint channels)
 class AudioSystemImpl : public AudioSystem
 {
   public:
-    AudioSystemImpl(FileSystem& fileSystem);
+    AudioSystemImpl(FileSystem& fileSystem, Logger& logger);
 
     void addSound(HashedString name, const std::string& path) override;
     void playSound(HashedString name) override;
@@ -49,6 +50,7 @@ class AudioSystemImpl : public AudioSystem
     ~AudioSystemImpl();
 
   private:
+    Logger& m_logger;
     FileSystem& m_fileSystem;
     ALCdevice* m_device;
     ALCcontext* m_context;
@@ -62,8 +64,9 @@ class AudioSystemImpl : public AudioSystem
     ALuint getFreeSource() const;
 };
 
-AudioSystemImpl::AudioSystemImpl(FileSystem& fileSystem)
-  : m_fileSystem(fileSystem)
+AudioSystemImpl::AudioSystemImpl(FileSystem& fileSystem, Logger& logger)
+  : m_logger(logger)
+  , m_fileSystem(fileSystem)
 {
   m_device = alcOpenDevice(nullptr);
   if (!m_device) {
@@ -241,9 +244,9 @@ AudioSystemImpl::~AudioSystemImpl()
 
 } // namespace
 
-AudioSystemPtr createAudioSystem(FileSystem& fileSystem)
+AudioSystemPtr createAudioSystem(FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<AudioSystemImpl>(fileSystem);
+  return std::make_unique<AudioSystemImpl>(fileSystem, logger);
 }
 
 } // namespace lithic3d

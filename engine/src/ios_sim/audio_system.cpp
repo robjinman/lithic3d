@@ -25,9 +25,9 @@ class AudioSystemImpl : public AudioSystem
 
 } // namespace
 
-AudioSystemPtr createAudioSystem(FileSystem& fileSystem)
+AudioSystemPtr createAudioSystem(FileSystem& fileSystem, Logger& logger)
 {
-  return std::make_unique<AudioSystemImpl>(fileSystem);
+  return std::make_unique<AudioSystemImpl>(fileSystem, logger);
 }
 
 } // namespace lithic3d

@@ -196,7 +196,7 @@ class SysRender2dImpl : public SysRender2d
   private:
     Logger& m_logger;
     ComponentStore& m_componentStore;
-    Camera2d m_camera;
+    std::unique_ptr<Camera2d> m_camera;
     Renderer& m_renderer;
     RenderResourceLoader& m_renderResourceLoader;
     MeshHandle m_mesh;
@@ -212,6 +212,9 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
   , m_renderer(renderer)
   , m_renderResourceLoader(renderResourceLoader)
 {
+  auto viewport = renderer.getViewportSize();
+  float aspectRatio = static_cast<float>(viewport[0]) / viewport[1];
+  m_camera = std::make_unique<Camera2d>(aspectRatio, renderer.getViewportRotation());
   m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
 }
 
@@ -418,21 +421,23 @@ bool SysRender2dImpl::hasEntity(EntityId entityId) const
 
 Camera2d& SysRender2dImpl::camera()
 {
-  return m_camera;
+  return *m_camera;
 }
 
 const Camera2d& SysRender2dImpl::camera() const
 {
-  return m_camera;
+  return *m_camera;
 }
 
 void SysRender2dImpl::update(Tick, const InputState&)
 {
-  auto screenAspect = m_renderer.getViewParams().aspectRatio;
+  auto viewport = m_renderer.getViewportSize();
+  float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
   float gameAspect = 630.f / 480.f;  // TODO
-  m_camera.setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
+  m_camera->setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
 
-  m_renderer.beginPass(render::RenderPass::Overlay, m_camera.getPosition(), m_camera.getMatrix());
+  m_renderer.beginPass(render::RenderPass::Overlay, m_camera->getPosition(),
+    m_camera->getViewMatrix(), m_camera->getProjectionMatrix());
 
   ScissorId scissor = std::numeric_limits<ScissorId>::max();
   for (auto& group : m_componentStore.components<CRender2d>()) {
@@ -459,7 +464,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
       }
 
       auto& t = globalTs[i].transform;
-      auto screenSpaceTransform = screenToWorld(t, m_renderer.getViewParams().aspectRatio);
+      auto screenSpaceTransform = screenToWorld(t, screenAspect);
 
       m_renderer.setOrderKey(renderComp.zIndex);
 

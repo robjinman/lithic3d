@@ -28,7 +28,7 @@ struct DSkybox
 
 using DSkyboxPtr = std::unique_ptr<DSkybox>;
 
-struct DLight
+struct DPointLight
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
@@ -36,10 +36,20 @@ struct DLight
   Vec3f colour;
   float ambient = 0.f;
   float specular = 0.f;
-  float zFar = metresToWorldUnits(100.f);
 };
 
-using DLightPtr = std::unique_ptr<DLight>;
+using DPointLightPtr = std::unique_ptr<DPointLight>;
+
+struct DDirectionalLight
+{
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
+
+  Vec3f colour;
+  float ambient = 0.f;
+  float specular = 0.f;
+};
+
+using DDirectionalLightPtr = std::unique_ptr<DDirectionalLight>;
 
 struct DParticleEmitter
 {
@@ -64,7 +74,8 @@ class SysRender3d : public System
     virtual render::Renderer& renderer() = 0;
 
     virtual void addEntity(EntityId id, DModelPtr model) = 0;
-    virtual void addEntity(EntityId id, DLightPtr light) = 0;
+    virtual void addEntity(EntityId id, DPointLightPtr light) = 0;
+    virtual void addEntity(EntityId id, DDirectionalLightPtr light) = 0;
     virtual void addEntity(EntityId id, DSkyboxPtr skybox) = 0;
 
     // TODO: Implement scissors?

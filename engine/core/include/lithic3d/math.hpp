@@ -664,6 +664,25 @@ std::ostream& operator<<(std::ostream& stream, const Rect<T>& r)
   return stream;
 }
 
+struct Plane
+{
+  Vec3f normal;
+  float distance;
+};
+
+namespace FrustumPlane
+{
+  enum : size_t {
+    Left = 0,
+    Right,
+    Top,
+    Bottom,
+    Near,
+    Far
+  };
+}
+using Frustum = std::array<Plane, 6>;
+
 using Rectf = Rect<float>;
 using Recti = Rect<int>;
 
@@ -677,7 +696,9 @@ bool lineSegmentCircleIntersect(const LineSegment& lseg, const Vec2f& centre, fl
 bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
 std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);
 Mat2x2f inverse(const Mat2x2f& M);
+Mat3x3f inverse(const Mat3x3f& M);
 Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation, Vec2f pivot);
+Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C);
 
 inline Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size)
 {

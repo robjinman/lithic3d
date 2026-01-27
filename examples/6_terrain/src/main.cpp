@@ -84,7 +84,7 @@ Demo::Demo(Engine& engine)
 EntityId Demo::constructSun()
 {
   auto id = m_engine.ecs().idGen().getNewEntityId();
-  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
+  m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   float pitch = degreesToRadians(-45.f);
   float yaw = degreesToRadians(180.f);
@@ -101,21 +101,10 @@ EntityId Demo::constructSun()
 
   auto& resourceLoader = m_engine.renderResourceLoader();
 
-  Vec4f colour = { 1.f, 1.f, 1.f, 1.f };
-
-  auto lightModel = std::make_unique<Submodel>();
-  auto lightMesh = cuboid(metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f }), { 1.f, 1.f });
-  auto lightMaterial = std::make_unique<Material>();
-  lightMaterial->colour = colour;
-  lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
-  lightModel->material = resourceLoader.loadMaterialAsync(std::move(lightMaterial)).wait();
-
-  auto light = std::make_unique<DLight>();
-  light->colour = colour.sub<3>();
+  auto light = std::make_unique<DDirectionalLight>();
+  light->colour = { 1.f, 1.f, 1.f };
   light->ambient = 0.5f;
   light->specular = 1.0f;
-  light->zFar = metresToWorldUnits(100.f);
-  light->submodels.push_back(std::move(lightModel));
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
@@ -125,7 +114,7 @@ EntityId Demo::constructSun()
 EntityId Demo::constructLight()
 {
   auto id = m_engine.ecs().idGen().getNewEntityId();
-  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
+  m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   float pitch = degreesToRadians(-45.f);
   float yaw = degreesToRadians(180.f);
@@ -151,11 +140,10 @@ EntityId Demo::constructLight()
   lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
   lightModel->material = resourceLoader.loadMaterialAsync(std::move(lightMaterial)).wait();
 
-  auto light = std::make_unique<DLight>();
+  auto light = std::make_unique<DPointLight>();
   light->colour = colour.sub<3>();
   light->ambient = 0.3f;
   light->specular = 0.4f;
-  light->zFar = metresToWorldUnits(100.f);
   light->submodels.push_back(std::move(lightModel));
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));

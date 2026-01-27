@@ -182,7 +182,7 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
 {
   Mat4x4f m = identityMatrix<4>();
-  Vec3f f((centre - eye).normalise());
+  Vec3f f((centre - eye).normalise()); // TODO: Wrong way round?
   Vec3f s(f.cross({ 0, 1, 0 }).normalise());
   Vec3f u(s.cross(f));
   m.set(0, 0, s[0]);
@@ -259,6 +259,71 @@ Mat2x2f inverse(const Mat2x2f& M)
   return adjoint(M) / determinant(M);
 }
 
+inline float minor(const Mat3x3f& M, int row, int col)
+{
+  int r1, r2, c1, c2;
+
+  switch (row) {
+    case 0: {
+      r1 = 1;
+      r2 = 2;
+      break;
+    }
+    case 1: {
+      r1 = 0;
+      r2 = 2;
+      break;
+    }
+    case 2: {
+      r1 = 0;
+      r2 = 1;
+      break;
+    }
+  }
+
+  switch (col) {
+    case 0: {
+      c1 = 1;
+      c2 = 2;
+      break;
+    }
+    case 1: {
+      c1 = 0;
+      c2 = 2;
+      break;
+    }
+    case 2: {
+      c1 = 0;
+      c2 = 1;
+      break;
+    }
+  }
+
+  return M.at(r1, c1) * M.at(r2, c2) - M.at(r2, c1) * M.at(r1, c2);
+}
+
+inline float determinant(const Mat3x3f& M)
+{
+  return M.at(0, 0) * minor(M, 0, 0) - M.at(0, 1) * minor(M, 0, 1) + M.at(0, 2) * minor(M, 0, 2);
+}
+
+Mat3x3f inverse(const Mat3x3f& M)
+{
+  Mat3x3f inv;
+
+  float det_rp = 1.0 / determinant(M);
+
+  for (int row = 0; row < 3; ++row) {
+    for (int col = 0; col < 3; ++col) {
+      int sign = (row + col) % 2 == 0 ? 1.0 : -1.0;
+
+      inv.set(row, col, sign * det_rp * minor(M, row, col));
+    }
+  }
+
+  return inv;
+}
+
 Mat4x4f Transform::toMatrix() const
 {
   Mat4x4f m = identityMatrix<4>();
@@ -272,6 +337,17 @@ Mat4x4f Transform::toMatrix() const
     m = translationMatrix4x4(translation.value()) * m;
   }
   return m;
+}
+
+Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C)
+{
+  auto M = inverse(Mat3x3f{
+    -A.normal[0], -B.normal[0], -C.normal[0],
+    -A.normal[1], -B.normal[1], -C.normal[1],
+    -A.normal[2], -B.normal[2], -C.normal[2]
+  });
+
+  return M * Vec3f{ A.distance, B.distance, C.distance };
 }
 
 void Transform::mix(const Transform& T)

@@ -26,7 +26,7 @@ struct ShaderProgramSpec
 
   std::string toString() const;
 };
-
+/*
 struct ViewParams
 {
   float hFov;
@@ -34,7 +34,7 @@ struct ViewParams
   float aspectRatio;
   float nearPlane;
   float farPlane;
-};
+};*/
 
 struct ScreenMargins
 {
@@ -51,14 +51,17 @@ class Renderer
     virtual bool isStarted() const = 0;
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
-    virtual const ViewParams& getViewParams() const = 0;
+    //virtual const ViewParams& getViewParams() const = 0;
     virtual Vec2i getScreenSize() const = 0;
     // Screen size after subtracting margins
     virtual Vec2i getViewportSize() const = 0;
+    // Viewport rotation in radians. On some mobile devices, the viewport is rotated 90 or 270
+    // degrees. This rotation needs to be baked into the projection matrix.
+    virtual float getViewportRotation() const = 0;
     virtual const ScreenMargins& getMargins() const = 0;
     virtual void checkError() const = 0;
     // The perspective projection matrix used for 3D rendering
-    virtual Mat4x4f projectionMatrix() const = 0;
+    //virtual Mat4x4f projectionMatrix() const = 0;
 
     // Initialisation
     //
@@ -91,8 +94,9 @@ class Renderer
     // Per-frame draw functions
     //
     virtual void beginFrame(const Vec4f& clearColour) = 0;
+    // TODO: Get viewPos from viewMatrix?
     virtual void beginPass(RenderPass renderPass, const Vec3f& viewPos,
-      const Mat4x4f& viewMatrix) = 0;
+      const Mat4x4f& viewMatrix, const Mat4x4f& projectionMatrix) = 0;
     virtual void setOrderKey(uint32_t order) = 0;
     virtual void setScissor(const Recti& scissor) = 0;
     virtual void drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
@@ -106,14 +110,16 @@ class Renderer
       const Mat4x4f& transform) = 0;
     virtual void drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId material, const MaterialFeatureSet& materialFeatures,
-      const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
+      const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0; // TODO: Replace matrix with screen-space coords?
     virtual void drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
-      const Vec4f& colour, const Mat4x4f& transform) = 0;
-    virtual void drawLight(const Vec3f& colour, float ambient, float specular, float zFar,
-      const Mat4x4f& transform) = 0;  // TODO: Replace matrix with screen-space coords?
+      const Vec4f& colour, const Mat4x4f& transform) = 0; // TODO: Replace matrix with screen-space coords?
+    virtual void drawPointLight(const Vec3f& colour, float ambient, float specular,
+      const Mat4x4f& transform) = 0;
+    virtual void drawDirectionalLight(const Vec3f& colour, float ambient, float specular,
+      const Mat4x4f& transform) = 0;
     virtual void drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId material, const MaterialFeatureSet& materialFeatures, const std::string& text,
-      const Vec4f& colour, const Mat4x4f& transform) = 0;
+      const Vec4f& colour, const Mat4x4f& transform) = 0; // TODO: Replace matrix with screen-space coords?
     virtual void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId cubeMap, const MaterialFeatureSet& cubeMapFeatures) = 0;
     virtual void endPass() = 0;

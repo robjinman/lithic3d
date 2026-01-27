@@ -41,7 +41,8 @@ class AudioSystem
 using AudioSystemPtr = std::unique_ptr<AudioSystem>;
 
 class FileSystem;
+class Logger;
 
-AudioSystemPtr createAudioSystem(FileSystem& fileSystem);
+AudioSystemPtr createAudioSystem(FileSystem& fileSystem, Logger& logger);
 
 } // namespace lithic3d

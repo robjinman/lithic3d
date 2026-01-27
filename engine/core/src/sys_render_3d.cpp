@@ -29,26 +29,99 @@ using render::RenderPass;
 namespace
 {
 
-Frustum frustumFromMatrix(const Mat4x4f& m)
+struct LightProjection
 {
+  Vec3f pos;
+  Mat4x4f viewMatrix;
+  Mat4x4f projectionMatrix;
   Frustum frustum;
+};
 
-  auto calcPlane = [](const Mat4x4f& m, size_t rowA, size_t rowB, bool add) {
-    auto tmp = add ? m.row(rowA) + m.row(rowB) : m.row(rowA) - m.row(rowB);
-    return Plane{
-      .normal = tmp.sub<3>(),
-      .distance = tmp[3]
-    };
+LightProjection computeLightProjection(const Frustum& cameraFrustum, const Vec3f& lightDir)
+{
+  auto& f = cameraFrustum;
+
+  std::array<Vec3f, 8> corners{
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Left], f[FrustumPlane::Top]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Top], f[FrustumPlane::Right]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Bottom], f[FrustumPlane::Left]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Left], f[FrustumPlane::Top]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Top], f[FrustumPlane::Right]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Bottom], f[FrustumPlane::Left])
   };
 
-  frustum[0] = calcPlane(m, 3, 0, true);    // Left plane:    row 3 + row 0
-  frustum[1] = calcPlane(m, 3, 0, false);   // Right plane:   row 3 - row 0
-  frustum[2] = calcPlane(m, 3, 1, false);   // Top plane:     row 3 - row 1
-  frustum[3] = calcPlane(m, 3, 1, true);    // Bottom plane:  row 3 + row 1
-  frustum[4] = calcPlane(m, 3, 2, true);    // Near plane:    row 3 + row 2
-  frustum[5] = calcPlane(m, 3, 2, false);   // Far plane:     row 3 - row 2
+  Vec3f centre;
+  for (size_t i = 0; i < 8; ++i) {
+    centre += corners[i];
+  }
+  centre = centre / 8.f;
 
-  return frustum;
+  LightProjection P;
+  P.pos = centre - lightDir;
+  P.viewMatrix = lookAt(P.pos, centre);
+
+  constexpr float floatMax = std::numeric_limits<float>::max();
+  constexpr float floatMin = std::numeric_limits<float>::lowest();
+
+  Vec3f min{ floatMax, floatMax, floatMax };
+  Vec3f max{ floatMin, floatMin, floatMin };
+  for (auto& pt : corners) {
+    Vec4f lightSpacePt = P.viewMatrix * Vec4f{pt, { 1.f }};
+    for (uint32_t i = 0; i < 3; ++i) {
+      if (lightSpacePt[i] < min[i]) {
+        min[i] = lightSpacePt[i];
+      }
+      if (lightSpacePt[i] > max[i]) {
+        max[i] = lightSpacePt[i];
+      }
+    }
+  }
+
+  P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
+  P.frustum[FrustumPlane::Near].distance = min[2];
+  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, -1.f };
+  P.frustum[FrustumPlane::Far].distance = max[2];
+  P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
+  P.frustum[FrustumPlane::Left].distance = min[0];
+  P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
+  P.frustum[FrustumPlane::Right].distance = max[0];
+  P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
+  P.frustum[FrustumPlane::Bottom].distance = min[1];
+  P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
+  P.frustum[FrustumPlane::Top].distance = max[1];
+
+  P.projectionMatrix = orthographic(P.frustum[FrustumPlane::Left].distance,
+    P.frustum[FrustumPlane::Right].distance, P.frustum[FrustumPlane::Top].distance,
+    P.frustum[FrustumPlane::Bottom].distance, P.frustum[FrustumPlane::Near].distance,
+    P.frustum[FrustumPlane::Far].distance);
+
+  return P;
+}
+
+std::array<LightProjection, 3> computeLightProjections(const Frustum& camFrustum,
+  const Vec3f& lightDir)
+{
+  float z3 = camFrustum[FrustumPlane::Far].distance;
+  float z2 = z3 * (2.f / 3.f);
+  float z1 = z3 / 3.f; 
+
+  Frustum farFrustum = camFrustum;
+  farFrustum[FrustumPlane::Near].distance = z2;
+
+  Frustum midFrustum = camFrustum;
+  midFrustum[FrustumPlane::Near].distance = z1;
+  midFrustum[FrustumPlane::Far].distance = z2;
+
+  Frustum nearFrustum = camFrustum;
+  nearFrustum[FrustumPlane::Far].distance = z1;
+
+  return {
+    computeLightProjection(nearFrustum, lightDir),
+    computeLightProjection(midFrustum, lightDir),
+    computeLightProjection(farFrustum, lightDir)
+  };
 }
 
 struct AnimationChannelState
@@ -84,7 +157,8 @@ class SysRender3dImpl : public SysRender3d
     render::Renderer& renderer() override;
 
     void addEntity(EntityId id, DModelPtr model) override;
-    void addEntity(EntityId id, DLightPtr light) override;
+    void addEntity(EntityId id, DPointLightPtr light) override;
+    void addEntity(EntityId id, DDirectionalLightPtr light) override;
     void addEntity(EntityId id, DSkyboxPtr skybox) override;
 
     void removeEntity(EntityId entityId) override;
@@ -98,27 +172,28 @@ class SysRender3dImpl : public SysRender3d
 
   private:
     Logger& m_logger;
-    Camera3d m_camera;
+    std::unique_ptr<Camera3d> m_camera;
     const Ecs& m_ecs;
     const ModelLoader& m_modelLoader;
     Renderer& m_renderer;
     // TODO: Use component store
-    std::map<EntityId, DLightPtr> m_lights;
     std::map<EntityId, DModelPtr> m_models;
-    DSkyboxPtr m_skybox;
+    std::map<EntityId, DPointLightPtr> m_pointLights;
+    std::pair<EntityId, DDirectionalLightPtr> m_directionalLight = { NULL_ENTITY_ID, nullptr };
+    std::pair<EntityId, DSkyboxPtr> m_skybox = { NULL_ENTITY_ID, nullptr };
     std::map<EntityId, AnimationState> m_animationStates;
 
     using DrawFilter = std::function<bool(const Submodel&)>;
 
-    Frustum computePerspectiveFrustum() const;
-    Frustum computeOrthographicFrustum(const Vec3f& viewPos, const Vec3f& viewDir,
-      float zFar) const;
     void drawModels(const EntityIdSet& entities,
       const DrawFilter& filter = [](const Submodel&) { return true; });
     void drawSkybox();
-    void doShadowPass();
-    void doMainPass();
+    void drawPointLights();
+    void drawDirectionalLight();
+    void doShadowPass(const Frustum& camFrustum);
+    void doMainPass(const Frustum& camFrustum);
     void updateAnimations();
+    void updateCamera();
 };
 
 SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
@@ -128,25 +203,23 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader,
   , m_modelLoader(modelLoader)
   , m_renderer(renderer)
 {
+  auto viewport = m_renderer.getViewportSize();
+  float aspect = static_cast<float>(viewport[0]) / viewport[1];
+  float rotation = m_renderer.getViewportRotation();
+  m_camera = std::make_unique<Camera3d>(aspect, rotation);
+}
+
+void SysRender3dImpl::updateCamera()
+{
+  auto viewport = m_renderer.getViewportSize();
+  float aspect = static_cast<float>(viewport[0]) / viewport[1];
+  float rotation = m_renderer.getViewportRotation();
+  m_camera->updateParameters(aspect, rotation);
 }
 
 render::Renderer& SysRender3dImpl::renderer()
 {
   return m_renderer;
-}
-
-Frustum SysRender3dImpl::computePerspectiveFrustum() const
-{
-  return frustumFromMatrix(m_renderer.projectionMatrix() * m_camera.getMatrix());
-}
-
-Frustum SysRender3dImpl::computeOrthographicFrustum(const Vec3f& viewPos, const Vec3f& viewDir,
-  float zFar) const
-{
-  auto viewMatrix = lookAt(viewPos, viewPos + viewDir);
-  auto projMatrix = orthographic(PIf / 2.f, PIf / 2.f, 0.f, zFar);
-
-  return frustumFromMatrix(projMatrix * viewMatrix);
 }
 
 double SysRender3dImpl::frameRate() const
@@ -156,16 +229,20 @@ double SysRender3dImpl::frameRate() const
 
 void SysRender3dImpl::removeEntity(EntityId entityId)
 {
-  m_lights.erase(entityId);
+  m_pointLights.erase(entityId);
   m_models.erase(entityId);
-
-  // TODO: Skybox?
+  if (m_skybox.first == entityId) {
+    m_skybox = { NULL_ENTITY_ID, nullptr };
+  }
+  if (m_directionalLight.first == entityId) {
+    m_directionalLight = { NULL_ENTITY_ID, nullptr };
+  }
 }
 
 bool SysRender3dImpl::hasEntity(EntityId entityId) const
 {
-  return m_models.contains(entityId) || m_lights.contains(entityId);
-  // TODO: Skybox?
+  return m_models.contains(entityId) || m_pointLights.contains(entityId) ||
+    m_skybox.first == entityId || m_directionalLight.first == entityId;
 }
 
 void SysRender3dImpl::addEntity(EntityId id, DModelPtr model)
@@ -176,12 +253,20 @@ void SysRender3dImpl::addEntity(EntityId id, DModelPtr model)
   m_models.insert({ id, std::move(model) });
 }
 
-void SysRender3dImpl::addEntity(EntityId id, DLightPtr light)
+void SysRender3dImpl::addEntity(EntityId id, DPointLightPtr light)
 {
   assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
   assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
 
-  m_lights.insert({ id, std::move(light) });
+  m_pointLights.insert({ id, std::move(light) });
+}
+
+void SysRender3dImpl::addEntity(EntityId id, DDirectionalLightPtr light)
+{
+  assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
+  assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
+
+  m_directionalLight = { id, std::move(light) };
 }
 
 void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
@@ -189,7 +274,7 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
   assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
   assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
 
-  m_skybox = std::move(skybox);
+  m_skybox = { id, std::move(skybox) };
 }
 
 void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name)
@@ -203,19 +288,23 @@ void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name)
 
 Camera3d& SysRender3dImpl::camera()
 {
-  return m_camera;
+  return *m_camera;
 }
 
 const Camera3d& SysRender3dImpl::camera() const
 {
-  return m_camera;
+  return *m_camera;
 }
 
 void SysRender3dImpl::drawSkybox()
 {
-  if (m_skybox != nullptr) {
-    m_renderer.drawSkybox(m_skybox->model->mesh.resource.id(), m_skybox->model->mesh.features,
-      m_skybox->model->material.resource.id(), m_skybox->model->material.features);
+  if (m_skybox.first != NULL_ENTITY_ID) {
+    assert(m_skybox.second != nullptr);
+
+    auto& skybox = *m_skybox.second;
+
+    m_renderer.drawSkybox(skybox.model->mesh.resource.id(), skybox.model->mesh.features,
+      skybox.model->material.resource.id(), skybox.model->material.features);
   }
 }
 
@@ -259,11 +348,9 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   }
 }
 
-void SysRender3dImpl::doShadowPass()
+void SysRender3dImpl::doShadowPass(const Frustum& camFrustum)
 {
-  // TODO: Separate pass for every shadow-casting light
-
-  if (m_lights.empty()) {
+  if (m_directionalLight.first == NULL_ENTITY_ID) {
     return;
   }
 
@@ -271,55 +358,74 @@ void SysRender3dImpl::doShadowPass()
 
   // TODO: Check CSpatialFlags
 
-  const auto& firstLight = *m_lights.begin()->second;
-  const auto& firstLightTransform =
-    m_ecs.componentStore().component<CGlobalTransform>(m_lights.begin()->first).transform;
-  auto firstLightPos = getTranslation(firstLightTransform);
-  auto firstLightDir = getDirection(firstLightTransform);
-  auto firstLightMatrix = lookAt(firstLightPos, firstLightPos + firstLightDir);
+  const auto& light = *m_directionalLight.second;
+  const auto& transform =
+    m_ecs.componentStore().component<CGlobalTransform>(m_directionalLight.first).transform;
+  auto lightDir = getDirection(transform);
 
-  auto frustum = computeOrthographicFrustum(firstLightPos, firstLightDir, firstLight.zFar);
-  auto visible = sysSpatial.getIntersecting(frustum);
+  auto projections = computeLightProjections(camFrustum, lightDir);
+  for (auto& p : projections) {
+    auto visible = sysSpatial.getIntersecting(p.frustum);
 
-  m_renderer.beginPass(RenderPass::Shadow, firstLightPos, firstLightMatrix);
+    m_renderer.beginPass(RenderPass::Shadow, p.pos, p.viewMatrix, p.projectionMatrix);
 
-  drawModels(visible, [](const Submodel& x) {
-    return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
-  });
+    drawModels(visible, [](const Submodel& x) {
+      return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
+    });
 
-  m_renderer.endPass();
+    m_renderer.endPass();
+
+    break; // TODO
+  }
 }
 
-void SysRender3dImpl::doMainPass()
+void SysRender3dImpl::drawPointLights()
 {
-  const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Colour?
-  const auto& sysSpatial = m_ecs.system<SysSpatial>();
-
-  // TODO: Check CSpatialFlags
-
-  auto frustum = computePerspectiveFrustum();
-  auto visible = sysSpatial.getIntersecting(frustum);
-
-  m_renderer.beginPass(RenderPass::Main, m_camera.getPosition(), m_camera.getMatrix());
-
-  drawModels(visible);
-  drawSkybox();
-
-  for (auto& entry : m_lights) {
+  for (auto& entry : m_pointLights) {
     auto id = entry.first;
-    const DLight& light = *entry.second;
+    const DPointLight& light = *entry.second;
 
     const auto& transform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
 
-    m_renderer.drawLight(light.colour, light.ambient, light.specular, light.zFar, transform);
+    m_renderer.drawPointLight(light.colour, light.ambient, light.specular, transform);
 
     if (light.submodels.size() > 0) {
       for (auto& submodel : light.submodels) {
         m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
-          submodel->material.resource.id(), submodel->material.features, white, transform);
+          submodel->material.resource.id(), submodel->material.features, { light.colour, { 1.f }},
+          transform);
       }
     }
   }
+}
+
+void SysRender3dImpl::drawDirectionalLight()
+{
+  auto id = m_directionalLight.first;
+
+  if (id != NULL_ENTITY_ID) {
+    auto& light = *m_directionalLight.second;
+    auto& transform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
+
+    m_renderer.drawDirectionalLight(light.colour, light.ambient, light.specular, transform);
+  }
+}
+
+void SysRender3dImpl::doMainPass(const Frustum& camFrustum)
+{
+  const auto& sysSpatial = m_ecs.system<SysSpatial>();
+
+  // TODO: Check CSpatialFlags
+
+  auto visible = sysSpatial.getIntersecting(camFrustum);
+
+  m_renderer.beginPass(RenderPass::Main, m_camera->getPosition(), m_camera->getViewMatrix(),
+    m_camera->getProjectionMatrix());
+
+  drawModels(visible);
+  drawSkybox();
+  drawDirectionalLight();
+  drawPointLights();
 
   m_renderer.endPass();
 }
@@ -515,8 +621,10 @@ void SysRender3dImpl::update(Tick, const InputState&)
 {
   updateAnimations();
 
-  doShadowPass();
-  doMainPass();
+  auto frustum = m_camera->computeFrustum();
+
+  doShadowPass(frustum);
+  doMainPass(frustum);
 }
 
 SysRender3dImpl::~SysRender3dImpl()

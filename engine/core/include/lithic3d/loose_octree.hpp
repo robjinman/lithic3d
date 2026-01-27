@@ -9,14 +9,6 @@
 namespace lithic3d
 {
 
-struct Plane
-{
-  Vec3f normal;
-  float distance;
-};
-
-using Frustum = std::array<Plane, 6>;
-
 struct OctreeCell
 {
   Vec3f min;

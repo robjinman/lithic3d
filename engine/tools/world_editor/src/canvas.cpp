@@ -72,7 +72,7 @@ void CanvasImpl::initialise()
     auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
     auto windowDelegate = createWindowDelegate(GetHandle());
     auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-    auto audioSystem = createAudioSystem(*fileSystem);
+    auto audioSystem = createAudioSystem(*fileSystem, *logger);
     auto resourceManager = createResourceManager(*logger);
     auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem,
       *logger, {});
@@ -108,7 +108,7 @@ EntityId CanvasImpl::constructCube()
 EntityId CanvasImpl::constructLight()
 {
   auto id = m_engine->ecs().idGen().getNewEntityId();
-  m_engine->ecs().componentStore().allocate<DSpatial, DLight>(id);
+  m_engine->ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
@@ -118,7 +118,7 @@ EntityId CanvasImpl::constructLight()
 
   m_engine->ecs().system<SysSpatial>().addEntity(id, spatial);
 
-  auto light = std::make_unique<DLight>();
+  auto light = std::make_unique<DDirectionalLight>();
   light->colour = { 1.f, 0.9f, 0.9f };
   light->ambient = 0.4f;
   light->specular = 0.9f;
