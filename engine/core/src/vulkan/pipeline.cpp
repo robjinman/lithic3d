@@ -179,7 +179,9 @@ VkPipelineRasterizationStateCreateInfo defaultRasterizationState(bool doubleSide
     .rasterizerDiscardEnable = VK_FALSE,
     .polygonMode = VK_POLYGON_MODE_FILL,
     .cullMode = cullMode,
-    .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+    // Flip the winding order as model/view/world space is left-handed, but clip space is
+    // right-handed
+    .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,// VK_FRONT_FACE_CLOCKWISE,// VK_FRONT_FACE_COUNTER_CLOCKWISE,
     .depthBiasEnable = VK_FALSE,
     .depthBiasConstantFactor = 0.0f,
     .depthBiasClamp = 0.0f,

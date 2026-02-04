@@ -179,24 +179,25 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
   return indices;
 }
 
+// World and view space are left-handed. Use left-hand rule to calculate cross products.
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
 {
   Mat4x4f m = identityMatrix<4>();
-  Vec3f f((centre - eye).normalise()); // TODO: Wrong way round?
-  Vec3f s(f.cross({ 0, 1, 0 }).normalise());
-  Vec3f u(s.cross(f));
-  m.set(0, 0, s[0]);
-  m.set(0, 1, s[1]);
-  m.set(0, 2, s[2]);
-  m.set(1, 0, u[0]);
-  m.set(1, 1, u[1]);
-  m.set(1, 2, u[2]);
-  m.set(2, 0, f[0]);
-  m.set(2, 1, f[1]);
-  m.set(2, 2, f[2]);
-  m.set(0, 3, -s.dot(eye));
-  m.set(1, 3, -u.dot(eye));
-  m.set(2, 3, -f.dot(eye));
+  Vec3f z = (centre - eye).normalise();
+  Vec3f x = -z.cross({ 0, 1, 0 }).normalise();
+  Vec3f y = -x.cross(z);
+  m.set(0, 0, x[0]);
+  m.set(0, 1, x[1]);
+  m.set(0, 2, x[2]);
+  m.set(1, 0, y[0]);
+  m.set(1, 1, y[1]);
+  m.set(1, 2, y[2]);
+  m.set(2, 0, z[0]);
+  m.set(2, 1, z[1]);
+  m.set(2, 2, z[2]);
+  m.set(0, 3, -x.dot(eye));
+  m.set(1, 3, -y.dot(eye));
+  m.set(2, 3, -z.dot(eye));
   return m;
 }
 
@@ -210,7 +211,7 @@ Mat4x4f perspective(float fovX, float fovY, float n, float f)
 
   m.set(0, 0, 2.f * n / (r - l));
   m.set(0, 2, (r + l) / (l - r));
-  m.set(1, 1, -2.f * n / (t - b));
+  m.set(1, 1, 2.f * n / (t - b));
   m.set(1, 2, (t + b) / (b - t));
   m.set(2, 2, f / (f - n));
   m.set(2, 3, f * n / (n - f));
@@ -222,21 +223,12 @@ Mat4x4f perspective(float fovX, float fovY, float n, float f)
 
 Mat4x4f orthographic(float fovX, float fovY, float n, float f)
 {
-  Mat4x4f m;
   const float t = f * tan(fovY * 0.5f);
   const float b = -t;
   const float r = f * tan(fovX * 0.5f);
   const float l = -r;
 
-  m.set(0, 0, 2.f / (r - l));
-  m.set(0, 3, (r + l) / (l - r));
-  m.set(1, 1, 2.f / (b - t));
-  m.set(1, 3, (b + t) / (b - t));
-  m.set(2, 2, 1.f / (f - n));
-  m.set(2, 3, -n / (f - n));
-  m.set(3, 3, 1.f);
-
-  return m;
+  return orthographic(l, r, t, b, n, f);
 }
 
 Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
@@ -245,10 +237,10 @@ Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
 
   m.set(0, 0, 2.f / (r - l));
   m.set(0, 3, (r + l) / (l - r));
-  m.set(1, 1, 2.f / (b - t));
-  m.set(1, 3, (b + t) / (b - t));
+  m.set(1, 1, -2.f / (t - b));      // Inverted to flip y
+  m.set(1, 3, (t + b) / (b - t));
   m.set(2, 2, 1.f / (f - n));
-  m.set(2, 3, -n / (f - n));
+  m.set(2, 3, n / (n - f));
   m.set(3, 3, 1.f);
 
   return m;

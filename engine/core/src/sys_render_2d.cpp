@@ -37,7 +37,7 @@ namespace
 
 Mat4x4f screenToWorld(const Mat4x4f& transform, float aspect)
 {
-  Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 0.f });
+  Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 1.f });
   return M * transform;
 }
 
@@ -72,10 +72,10 @@ MeshPtr quad()
   });
   mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{
     std::vector<Vec2f>{
-      { 0, 1 },
-      { 1, 1 },
+      { 0, 0 },
       { 1, 0 },
-      { 0, 0 }
+      { 1, 1 },
+      { 0, 1 }
     }}, BufferUsage::AttrTexCoord
   });
   mesh->indexBuffer = Buffer{AlignedBytes{
@@ -127,10 +127,10 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     float y0 = uvRect.y + glyphH * row;
     float y1 = y0 + glyphH;
 
-    uvs.push_back({ x0, y1 });
-    uvs.push_back({ x1, y1 });
-    uvs.push_back({ x1, y0 });
     uvs.push_back({ x0, y0 });
+    uvs.push_back({ x1, y0 });
+    uvs.push_back({ x1, y1 });
+    uvs.push_back({ x0, y1 });
 
     indices.insert(indices.end(), {
       static_cast<uint16_t>(i * 4),
@@ -434,7 +434,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
   auto viewport = m_renderer.getViewportSize();
   float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
   float gameAspect = 630.f / 480.f;  // TODO
-  m_camera->setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 1.f });
+  m_camera->setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 0.f });
 
   m_renderer.beginPass(render::RenderPass::Overlay, m_camera->getPosition(),
     m_camera->getViewMatrix(), m_camera->getProjectionMatrix());

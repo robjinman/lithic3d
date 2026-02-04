@@ -24,7 +24,7 @@ float sampleShadowMap(vec2 uv, float lightSpacePosZ)
   float scale = 0.5;
 	float dx = scale / float(shadowMapSize.x);
 	float dy = scale / float(shadowMapSize.y);
-  int w = 2;
+  int w = 0;  // TODO: Increase for soft shadows
 
   int shadow = 0;
 

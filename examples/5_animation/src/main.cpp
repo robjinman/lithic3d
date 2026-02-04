@@ -50,7 +50,7 @@ Demo::Demo(Engine& engine)
 EntityId Demo::constructLight()
 {
   auto id = m_engine.ecs().idGen().getNewEntityId();
-  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
+  m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   DSpatial spatial{
     .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
@@ -60,7 +60,7 @@ EntityId Demo::constructLight()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
-  auto light = std::make_unique<DLight>();
+  auto light = std::make_unique<DDirectionalLight>();
   light->colour = { 1.f, 0.9f, 0.9f };
   light->ambient = 0.4f;
   light->specular = 0.9f;
