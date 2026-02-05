@@ -53,11 +53,11 @@ LightProjection computeLightProjection(const Frustum& cameraFrustum, const Vec3f
     planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Bottom], f[FrustumPlane::Left])
   };
 
-  std::cout << "Corners: ";
-  for (size_t i = 0; i < 8; ++i) {
-    std::cout << "(" << corners[i] << ") ";
-  }
-  std::cout << "\n";
+  //std::cout << "Corners: ";
+  //for (size_t i = 0; i < 8; ++i) {
+  //  std::cout << "(" << corners[i] << ") ";
+  //}
+  //std::cout << "\n";
 
   Vec3f centre;
   for (size_t i = 0; i < 8; ++i) {
@@ -99,10 +99,10 @@ LightProjection computeLightProjection(const Frustum& cameraFrustum, const Vec3f
   P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
   P.frustum[FrustumPlane::Top].distance = max[1];
 
-  std::cout << P.frustum[FrustumPlane::Left].distance << " " <<
-    P.frustum[FrustumPlane::Right].distance << " " << P.frustum[FrustumPlane::Top].distance << " " <<
-    P.frustum[FrustumPlane::Bottom].distance << " " << P.frustum[FrustumPlane::Near].distance << " " <<
-    P.frustum[FrustumPlane::Far].distance << "\n";
+  //std::cout << P.frustum[FrustumPlane::Left].distance << " " <<
+  //  P.frustum[FrustumPlane::Right].distance << " " << P.frustum[FrustumPlane::Top].distance << " " <<
+  //  P.frustum[FrustumPlane::Bottom].distance << " " << P.frustum[FrustumPlane::Near].distance << " " <<
+  //  P.frustum[FrustumPlane::Far].distance << "\n";
 
   P.projectionMatrix = orthographic(P.frustum[FrustumPlane::Left].distance,
     P.frustum[FrustumPlane::Right].distance, P.frustum[FrustumPlane::Top].distance,
@@ -119,8 +119,8 @@ std::array<LightProjection, 3> computeLightProjections(const Frustum& camFrustum
   float z2 = metresToWorldUnits(50.f);
   float z1 = metresToWorldUnits(10.f);
 
-  std::cout << "Near plane distance: " << camFrustum[FrustumPlane::Near].distance << "\n";
-  std::cout << "Far plane distance: " << camFrustum[FrustumPlane::Far].distance << "\n";
+  //std::cout << "Near plane distance: " << camFrustum[FrustumPlane::Near].distance << "\n";
+  //std::cout << "Far plane distance: " << camFrustum[FrustumPlane::Far].distance << "\n";
 
   Frustum farFrustum = camFrustum;
   farFrustum[FrustumPlane::Near].distance = z2;

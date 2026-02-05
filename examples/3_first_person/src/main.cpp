@@ -209,7 +209,7 @@ void Demo::processKeyboardInput()
   Vec3f direction{};
   float speed = m_player->getSpeed();
   const auto forward = m_player->getDirection();
-  const auto strafe = m_player->getDirection().cross(Vec3f{0, 1, 0});
+  const auto right = -m_player->getDirection().cross(Vec3f{0, 1, 0});
 
   if (m_leftStickDelta != Vec2f{}) {
     float threshold = 0.4f;
@@ -217,7 +217,7 @@ void Demo::processKeyboardInput()
     if (m_leftStickDelta.magnitude() > threshold) {
       float x = m_leftStickDelta[0];
       float y = -m_leftStickDelta[1];
-      direction = forward * y + strafe * x;
+      direction = forward * y + right * x;
       speed = m_leftStickDelta.magnitude() * m_player->getSpeed();
     }
 
@@ -231,10 +231,10 @@ void Demo::processKeyboardInput()
       direction -= forward;
     }
     if (m_inputState.keysPressed.contains(KeyboardKey::D)) {
-      direction += strafe;
+      direction += right;
     }
     if (m_inputState.keysPressed.contains(KeyboardKey::A)) {
-      direction -= strafe;
+      direction -= right;
     }
   }
 
@@ -259,13 +259,13 @@ void Demo::processKeyboardInput()
 
 void Demo::processMouseInput()
 {
-  m_player->rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
+  m_player->rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], MOUSE_LOOK_SPEED * m_mouseDelta[0]);
   m_mouseDelta = Vec2f{};
 }
 
 void Demo::gravity()
 {
-  m_player->translate(Vec3f{ 0, m_playerVerticalVelocity, 0 });
+  m_player->translate({ 0, m_playerVerticalVelocity, 0 });
   float altitude = m_player->getPosition()[1];
 
   if (altitude > 0) {

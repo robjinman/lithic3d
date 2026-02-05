@@ -15,7 +15,7 @@ class PlayerImpl : public Player
     void setPosition(const Vec3f& position) override;
     Vec3f getDirection() const override;
     virtual void translate(const Vec3f& delta) override;
-    virtual void rotate(float deltaYaw, float deltaPitch) override;
+    virtual void rotate(float deltaPitch, float deltaYaw) override;
     float getStepHeight() const override;
     float getSpeed() const override;
     float getRadius() const override;

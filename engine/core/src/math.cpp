@@ -210,9 +210,9 @@ Mat4x4f perspective(float fovX, float fovY, float n, float f)
   const float l = -r;
 
   m.set(0, 0, 2.f * n / (r - l));
-  m.set(0, 2, (r + l) / (l - r));
-  m.set(1, 1, 2.f * n / (t - b));
-  m.set(1, 2, (t + b) / (b - t));
+  //m.set(0, 2, (r + l) / (l - r));
+  m.set(1, 1, -2.f * n / (t - b));    // Inverted to flip y
+  //m.set(1, 2, (t + b) / (b - t));
   m.set(2, 2, f / (f - n));
   m.set(2, 3, f * n / (n - f));
   m.set(3, 2, 1.f);
@@ -236,9 +236,9 @@ Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
   Mat4x4f m;
 
   m.set(0, 0, 2.f / (r - l));
-  m.set(0, 3, (r + l) / (l - r));
+  //m.set(0, 3, (r + l) / (l - r));
   m.set(1, 1, -2.f / (t - b));      // Inverted to flip y
-  m.set(1, 3, (t + b) / (b - t));
+  //m.set(1, 3, (t + b) / (b - t));
   m.set(2, 2, 1.f / (f - n));
   m.set(2, 3, n / (n - f));
   m.set(3, 3, 1.f);

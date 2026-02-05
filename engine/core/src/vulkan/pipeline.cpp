@@ -170,7 +170,7 @@ VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkR
 
 VkPipelineRasterizationStateCreateInfo defaultRasterizationState(bool doubleSided)
 {
-  VkCullModeFlags cullMode = doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
+  VkCullModeFlags cullMode = VK_CULL_MODE_NONE;//doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
   return VkPipelineRasterizationStateCreateInfo{
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
     .pNext = nullptr,

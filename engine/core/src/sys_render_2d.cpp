@@ -42,6 +42,7 @@ Mat4x4f screenToWorld(const Mat4x4f& transform, float aspect)
 }
 
 // TODO: Remove normals
+// TODO: Remove UVs?
 MeshPtr quad()
 {
   MeshPtr mesh = std::make_unique<Mesh>();
@@ -127,10 +128,11 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
     float y0 = uvRect.y + glyphH * row;
     float y1 = y0 + glyphH;
 
-    uvs.push_back({ x0, y0 });
-    uvs.push_back({ x1, y0 });
-    uvs.push_back({ x1, y1 });
+    // Upside-down because 0,0 is top-left
     uvs.push_back({ x0, y1 });
+    uvs.push_back({ x1, y1 });
+    uvs.push_back({ x1, y0 });
+    uvs.push_back({ x0, y0 });
 
     indices.insert(indices.end(), {
       static_cast<uint16_t>(i * 4),
