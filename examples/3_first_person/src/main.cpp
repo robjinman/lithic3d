@@ -209,7 +209,7 @@ void Demo::processKeyboardInput()
   Vec3f direction{};
   float speed = m_player->getSpeed();
   const auto forward = m_player->getDirection();
-  const auto right = -m_player->getDirection().cross(Vec3f{0, 1, 0});
+  const auto right = m_player->getDirection().cross(Vec3f{0, 1, 0});
 
   if (m_leftStickDelta != Vec2f{}) {
     float threshold = 0.4f;

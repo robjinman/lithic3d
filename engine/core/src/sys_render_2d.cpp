@@ -37,7 +37,7 @@ namespace
 
 Mat4x4f screenToWorld(const Mat4x4f& transform, float aspect)
 {
-  Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, 1.f });
+  Mat4x4f M = translationMatrix4x4(Vec3f{ -0.5f * aspect, -0.5f, -1.f });
   return M * transform;
 }
 

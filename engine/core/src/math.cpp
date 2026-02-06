@@ -179,13 +179,13 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
   return indices;
 }
 
-// World and view space are left-handed. Use left-hand rule to calculate cross products.
+// World and view space are right-handed. Use right-hand rule to calculate cross products.
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
 {
   Mat4x4f m = identityMatrix<4>();
-  Vec3f z = (centre - eye).normalise();
+  Vec3f z = (eye - centre).normalise();
   Vec3f x = -z.cross({ 0, 1, 0 }).normalise();
-  Vec3f y = -x.cross(z);
+  Vec3f y = -x.cross(z).normalise();
   m.set(0, 0, x[0]);
   m.set(0, 1, x[1]);
   m.set(0, 2, x[2]);
@@ -198,6 +198,7 @@ Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
   m.set(0, 3, -x.dot(eye));
   m.set(1, 3, -y.dot(eye));
   m.set(2, 3, -z.dot(eye));
+
   return m;
 }
 
@@ -207,15 +208,12 @@ Mat4x4f perspective(float fovX, float fovY, float n, float f)
   const float t = n * tan(fovY * 0.5f);
   const float b = -t;
   const float r = n * tan(fovX * 0.5f);
-  const float l = -r;
 
-  m.set(0, 0, 2.f * n / (r - l));
-  //m.set(0, 2, (r + l) / (l - r));
-  m.set(1, 1, -2.f * n / (t - b));    // Inverted to flip y
-  //m.set(1, 2, (t + b) / (b - t));
-  m.set(2, 2, f / (f - n));
-  m.set(2, 3, f * n / (n - f));
-  m.set(3, 2, 1.f);
+  m.set(0, 0, n / r);
+  m.set(1, 1, n / b);
+  m.set(2, 2, f / (n - f));
+  m.set(2, 3, n * f / (n - f));
+  m.set(3, 2, -1.f);
   m.set(3, 3, 0.f);
 
   return m;
@@ -236,10 +234,8 @@ Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
   Mat4x4f m;
 
   m.set(0, 0, 2.f / (r - l));
-  //m.set(0, 3, (r + l) / (l - r));
-  m.set(1, 1, -2.f / (t - b));      // Inverted to flip y
-  //m.set(1, 3, (t + b) / (b - t));
-  m.set(2, 2, 1.f / (f - n));
+  m.set(1, 1, 2.f / (b - t));
+  m.set(2, 2, 1.f / (n - f));
   m.set(2, 3, n / (n - f));
   m.set(3, 3, 1.f);
 

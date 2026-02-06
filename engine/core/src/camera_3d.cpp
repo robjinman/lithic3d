@@ -6,7 +6,7 @@ namespace lithic3d
 
 Camera3d::Camera3d(float aspectRatio, float rotation)
   : m_position{0, 0, 0}
-  , m_direction{0, 0, 1}
+  , m_direction{0, 0, -1}
 {
   updateParameters(aspectRatio, rotation);
 }
@@ -58,9 +58,9 @@ void Camera3d::translate(const Vec3f& delta)
 
 void Camera3d::rotate(float deltaPitch, float deltaYaw)
 {
-  // Left-hand rule for cross-product and rotations
+  // Right-hand rule for cross-product and rotations
   auto pitch = rotationMatrix3x3(m_direction.cross(Vec3f{0, 1, 0}), deltaPitch);
-  auto yaw = rotationMatrix3x3(Vec3f{0, 1, 0}, deltaYaw);
+  auto yaw = rotationMatrix3x3(Vec3f{0, 1, 0}, -deltaYaw);
   m_direction = (yaw * pitch * m_direction).normalise();
 }
 

@@ -66,8 +66,6 @@ Demo::Demo(Engine& engine)
   constructLight();
   constructGround();
   constructModel();
-
-  m_engine.renderer().start(); // TODO: Move to engine?
 }
 
 void Demo::constructSkybox()
@@ -116,7 +114,7 @@ void Demo::constructSkybox()
 EntityId Demo::constructLight()
 {
   auto id = m_engine.ecs().idGen().getNewEntityId();
-  m_engine.ecs().componentStore().allocate<DSpatial, DLight>(id);
+  m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   float pitch = degreesToRadians(-45.f);
   float yaw = degreesToRadians(180.f);
@@ -130,7 +128,7 @@ EntityId Demo::constructLight()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
-  auto light = std::make_unique<DLight>();
+  auto light = std::make_unique<DDirectionalLight>();
   light->colour = { 1.f, 0.9f, 0.9f };
   light->ambient = 0.4f;
   light->specular = 0.9f;
@@ -252,7 +250,7 @@ void Demo::processKeyboardInput()
 
 void Demo::processMouseInput()
 {
-  m_player->rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
+  m_player->rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], MOUSE_LOOK_SPEED * m_mouseDelta[0]);
   m_mouseDelta = Vec2f{};
 }
 

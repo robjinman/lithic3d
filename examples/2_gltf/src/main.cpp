@@ -53,8 +53,10 @@ EntityId Demo::constructLight()
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
+  auto pos = metresToWorldUnits(Vec3f{ 0.5f, 0.5f, 0.2f });
+
   DSpatial spatial{
-    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
+    .transform = translationMatrix4x4(pos),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -131,9 +133,9 @@ void Demo::rotateModel()
 {
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
+  auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, 0.f, -0.5f })), { b, a, 0.f });
 
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model, createTransform({ 0.f, 0.f, 5.f },
-    { b, a, 0.f }));
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model, m);
 }
 
 bool Demo::update()

@@ -55,7 +55,9 @@ Demo::Demo(Engine& engine)
 EntityId Demo::constructCube()
 {
   auto material = m_factory->createMaterial("textures/bricks.png");
-  return m_factory->createCuboid({ 1.f, 1.f, 1.f }, material, { 1.f, 1.f });
+  auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
+  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+  return m_factory->createCuboid(size, material, texSize);
 }
 
 EntityId Demo::constructLight()
@@ -64,7 +66,7 @@ EntityId Demo::constructLight()
   m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   DSpatial spatial{
-    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
+    .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -128,8 +130,8 @@ void Demo::rotateCube()
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube, createTransform({ 0.f, 0.f, 5.f },
-    { b, a, 0.f }));
+  auto m = createTransform(metresToWorldUnits(Vec3f{ 0.f, 0.f, -3.5f }), { b, a, 0.f });
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube, m);
 }
 
 bool Demo::update()

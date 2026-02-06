@@ -21,7 +21,7 @@ void Camera2d::translate(const Vec3f& delta)
 
 Mat4x4f Camera2d::getViewMatrix() const
 {
-  return lookAt(m_position, m_position + Vec3f{0, 0, 1});
+  return lookAt(m_position, m_position + Vec3f{0, 0, -1});
 }
 
 Mat4x4f Camera2d::getProjectionMatrix() const

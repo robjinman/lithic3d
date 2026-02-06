@@ -286,7 +286,7 @@ void Demo::processMouseInput()
 {
   auto& camera = m_engine.ecs().system<SysRender3d>().camera();
 
-  camera.rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], -MOUSE_LOOK_SPEED * m_mouseDelta[0]);
+  camera.rotate(-MOUSE_LOOK_SPEED * m_mouseDelta[1], MOUSE_LOOK_SPEED * m_mouseDelta[0]);
   m_mouseDelta = Vec2f{};
 }
 

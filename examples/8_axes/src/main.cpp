@@ -12,7 +12,7 @@ class Demo : public Game
     Demo(Engine& engine);
 
     float gameViewportAspectRatio() const override { return 1.4f; }
-    void onKeyDown(KeyboardKey) override;
+    void onKeyDown(KeyboardKey) override {}
     void onKeyUp(KeyboardKey) override {}
     void onButtonDown(GamepadButton) override {}
     void onButtonUp(GamepadButton) override {}
@@ -42,6 +42,9 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
+  auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 1.f });
+  m_engine.ecs().system<SysRender3d>().camera().setPosition(camPos);
+
   constructLight();
   m_model = constructModel();
   constructCaption();
@@ -52,10 +55,8 @@ EntityId Demo::constructLight()
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
-  auto pos = metresToWorldUnits(Vec3f{ 0.5f, 0.5f, 0.2f });
-
   DSpatial spatial{
-    .transform = translationMatrix4x4(pos),
+    .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -80,16 +81,13 @@ EntityId Demo::constructModel()
   auto id = m_engine.ecs().idGen().getNewEntityId(); 
   m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
-  auto pos = metresToWorldUnits(Vec3f{ 0.f, -0.1f, -0.5f });
-
   DSpatial spatial{};
   spatial.parent = sysSpatial.root();
-  spatial.transform = createTransform(pos, { PIf, PIf / 2.f, 0.f });
 
   sysSpatial.addEntity(id, spatial);
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("models/demon.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("models/indicator.gltf").wait();
 
   sysRender3d.addEntity(id, std::move(render));
 
@@ -138,31 +136,13 @@ bool Demo::update()
   return true;
 }
 
-void Demo::onKeyDown(KeyboardKey key)
-{
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-
-  switch (key) {
-    case KeyboardKey::Num1:
-      sysRender3d.playAnimation(m_model, "Idle");
-      break;
-    case KeyboardKey::Num2:
-      sysRender3d.playAnimation(m_model, "Walk");
-      break;
-    case KeyboardKey::Num3:
-      sysRender3d.playAnimation(m_model, "Attack");
-      break;
-    default: break;
-  }
-}
-
 } // namespace
 
 GameConfig getGameConfig()
 {
   return {
-    .appDisplayName = "Lithic3D Demo - Animation",
-    .appShortName = "animation",
+    .appDisplayName = "Lithic3D Demo - Axes",
+    .appShortName = "axes",
     .vendorShortName = "freeholdapps",
     .windowW = 640,
     .windowH = 480,
