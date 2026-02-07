@@ -2,6 +2,19 @@
 #include "lithic3d/exception.hpp"
 #include <nlohmann/json.hpp>
 
+// Anatomy of a GLTF file
+//
+// * Buffer - Refers to a .bin file
+// * Buffer view - Contiguous section of a buffer (length and offset)
+// * Accessor - Reference to a buffer view with info on what it contains (VEC3 of floats, for
+//     example). There seems to be a 1-to-1 correspondence between accessors and buffer views (a bit
+//     redundant, perhaps?)
+// * Animation - Each animation has a name and contains a list of channels and a list of samplers.
+// * Sampler - Maps an input accessor (list of timestamps) to an output accessor (list of
+//     values, i.e. VEC3, MAT4, etc.).
+// * Channel - Associates a sampler with a target node (skeleton joint) and specifies the meaning
+//     of the sampled value (translation, rotation, scale, etc.).
+
 namespace lithic3d
 {
 namespace gltf

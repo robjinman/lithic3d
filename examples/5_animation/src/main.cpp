@@ -34,6 +34,7 @@ class Demo : public Game
     EntityId constructLight();
     EntityId constructModel();
     EntityId constructCaption();
+    void rotateModel();
 };
 
 Demo::Demo(Engine& engine)
@@ -80,11 +81,8 @@ EntityId Demo::constructModel()
   auto id = m_engine.ecs().idGen().getNewEntityId(); 
   m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
-  auto pos = metresToWorldUnits(Vec3f{ 0.f, -0.1f, -0.5f });
-
   DSpatial spatial{};
   spatial.parent = sysSpatial.root();
-  spatial.transform = createTransform(pos, { PIf, PIf / 2.f, 0.f });
 
   sysSpatial.addEntity(id, spatial);
 
@@ -131,8 +129,17 @@ EntityId Demo::constructCaption()
   return id;
 }
 
+void Demo::rotateModel()
+{
+  float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
+  auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, 0.f, -0.5f })), { 0.f, a, 0.f });
+
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model, m);
+}
+
 bool Demo::update()
 {
+  rotateModel();
   m_engine.update({});
 
   return true;

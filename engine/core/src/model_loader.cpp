@@ -7,7 +7,6 @@
 #include "lithic3d/strings.hpp"
 #include "lithic3d/thread.hpp"
 #include <set>
-#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -28,74 +27,123 @@ using render::AlignedBytes;
 namespace
 {
 
-AlignedBytes createAlignedBuffer(BufferUsage usage, size_t numElements)
+AlignedBytes createAlignedBuffer(BufferUsage usage, const gltf::BufferDesc desc)
 {
   switch (usage) {
-    case BufferUsage::AttrPosition: return AlignedBytes(numElements, Vec3f{});
-    case BufferUsage::AttrNormal: return AlignedBytes(numElements, Vec3f{});
-    case BufferUsage::AttrTexCoord: return AlignedBytes(numElements, Vec2f{});
-    case BufferUsage::AttrJointIndices: return AlignedBytes(numElements, uint8_t{});
-    case BufferUsage::AttrJointWeights: return AlignedBytes(numElements, float{});
+    case BufferUsage::AttrPosition: return AlignedBytes{desc.size, Vec3f{}};
+    case BufferUsage::AttrNormal: return AlignedBytes{desc.size, Vec3f{}};
+    case BufferUsage::AttrTexCoord: return AlignedBytes{desc.size, Vec2f{}};
+    case BufferUsage::AttrJointIndices: return AlignedBytes{desc.size, Vector<uint8_t, 4>{}};
+    case BufferUsage::AttrJointWeights: return AlignedBytes{desc.size, Vector<float, 4>{}};
     // TODO
     default: EXCEPTION("Error creating aligned buffer");
   }
 }
 
-template<typename T>
-T convert(const char* value, gltf::ComponentType dataType)
+template<typename DEST_T, typename SRC_T>
+DEST_T convertScalar(const char* bytes)
+{
+  SRC_T value = 0;
+  std::memcpy(&value, bytes, sizeof(SRC_T));
+  return static_cast<DEST_T>(value);
+}
+
+// Convert GLTF type to DEST_T
+template<typename DEST_T>
+DEST_T convertScalar(const char* bytes, gltf::ComponentType dataType)
 {
   switch (dataType) {
-    case gltf::ComponentType::SignedByte:
-      return static_cast<T>(*reinterpret_cast<const int8_t*>(value));
-    case gltf::ComponentType::UnsignedByte:
-      return static_cast<T>(*reinterpret_cast<const uint8_t*>(value));
-    case gltf::ComponentType::SignedShort:
-      return static_cast<T>(*reinterpret_cast<const int16_t*>(value));
-    case gltf::ComponentType::UnsignedShort:
-      return static_cast<T>(*reinterpret_cast<const uint16_t*>(value));
-    case gltf::ComponentType::UnsignedInt:
-      return static_cast<T>(*reinterpret_cast<const uint32_t*>(value));
-    case gltf::ComponentType::Float:
-      return static_cast<T>(*reinterpret_cast<const float*>(value));
+    case gltf::ComponentType::SignedByte: {
+      assert(gltf::getSize(dataType) == sizeof(int8_t));
+      return convertScalar<DEST_T, int8_t>(bytes);
+    }
+    case gltf::ComponentType::UnsignedByte: {
+      assert(gltf::getSize(dataType) == sizeof(uint8_t));
+      return convertScalar<DEST_T, uint8_t>(bytes);
+    }
+    case gltf::ComponentType::SignedShort: {
+      assert(gltf::getSize(dataType) == sizeof(int16_t));
+      return convertScalar<DEST_T, int16_t>(bytes);
+    }
+    case gltf::ComponentType::UnsignedShort: {
+      assert(gltf::getSize(dataType) == sizeof(uint16_t));
+      return convertScalar<DEST_T, uint16_t>(bytes);
+    }
+    case gltf::ComponentType::UnsignedInt: {
+      assert(gltf::getSize(dataType) == sizeof(uint32_t));
+      return convertScalar<DEST_T, uint32_t>(bytes);
+    }
+    case gltf::ComponentType::Float: {
+      assert(gltf::getSize(dataType) == sizeof(float));
+      return convertScalar<DEST_T, float>(bytes);
+    }
     default: EXCEPTION("Cannot convert data type");
   }
 }
 
-// TODO: Remove n and instantiate Vector<T, n> instead
-
-template<typename T>
-size_t convert(const char* src, gltf::ComponentType srcType, uint32_t n, char* dest)
+// DEST_T is scalar type, e.g. float
+template<typename DEST_T, size_t ROWS, size_t COLS>
+size_t convert(const char* src, gltf::ComponentType srcType, char* dest)
 {
-  for (uint32_t i = 0; i < n; ++i) {
-    *(reinterpret_cast<T*>(dest) + i) = convert<T>(src + i * getSize(srcType), srcType);
+  auto componentSize = gltf::getSize(srcType);
+
+  if (COLS == 1 && ROWS == 1) {     // Scalar
+    *reinterpret_cast<DEST_T*>(dest) = convertScalar<DEST_T>(src, srcType);
+    return sizeof(DEST_T);
   }
-  return sizeof(T) * n;
+  else if (COLS == 1 && ROWS > 1) { // Vector
+    auto& vector = *reinterpret_cast<Vector<DEST_T, ROWS>*>(dest);
+    for (size_t i = 0; i < ROWS; ++i) {
+      vector[i] = convertScalar<DEST_T>(src + i * componentSize, srcType);
+    }
+    return sizeof(Vector<DEST_T, ROWS>);
+  }
+  else if (COLS > 1) {              // Matrix
+    auto& matrix = *reinterpret_cast<Matrix<DEST_T, ROWS, COLS>*>(dest);
+    for (size_t c = 0; c < COLS; ++c) {
+      for (size_t r = 0; r < ROWS; ++r) {
+        matrix.set(r, c, convertScalar<DEST_T>(src + (c * ROWS + r) * componentSize, srcType));
+      }
+    }
+    return sizeof(Matrix<DEST_T, ROWS, COLS>);
+  }
+  else {
+    EXCEPTION("Unknown entity with " << ROWS << " rows and " << COLS << " columns");
+  }
 }
 
 // Map gltf types to engine types
 size_t convert(const char* src, gltf::ElementType elementType, gltf::ComponentType srcType,
-  uint32_t n, char* dest)
+  char* dest)
 {
   switch (elementType) {
     case gltf::ElementType::AttrJointIndices:
-      return convert<uint8_t>(src, srcType, n, dest);
+      return convert<uint8_t, 4, 1>(src, srcType, dest);
     case gltf::ElementType::VertexIndex:
-      return convert<uint16_t>(src, srcType, n, dest);
+      return convert<uint16_t, 1, 1>(src, srcType, dest);
     case gltf::ElementType::AttrPosition:
     case gltf::ElementType::AttrNormal:
+      return convert<float, 3, 1>(src, srcType, dest);
     case gltf::ElementType::AttrTexCoord:
+      return convert<float, 2, 1>(src, srcType, dest);
     case gltf::ElementType::AttrJointWeights:
+      return convert<float, 4, 1>(src, srcType, dest);
     case gltf::ElementType::AnimationTimestamps:
+      return convert<float, 1, 1>(src, srcType, dest);
     case gltf::ElementType::JointRotation:
+      return convert<float, 4, 1>(src, srcType, dest);
     case gltf::ElementType::JointScale:
     case gltf::ElementType::JointTranslation:
+      return convert<float, 3, 1>(src, srcType, dest);
     case gltf::ElementType::JointInverseBindMatrices:
-      return convert<float>(src, srcType, n, dest);
+      return convert<float, 4, 4>(src, srcType, dest);
     default:
       EXCEPTION("Cannot convert element type");
   }
 }
 
+// Destination buffer should already have correct object types constructed there, so we can
+// reinterpret_cast without causing UB.
 void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuffer,
   const gltf::BufferDesc desc)
 {
@@ -106,8 +154,7 @@ void copyToBuffer(const std::vector<std::vector<char>>& srcBuffers, char* dstBuf
 
   char* dstPtr = dstBuffer;
   for (unsigned long i = 0; i < desc.size; ++i) {
-    dstPtr += convert(src + i * srcElemSize, desc.type, desc.componentType, desc.dimensions,
-      dstPtr);
+    dstPtr += convert(src + i * srcElemSize, desc.type, desc.componentType, dstPtr);
   }
 }
 
@@ -272,14 +319,14 @@ render::MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
 
   for (const auto& bufferDesc : meshDesc.buffers) {
     if (bufferDesc.type == gltf::ElementType::VertexIndex) {
-      std::vector<uint16_t> indices(bufferDesc.size);
-      copyToBuffer(dataBuffers, reinterpret_cast<char*>(indices.data()), bufferDesc);
-      mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
+      mesh->indexBuffer = Buffer{AlignedBytes{bufferDesc.size, uint16_t{}}, BufferUsage::Index};
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(mesh->indexBuffer.data.rawBytes()),
+        bufferDesc);
     }
     else if (gltf::isAttribute(bufferDesc.type)) {
       auto usage = getUsage(bufferDesc.type);
-      Buffer buffer{createAlignedBuffer(usage, bufferDesc.size), usage};
 
+      Buffer buffer{createAlignedBuffer(usage, bufferDesc), usage};
       copyToBuffer(dataBuffers, buffer.data.rawBytes(), bufferDesc);
 
       size_t index = std::distance(attributes.begin(), attributes.find(bufferDesc.type));
@@ -386,6 +433,7 @@ SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
   auto skin = std::make_unique<Skin>();
 
   skin->inverseBindMatrices.resize(skinDesc.inverseBindMatricesBuffer.size);
+
   copyToBuffer(dataBuffers, reinterpret_cast<char*>(skin->inverseBindMatrices.data()),
     skinDesc.inverseBindMatricesBuffer);
 
@@ -394,38 +442,6 @@ SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
   }
 
   return skin;
-}
-
-std::vector<Transform> constructJointTransformsBuffer(const std::vector<float>& data,
-  gltf::ElementType elementType)
-{
-  std::vector<Transform> buffer;
-
-  for (size_t i = 0; i < data.size();) {
-    Transform transform;
-
-    switch (elementType) {
-      case gltf::ElementType::JointRotation: {
-        transform.rotation = { data[i + 3], data[i + 0], data[i + 1], data[i + 2] };
-        i += 4;
-        break;
-      }
-      case gltf::ElementType::JointScale:
-        transform.scale = { data[i + 0], data[i + 1], data[i + 2] };
-        i += 3;
-        break;
-      case gltf::ElementType::JointTranslation:
-        transform.translation = { data[i + 0], data[i + 1], data[i + 2] };
-        i += 3;
-        break;
-      default:
-        EXCEPTION("Unexpected element type");
-    }
-
-    buffer.push_back(transform);
-  }
-
-  return buffer;
 }
 
 ResourceHandle ModelLoaderImpl::loadModelAsync(ModelPtr model)
@@ -482,20 +498,20 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
     }
 
     for (auto& animationDesc : modelDesc.armature.animations) {
-      std::map<size_t, std::vector<float>> buffers;
+      std::map<size_t, std::vector<float>> timestampBuffers;
 
-      auto getBuffer = [&](size_t index) -> std::vector<float>& {
-        auto i = buffers.find(index);
-        if (i != buffers.end()) {
+      auto getTimestampBuffer = [&](size_t index) -> std::vector<float>& {
+        auto i = timestampBuffers.find(index);
+        if (i != timestampBuffers.end()) {
           return i->second;
         }
         auto& bufferDesc = animationDesc.buffers[index];
-        DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float,
-          "Expected float buffer");
-        std::vector<float> buffer(bufferDesc.size * bufferDesc.dimensions);
+        DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float, "Expected float buffer");
+        DBG_ASSERT(bufferDesc.dimensions == 1, "Expected scalar elements");
+        std::vector<float> buffer(bufferDesc.size);
         copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
-        buffers[index] = std::move(buffer);
-        return buffers.at(index);
+        timestampBuffers[index] = std::move(buffer);
+        return timestampBuffers.at(index);
       };
 
       auto animation = std::make_unique<Animation>();
@@ -503,14 +519,53 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
 
       for (auto& channelDesc : animationDesc.channels) {
         auto& transformBufferDesc = animationDesc.buffers[channelDesc.transformsBufferIndex];
-        auto& transformsBuffer = getBuffer(channelDesc.transformsBufferIndex);
 
-        std::vector<Transform> transforms = constructJointTransformsBuffer(transformsBuffer,
-          transformBufferDesc.type);
+        std::vector<Transform> transforms;
+
+        switch (transformBufferDesc.type) {
+          case gltf::ElementType::JointRotation: {
+            std::vector<Vec4f> buffer(transformBufferDesc.size);
+            copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
+
+            for (size_t i = 0; i < buffer.size(); ++i) {
+              Transform t;
+              t.rotation = { buffer[i][3], buffer[i][0], buffer[i][1], buffer[i][2] };
+              transforms.push_back(t);
+            }
+
+            break;
+          }
+          case gltf::ElementType::JointTranslation: {
+            std::vector<Vec3f> buffer(transformBufferDesc.size);
+            copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
+
+            for (size_t i = 0; i < buffer.size(); ++i) {
+              Transform t;
+              t.translation = buffer[i];
+              transforms.push_back(t);
+            }
+
+            break;
+          }
+          case gltf::ElementType::JointScale: {
+            std::vector<Vec3f> buffer(transformBufferDesc.size);
+            copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
+
+            for (size_t i = 0; i < buffer.size(); ++i) {
+              Transform t;
+              t.scale = buffer[i];
+              transforms.push_back(t);
+            }
+
+            break;
+          }
+          default:
+            EXCEPTION("Unknown transform type");
+        }
 
         animation->channels.push_back(AnimationChannel{
           .jointIndex = channelDesc.nodeIndex,
-          .timestamps = getBuffer(channelDesc.timesBufferIndex),
+          .timestamps = getTimestampBuffer(channelDesc.timesBufferIndex),
           .transforms = std::move(transforms)
         });
       }

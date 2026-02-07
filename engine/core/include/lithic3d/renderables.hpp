@@ -23,6 +23,7 @@ namespace render
 class AlignedBytes
 {
   public:
+    // TODO: Remove this?
     template<typename T>
     AlignedBytes(size_t numElements, T initialValue)
       : m_numElements(numElements)
@@ -36,7 +37,7 @@ class AlignedBytes
       new (m_alignedPtr) T[numElements];
 
       for (size_t i = 0; i < numElements; ++i) {
-        std::memcpy(m_alignedPtr + i * sizeof(T), &initialValue, sizeof(T));
+        *(reinterpret_cast<T*>(m_alignedPtr) + i) = initialValue;
       }
     }
 
@@ -50,8 +51,23 @@ class AlignedBytes
       void* raw = m_data.data();
       m_alignedPtr = reinterpret_cast<char*>(std::align(alignof(T), sizeof(T), raw, n));
 
-      std::memcpy(m_alignedPtr, data.data(), data.size() * sizeof(T));
+      T* dst = reinterpret_cast<T*>(m_alignedPtr);
+      std::memcpy(dst, data.data(), data.size() * sizeof(T));
     }
+/*
+    template<typename T>
+    AlignedBytes(const char* data, size_t numElements, T)
+      : m_numElements(numElements)
+      , m_elementSize(sizeof(T))
+    {
+      size_t n = sizeof(T) * numElements + alignof(T) - 1;
+      m_data.resize(n);
+      void* raw = m_data.data();
+      m_alignedPtr = reinterpret_cast<char*>(std::align(alignof(T), sizeof(T), raw, n));
+
+      T* dst = reinterpret_cast<T*>(m_alignedPtr);
+      std::memcpy(dst, data, numElements * sizeof(T));
+    }*/
 
     AlignedBytes(const AlignedBytes&) = delete;
 

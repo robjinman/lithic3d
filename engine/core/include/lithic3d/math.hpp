@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <optional>
+#include <cstring>
 
 namespace lithic3d
 {
@@ -310,6 +311,11 @@ class Matrix
     {
       std::copy(std::begin(rhs.m_data), std::end(rhs.m_data), std::begin(m_data));
       return *this;
+    }
+
+    void assign(const std::array<T, ROWS * COLS>& data)
+    {
+      std::memcpy(m_data, data.data(), data.size() * sizeof(T));
     }
 
     const T* data() const
