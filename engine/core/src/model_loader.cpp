@@ -121,20 +121,18 @@ size_t convert(const char* src, gltf::ElementType elementType, gltf::ComponentTy
       return convert<uint8_t, 4, 1>(src, srcType, dest);
     case gltf::ElementType::VertexIndex:
       return convert<uint16_t, 1, 1>(src, srcType, dest);
+    case gltf::ElementType::AnimationTimestamps:
+      return convert<float, 1, 1>(src, srcType, dest);
+    case gltf::ElementType::AttrTexCoord:
+      return convert<float, 2, 1>(src, srcType, dest);
+    case gltf::ElementType::JointScale:
+    case gltf::ElementType::JointTranslation:
     case gltf::ElementType::AttrPosition:
     case gltf::ElementType::AttrNormal:
       return convert<float, 3, 1>(src, srcType, dest);
-    case gltf::ElementType::AttrTexCoord:
-      return convert<float, 2, 1>(src, srcType, dest);
+    case gltf::ElementType::JointRotation:
     case gltf::ElementType::AttrJointWeights:
       return convert<float, 4, 1>(src, srcType, dest);
-    case gltf::ElementType::AnimationTimestamps:
-      return convert<float, 1, 1>(src, srcType, dest);
-    case gltf::ElementType::JointRotation:
-      return convert<float, 4, 1>(src, srcType, dest);
-    case gltf::ElementType::JointScale:
-    case gltf::ElementType::JointTranslation:
-      return convert<float, 3, 1>(src, srcType, dest);
     case gltf::ElementType::JointInverseBindMatrices:
       return convert<float, 4, 4>(src, srcType, dest);
     default:
@@ -364,6 +362,8 @@ class ModelLoaderImpl : public ModelLoader
     std::unordered_map<ResourceId, ModelPtr> m_models;
 
     MaterialHandle loadMaterialAsync(const gltf::MaterialDesc& desc);
+    void loadMeshes(const std::vector<std::vector<char>>& dataBuffers,
+      const gltf::ModelDesc& modelDesc, Model& model);
 };
 
 ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
@@ -459,7 +459,117 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(ModelPtr model)
   });
 }
 
-// TODO: Function too big - needs breaking up
+std::vector<Transform> extractTransforms(const std::vector<std::vector<char>>& dataBuffers,
+  const gltf::BufferDesc& transformBufferDesc)
+{
+  std::vector<Transform> transforms;
+
+  switch (transformBufferDesc.type) {
+    case gltf::ElementType::JointRotation: {
+      std::vector<Vec4f> buffer(transformBufferDesc.size);
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
+
+      for (size_t i = 0; i < buffer.size(); ++i) {
+        Transform t;
+        t.rotation = { buffer[i][3], buffer[i][0], buffer[i][1], buffer[i][2] };
+        transforms.push_back(t);
+      }
+
+      break;
+    }
+    case gltf::ElementType::JointTranslation: {
+      std::vector<Vec3f> buffer(transformBufferDesc.size);
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
+
+      for (size_t i = 0; i < buffer.size(); ++i) {
+        Transform t;
+        t.translation = buffer[i];
+        transforms.push_back(t);
+      }
+
+      break;
+    }
+    case gltf::ElementType::JointScale: {
+      std::vector<Vec3f> buffer(transformBufferDesc.size);
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
+
+      for (size_t i = 0; i < buffer.size(); ++i) {
+        Transform t;
+        t.scale = buffer[i];
+        transforms.push_back(t);
+      }
+
+      break;
+    }
+    default:
+      EXCEPTION("Unknown transform type");
+  }
+
+  return transforms;
+}
+
+void ModelLoaderImpl::loadMeshes(const std::vector<std::vector<char>>& dataBuffers,
+  const gltf::ModelDesc& modelDesc, Model& model)
+{
+  bool hasAnimations = modelDesc.armature.animations.size() > 0;
+
+  for (auto& meshDesc : modelDesc.meshes) {
+    auto mesh = constructMesh(meshDesc, dataBuffers);
+    auto meshFeatures = mesh->featureSet;
+
+    if (meshFeatures.flags.test(MeshFeatures::HasTangents)) {
+      computeMeshTangents(*mesh);
+    }
+
+    auto submodel = std::make_unique<Submodel>();
+    submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
+    submodel->material = loadMaterialAsync(meshDesc.material);
+
+    if (hasAnimations) {
+      submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
+    }
+
+    model.submodels.push_back(std::move(submodel));
+  }
+}
+
+void extractAnimations(const std::vector<std::vector<char>>& dataBuffers,
+  const gltf::ModelDesc& modelDesc, Model& model)
+{
+  for (auto& animationDesc : modelDesc.armature.animations) {
+    std::map<size_t, std::vector<float>> timestampBuffers;
+
+    auto getTimestampBuffer = [&](size_t index) -> std::vector<float>& {
+      auto i = timestampBuffers.find(index);
+      if (i != timestampBuffers.end()) {
+        return i->second;
+      }
+      auto& bufferDesc = animationDesc.buffers[index];
+      DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float, "Expected float buffer");
+      DBG_ASSERT(bufferDesc.dimensions == 1, "Expected scalar elements");
+      std::vector<float> buffer(bufferDesc.size);
+      copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
+      timestampBuffers[index] = std::move(buffer);
+      return timestampBuffers.at(index);
+    };
+
+    auto animation = std::make_unique<Animation>();
+    animation->name = animationDesc.name;
+
+    for (auto& channelDesc : animationDesc.channels) {
+      auto& transformBufferDesc = animationDesc.buffers[channelDesc.transformsBufferIndex];
+
+      animation->channels.push_back(AnimationChannel{
+        .jointIndex = channelDesc.nodeIndex,
+        .timestamps = getTimestampBuffer(channelDesc.timesBufferIndex),
+        .transforms = extractTransforms(dataBuffers, transformBufferDesc)
+      });
+    }
+
+    model.animations->animations[animation->name] = std::move(animation);
+  }
+}
+
 ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
 {
   return m_resourceManager.loadResource([this, filePath](ResourceId id) {
@@ -479,100 +589,8 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
       model->animations->skeleton = extractSkeleton(modelDesc.armature);
     }
 
-    for (auto& meshDesc : modelDesc.meshes) {
-      auto mesh = constructMesh(meshDesc, dataBuffers);
-      auto meshFeatures = mesh->featureSet;
-
-      if (meshFeatures.flags.test(MeshFeatures::HasTangents)) {
-        computeMeshTangents(*mesh);
-      }
-
-      auto submodel = std::make_unique<Submodel>();
-      submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
-      submodel->material = loadMaterialAsync(meshDesc.material);
-
-      if (hasAnimations) {
-        submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
-      }
-
-      model->submodels.push_back(std::move(submodel));
-    }
-
-    for (auto& animationDesc : modelDesc.armature.animations) {
-      std::map<size_t, std::vector<float>> timestampBuffers;
-
-      auto getTimestampBuffer = [&](size_t index) -> std::vector<float>& {
-        auto i = timestampBuffers.find(index);
-        if (i != timestampBuffers.end()) {
-          return i->second;
-        }
-        auto& bufferDesc = animationDesc.buffers[index];
-        DBG_ASSERT(bufferDesc.componentType == gltf::ComponentType::Float, "Expected float buffer");
-        DBG_ASSERT(bufferDesc.dimensions == 1, "Expected scalar elements");
-        std::vector<float> buffer(bufferDesc.size);
-        copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), bufferDesc);
-        timestampBuffers[index] = std::move(buffer);
-        return timestampBuffers.at(index);
-      };
-
-      auto animation = std::make_unique<Animation>();
-      animation->name = animationDesc.name;
-
-      for (auto& channelDesc : animationDesc.channels) {
-        auto& transformBufferDesc = animationDesc.buffers[channelDesc.transformsBufferIndex];
-
-        std::vector<Transform> transforms;
-
-        switch (transformBufferDesc.type) {
-          case gltf::ElementType::JointRotation: {
-            std::vector<Vec4f> buffer(transformBufferDesc.size);
-            copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
-
-            for (size_t i = 0; i < buffer.size(); ++i) {
-              Transform t;
-              t.rotation = { buffer[i][3], buffer[i][0], buffer[i][1], buffer[i][2] };
-              transforms.push_back(t);
-            }
-
-            break;
-          }
-          case gltf::ElementType::JointTranslation: {
-            std::vector<Vec3f> buffer(transformBufferDesc.size);
-            copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
-
-            for (size_t i = 0; i < buffer.size(); ++i) {
-              Transform t;
-              t.translation = buffer[i];
-              transforms.push_back(t);
-            }
-
-            break;
-          }
-          case gltf::ElementType::JointScale: {
-            std::vector<Vec3f> buffer(transformBufferDesc.size);
-            copyToBuffer(dataBuffers, reinterpret_cast<char*>(buffer.data()), transformBufferDesc);
-
-            for (size_t i = 0; i < buffer.size(); ++i) {
-              Transform t;
-              t.scale = buffer[i];
-              transforms.push_back(t);
-            }
-
-            break;
-          }
-          default:
-            EXCEPTION("Unknown transform type");
-        }
-
-        animation->channels.push_back(AnimationChannel{
-          .jointIndex = channelDesc.nodeIndex,
-          .timestamps = getTimestampBuffer(channelDesc.timesBufferIndex),
-          .transforms = std::move(transforms)
-        });
-      }
-
-      model->animations->animations[animation->name] = std::move(animation);
-    }
+    loadMeshes(dataBuffers, modelDesc, *model);
+    extractAnimations(dataBuffers, modelDesc, *model);
 
     {
       std::scoped_lock lock{m_mutex};
