@@ -131,8 +131,8 @@ EntityId Demo::constructCaption()
 
 void Demo::rotateModel()
 {
-  float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
-  auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, 0.f, -0.5f })), { 0.f, a, 0.f });
+  float a = (2 * PIf / 600.f) * (m_engine.currentTick() % 600);
+  auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, -0.1f, -0.5f })), { 0.f, a, 0.f });
 
   m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model, m);
 }

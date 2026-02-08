@@ -459,6 +459,7 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(ModelPtr model)
   });
 }
 
+// TODO: Function too big - needs breaking up
 ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
 {
   return m_resourceManager.loadResource([this, filePath](ResourceId id) {

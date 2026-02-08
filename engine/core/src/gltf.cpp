@@ -91,7 +91,7 @@ BufferDesc extractBuffer(const nlohmann::json& root, unsigned long accessorIndex
   uint32_t numDimensions = dimensions(type);
 
   ASSERT(byteLength == numElements * numDimensions * getSize(componentType),
-    "Buffer has unexpeced length");
+    "Buffer has unexpected length");
 
   return BufferDesc{
     .type = elementType,
