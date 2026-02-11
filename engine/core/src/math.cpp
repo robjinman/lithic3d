@@ -185,7 +185,7 @@ Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
   Mat4x4f m = identityMatrix<4>();
   Vec3f z = (eye - centre).normalise();
   Vec3f x = -z.cross({ 0, 1, 0 }).normalise();
-  Vec3f y = -x.cross(z).normalise();
+  Vec3f y = z.cross(x).normalise();
   m.set(0, 0, x[0]);
   m.set(0, 1, x[1]);
   m.set(0, 2, x[2]);
@@ -202,12 +202,14 @@ Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
   return m;
 }
 
-Mat4x4f perspective(float fovX, float fovY, float n, float f)
+Mat4x4f perspective(float vFov, float aspect, float n, float f)
 {
   Mat4x4f m;
-  const float t = n * tan(fovY * 0.5f);
+
+  const float hFov = 2.f * atan(aspect * tan(0.5f * vFov));
+  const float t = n * tan(vFov * 0.5f);
   const float b = -t;
-  const float r = n * tan(fovX * 0.5f);
+  const float r = n * tan(hFov * 0.5f);
 
   m.set(0, 0, n / r);
   m.set(1, 1, n / b);
@@ -234,7 +236,9 @@ Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
   Mat4x4f m;
 
   m.set(0, 0, 2.f / (r - l));
+  m.set(0, 3, (l + r) / (l - r));
   m.set(1, 1, 2.f / (b - t));
+  m.set(1, 3, (t + b) / (t - b));
   m.set(2, 2, 1.f / (n - f));
   m.set(2, 3, n / (n - f));
   m.set(3, 3, 1.f);

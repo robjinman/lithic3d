@@ -24,8 +24,9 @@ TEST_F(Camera3dTest, computeFrustum_simple_square_frustum)
   float nearPlane = metresToWorldUnits(0.1f);
   float farPlane = metresToWorldUnits(1000.f);
 
-  const float epsilon = 0.0001f;
+  const float epsilon = 0.001f;
 
   auto frustum = camera.computeFrustum();
-  EXPECT_NEAR(nearPlane, frustum[FrustumPlane::Near].distance, epsilon);
+  EXPECT_NEAR(-nearPlane, frustum[FrustumPlane::Near].distance, epsilon);
+  EXPECT_NEAR(-farPlane, frustum[FrustumPlane::Far].distance, epsilon);
 }

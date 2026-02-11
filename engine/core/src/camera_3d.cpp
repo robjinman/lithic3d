@@ -14,12 +14,11 @@ Camera3d::Camera3d(float aspectRatio, float rotation)
 void Camera3d::updateParameters(float aspectRatio, float rotation)
 {
   float vFov = 45.f;
-  float hFov = 2.f * atan(aspectRatio * tan(0.5f * vFov));
   float nearPlane = metresToWorldUnits(0.1f);
   float farPlane = metresToWorldUnits(1000.f);
 
   Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
-  m_projection = rot * perspective(hFov, vFov, nearPlane, farPlane);
+  m_projection = rot * perspective(vFov, aspectRatio, nearPlane, farPlane);
 }
 
 Frustum Camera3d::computeFrustum() const
