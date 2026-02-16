@@ -16,21 +16,22 @@ layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 1) uniform LightingUb
   Light directionalLight;
 } lighting;
 
-layout(set = DESCRIPTOR_SET_RENDER_PASS, binding = 2) uniform sampler2D shadowMapSampler;
+layout(set = DESCRIPTOR_SET_RENDER_PASS, binding = 2) uniform sampler2DArray shadowMapSampler;
 
-float sampleShadowMap(vec2 uv, float lightSpacePosZ)
+float sampleShadowMap(int cascade, vec2 uv, float lightSpacePosZ)
 {
-  ivec2 shadowMapSize = textureSize(shadowMapSampler, 0);
+  ivec2 shadowMapSize = textureSize(shadowMapSampler, 0).xy;
   float scale = 0.5;
 	float dx = scale / float(shadowMapSize.x);
 	float dy = scale / float(shadowMapSize.y);
-  int w = 0;  // TODO: Increase for soft shadows
+  int w = 1;  // Increase for soft shadows. Set to 0 for hard shadows
 
   int shadow = 0;
 
   for (int i = -w; i <= w; ++i) {
     for (int j = -w; j <= w; ++j) {
-      if (lightSpacePosZ > texture(shadowMapSampler, uv + vec2(i * dx, j * dy)).r) {
+      float depth = texture(shadowMapSampler, vec3(uv, cascade) + vec3(i * dx, j * dy, 0)).r;
+      if (lightSpacePosZ > depth) {
         ++shadow;
       }
     }
@@ -42,10 +43,20 @@ float sampleShadowMap(vec2 uv, float lightSpacePosZ)
 
 vec3 computeDirectionalLight(vec3 worldPos, vec3 normal)
 {
+  // TODO: Store these numbers somewhere
+  // Must match sizes of frustum sections calculated in SysRender3d.cpp
+  int cascade = 0;
+  if (inViewPos.z <= -500.0) {
+    cascade = 1;
+  }
+  else if (inViewPos.z <= -2000.0) {
+    cascade = 2;
+  }
+
   // TODO: Do perspective divide in vertex shader?
-  vec3 lightSpacePos = (inLightSpacePos / inLightSpacePos.w).xyz;
+  vec3 lightSpacePos = (inLightSpacePos[cascade] / inLightSpacePos[cascade].w).xyz;
   vec2 lightSpaceXy = lightSpacePos.xy * 0.5 + 0.5;
-  float shadow = sampleShadowMap(lightSpaceXy, lightSpacePos.z);
+  float shadow = sampleShadowMap(cascade, lightSpaceXy, lightSpacePos.z);
 
   float intensity = lighting.directionalLight.ambient;
 

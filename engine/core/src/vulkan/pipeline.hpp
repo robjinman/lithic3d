@@ -117,8 +117,9 @@ class Pipeline
   public:
     virtual void onViewportResize(VkExtent2D swapchainExtent) = 0;
 
+    // TODO: Remove shadowMapCascade - find another way to pass this info
     virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      BindState& bindState, size_t currentFrame) = 0;
+      BindState& bindState, size_t currentFrame, uint32_t shadowMapCascade) = 0;
 
     virtual ~Pipeline() {}
 };

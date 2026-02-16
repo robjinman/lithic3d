@@ -14,11 +14,14 @@ namespace render
 namespace
 {
 
+// Remember to update offsets in shader after updating these
 #pragma pack(push, 4)
 struct DefaultPushConstants
 {
   // Vert shader
   Mat4x4f modelMatrix;        // 64 bytes
+  uint32_t shadowCascade;     // 4 bytes
+  char _padding0[12];         // 12 bytes
 
   // Frag shader
   Vec4f colour;               // 16 bytes
@@ -58,8 +61,8 @@ struct DynamicTextPushConstants
 // TODO: Store all of these details in the ShaderProgram object
 
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_OFFSET = 0;
-constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_SIZE = 64;
-constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET = 64;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_SIZE = 68;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET = 80;
 constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_SIZE = 16;
 
 constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_OFFSET = 0;
@@ -279,7 +282,7 @@ class PipelineImpl : public Pipeline
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      BindState& bindState, size_t currentFrame) override;
+      BindState& bindState, size_t currentFrame, uint32_t shadowMapCascade) override;
 
     ~PipelineImpl() override;
 
@@ -403,7 +406,7 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
   m_inputAssemblyStateInfo = defaultInputAssemblyState();
   bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
   m_rasterizationStateInfo = defaultRasterizationState(doubleSided);
-  if (m_spec.renderPass == RenderPass::Shadow) {
+  if (isShadowPass(m_spec.renderPass)) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
     m_rasterizationStateInfo.depthClampEnable = VK_FALSE;
     m_rasterizationStateInfo.depthBiasClamp = 0.f;
@@ -517,7 +520,9 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
         .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
       };
       break;
-    case RenderPass::Shadow:
+    case RenderPass::Shadow0:
+    case RenderPass::Shadow1:
+    case RenderPass::Shadow2:
       m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
         .pNext = nullptr,
@@ -614,7 +619,7 @@ void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
 
 // TODO: Refactor
 void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-  BindState& bindState, size_t currentFrame)
+  BindState& bindState, size_t currentFrame, uint32_t shadowMapCascade)
 {
   auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
   auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(
@@ -665,6 +670,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
 
     DefaultPushConstants constants{
       .modelMatrix = defaultNode.modelMatrix,
+      .shadowCascade = shadowMapCascade,
+      ._padding0{},
       .colour = defaultNode.colour
     };
 

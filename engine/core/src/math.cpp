@@ -206,10 +206,10 @@ Mat4x4f perspective(float vFov, float aspect, float n, float f)
 {
   Mat4x4f m;
 
-  const float hFov = 2.f * atan(aspect * tan(0.5f * vFov));
-  const float t = n * tan(vFov * 0.5f);
+  const float hFov = 2.f * atanf(aspect * tanf(0.5f * vFov));
+  const float t = n * tanf(vFov * 0.5f);
   const float b = -t;
-  const float r = n * tan(hFov * 0.5f);
+  const float r = n * tanf(hFov * 0.5f);
 
   m.set(0, 0, n / r);
   m.set(1, 1, n / b);
@@ -219,16 +219,6 @@ Mat4x4f perspective(float vFov, float aspect, float n, float f)
   m.set(3, 3, 0.f);
 
   return m;
-}
-
-Mat4x4f orthographic(float fovX, float fovY, float n, float f)
-{
-  const float t = f * tan(fovY * 0.5f);
-  const float b = -t;
-  const float r = f * tan(fovX * 0.5f);
-  const float l = -r;
-
-  return orthographic(l, r, t, b, n, f);
 }
 
 Mat4x4f orthographic(float l, float r, float t, float b, float n, float f)
@@ -368,6 +358,17 @@ Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation
     rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation }) *
     translationMatrix4x4(-scaledPivot) *
     scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
+}
+
+bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius)
+{
+  for (auto& plane : frustum) {
+    if (intersectsPlane(plane, pos, radius)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 } // namespace lithic3d

@@ -1,5 +1,4 @@
 #include "vulkan/render_resources.hpp"
-#include "vulkan/gpu_buffer_manager.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/trace.hpp"
@@ -550,7 +549,7 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
     if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
       std::vector<VkImageView> imageViews;
       for (auto& texture : material->textures) {
-        imageViews.push_back(m_textures.at(texture.id())->image->vkImageView());
+        imageViews.push_back(m_textures.at(texture.id())->image->vkImageView(0));
       }
       addSamplerToDescriptorSet(materialData->descriptorSet, imageViews, m_textureSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
@@ -558,13 +557,13 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
     if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
       std::vector<VkImageView> imageViews;
       for (auto& normalMap : material->normalMaps) {
-        imageViews.push_back(m_textures.at(normalMap.id())->image->vkImageView());
+        imageViews.push_back(m_textures.at(normalMap.id())->image->vkImageView(0));
       }
       addSamplerToDescriptorSet(materialData->descriptorSet, imageViews, m_normalMapSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
     }
     if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
-      VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView();
+      VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView(0);
       addSamplerToDescriptorSet(materialData->descriptorSet, { imageView }, m_cubeMapSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
     }
@@ -672,8 +671,10 @@ VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass rende
 
   switch (renderPass) {
     case RenderPass::Main: return m_mainPassDescriptorSets[currentFrame];
-    case RenderPass::Shadow: return m_mainPassDescriptorSets[currentFrame]; // TODO
-    case RenderPass::Ssr: return m_mainPassDescriptorSets[currentFrame];    // TODO
+    case RenderPass::Shadow0: return m_mainPassDescriptorSets[currentFrame];  // TODO
+    case RenderPass::Shadow1: return m_mainPassDescriptorSets[currentFrame];  // TODO
+    case RenderPass::Shadow2: return m_mainPassDescriptorSets[currentFrame];  // TODO
+    case RenderPass::Ssr: return m_mainPassDescriptorSets[currentFrame];      // TODO
     case RenderPass::Overlay: return m_overlayPassDescriptorSets[currentFrame];
   }
   EXCEPTION("Unknown render pass");
@@ -1017,50 +1018,51 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
       .range = sizeof(LightingUbo)
     };
 
+    std::vector<VkWriteDescriptorSet> descriptorWrites;
+
+    descriptorWrites.push_back({
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
+      .dstSet = m_mainPassDescriptorSets[i],
+      .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::CameraTransformsUbo),
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pImageInfo = nullptr,
+      .pBufferInfo = &cameraBufferInfo,
+      .pTexelBufferView = nullptr
+    });
+    descriptorWrites.push_back({
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
+      .dstSet = m_mainPassDescriptorSets[i],
+      .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::LightingUbo),
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pImageInfo = nullptr,
+      .pBufferInfo = &lightingBufferInfo,
+      .pTexelBufferView = nullptr
+    });
+
     VkDescriptorImageInfo imageInfo{
       .sampler = m_shadowMapSampler,
-      .imageView = m_shadowMapImage->vkImageView(),
+      .imageView = m_shadowMapImage->vkImageView(0),
       .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
     };
 
-    std::vector<VkWriteDescriptorSet> descriptorWrites{
-      VkWriteDescriptorSet{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-        .dstSet = m_mainPassDescriptorSets[i],
-        .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::CameraTransformsUbo),
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .pImageInfo = nullptr,
-        .pBufferInfo = &cameraBufferInfo,
-        .pTexelBufferView = nullptr
-      },
-      VkWriteDescriptorSet{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-        .dstSet = m_mainPassDescriptorSets[i],
-        .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::LightingUbo),
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .pImageInfo = nullptr,
-        .pBufferInfo = &lightingBufferInfo,
-        .pTexelBufferView = nullptr
-      },
-      VkWriteDescriptorSet{
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .pNext = nullptr,
-        .dstSet = m_mainPassDescriptorSets[i],
-        .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::ShadowMap),
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .pImageInfo = &imageInfo,
-        .pBufferInfo = nullptr,
-        .pTexelBufferView = nullptr
-      }
-    };
+    descriptorWrites.push_back({
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .pNext = nullptr,
+      .dstSet = m_mainPassDescriptorSets[i],
+      .dstBinding = static_cast<uint32_t>(RenderPassDescriptorSetBindings::ShadowMap),
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = &imageInfo,
+      .pBufferInfo = nullptr,
+      .pTexelBufferView = nullptr
+    });
   
     vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(descriptorWrites.size()),
       descriptorWrites.data(), 0, nullptr);

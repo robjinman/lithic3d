@@ -142,7 +142,7 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
 {
   std::string shader = "main_default";
 
-  if (spec.renderPass == RenderPass::Shadow) {
+  if (isShadowPass(spec.renderPass)) {
     shader = "main_depth";
   }
   else {
@@ -199,7 +199,7 @@ ShaderSource ShaderCompilerImpl::loadVertShaderSource(const ShaderProgramSpec& s
     source.defines.push_back("FEATURE_VERTEX_SKINNING");
   }
 
-  if (spec.renderPass == RenderPass::Shadow) {
+  if (isShadowPass(spec.renderPass)) {
     source.defines.push_back("RENDER_PASS_SHADOW");
   }
   else {
@@ -226,7 +226,7 @@ ShaderSource ShaderCompilerImpl::loadFragShaderSource(const ShaderProgramSpec& s
   source.fileName = selectFragShader(spec);
   source.source = readBinaryFile(m_sourcesDir / "fragment" / (source.fileName + ".glsl"));
 
-  if (spec.renderPass == RenderPass::Shadow) {
+  if (isShadowPass(spec.renderPass)) {
     source.defines.push_back("RENDER_PASS_SHADOW");
   }
   else {

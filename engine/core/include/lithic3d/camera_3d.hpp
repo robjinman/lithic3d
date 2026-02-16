@@ -15,15 +15,21 @@ class Camera3d
     void rotate(float deltaPitch, float deltaYaw); // Yaw is rotation to the right
     inline const Vec3f& getDirection() const;
     inline const Vec3f& getPosition() const;
-    Mat4x4f getViewMatrix() const;
+    inline const Mat4x4f& getViewMatrix() const;
     inline const Mat4x4f& getProjectionMatrix() const;
-    Frustum computeFrustum() const;
+    //inline const Frustum& getViewSpaceFrustum() const;
+    inline const Frustum& getWorldSpaceFrustum() const;
     void updateParameters(float aspectRatio, float rotation);
 
   private:
     Vec3f m_position;
     Vec3f m_direction;
     Mat4x4f m_projection;
+    Mat4x4f m_viewMatrix;
+    //Frustum m_viewSpaceFrustum;
+    Frustum m_worldSpaceFrustum;
+
+    Frustum computeFrustum(const Mat4x4f& m) const;
 };
 
 const Vec3f& Camera3d::getPosition() const
@@ -36,9 +42,24 @@ const Vec3f& Camera3d::getDirection() const
   return m_direction;
 }
 
+const Mat4x4f& Camera3d::getViewMatrix() const
+{
+  return m_viewMatrix;
+}
+
 const Mat4x4f& Camera3d::getProjectionMatrix() const
 {
   return m_projection;
+}
+
+//const Frustum& Camera3d::getViewSpaceFrustum() const
+//{
+//  return m_viewSpaceFrustum;
+//}
+
+const Frustum& Camera3d::getWorldSpaceFrustum() const
+{
+  return m_worldSpaceFrustum;
 }
 
 } // namespace lithic3d

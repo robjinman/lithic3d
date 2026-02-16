@@ -10,11 +10,23 @@ namespace render
 
 enum class RenderPass
 {
-  Shadow = 0,
+  Shadow0 = 0,
+  Shadow1,
+  Shadow2,
   Main,
   Ssr,
   Overlay
 };
+
+constexpr RenderPass shadowPass(uint32_t cascade)
+{
+  return static_cast<RenderPass>(static_cast<uint32_t>(RenderPass::Shadow0) + cascade);
+}
+
+inline bool isShadowPass(RenderPass renderPass)
+{
+  return renderPass >= RenderPass::Shadow0 && renderPass <= RenderPass::Shadow2;
+}
 
 struct ShaderProgramSpec
 {
@@ -22,19 +34,16 @@ struct ShaderProgramSpec
   MeshFeatureSet meshFeatures;
   MaterialFeatureSet materialFeatures;
 
-  bool operator==(const ShaderProgramSpec& rhs) const = default;
+  inline bool operator==(const ShaderProgramSpec& rhs) const
+  {
+    bool rp = renderPass == rhs.renderPass ||
+      (isShadowPass(renderPass) && isShadowPass(rhs.renderPass));
+
+    return meshFeatures == rhs.meshFeatures && materialFeatures == rhs.materialFeatures && rp;
+  }
 
   std::string toString() const;
 };
-/*
-struct ViewParams
-{
-  float hFov;
-  float vFov;
-  float aspectRatio;
-  float nearPlane;
-  float farPlane;
-};*/
 
 struct ScreenMargins
 {
@@ -51,7 +60,6 @@ class Renderer
     virtual bool isStarted() const = 0;
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
-    //virtual const ViewParams& getViewParams() const = 0;
     virtual Vec2i getScreenSize() const = 0;
     // Screen size after subtracting margins
     virtual Vec2i getViewportSize() const = 0;
@@ -60,8 +68,6 @@ class Renderer
     virtual float getViewportRotation() const = 0;
     virtual const ScreenMargins& getMargins() const = 0;
     virtual void checkError() const = 0;
-    // The perspective projection matrix used for 3D rendering
-    //virtual Mat4x4f projectionMatrix() const = 0;
 
     // Initialisation
     //
@@ -147,6 +153,8 @@ struct std::hash<lithic3d::render::ShaderProgramSpec>
 {
   std::size_t operator()(const lithic3d::render::ShaderProgramSpec& spec) const noexcept
   {
-    return lithic3d::hashAll(spec.renderPass, spec.meshFeatures, spec.materialFeatures);
+    lithic3d::render::RenderPass renderPass = isShadowPass(spec.renderPass) ?
+      lithic3d::render::RenderPass::Shadow0 : spec.renderPass;
+    return lithic3d::hashAll(renderPass, spec.meshFeatures, spec.materialFeatures);
   }
 };

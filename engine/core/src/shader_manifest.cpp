@@ -312,7 +312,7 @@ std::vector<RenderPass> parseRenderPassesXml(const XmlNode& renderPassesXml)
       renderPasses.push_back(RenderPass::Main);
     }
     else if (renderPassXml.contents() == "shadow") {
-      renderPasses.push_back(RenderPass::Shadow);
+      renderPasses.push_back(RenderPass::Shadow0);  // Just use the first one
     }
   }
 

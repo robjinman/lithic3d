@@ -674,7 +674,23 @@ struct Plane
 {
   Vec3f normal;
   float distance;
+
+  void normalise()
+  {
+    auto magnitude = normal.magnitude();
+    distance /= magnitude;
+    normal = normal / magnitude;
+    if (distance < 0.f) {
+      distance = -distance;
+      normal = -normal;
+    }
+  }
 };
+
+inline bool intersectsPlane(const Plane& plane, const Vec3f& pos, float radius)
+{
+  return plane.normal.dot(pos) + plane.distance >= -radius;
+}
 
 namespace FrustumPlane
 {
@@ -694,7 +710,6 @@ using Recti = Rect<int>;
 
 Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
 Mat4x4f perspective(float fovY, float aspectRatio, float near, float far);
-Mat4x4f orthographic(float fovX, float fovY, float n, float f);
 Mat4x4f orthographic(float l, float r, float t, float b, float n, float f);
 bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);
 Vec2f projectionOntoLine(const Line& line, const Vec2f& p);
@@ -705,6 +720,7 @@ Mat2x2f inverse(const Mat2x2f& M);
 Mat3x3f inverse(const Mat3x3f& M);
 Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation, Vec2f pivot);
 Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C);
+bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius);
 
 inline Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size)
 {

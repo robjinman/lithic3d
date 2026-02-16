@@ -89,11 +89,18 @@ ScreenMargins rotateMargins(const ScreenMargins& margins)
 PipelineKey getPipelineKey(RenderPass renderPass, MeshFeatureSet meshFeatures,
   MaterialFeatureSet materialFeatures)
 {
-  return PipelineKey{
+  PipelineKey key{
     .renderPass = renderPass,
     .meshFeatures = meshFeatures,
-    .materialFeatures = renderPass == RenderPass::Shadow ? MaterialFeatureSet{} : materialFeatures
+    .materialFeatures{} 
   };
+
+  // If not a shadow pass
+  if (renderPass > RenderPass::Shadow2) {
+    key.materialFeatures = materialFeatures;
+  }
+
+  return key;
 }
 
 enum class QueueType
@@ -258,26 +265,25 @@ class RendererImpl : public Renderer
     void createSwapChain();
     void createSwapChain(VkExtent2D extent);
     void recreateSwapChain();
-    //void setOrthographicMatrix(float rotation);
-    //void setPerspectiveMatrix(float rotation);
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
     VkCommandPool createResourceThreadCommandPool();
     void createDepthResources();
     void createCommandBuffers();
-    void doShadowRenderPass(VkCommandBuffer commandBuffer);
+    void doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t cascade);
     void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
     void doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
     void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
-    void updateLightingUbo(RenderPass renderPass);
-    void updateLightTransformsUbo(RenderPass renderPass);
+    void updateLightingUbo();
+    void updateLightTransformsUbo();
     void updateCameraTransformsUbo(RenderPass renderPass);
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
-      const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer);
+      const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer,
+      uint32_t shadowMapCascade); // TODO: Remove shadowMapCascade
     RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, ResourceId mesh,
       const MeshFeatureSet& meshFeatures, ResourceId material,
       const MaterialFeatureSet& materialFeatures) const;
@@ -289,7 +295,6 @@ class RendererImpl : public Renderer
     ResourceManager& m_resourceManager;
     const FileSystem& m_fileSystem;
     ScreenMargins m_margins;
-    //ViewParams m_viewParams;
     std::unique_ptr<VulkanWindowDelegate> m_window;
     Logger& m_logger;
     WorkQueue m_workQueue;
@@ -319,8 +324,6 @@ class RendererImpl : public Renderer
 
     size_t m_currentFrame = 0;
     std::atomic<bool> m_framebufferResized = false;
-    //Mat4x4f m_perspectiveMatrix;
-    //Mat4x4f m_orthographicMatrix;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -355,14 +358,6 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceMa
   ASSERT(m_window != nullptr, "Failed to cast m_window to VulkanWindowDelegate");
 
   m_logger.info(STR("Lithic3D " << getVersionString()));
-/*
-  m_viewParams = ViewParams{
-    .hFov = 0.f,
-    .vFov = degreesToRadians(45.f),
-    .aspectRatio = 0,
-    .nearPlane = 0.1f,
-    .farPlane = 10000.f
-  };*/
 
   m_frameStates.getReadable().renderPasses[RenderPass::Main] = RenderPassState{};
 
@@ -431,14 +426,6 @@ void RendererImpl::checkError() const
   }
 }
 
-//Mat4x4f RendererImpl::projectionMatrix() const
-//{
-  // Slight chance of race condition if swap chain is being recreated
-  // TODO: Protect with mutex?
-
-//  return m_perspectiveMatrix;
-//}
-
 float RendererImpl::getViewportRotation() const
 {
   return m_viewportRotation;
@@ -473,7 +460,9 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
         }, m_swapchainExtent);
         break;
       }
-      case RenderPass::Shadow: {
+      case RenderPass::Shadow0:
+      case RenderPass::Shadow1:
+      case RenderPass::Shadow2: {
         addPipeline(PipelineKey{
           .renderPass = spec.renderPass,
           .meshFeatures = spec.meshFeatures,
@@ -507,11 +496,6 @@ void RendererImpl::onResize()
 
   m_framebufferResized = true;
 }
-
-//const ViewParams& RendererImpl::getViewParams() const
-//{
-//  return m_viewParams;
-//}
 
 Vec2i RendererImpl::getScreenSize() const
 {
@@ -888,10 +872,19 @@ void RendererImpl::renderLoop()
 
       auto& frameState = m_frameStates.getReadable();
       bool shouldClear = true;
-      if (frameState.renderPasses.contains(RenderPass::Shadow)) {
-        doShadowRenderPass(commandBuffer);
+      if (frameState.renderPasses.contains(RenderPass::Shadow0)) {
+        updateLightTransformsUbo();
+        doShadowRenderPass(commandBuffer, 0);
+      }
+      if (frameState.renderPasses.contains(RenderPass::Shadow1)) {
+        doShadowRenderPass(commandBuffer, 1);
+      }
+      if (frameState.renderPasses.contains(RenderPass::Shadow2)) {
+        doShadowRenderPass(commandBuffer, 2);
       }
       if (frameState.renderPasses.contains(RenderPass::Main)) {
+        updateCameraTransformsUbo(RenderPass::Main);
+        updateLightingUbo();
         doMainRenderPass(commandBuffer, m_imageIndex, shouldClear);
         shouldClear = false;
       }
@@ -900,6 +893,7 @@ void RendererImpl::renderLoop()
         shouldClear = false;
       }
       if (frameState.renderPasses.contains(RenderPass::Overlay)) {
+        updateCameraTransformsUbo(RenderPass::Overlay);
         doOverlayRenderPass(commandBuffer, m_imageIndex, shouldClear);
         shouldClear = false;
       }
@@ -941,22 +935,32 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
   }
 }
 
-void RendererImpl::updateLightTransformsUbo(RenderPass renderPass)
+void RendererImpl::updateLightTransformsUbo()
 {
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(renderPass);
+  auto& shadowPass0State = frameState.renderPasses.at(RenderPass::Shadow0);
+  auto& shadowPass1State = frameState.renderPasses.at(RenderPass::Shadow1);
+  auto& shadowPass2State = frameState.renderPasses.at(RenderPass::Shadow2);
 
   LightTransformsUbo lightTransformsUbo{
-    .viewMatrix = renderPassState.viewMatrix,
-    .projMatrix = renderPassState.projectionMatrix
+    .viewMatrix = {
+      shadowPass0State.viewMatrix,
+      shadowPass1State.viewMatrix,
+      shadowPass2State.viewMatrix
+    },
+    .projMatrix = {
+      shadowPass0State.projectionMatrix,
+      shadowPass1State.projectionMatrix,
+      shadowPass2State.projectionMatrix
+    }
   };
   m_resources->updateLightTransformsUbo(lightTransformsUbo, m_currentFrame);
 }
 
-void RendererImpl::updateLightingUbo(RenderPass renderPass)
+void RendererImpl::updateLightingUbo()
 {
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(renderPass);
+  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
 
   LightingUbo lightingUbo{
     .viewPos = renderPassState.viewPos,
@@ -1198,51 +1202,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
 
   m_swapchainImageFormat = surfaceFormat.format;
   m_swapchainExtent = extent;
-
-  //setOrthographicMatrix(rotation);
-  //setPerspectiveMatrix(rotation);
 }
-/*
-void RendererImpl::setOrthographicMatrix(float rotation)
-{
-  float aspect = static_cast<float>(m_viewDimensions[0]) / m_viewDimensions[1];
-
-  m_logger.info(STR("Creating orthographic matrix from viewport dimensions "
-    << m_viewDimensions[0] << ", " << m_viewDimensions[1]));
-
-  // TODO: Move to math.cpp
-
-  Mat4x4f m;
-  const float t = 0.5f;
-  const float b = -0.5f;
-  const float r = 0.5f * aspect;
-  const float l = -0.5f * aspect;
-  const float f = 100.f;
-  const float n = 0.f;
-
-  m.set(0, 0, 2.f / (r - l));
-  m.set(0, 3, (r + l) / (l - r));
-  m.set(1, 1, 2.f / (b - t));
-  m.set(1, 3, (b + t) / (b - t));
-  m.set(2, 2, 1.f / (f - n));
-  m.set(2, 3, -n / (f - n));
-  m.set(3, 3, 1.f);
-
-  Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
-  m_orthographicMatrix = rot * m;
-}*/
-/*
-void RendererImpl::setPerspectiveMatrix(float rotation)
-{
-  float aspect = static_cast<float>(m_viewDimensions[0]) / m_viewDimensions[1];
-
-  m_viewParams.aspectRatio = aspect;
-  m_viewParams.hFov = 2.f * atan(aspect * tan(0.5f * m_viewParams.vFov));
-
-  Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
-  m_perspectiveMatrix = rot * perspective(m_viewParams.hFov, m_viewParams.vFov,
-    m_viewParams.nearPlane, m_viewParams.farPlane);
-}*/
 
 void RendererImpl::cleanupSwapChain()
 {
@@ -1506,7 +1466,7 @@ void RendererImpl::createImageViews()
 
   for (size_t i = 0; i < m_swapchainImages.size(); ++i) {
     m_swapchainImageViews[i] = createImageView(m_device, m_swapchainImages[i],
-      m_swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
+      m_swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 0);
   }
 }
 
@@ -1559,7 +1519,7 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
 }
 
 void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
-  const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer)
+  const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer, uint32_t shadowMapCascade)
 {
   uint32_t scissorId = std::numeric_limits<uint32_t>::max();
   Pipeline* prevPipeline = nullptr;
@@ -1605,14 +1565,12 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
       prevPipeline = &pipeline;
     }
 
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame, shadowMapCascade);
   }
 }
 
-void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
+void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t cascade)
 {
-  updateLightTransformsUbo(RenderPass::Shadow);
-
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
     .pNext = nullptr,
@@ -1627,7 +1585,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
       .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
       .baseMipLevel = 0,
       .levelCount = 1,
-      .baseArrayLayer = 0,
+      .baseArrayLayer = cascade,
       .layerCount = 1
     }
   };
@@ -1638,8 +1596,8 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
   VkRenderingAttachmentInfo depthAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
-    .imageView = m_resources->getShadowMap().vkImageView(),
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .imageView = m_resources->getShadowMap().vkImageView(1 + cascade),  // First view is the array
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,    // view used for sampling
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1669,10 +1627,11 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Shadow);
+  auto& renderPassState = frameState.renderPasses.at(shadowPass(cascade));
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Shadow, renderGraph, frameState.scissors, commandBuffer);
+  recordCommandBuffer(shadowPass(cascade), renderGraph, frameState.scissors, commandBuffer,
+    cascade);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1690,7 +1649,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
       .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
       .baseMipLevel = 0,
       .levelCount = 1,
-      .baseArrayLayer = 0,
+      .baseArrayLayer = cascade,
       .layerCount = 1
     }
   };
@@ -1702,9 +1661,6 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer)
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
   bool shouldClear)
 {
-  updateCameraTransformsUbo(RenderPass::Main);
-  updateLightingUbo(RenderPass::Main);
-
   auto& frameState = m_frameStates.getReadable();
   auto& colour = frameState.clearColour;
 
@@ -1748,7 +1704,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   VkRenderingAttachmentInfo depthAttachment{
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .pNext = nullptr,
-    .imageView = m_depthImage->vkImageView(),
+    .imageView = m_depthImage->vkImageView(0),
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
     .resolveImageView = nullptr,
@@ -1781,7 +1737,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Main, renderGraph, frameState.scissors, commandBuffer);
+  recordCommandBuffer(RenderPass::Main, renderGraph, frameState.scissors, commandBuffer, 0);
 
   vkCmdEndRenderingFn(commandBuffer);
 
@@ -1811,8 +1767,6 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
   bool shouldClear)
 {
-  updateCameraTransformsUbo(RenderPass::Overlay);
-
   auto& frameState = m_frameStates.getReadable();
   auto& colour = frameState.clearColour;
 
@@ -1871,7 +1825,7 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Overlay);
   const auto& renderGraph = renderPassState.graph;
 
-  recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.scissors, commandBuffer);
+  recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.scissors, commandBuffer, 0);
 
   vkCmdEndRenderingFn(commandBuffer);
 

@@ -8,6 +8,10 @@
 namespace lithic3d
 {
 
+const uint32_t SHADOW_MAP_W = 2048;
+const uint32_t SHADOW_MAP_H = 2048;
+const uint32_t NUM_SHADOW_MAPS = 3;
+
 class Logger;
 class WorkQueue;
 
@@ -30,7 +34,7 @@ class GpuImage
 {
   public:
     virtual VkImage vkImage() = 0;
-    virtual VkImageView vkImageView() = 0;
+    virtual VkImageView vkImageView(uint32_t index) = 0;
 
     virtual ~GpuImage() = default;
 };

@@ -5,8 +5,8 @@
 
 layout(std140, set = DESCRIPTOR_SET_GLOBAL, binding = 0) uniform LightTransformsUbo
 {
-  mat4 viewMatrix;
-  mat4 projMatrix;
+  mat4 viewMatrix[NUM_SHADOW_MAPS];
+  mat4 projMatrix[NUM_SHADOW_MAPS];
 } light;
 
 layout(std140, set = DESCRIPTOR_SET_RENDER_PASS, binding = 0) uniform CameraTransformsUbo
@@ -27,17 +27,19 @@ layout(std140, set = DESCRIPTOR_SET_OBJECT, binding = 0) uniform JointTransforms
 layout(push_constant) uniform PushConstants
 {
   mat4 modelMatrix;
+  uint shadowCascadeIndex;
 } constants;
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
 layout(location = 0) out vec2 outTexCoord;
 #endif
 layout(location = 1) out vec3 outWorldPos;
-layout(location = 2) out vec3 outNormal;
-layout(location = 3) out vec4 outLightSpacePos;
+layout(location = 2) out vec3 outViewPos;
+layout(location = 3) out vec3 outNormal;
+layout(location = 4) out vec4 outLightSpacePos[NUM_SHADOW_MAPS];
 #ifdef FEATURE_NORMAL_MAPPING
-layout(location = 4) out vec3 outTangent;
-layout(location = 5) out vec3 outBitangent;
+layout(location = 7) out vec3 outTangent;
+layout(location = 8) out vec3 outBitangent;
 #endif
 
 vec4 computeVertexPosition(mat4 modelMatrix)
@@ -64,14 +66,22 @@ void main()
 #endif
 
   vec4 worldPos = computeVertexPosition(modelMatrix);
+
+  // TODO: Separate shadow pass shader?
 #ifdef RENDER_PASS_SHADOW
-  gl_Position = light.projMatrix * light.viewMatrix * worldPos;
+  gl_Position = light.projMatrix[constants.shadowCascadeIndex] *
+    light.viewMatrix[constants.shadowCascadeIndex] * worldPos;
 #else
-  gl_Position = camera.projMatrix * camera.viewMatrix * worldPos;
-#endif
+  vec4 viewPos = camera.viewMatrix * worldPos;
+  gl_Position = camera.projMatrix * viewPos;
 
   outWorldPos = worldPos.xyz;
-  outLightSpacePos = light.projMatrix * light.viewMatrix * worldPos;
+  outViewPos = viewPos.xyz;
+
+  for (int i = 0; i < NUM_SHADOW_MAPS; ++i) {
+    outLightSpacePos[i] = light.projMatrix[i] * light.viewMatrix[i] * worldPos;
+  }
+#endif
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
   outTexCoord = inTexCoord;

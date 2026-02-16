@@ -13,7 +13,6 @@
 #include <cassert>
 #include <unordered_set>
 #include <functional>
-#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -37,107 +36,6 @@ struct LightProjection
   Mat4x4f projectionMatrix;
   Frustum frustum;
 };
-
-LightProjection computeLightProjection(const Frustum& cameraFrustum, const Vec3f& lightDir)
-{
-  auto& f = cameraFrustum;
-
-  std::array<Vec3f, 8> corners{
-    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Left], f[FrustumPlane::Top]),
-    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Top], f[FrustumPlane::Right]),
-    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
-    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Bottom], f[FrustumPlane::Left]),
-    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Left], f[FrustumPlane::Top]),
-    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Top], f[FrustumPlane::Right]),
-    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
-    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Bottom], f[FrustumPlane::Left])
-  };
-
-  //std::cout << "Corners: ";
-  //for (size_t i = 0; i < 8; ++i) {
-  //  std::cout << "(" << corners[i] << ") ";
-  //}
-  //std::cout << "\n";
-
-  Vec3f centre;
-  for (size_t i = 0; i < 8; ++i) {
-    centre += corners[i];
-  }
-  centre = centre / 8.f;
-
-  LightProjection P;
-  P.pos = centre - lightDir;
-  P.viewMatrix = lookAt(P.pos, centre);
-
-  constexpr float floatMax = std::numeric_limits<float>::max();
-  constexpr float floatMin = std::numeric_limits<float>::lowest();
-
-  Vec3f min{ floatMax, floatMax, floatMax };
-  Vec3f max{ floatMin, floatMin, floatMin };
-  for (auto& pt : corners) {
-    Vec4f lightSpacePt = P.viewMatrix * Vec4f{pt, { 1.f }};
-    for (uint32_t i = 0; i < 3; ++i) {
-      if (lightSpacePt[i] < min[i]) {
-        min[i] = lightSpacePt[i];
-      }
-      if (lightSpacePt[i] > max[i]) {
-        max[i] = lightSpacePt[i];
-      }
-    }
-  }
-
-  P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
-  P.frustum[FrustumPlane::Near].distance = min[2];
-  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, -1.f };
-  P.frustum[FrustumPlane::Far].distance = max[2];
-  P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Left].distance = min[0];
-  P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Right].distance = max[0];
-  P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
-  P.frustum[FrustumPlane::Bottom].distance = min[1];
-  P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
-  P.frustum[FrustumPlane::Top].distance = max[1];
-
-  //std::cout << P.frustum[FrustumPlane::Left].distance << " " <<
-  //  P.frustum[FrustumPlane::Right].distance << " " << P.frustum[FrustumPlane::Top].distance << " " <<
-  //  P.frustum[FrustumPlane::Bottom].distance << " " << P.frustum[FrustumPlane::Near].distance << " " <<
-  //  P.frustum[FrustumPlane::Far].distance << "\n";
-
-  P.projectionMatrix = orthographic(P.frustum[FrustumPlane::Left].distance,
-    P.frustum[FrustumPlane::Right].distance, P.frustum[FrustumPlane::Top].distance,
-    P.frustum[FrustumPlane::Bottom].distance, P.frustum[FrustumPlane::Near].distance,
-    P.frustum[FrustumPlane::Far].distance);
-
-  return P;
-}
-
-std::array<LightProjection, 3> computeLightProjections(const Frustum& camFrustum,
-  const Vec3f& lightDir)
-{
-  float z3 = metresToWorldUnits(100.f);
-  float z2 = metresToWorldUnits(50.f);
-  float z1 = metresToWorldUnits(10.f);
-
-  //std::cout << "Near plane distance: " << camFrustum[FrustumPlane::Near].distance << "\n";
-  //std::cout << "Far plane distance: " << camFrustum[FrustumPlane::Far].distance << "\n";
-
-  Frustum farFrustum = camFrustum;
-  farFrustum[FrustumPlane::Near].distance = z2;
-
-  Frustum midFrustum = camFrustum;
-  midFrustum[FrustumPlane::Near].distance = z1;
-  midFrustum[FrustumPlane::Far].distance = z2;
-
-  Frustum nearFrustum = camFrustum;
-  nearFrustum[FrustumPlane::Far].distance = z1;
-
-  return {
-    computeLightProjection(nearFrustum, lightDir),
-    computeLightProjection(midFrustum, lightDir),
-    computeLightProjection(farFrustum, lightDir)
-  };
-}
 
 struct AnimationChannelState
 {
@@ -205,10 +103,13 @@ class SysRender3dImpl : public SysRender3d
     void drawSkybox();
     void drawPointLights();
     void drawDirectionalLight();
-    void doShadowPass(const Frustum& camFrustum);
-    void doMainPass(const Frustum& camFrustum);
+    void doShadowPass();
+    void doMainPass();
     void updateAnimations();
     void updateCamera();
+    LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
+      const Vec3f& lightDir) const;
+    std::array<LightProjection, 3> computeLightProjections(const Vec3f& worldSpaceLightDir) const;
 };
 
 SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
@@ -224,6 +125,127 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader,
   m_camera = std::make_unique<Camera3d>(aspect, rotation);
 }
 
+LightProjection SysRender3dImpl::computeLightProjection(const std::array<Vec3f, 8>& corners,
+  const Vec3f& worldSpaceLightDir) const
+{
+  Vec3f centre;
+  for (size_t i = 0; i < 8; ++i) {
+    centre += corners[i];
+  }
+  centre = centre / 8.f;
+
+  LightProjection P;
+  P.pos = centre - worldSpaceLightDir;
+  P.viewMatrix = lookAt(P.pos, centre);
+
+  constexpr float floatMax = std::numeric_limits<float>::max();
+  constexpr float floatMin = std::numeric_limits<float>::lowest();
+
+  Vec3f min{ floatMax, floatMax, floatMax };
+  Vec3f max{ floatMin, floatMin, floatMin };
+  for (auto& pt : corners) {
+    Vec4f lightSpacePt = P.viewMatrix * Vec4f{pt, { 1.f }};
+    for (uint32_t i = 0; i < 3; ++i) {
+      if (lightSpacePt[i] < min[i]) {
+        min[i] = lightSpacePt[i];
+      }
+      if (lightSpacePt[i] > max[i]) {
+        max[i] = lightSpacePt[i];
+      }
+    }
+  }
+
+  P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
+  P.frustum[FrustumPlane::Near].distance = min[2];
+  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, -1.f };
+  P.frustum[FrustumPlane::Far].distance = max[2];
+  P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
+  P.frustum[FrustumPlane::Left].distance = min[0];
+  P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
+  P.frustum[FrustumPlane::Right].distance = max[0];
+  P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
+  P.frustum[FrustumPlane::Bottom].distance = min[1];
+  P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
+  P.frustum[FrustumPlane::Top].distance = max[1];
+
+  P.projectionMatrix = orthographic(P.frustum[FrustumPlane::Left].distance,
+    P.frustum[FrustumPlane::Right].distance, P.frustum[FrustumPlane::Top].distance,
+    P.frustum[FrustumPlane::Bottom].distance, P.frustum[FrustumPlane::Near].distance,
+    P.frustum[FrustumPlane::Far].distance);
+
+  return P;
+}
+
+std::array<Vec3f, 4> frustumCrossSection(const std::array<Vec3f, 8>& corners, float percentage)
+{
+  return {
+    corners[0] + (corners[4] - corners[0]) * percentage,
+    corners[1] + (corners[5] - corners[1]) * percentage,
+    corners[2] + (corners[6] - corners[2]) * percentage,
+    corners[3] + (corners[7] - corners[3]) * percentage,
+  };
+}
+
+std::array<LightProjection, 3>
+SysRender3dImpl::computeLightProjections(const Vec3f& worldSpaceLightDir) const
+{
+  auto& f = m_camera->getWorldSpaceFrustum();
+
+  std::array<Vec3f, 8> corners{
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Left], f[FrustumPlane::Top]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Top], f[FrustumPlane::Right]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Bottom], f[FrustumPlane::Left]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Left], f[FrustumPlane::Top]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Top], f[FrustumPlane::Right]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Bottom], f[FrustumPlane::Left])
+  };
+
+  std::array<Vec3f, 4> crossSection1 = frustumCrossSection(corners, 0.05f);
+  std::array<Vec3f, 4> crossSection2 = frustumCrossSection(corners, 0.2f);
+
+  std::array<Vec3f, 8> nearFrustum = {
+    corners[0],
+    corners[1],
+    corners[2],
+    corners[3],
+    crossSection1[0],
+    crossSection1[1],
+    crossSection1[2],
+    crossSection1[3]
+  };
+
+  std::array<Vec3f, 8> midFrustum = {
+    crossSection1[0],
+    crossSection1[1],
+    crossSection1[2],
+    crossSection1[3],
+    crossSection2[0],
+    crossSection2[1],
+    crossSection2[2],
+    crossSection2[3]
+  };
+
+  std::array<Vec3f, 8> farFrustum = {
+    crossSection2[0],
+    crossSection2[1],
+    crossSection2[2],
+    crossSection2[3],
+    corners[4],
+    corners[5],
+    corners[6],
+    corners[7]
+  };
+
+  return {
+    computeLightProjection(nearFrustum, worldSpaceLightDir),
+    computeLightProjection(midFrustum, worldSpaceLightDir),
+    computeLightProjection(farFrustum, worldSpaceLightDir)
+  };
+}
+
+// TODO: Never called?
 void SysRender3dImpl::updateCamera()
 {
   auto viewport = m_renderer.getViewportSize();
@@ -363,7 +385,7 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   }
 }
 
-void SysRender3dImpl::doShadowPass(const Frustum& camFrustum)
+void SysRender3dImpl::doShadowPass()
 {
   if (m_directionalLight.first == NULL_ENTITY_ID) {
     return;
@@ -373,24 +395,24 @@ void SysRender3dImpl::doShadowPass(const Frustum& camFrustum)
 
   // TODO: Check CSpatialFlags
 
-  const auto& light = *m_directionalLight.second;
   const auto& transform =
     m_ecs.componentStore().component<CGlobalTransform>(m_directionalLight.first).transform;
   auto lightDir = getDirection(transform);
 
-  auto projections = computeLightProjections(camFrustum, lightDir);
-  for (auto& p : projections) {
-    auto visible = sysSpatial.getIntersecting(p.frustum);
+  auto projections = computeLightProjections(lightDir);
+  for (size_t cascade = 0; cascade < projections.size(); ++cascade) {
+    LightProjection& projection = projections[cascade];
 
-    m_renderer.beginPass(RenderPass::Shadow, p.pos, p.viewMatrix, p.projectionMatrix);
+    auto visible = sysSpatial.getIntersecting(projection.frustum);
+
+    m_renderer.beginPass(render::shadowPass(cascade), projection.pos, projection.viewMatrix,
+      projection.projectionMatrix);
 
     drawModels(visible, [](const Submodel& x) {
       return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
     });
 
     m_renderer.endPass();
-
-    break; // TODO
   }
 }
 
@@ -426,13 +448,13 @@ void SysRender3dImpl::drawDirectionalLight()
   }
 }
 
-void SysRender3dImpl::doMainPass(const Frustum& camFrustum)
+void SysRender3dImpl::doMainPass()
 {
   const auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   // TODO: Check CSpatialFlags
 
-  auto visible = sysSpatial.getIntersecting(camFrustum);
+  auto visible = sysSpatial.getIntersecting(m_camera->getWorldSpaceFrustum());
 
   m_renderer.beginPass(RenderPass::Main, m_camera->getPosition(), m_camera->getViewMatrix(),
     m_camera->getProjectionMatrix());
@@ -636,10 +658,8 @@ void SysRender3dImpl::update(Tick, const InputState&)
 {
   updateAnimations();
 
-  auto frustum = m_camera->computeFrustum();
-
-  doShadowPass(frustum);
-  doMainPass(frustum);
+  doShadowPass();
+  doMainPass();
 }
 
 SysRender3dImpl::~SysRender3dImpl()

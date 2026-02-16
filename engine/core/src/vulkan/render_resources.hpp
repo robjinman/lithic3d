@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lithic3d/renderer.hpp"
+#include "vulkan/gpu_buffer_manager.hpp"
 #include <vulkan/vulkan.h>
 #include <filesystem>
 
@@ -15,8 +16,6 @@ namespace render
 {
 
 const uint32_t MAX_POINT_LIGHTS = 4;
-const uint32_t SHADOW_MAP_W = 2048;
-const uint32_t SHADOW_MAP_H = 2048;
 const uint32_t MAX_JOINTS = 128;
 
 // TODO: Hide these inside cpp file?
@@ -29,8 +28,8 @@ struct CameraTransformsUbo
 
 struct LightTransformsUbo
 {
-  Mat4x4f viewMatrix;
-  Mat4x4f projMatrix;
+  Mat4x4f viewMatrix[NUM_SHADOW_MAPS];
+  Mat4x4f projMatrix[NUM_SHADOW_MAPS];
 };
 
 struct Light

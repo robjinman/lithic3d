@@ -172,20 +172,6 @@ void LooseOctreeImpl::remove(EntityId entityId)
   }
 }
 
-bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius)
-{
-  return true; // TODO
-
-  for (auto& plane : frustum) {
-    float dist = plane.normal.dot(pos) + plane.distance;
-    if (dist < -radius) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 bool intersectsFrustum(const OctreeNode& node, const Frustum& frustum)
 {
   auto& cell = node.looseBounds;

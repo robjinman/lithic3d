@@ -67,13 +67,13 @@ class GpuImageImpl : public GpuImage
     VmaAllocationInfo allocationInfo;
     VmaAllocation allocation = VK_NULL_HANDLE;
     VkImage image;
-    VkImageView imageView;
+    std::vector<VkImageView> imageViews;
 
     GpuImageImpl(VmaAllocator allocator, VkDevice device);
     GpuImageImpl(const GpuImageImpl& cpy) = delete;
 
     VkImage vkImage() override;
-    VkImageView vkImageView() override;
+    VkImageView vkImageView(uint32_t layer) override;
 
     ~GpuImageImpl();
 
@@ -93,14 +93,16 @@ VkImage GpuImageImpl::vkImage()
   return image;
 }
 
-VkImageView GpuImageImpl::vkImageView()
+VkImageView GpuImageImpl::vkImageView(uint32_t layer)
 {
-  return imageView;
+  return imageViews[layer];
 }
 
 GpuImageImpl::~GpuImageImpl()
 {
-  vkDestroyImageView(m_device, imageView, nullptr);
+  for (auto& imageView : imageViews) {
+    vkDestroyImageView(m_device, imageView, nullptr);
+  }
   vmaDestroyImage(m_allocator, image, allocation);
 }
 
@@ -144,7 +146,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
     void copyBufferToImage(GpuBuffer& buffer, GpuImage& image, uint32_t width, uint32_t height,
       VkDeviceSize bufferOffset, uint32_t layer);
     GpuImagePtr createTexture(const Texture& texture, VkFormat format);
-    GpuImagePtr createDepthImage(VkExtent2D extent, VkImageUsageFlags usage);
+    GpuImagePtr createDepthImage(VkExtent2D extent, VkImageUsageFlags usage, uint32_t layers);
 };
 
 GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device,
@@ -502,8 +504,8 @@ GpuImagePtr GpuBufferManagerImpl::createCubeMap(const std::array<TexturePtr, 6>&
   transitionImageLayout(*image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 6);
 
-  image->imageView = createImageView(m_device, image->image, VK_FORMAT_R8G8B8A8_SRGB,
-    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6);
+  image->imageViews.push_back(createImageView(m_device, image->image, VK_FORMAT_R8G8B8A8_SRGB,
+    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_CUBE, 6, 0));
 
   return image;
 }
@@ -556,8 +558,8 @@ GpuImagePtr GpuBufferManagerImpl::createTexture(const Texture& texture, VkFormat
   transitionImageLayout(*image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
 
-  image->imageView = createImageView(m_device, image->image, format, VK_IMAGE_ASPECT_COLOR_BIT,
-    VK_IMAGE_VIEW_TYPE_2D, 1);
+  image->imageViews.push_back(createImageView(m_device, image->image, format,
+    VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 0));
 
   return image;
 }
@@ -572,10 +574,9 @@ GpuImagePtr GpuBufferManagerImpl::createNormalMap(const Texture& texture)
   return createTexture(texture, VK_FORMAT_R8G8B8A8_UNORM);
 }
 
-GpuImagePtr GpuBufferManagerImpl::createDepthImage(VkExtent2D extent, VkImageUsageFlags usage)
+GpuImagePtr GpuBufferManagerImpl::createDepthAttachment(VkExtent2D extent)
 {
   auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
-
   auto depthFormat = findDepthFormat(m_physicalDevice);
 
   VkImageCreateInfo imageInfo{
@@ -593,7 +594,7 @@ GpuImagePtr GpuBufferManagerImpl::createDepthImage(VkExtent2D extent, VkImageUsa
     .arrayLayers = 1,
     .samples = VK_SAMPLE_COUNT_1_BIT,
     .tiling = VK_IMAGE_TILING_OPTIMAL,
-    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | usage,
+    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
     .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     .queueFamilyIndexCount = 0,
     .pQueueFamilyIndices = nullptr,
@@ -608,20 +609,59 @@ GpuImagePtr GpuBufferManagerImpl::createDepthImage(VkExtent2D extent, VkImageUsa
   VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocCreateInfo, &image->image,
     &image->allocation, nullptr), "Failed to create image");
 
-  image->imageView = createImageView(m_device, image->image, depthFormat,
-    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1);
+  image->imageViews.push_back(createImageView(m_device, image->image, depthFormat,
+    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 0));
 
   return image;
 }
 
-GpuImagePtr GpuBufferManagerImpl::createDepthAttachment(VkExtent2D extent)
-{
-  return createDepthImage(extent, 0);
-}
-
+// The first image view is the array image view used for sampling. The remaining NUM_SHADOW_MAPS
+// image views are for rendering into
 GpuImagePtr GpuBufferManagerImpl::createShadowMap(VkExtent2D extent)
 {
-  return createDepthImage(extent, VK_IMAGE_USAGE_SAMPLED_BIT);
+  auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
+
+  auto depthFormat = findDepthFormat(m_physicalDevice);
+
+  VkImageCreateInfo imageInfo{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = depthFormat,
+    .extent = VkExtent3D{
+      .width = extent.width,
+      .height = extent.height,
+      .depth = 1
+    },
+    .mipLevels = 1,
+    .arrayLayers = NUM_SHADOW_MAPS,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = VK_IMAGE_TILING_OPTIMAL,
+    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  allocCreateInfo.priority = 1.0f;
+
+  VK_CHECK(vmaCreateImage(m_allocator, &imageInfo, &allocCreateInfo, &image->image,
+    &image->allocation, nullptr), "Failed to create image");
+
+  image->imageViews.push_back(createImageView(m_device, image->image, depthFormat,
+    VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY, NUM_SHADOW_MAPS, 0));
+
+  for (uint32_t i = 0; i < NUM_SHADOW_MAPS; ++i) {
+    image->imageViews.push_back(createImageView(m_device, image->image, depthFormat,
+      VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, i));
+  }
+
+  return image;
 }
 
 GpuBufferManagerImpl::~GpuBufferManagerImpl()

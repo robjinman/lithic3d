@@ -185,3 +185,22 @@ TEST_F(MathTest, triangulate_nonconvex_poly)
 
   ASSERT_EQ(expected, indices);
 }
+
+TEST_F(MathTest, intersectsFrustum_cube_frustum_at_origin)
+{
+  Frustum frustum;
+  frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
+  frustum[FrustumPlane::Left].distance = 1.f;
+  frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
+  frustum[FrustumPlane::Right].distance = 1.f;
+  frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
+  frustum[FrustumPlane::Bottom].distance = 1.f;
+  frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
+  frustum[FrustumPlane::Top].distance = 1.f;
+  frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
+  frustum[FrustumPlane::Near].distance = 1.f;
+  frustum[FrustumPlane::Far].normal = { 0.f, 0.f, -1.f };
+  frustum[FrustumPlane::Far].distance = 1.f;
+
+  intersectsFrustum(frustum, {  }, 0.5f);
+}
