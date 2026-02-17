@@ -156,22 +156,19 @@ LightProjection SysRender3dImpl::computeLightProjection(const std::array<Vec3f, 
   }
 
   P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
-  P.frustum[FrustumPlane::Near].distance = min[2];
-  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, -1.f };
-  P.frustum[FrustumPlane::Far].distance = max[2];
+  P.frustum[FrustumPlane::Near].distance = fabs(min[2]);
+  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, 1.f };
+  P.frustum[FrustumPlane::Far].distance = fabs(max[2]);
   P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Left].distance = min[0];
+  P.frustum[FrustumPlane::Left].distance = fabs(min[0]);
   P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Right].distance = max[0];
+  P.frustum[FrustumPlane::Right].distance = fabs(max[0]);
   P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
-  P.frustum[FrustumPlane::Bottom].distance = min[1];
+  P.frustum[FrustumPlane::Bottom].distance = fabs(min[1]);
   P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
-  P.frustum[FrustumPlane::Top].distance = max[1];
+  P.frustum[FrustumPlane::Top].distance = fabs(max[1]);
 
-  P.projectionMatrix = orthographic(P.frustum[FrustumPlane::Left].distance,
-    P.frustum[FrustumPlane::Right].distance, P.frustum[FrustumPlane::Top].distance,
-    P.frustum[FrustumPlane::Bottom].distance, P.frustum[FrustumPlane::Near].distance,
-    P.frustum[FrustumPlane::Far].distance);
+  P.projectionMatrix = orthographic(min[0], max[0], max[1], min[1], min[2], max[2]);
 
   return P;
 }

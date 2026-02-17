@@ -46,11 +46,11 @@ vec3 computeDirectionalLight(vec3 worldPos, vec3 normal)
   // TODO: Store these numbers somewhere
   // Must match sizes of frustum sections calculated in SysRender3d.cpp
   int cascade = 0;
-  if (inViewPos.z <= -500.0) {
-    cascade = 1;
-  }
-  else if (inViewPos.z <= -2000.0) {
+  if (inViewPos.z <= -2001.0) {
     cascade = 2;
+  }
+  else if (inViewPos.z <= -501.0) {
+    cascade = 1;
   }
 
   // TODO: Do perspective divide in vertex shader?

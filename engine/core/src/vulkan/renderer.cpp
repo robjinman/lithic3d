@@ -307,7 +307,7 @@ class RendererImpl : public Renderer
     QueueFamilyIndices m_queueFamilyIndices;
     VkQueue m_graphicsQueue;
     VkQueue m_presentQueue;
-    VkQueue m_transferQueue;
+    VkQueue m_transferQueue; // TODO: Never used?
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
