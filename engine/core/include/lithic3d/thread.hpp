@@ -7,7 +7,6 @@
 #include <future>
 #include <queue>
 #include <cassert>
-#include <memory>
 
 namespace lithic3d
 {
@@ -23,23 +22,24 @@ class Thread
     template<typename T>
     std::future<T> run(Functor<T>&& task)
     {
-      auto promise = std::make_shared<std::promise<T>>();
+      std::promise<T> promise;
+      auto future = promise.get_future();
 
       {
         std::lock_guard lock(m_mutex);
 
-        m_tasks.push([promise, task = std::move(task)]() mutable {
+        m_tasks.push([promise = std::move(promise), task = std::move(task)]() mutable {
           try {
             if constexpr (std::is_same_v<T, void>) {
               task();
-              promise->set_value();
+              promise.set_value();
             }
             else {
-              promise->set_value(task());
+              promise.set_value(task());
             }
           }
           catch (...) {
-            promise->set_exception(std::current_exception());
+            promise.set_exception(std::current_exception());
           }
         });
         m_hasWork = true;
@@ -47,7 +47,7 @@ class Thread
 
       m_conditionVariable.notify_all();
 
-      return promise->get_future();
+      return future;
     }
 
     void waitAll() const
