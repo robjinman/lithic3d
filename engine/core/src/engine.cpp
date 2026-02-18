@@ -145,7 +145,7 @@ void EngineImpl::update(const InputState& inputState)
     m_renderer->endFrame();
     m_renderer->checkError();
   }
-  catch(const std::exception& e) {
+  catch (const std::exception& e) {
     EXCEPTION(STR("Error rendering scene; " << e.what()));
   }
 

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <map>
 #include <vector>
+#include <functional>
 
 namespace lithic3d
 {

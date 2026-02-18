@@ -1,5 +1,6 @@
 #include "lithic3d/loose_octree.hpp"
 #include <array>
+#include <unordered_map>
 
 namespace lithic3d
 {

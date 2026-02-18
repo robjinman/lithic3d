@@ -56,7 +56,8 @@ void genHeightMap(const std::filesystem::path& inputFilePath,
   // TODO: Logger
   std::cout << "Total bytes read: " << totalBytesRead << std::endl;
 
-  stbi_write_png(outputFilePath.c_str(), tileWidth, tileHeight, 1, image.data(), tileWidth);
+  stbi_write_png(outputFilePath.string().c_str(), tileWidth, tileHeight, 1, image.data(),
+    tileWidth);
 }
 
 } // namespace tools

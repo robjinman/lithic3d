@@ -23,19 +23,31 @@ class Thread
     template<typename T>
     std::future<T> run(Functor<T>&& task)
     {
-      auto packagedTask = std::make_shared<std::packaged_task<T()>>(std::move(task));
-      std::future<T> future = packagedTask->get_future();
+      auto promise = std::make_shared<std::promise<T>>();
 
       {
         std::lock_guard lock(m_mutex);
 
-        m_tasks.push([packagedTask]() { (*packagedTask)(); });
+        m_tasks.push([promise, task = std::move(task)]() mutable {
+          try {
+            if constexpr (std::is_same_v<T, void>) {
+              task();
+              promise->set_value();
+            }
+            else {
+              promise->set_value(task());
+            }
+          }
+          catch (...) {
+            promise->set_exception(std::current_exception());
+          }
+        });
         m_hasWork = true;
       }
 
       m_conditionVariable.notify_all();
 
-      return future;
+      return promise->get_future();
     }
 
     void waitAll() const

@@ -45,7 +45,7 @@ where ../game is the path to your game project.
 In Windows Powershell, the way you set the environment variable is slightly different, so the equivalent commands would be
 
 ```
-    $env:LITHIC3D_PROJECT="..\game" cmake --workflow --preset=windows-debug
+    $env:LITHIC3D_PROJECT="..\game"; cmake --workflow --preset=windows-debug
 
     cd .\build\windows\debug\engine\game
     .\Debug\game.exe

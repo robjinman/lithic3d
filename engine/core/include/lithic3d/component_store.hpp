@@ -30,13 +30,15 @@ concept ComponentType = requires {
   std::integral_constant<ComponentTypeId, T::TypeId>{};
 };
 
-template<ComponentType... Ts>
+template<typename... Ts>
+requires (ComponentType<Ts> && ...)
 struct type_list {};
 
 template<typename>
 struct is_type_list : std::false_type {};
 
-template<ComponentType... Ts>
+template<typename... Ts>
+requires (ComponentType<Ts> && ...)
 struct is_type_list<type_list<Ts...>> : std::true_type {};
 
 template<typename T> constexpr bool is_type_list_v = is_type_list<T>::value;
@@ -44,25 +46,30 @@ template<typename T> constexpr bool is_type_list_v = is_type_list<T>::value;
 template<typename T>
 concept TypeList = is_type_list<T>::value;
 
-template<TypeList List1, TypeList List2>
+template<typename List1, typename List2>
+requires TypeList<List1> && TypeList<List2>
 struct concat_2;
 
-template<ComponentType... Ts, ComponentType... Us>
+template<typename... Ts, typename... Us>
+requires (ComponentType<Ts> && ...) && (ComponentType<Us> && ...)
 struct concat_2<type_list<Ts...>, type_list<Us...>>
 {
   using type = type_list<Ts..., Us...>;
 };
 
-template<TypeList... Lists>
+template<typename... Lists>
+requires (TypeList<Lists> && ...)
 struct concat_n;
 
-template<TypeList L>
+template<typename L>
+requires TypeList<L>
 struct concat_n<L>
 {
   using type = L;
 };
 
-template<TypeList L1, TypeList L2, TypeList... Rest>
+template<typename L1, typename L2, typename... Rest>
+requires TypeList<L1> && TypeList<L2> && (TypeList<Rest> && ...)
 struct concat_n<L1, L2, Rest...>
 {
   using type = typename concat_n<typename concat_2<L1, L2>::type, Rest...>::type;
@@ -72,10 +79,12 @@ template<typename T>
 concept DeclaresRequiredComponents = requires { typename T::RequiredComponents; }
   && is_type_list_v<typename T::RequiredComponents>;
 
-template<DeclaresRequiredComponents... Ts>
+template<typename... Ts>
+requires (DeclaresRequiredComponents<Ts> && ...)
 using extract_components = typename concat_n<typename Ts::RequiredComponents...>::type;
 
-template<ComponentType... Ts>
+template<typename... Ts>
+requires (ComponentType<Ts> && ...)
 void extractSpecs(std::vector<ComponentSpec>& specs, type_list<Ts...>)
 {
   (specs.push_back(ComponentSpec{
@@ -85,10 +94,11 @@ void extractSpecs(std::vector<ComponentSpec>& specs, type_list<Ts...>)
   }), ...);
 }
 
-template<DeclaresRequiredComponents T>
+template<typename T>
+requires DeclaresRequiredComponents<T>
 void extractSpecs(std::vector<ComponentSpec>& specs)
 {
-  extractSpecs(specs, (typename T::RequiredComponents){});
+  extractSpecs(specs, typename T::RequiredComponents{});
 }
 
 class ComponentArray
@@ -158,7 +168,8 @@ class ComponentArrayGroup
   friend class ComponentStore;
 
   public:
-    template<ComponentType... Ts>  // Beware, we might have duplicate types
+    template<typename... Ts>  // Beware, we might have duplicate types
+    requires (ComponentType<Ts> && ...)
     void allocate(EntityId entityId)
     {
       m_entityIds.push_back(entityId);
@@ -190,26 +201,30 @@ class ComponentArrayGroup
       assert(m_entityIds.size() == m_indices.size());
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     std::span<T> components()
     {
       auto span = constComponents<T>();
       return std::span<T>{const_cast<T*>(span.data()), span.size()};
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     std::span<const T> components() const
     {
       return constComponents<T>();
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     T& component(EntityId entityId)
     {
       return components<T>()[entityPosition(entityId)];
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     const T& component(EntityId entityId) const
     {
       return components<T>()[entityPosition(entityId)];
@@ -245,7 +260,8 @@ class ComponentArrayGroup
     std::vector<EntityId> m_entityIds;
     std::map<EntityId, size_t> m_indices;
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     std::span<const T> constComponents() const
     {
       auto i = m_componentData.find(T::TypeId);
@@ -384,7 +400,8 @@ class ComponentStore
         Archetype m_mask;
     };
 
-    template<ComponentType... Ts>
+    template<typename... Ts>
+    requires (ComponentType<Ts> && ...)
     void allocateEntity(EntityId entityId)
     {
       Archetype archetype = (Ts::TypeId | ...);
@@ -395,16 +412,18 @@ class ComponentStore
       m_archetypes[entityId] = archetype;
     }
 
-    template<ComponentType... Ts>
-    void allocateEntity(EntityId entityId, type_list<Ts...>)
+    template<typename... Ts>
+    requires (ComponentType<Ts> && ...)
+    void allocateEntity_(EntityId entityId, type_list<Ts...>)
     {
       allocateEntity<Ts...>(entityId);
     }
 
-    template<DeclaresRequiredComponents... Ts>
+    template<typename... Ts>
+    requires (DeclaresRequiredComponents<Ts> && ...)
     void allocate(EntityId entityId)
     {
-      allocateEntity(entityId, extract_components<Ts...>{});
+      allocateEntity_(entityId, extract_components<Ts...>{});
     }
 
     // Dynamic version
@@ -421,28 +440,32 @@ class ComponentStore
       m_archetypes[entityId] = archetype;
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     T& instantiate(EntityId entityId)
     {
       auto addr = &component<T>(entityId);
       return *std::launder(new (addr) T{});
     }
 
-    template<ComponentType... Ts>
+    template<typename... Ts>
+    requires (ComponentType<Ts> && ...)
     View<false> components()
     {
       Archetype mask = (Ts::TypeId | ...);
       return View<false>{m_groups, mask};
     }
 
-    template<ComponentType... Ts>
+    template<typename... Ts>
+    requires (ComponentType<Ts> && ...)
     View<true> components() const
     {
       Archetype mask = (Ts::TypeId | ...);
       return View<true>{m_groups, mask};
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     T& component(EntityId entityId)
     {
       auto i = m_archetypes.find(entityId);
@@ -452,7 +475,8 @@ class ComponentStore
       return m_groups.at(i->second).component<T>(entityId);
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     const T& component(EntityId entityId) const
     {
       return (const_cast<ComponentStore*>(this)->component<T>(entityId));
@@ -473,7 +497,8 @@ class ComponentStore
       return m_groups.at(m_archetypes.at(entityId));
     }
 
-    template<ComponentType T>
+    template<typename T>
+    requires ComponentType<T>
     bool hasComponentForEntity(EntityId entityId) const
     {
       auto i = m_archetypes.find(entityId);

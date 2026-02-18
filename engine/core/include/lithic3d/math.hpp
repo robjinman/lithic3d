@@ -7,6 +7,7 @@
 #include <vector>
 #include <optional>
 #include <cstring>
+#include <array>
 
 namespace lithic3d
 {

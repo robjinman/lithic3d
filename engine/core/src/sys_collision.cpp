@@ -61,7 +61,8 @@ void SysCollisionImpl::removeEntity(EntityId entityId)
 
 bool SysCollisionImpl::hasEntity(EntityId entityId) const
 {
-
+  // TODO
+  return false;
 }
 
 void SysCollisionImpl::applyGravity()

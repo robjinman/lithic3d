@@ -54,7 +54,7 @@ void partitionHeightMap(const fs::path& filePath, uint32_t cellsX, uint32_t cell
   int width = 0;
   int height = 0;
   int channels = 0;
-  unsigned char* data = stbi_load(filePath.c_str(), &width, &height, &channels, 0);
+  unsigned char* data = stbi_load(filePath.string().c_str(), &width, &height, &channels, 0);
 
   if (channels != 1) {
     throw std::runtime_error("Expected height map to have 1 channel");
@@ -88,8 +88,8 @@ void partitionHeightMap(const fs::path& filePath, uint32_t cellsX, uint32_t cell
 
       std::cout << "Writing file " << outputPath << std::endl;
 
-      if (stbi_write_png(outputPath.c_str(), cellW + 1, cellH + 1, channels, cellData.data(),
-        (cellW + 1) * channels) == 0) {
+      if (stbi_write_png(outputPath.string().c_str(), cellW + 1, cellH + 1, channels,
+        cellData.data(), (cellW + 1) * channels) == 0) {
 
         throw std::runtime_error("Writing png failed");
       }
@@ -103,7 +103,7 @@ void partitionSplatMap(const fs::path& filePath, uint32_t cellsX, uint32_t cells
   int width = 0;
   int height = 0;
   int channels = 0;
-  unsigned char* data = stbi_load(filePath.c_str(), &width, &height, &channels, 0);
+  unsigned char* data = stbi_load(filePath.string().c_str(), &width, &height, &channels, 0);
 
   if (channels != 4) {
     throw std::runtime_error("Expected splat map to have 4 channels");
@@ -136,7 +136,9 @@ void partitionSplatMap(const fs::path& filePath, uint32_t cellsX, uint32_t cells
 
       std::cout << "Writing file " << outputPath << std::endl;
 
-      if (stbi_write_png(outputPath.c_str(), cellW, cellH, channels, data + offset, stride) == 0) {
+      if (stbi_write_png(outputPath.string().c_str(), cellW, cellH, channels, data + offset,
+        stride) == 0) {
+
         throw std::runtime_error("Writing png failed");
       }
     }

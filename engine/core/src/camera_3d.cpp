@@ -17,7 +17,6 @@ Camera3d::Camera3d(float aspectRatio, float rotation)
 void Camera3d::updateParameters(float aspectRatio, float rotation)
 {
   float vFov = degreesToRadians(45.f);
-  float hFov = 2.f * atanf(aspectRatio * tanf(0.5f * vFov));
   float nearPlane = metresToWorldUnits(0.1f);
   float farPlane = metresToWorldUnits(1000.f);
 

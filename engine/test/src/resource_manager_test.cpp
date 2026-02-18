@@ -304,7 +304,7 @@ TEST_F(ResourceManagerTest, loads_and_unloads_resource)
   try {
     auto handle = m_aObjectFactory->createAObjectAsync("hello");
   }
-  catch(...) {
+  catch (...) {
     m_resourceManager->waitAll();
     throw;
   }
@@ -327,7 +327,7 @@ TEST_F(ResourceManagerTest, loads_and_unloads_transitive_dependencies)
   try {
     m_cObjectFactory->createCObjectAsync("hello", 123, 234).id();
   }
-  catch(...) {
+  catch (...) {
     m_resourceManager->waitAll();
     throw;
   }
@@ -363,7 +363,7 @@ TEST_F(ResourceManagerTest, does_not_unload_still_used_dependency)
 
     // bObjHandle goes out of scope here
   }
-  catch(...) {
+  catch (...) {
     m_resourceManager->waitAll();
     throw;
   }
@@ -395,7 +395,7 @@ TEST_F(ResourceManagerTest, unloads_shared_dependency_when_no_longer_used)
     // dObjHandle goes out of scope here
     // bObjHandle goes out of scope here
   }
-  catch(...) {
+  catch (...) {
     m_resourceManager->waitAll();
     throw;
   }
