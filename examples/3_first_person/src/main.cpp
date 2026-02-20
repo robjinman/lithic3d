@@ -52,6 +52,7 @@ class Demo : public Game
     void processMouseInput();
     void processKeyboardInput();
     void gravity();
+    void analyseOctreeNode(const OctreeNode& node, size_t depth) const;
 };
 
 Demo::Demo(Engine& engine)
@@ -184,8 +185,8 @@ EntityId Demo::constructModel(float x, float z)
 
 void Demo::constructModels()
 {
-  for (float x = -100.f; x <= 100.f; x += 10.f) {
-    for (float z = -100.f; z <= 100.f; z += 10.f) {
+  for (float x = 0.f; x <= 200.f; x += 10.f) {
+    for (float z = 0.f; z <= 200.f; z += 10.f) {
       constructModel(x, z);
     }
   }
@@ -199,7 +200,7 @@ EntityId Demo::constructGround()
     metresToWorldUnits(Vec2f{ 5.f, 5.f }));
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
-    translationMatrix4x4(Vec3f{ 0.f, -metresToWorldUnits(1.f), 0.f });
+    translationMatrix4x4(metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));
 
   return id;
 }
@@ -287,12 +288,27 @@ bool Demo::update()
   return true;
 }
 
+void Demo::analyseOctreeNode(const OctreeNode& node, size_t depth) const
+{
+  std::string tabs(depth, ' ');
+  m_engine.logger().info(STR(tabs << "Node contains " << node.objects.size() << " objects"));
+  for (auto& child : node.children) {
+    if (child != nullptr) {
+      analyseOctreeNode(*child, depth + 1);
+    }
+  }
+}
+
 void Demo::onKeyDown(KeyboardKey key)
 {
   m_inputState.keysPressed.insert(key);
 
   if (key == KeyboardKey::F) {
     m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
+  }
+  else if (key == KeyboardKey::P) {
+    auto& root = m_engine.ecs().system<SysSpatial>().dbg_getOctree().test_root();
+    analyseOctreeNode(root, 0);
   }
 }
 

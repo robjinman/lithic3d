@@ -100,6 +100,8 @@ class SysSpatial : public System
 
     virtual ~SysSpatial() = default;
 
+    virtual const LooseOctree& dbg_getOctree() const = 0;
+
     static const SystemId id = Systems::Spatial;
 };
 

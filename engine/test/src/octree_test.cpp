@@ -12,33 +12,6 @@ class OctreeTest : public testing::Test
     virtual void TearDown() override {}
 };
 
-const Frustum boxFrustum{
-  Plane{                            // left
-    .normal = { 1.f, 0.f, 0.f },
-    .distance = 1.f
-  },
-  Plane{                            // right
-    .normal = { -1.f, 0.f, 0.f },
-    .distance = 1.f
-  },
-  Plane{                            // top
-    .normal = { 0.f, -1.f, 0.f },
-    .distance = 1.f
-  },
-  Plane{                            // bottom
-    .normal = { 0.f, 1.f, 0.f },
-    .distance = 1.f
-  },
-  Plane{                            // near
-    .normal = { 0.f, 0.f, 1.f },
-    .distance = 1.f
-  },
-  Plane{                            // far
-    .normal = { 0.f, 0.f, -1.f },
-    .distance = 1.f
-  }
-};
-
 TEST_F(OctreeTest, single_large_item_doesnt_split_root)
 {
   LooseOctreePtr octree = createLooseOctree({ -10.f, -10.f, -10.f }, 20.f);

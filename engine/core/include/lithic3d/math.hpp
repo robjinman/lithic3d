@@ -722,6 +722,7 @@ Mat3x3f inverse(const Mat3x3f& M);
 Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation, Vec2f pivot);
 Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C);
 bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius);
+Frustum computeFrustumFromMatrix(const Mat4x4f& m);
 
 inline Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size)
 {

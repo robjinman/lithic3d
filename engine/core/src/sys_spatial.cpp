@@ -28,6 +28,8 @@ class SysSpatialImpl : public SysSpatial
     EntityId root() const override;
     void setEnabled(EntityId entityId, bool enabled) override;
 
+    const LooseOctree& dbg_getOctree() const override;
+
   private:
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
@@ -49,7 +51,12 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem)
   m_ecs.componentStore().instantiate<CSpatialFlags>(root);
 
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
-  m_octree = createLooseOctree({ 0.f, -100.f, 0.f }, 10000.f); // TODO
+  m_octree = createLooseOctree({ -1000.f, -1000.f, -1000.f }, 10000.f); // TODO
+}
+
+const LooseOctree& SysSpatialImpl::dbg_getOctree() const
+{
+  return *m_octree;
 }
 
 EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const

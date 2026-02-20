@@ -96,3 +96,31 @@ TEST_F(Camera3dTest, computeFrustum_camera_at_origin_square_aspect)
     frustum[FrustumPlane::Bottom].normal, 0.1f));
   EXPECT_NEAR(0.f, frustum[FrustumPlane::Bottom].distance, 0.1f);
 }
+
+TEST_F(Camera3dTest, computeFrustum_returns_valid_frustum_at_various_orientations)
+{
+  float aspectRatio = 1.4f;
+  Camera3d camera{aspectRatio, 0.f};
+
+  camera.translate({ -5.f, 1.f, -5.f });
+  camera.rotate(degreesToRadians(-45.f), 0.f);
+
+  for (size_t x = 0; x < 2; ++x) {
+    camera.translate({ 10.f * x, 0.f, 0.f });
+
+    for (size_t z = 0; z < 2; ++z) {
+      camera.translate({ 0.f, 0.f, 10.f * z });
+
+      for (size_t p = 0; p < 3; ++p) {
+        camera.rotate(degreesToRadians(45.f), 0.f);
+
+        for (size_t y = 0; y < 8; ++y) {
+          camera.rotate(0.f, degreesToRadians(45.f));
+
+          auto frustum = camera.getWorldSpaceFrustum();
+          EXPECT_TRUE(dbg_isValidFrustum(frustum));
+        }
+      }
+    }
+  }
+}

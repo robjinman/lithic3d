@@ -17,7 +17,6 @@ class Camera3d
     inline const Vec3f& getPosition() const;
     inline const Mat4x4f& getViewMatrix() const;
     inline const Mat4x4f& getProjectionMatrix() const;
-    //inline const Frustum& getViewSpaceFrustum() const;
     inline const Frustum& getWorldSpaceFrustum() const;
     void updateParameters(float aspectRatio, float rotation);
 
@@ -26,10 +25,7 @@ class Camera3d
     Vec3f m_direction;
     Mat4x4f m_projection;
     Mat4x4f m_viewMatrix;
-    //Frustum m_viewSpaceFrustum;
     Frustum m_worldSpaceFrustum;
-
-    Frustum computeFrustum(const Mat4x4f& m) const;
 };
 
 const Vec3f& Camera3d::getPosition() const
@@ -51,11 +47,6 @@ const Mat4x4f& Camera3d::getProjectionMatrix() const
 {
   return m_projection;
 }
-
-//const Frustum& Camera3d::getViewSpaceFrustum() const
-//{
-//  return m_viewSpaceFrustum;
-//}
 
 const Frustum& Camera3d::getWorldSpaceFrustum() const
 {

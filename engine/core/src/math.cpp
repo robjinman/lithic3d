@@ -362,7 +362,7 @@ Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation
 
 inline bool intersectsHalfSpace(const Plane& plane, const Vec3f& pos, float radius)
 {
-  return (-plane.normal).dot(pos) - radius <= plane.distance;
+  return (plane.normal).dot(pos) + plane.distance >= -radius;
 }
 
 bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius)
@@ -378,7 +378,7 @@ bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius)
 
 bool pointIsOnPlane(const Plane& plane, const Vec3f& p)
 {
-  const float epsilon = 0.001;
+  const float epsilon = 0.01f;
 
   auto a = plane.normal[0];
   auto b = plane.normal[1];
@@ -419,6 +419,41 @@ bool dbg_isValidFrustum(const Frustum& f)
   }
 
   return true;
+}
+
+Frustum computeFrustumFromMatrix(const Mat4x4f& m)
+{
+  auto calcPlane = [](const Mat4x4f& m, size_t rowA, size_t rowB, bool add) {
+    auto v = add ? m.row(rowA) + m.row(rowB) : m.row(rowA) - m.row(rowB);
+    auto normal = v.sub<3>();
+    
+    Plane plane{
+      .normal = normal,
+      .distance = v[3]
+    };
+    plane.normalise();
+
+    return plane;
+  };
+
+  Frustum frustum;
+
+  frustum[FrustumPlane::Left] = calcPlane(m, 3, 0, true);     // row 3 + row 0
+  frustum[FrustumPlane::Right] = calcPlane(m, 3, 0, false);   // row 3 - row 0
+  frustum[FrustumPlane::Bottom] = calcPlane(m, 3, 1, false);  // row 3 - row 1
+  frustum[FrustumPlane::Top] = calcPlane(m, 3, 1, true);      // row 3 + row 1
+  frustum[FrustumPlane::Far] = calcPlane(m, 3, 2, false);     // row 3 - row 2
+
+  auto normal = m.row(2).sub<3>();
+  frustum[FrustumPlane::Near] = Plane{                        // row 2
+    .normal = normal,
+    .distance = m.at(2, 3)
+  };
+  frustum[FrustumPlane::Near].normalise();
+
+  //assert(dbg_isValidFrustum(frustum));
+
+  return frustum;
 }
 
 } // namespace lithic3d

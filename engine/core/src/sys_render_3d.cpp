@@ -66,19 +66,9 @@ LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
                         // and f (when their z is negative)
 
   P.projectionMatrix = orthographic(l, r, t, b, n, f);
+  P.frustum = computeFrustumFromMatrix(P.projectionMatrix * P.viewMatrix);
 
-  P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, -1.f };
-  P.frustum[FrustumPlane::Near].distance = fabs(n);
-  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, 1.f };
-  P.frustum[FrustumPlane::Far].distance = fabs(f);
-  P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Left].distance = fabs(l);
-  P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Right].distance = fabs(r);
-  P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
-  P.frustum[FrustumPlane::Bottom].distance = fabs(b);
-  P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
-  P.frustum[FrustumPlane::Top].distance = fabs(t);
+  //assert(dbg_isValidFrustum(P.frustum));
 
   return P;
 }
@@ -451,6 +441,11 @@ void SysRender3dImpl::doMainPass()
   // TODO: Check CSpatialFlags
 
   auto visible = sysSpatial.getIntersecting(m_camera->getWorldSpaceFrustum());
+
+  //static long i = 0;
+  //if (i++ % 60 == 0) {
+  //  std::cout << visible.size() << "\n";
+  //}
 
   m_renderer.beginPass(RenderPass::Main, m_camera->getPosition(), m_camera->getViewMatrix(),
     m_camera->getProjectionMatrix());
