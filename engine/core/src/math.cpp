@@ -324,12 +324,12 @@ Mat4x4f Transform::toMatrix() const
 Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C)
 {
   auto M = inverse(Mat3x3f{
-    -A.normal[0], -B.normal[0], -C.normal[0],
-    -A.normal[1], -B.normal[1], -C.normal[1],
-    -A.normal[2], -B.normal[2], -C.normal[2]
+    A.normal[0], B.normal[0], C.normal[0],
+    A.normal[1], B.normal[1], C.normal[1],
+    A.normal[2], B.normal[2], C.normal[2]
   });
 
-  return M * Vec3f{ A.distance, B.distance, C.distance };
+  return (M * Vec3f{ A.distance, B.distance, C.distance }) * -1.f;
 }
 
 void Transform::mix(const Transform& T)
@@ -360,15 +360,65 @@ Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation
     scaleMatrix4x4(Vec3f{ size[0], size[1], 0.f });
 }
 
+inline bool intersectsHalfSpace(const Plane& plane, const Vec3f& pos, float radius)
+{
+  return (-plane.normal).dot(pos) - radius <= plane.distance;
+}
+
 bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius)
 {
   for (auto& plane : frustum) {
-    if (intersectsPlane(plane, pos, radius)) {
-      return true;
+    if (!intersectsHalfSpace(plane, pos, radius)) {
+      return false;
     }
   }
 
-  return false;
+  return true;
+}
+
+bool pointIsOnPlane(const Plane& plane, const Vec3f& p)
+{
+  const float epsilon = 0.001;
+
+  auto a = plane.normal[0];
+  auto b = plane.normal[1];
+  auto c = plane.normal[2];
+  auto d = plane.distance;
+  return fabs(a * p[0] + b * p[1] + c * p[2] + d) < epsilon;
+}
+
+bool dbg_isValidFrustum(const Frustum& f)
+{
+  std::array<Vec3f, 8> corners{
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Left], f[FrustumPlane::Top]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Top], f[FrustumPlane::Right]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
+    planeIntersection(f[FrustumPlane::Near], f[FrustumPlane::Bottom], f[FrustumPlane::Left]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Left], f[FrustumPlane::Top]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Top], f[FrustumPlane::Right]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Right], f[FrustumPlane::Bottom]),
+    planeIntersection(f[FrustumPlane::Far], f[FrustumPlane::Bottom], f[FrustumPlane::Left])
+  };
+
+  Vec3f centre;
+  for (size_t i = 0; i < 8; ++i) {
+    centre += corners[i];
+  }
+  centre = centre / 8.f;
+
+  for (size_t i = 0; i < f.size(); ++i) {
+    auto p = -f[i].normal * f[i].distance;
+    if (!pointIsOnPlane(f[i], p)) {
+      return false;
+    }
+
+    Vec3f v = centre - p;
+    if (v.dot(f[i].normal) < 0.f) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 } // namespace lithic3d

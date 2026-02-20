@@ -186,21 +186,44 @@ TEST_F(MathTest, triangulate_nonconvex_poly)
   ASSERT_EQ(expected, indices);
 }
 
-TEST_F(MathTest, intersectsFrustum_cube_frustum_at_origin)
+Frustum cubeFrustum()
 {
   Frustum frustum;
   frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
-  frustum[FrustumPlane::Left].distance = 1.f;
+  frustum[FrustumPlane::Left].distance = 0.5f;
   frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
-  frustum[FrustumPlane::Right].distance = 1.f;
+  frustum[FrustumPlane::Right].distance = 0.5f;
   frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
-  frustum[FrustumPlane::Bottom].distance = 1.f;
+  frustum[FrustumPlane::Bottom].distance = 0.5f;
   frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
-  frustum[FrustumPlane::Top].distance = 1.f;
+  frustum[FrustumPlane::Top].distance = 0.5f;
   frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
-  frustum[FrustumPlane::Near].distance = 1.f;
+  frustum[FrustumPlane::Near].distance = 0.5f;
   frustum[FrustumPlane::Far].normal = { 0.f, 0.f, -1.f };
-  frustum[FrustumPlane::Far].distance = 1.f;
+  frustum[FrustumPlane::Far].distance = 0.5f;
 
-  intersectsFrustum(frustum, {  }, 0.5f);
+  assert(dbg_isValidFrustum(frustum));
+
+  return frustum;
+}
+
+TEST_F(MathTest, intersectsFrustum_small_sphere_at_origin_intersects_cube_frustum_at_origin)
+{
+  auto frustum = cubeFrustum();
+
+  EXPECT_TRUE(intersectsFrustum(frustum, { 0.f, 0.f, 0.f }, 0.1f));
+}
+
+TEST_F(MathTest, intersectsFrustum_sphere_fully_outside_cube_frustum)
+{
+  auto frustum = cubeFrustum();
+
+  EXPECT_FALSE(intersectsFrustum(frustum, { 0.61f, 0.f, 0.f }, 0.1f));
+}
+
+TEST_F(MathTest, intersectsFrustum_sphere_touching_cube_frustum)
+{
+  auto frustum = cubeFrustum();
+
+  EXPECT_TRUE(intersectsFrustum(frustum, { 0.59f, 0.f, 0.f }, 0.1f));
 }

@@ -20,6 +20,7 @@ layout(set = DESCRIPTOR_SET_RENDER_PASS, binding = 2) uniform sampler2DArray sha
 
 float sampleShadowMap(int cascade, vec2 uv, float lightSpacePosZ)
 {
+  float depth = texture(shadowMapSampler, vec3(uv, cascade)).r;
   ivec2 shadowMapSize = textureSize(shadowMapSampler, 0).xy;
   float scale = 0.5;
 	float dx = scale / float(shadowMapSize.x);
@@ -57,6 +58,10 @@ vec3 computeDirectionalLight(vec3 worldPos, vec3 normal)
   vec3 lightSpacePos = (inLightSpacePos[cascade] / inLightSpacePos[cascade].w).xyz;
   vec2 lightSpaceXy = lightSpacePos.xy * 0.5 + 0.5;
   float shadow = sampleShadowMap(cascade, lightSpaceXy, lightSpacePos.z);
+
+  if (lightSpacePos.z > 1.0) {
+    return vec3(1, 0, 0);
+  }
 
   float intensity = lighting.directionalLight.ambient;
 

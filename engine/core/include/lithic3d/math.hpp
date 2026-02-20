@@ -8,6 +8,7 @@
 #include <optional>
 #include <cstring>
 #include <array>
+#include <cassert>
 
 namespace lithic3d
 {
@@ -681,17 +682,14 @@ struct Plane
     auto magnitude = normal.magnitude();
     distance /= magnitude;
     normal = normal / magnitude;
-    if (distance < 0.f) {
-      distance = -distance;
-      normal = -normal;
-    }
   }
 };
-
+/*
 inline bool intersectsPlane(const Plane& plane, const Vec3f& pos, float radius)
 {
-  return plane.normal.dot(pos) + plane.distance >= -radius;
-}
+  float distance = fabs(plane.distance) - (plane.normal * -plane.distance).dot(pos);
+  return distance <= radius;
+}*/
 
 namespace FrustumPlane
 {
@@ -705,6 +703,8 @@ namespace FrustumPlane
   };
 }
 using Frustum = std::array<Plane, 6>;
+
+bool dbg_isValidFrustum(const Frustum& f);
 
 using Rectf = Rect<float>;
 using Recti = Rect<int>;

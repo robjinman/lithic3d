@@ -26,16 +26,65 @@ namespace MeshFeatures = render::MeshFeatures;
 using render::TexturePtr;
 using render::RenderPass;
 
+LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
+  const Vec3f& worldSpaceLightDir)
+{
+  Vec3f centre;
+  for (size_t i = 0; i < 8; ++i) {
+    centre += corners[i];
+  }
+  centre = centre / 8.f;
+
+  LightProjection P;
+  P.pos = centre - worldSpaceLightDir;
+  P.viewMatrix = lookAt(P.pos, centre);
+
+  constexpr float floatMax = std::numeric_limits<float>::max();
+  constexpr float floatMin = std::numeric_limits<float>::lowest();
+
+  Vec3f min{ floatMax, floatMax, floatMax };
+  Vec3f max{ floatMin, floatMin, floatMin };
+  for (auto& pt : corners) {
+    Vec4f lightSpacePt = P.viewMatrix * Vec4f{pt, { 1.f }};
+    for (uint32_t i = 0; i < 3; ++i) {
+      if (lightSpacePt[i] < min[i]) {
+        min[i] = lightSpacePt[i];
+      }
+      if (lightSpacePt[i] > max[i]) {
+        max[i] = lightSpacePt[i];
+      }
+    }
+  }
+
+  float l = min[0];
+  float r = max[0];
+  float b = min[1];
+  float t = max[1];
+                        // Swap and negate values for z
+  float n = -max[2];    // Swap because in view space we're looking down the negative-z axis
+  float f = -min[2];    // Negate because the orthographic function expects positive values for n
+                        // and f (when their z is negative)
+
+  P.projectionMatrix = orthographic(l, r, t, b, n, f);
+
+  P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, -1.f };
+  P.frustum[FrustumPlane::Near].distance = fabs(n);
+  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, 1.f };
+  P.frustum[FrustumPlane::Far].distance = fabs(f);
+  P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
+  P.frustum[FrustumPlane::Left].distance = fabs(l);
+  P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
+  P.frustum[FrustumPlane::Right].distance = fabs(r);
+  P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
+  P.frustum[FrustumPlane::Bottom].distance = fabs(b);
+  P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
+  P.frustum[FrustumPlane::Top].distance = fabs(t);
+
+  return P;
+}
+
 namespace
 {
-
-struct LightProjection
-{
-  Vec3f pos;
-  Mat4x4f viewMatrix;
-  Mat4x4f projectionMatrix;
-  Frustum frustum;
-};
 
 struct AnimationChannelState
 {
@@ -107,8 +156,6 @@ class SysRender3dImpl : public SysRender3d
     void doMainPass();
     void updateAnimations();
     void updateCamera();
-    LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
-      const Vec3f& lightDir) const;
     std::array<LightProjection, 3> computeLightProjections(const Vec3f& worldSpaceLightDir) const;
 };
 
@@ -123,54 +170,6 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader,
   float aspect = static_cast<float>(viewport[0]) / viewport[1];
   float rotation = m_renderer.getViewportRotation();
   m_camera = std::make_unique<Camera3d>(aspect, rotation);
-}
-
-LightProjection SysRender3dImpl::computeLightProjection(const std::array<Vec3f, 8>& corners,
-  const Vec3f& worldSpaceLightDir) const
-{
-  Vec3f centre;
-  for (size_t i = 0; i < 8; ++i) {
-    centre += corners[i];
-  }
-  centre = centre / 8.f;
-
-  LightProjection P;
-  P.pos = centre - worldSpaceLightDir;
-  P.viewMatrix = lookAt(P.pos, centre);
-
-  constexpr float floatMax = std::numeric_limits<float>::max();
-  constexpr float floatMin = std::numeric_limits<float>::lowest();
-
-  Vec3f min{ floatMax, floatMax, floatMax };
-  Vec3f max{ floatMin, floatMin, floatMin };
-  for (auto& pt : corners) {
-    Vec4f lightSpacePt = P.viewMatrix * Vec4f{pt, { 1.f }};
-    for (uint32_t i = 0; i < 3; ++i) {
-      if (lightSpacePt[i] < min[i]) {
-        min[i] = lightSpacePt[i];
-      }
-      if (lightSpacePt[i] > max[i]) {
-        max[i] = lightSpacePt[i];
-      }
-    }
-  }
-
-  P.frustum[FrustumPlane::Near].normal = { 0.f, 0.f, 1.f };
-  P.frustum[FrustumPlane::Near].distance = fabs(min[2]);
-  P.frustum[FrustumPlane::Far].normal = { 0.f, 0.f, 1.f };
-  P.frustum[FrustumPlane::Far].distance = fabs(max[2]);
-  P.frustum[FrustumPlane::Left].normal = { 1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Left].distance = fabs(min[0]);
-  P.frustum[FrustumPlane::Right].normal = { -1.f, 0.f, 0.f };
-  P.frustum[FrustumPlane::Right].distance = fabs(max[0]);
-  P.frustum[FrustumPlane::Bottom].normal = { 0.f, 1.f, 0.f };
-  P.frustum[FrustumPlane::Bottom].distance = fabs(min[1]);
-  P.frustum[FrustumPlane::Top].normal = { 0.f, -1.f, 0.f };
-  P.frustum[FrustumPlane::Top].distance = fabs(max[1]);
-
-  P.projectionMatrix = orthographic(min[0], max[0], max[1], min[1], min[2], max[2]);
-
-  return P;
 }
 
 std::array<Vec3f, 4> frustumCrossSection(const std::array<Vec3f, 8>& corners, float percentage)

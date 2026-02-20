@@ -89,6 +89,19 @@ class SysRender3d : public System
 
 using SysRender3dPtr = std::unique_ptr<SysRender3d>;
 
+// ----- Exposed for testing
+struct LightProjection
+{
+  Vec3f pos;
+  Mat4x4f viewMatrix;
+  Mat4x4f projectionMatrix;
+  Frustum frustum;
+};
+
+LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
+  const Vec3f& worldSpaceLightDir);
+// -----
+
 class Logger;
 
 SysRender3dPtr createSysRender3d(const Ecs& ecs, const ModelLoader& modelLoader,
