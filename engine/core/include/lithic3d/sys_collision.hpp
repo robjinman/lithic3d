@@ -7,12 +7,22 @@
 namespace lithic3d
 {
 
+const size_t MAX_FORCES = 8;
+
+struct Force
+{
+  Vec3f force;
+  uint32_t lifetime = 0;
+};
+
 struct CCollision
 {
-  float mass = 1.f;
-  Vec3f velocity;
+  float inverseMass = 1.f;
+  //Vec3f centreOfMass;
+  //float damping = 0.f;
+  std::array<Force, MAX_FORCES> forces;
   Vec3f acceleration;
-  float damping = 0.f;
+  Vec3f velocity;
 
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };
@@ -42,19 +52,19 @@ struct HeightMap
   }
 };
 
-namespace CollisionFlags
-{
-  enum : size_t
-  {
-    Gravity,
-    Stationary
-  };
-}
+//namespace CollisionFlags
+//{
+//  enum : size_t
+//  {
+//  };
+//}
 
 struct DCollision
 {
-  float mass = 1.f;
-  std::bitset<16> flags;
+  using RequiredComponents = type_list<CSpatialFlags, CBoundingBox, CLocalTransform, CCollision>;
+
+  float inverseMass = 1.f;
+  //std::bitset<16> flags;
 };
 
 struct DTerrainChunk
@@ -69,6 +79,10 @@ struct DTerrainChunk
 class SysCollision : public System
 {
   public:
+    virtual void applyForce(EntityId id, const Vec3f& force, float seconds) = 0;
+    virtual void setInverseMass(EntityId id, float inverseMass) = 0;
+    virtual void setStationary(EntityId id) = 0;
+
     virtual void addEntity(EntityId id, const DCollision& data) = 0;
     virtual void addEntity(EntityId id, const DTerrainChunk data) = 0;
 

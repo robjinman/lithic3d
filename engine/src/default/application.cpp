@@ -96,6 +96,7 @@ class Application
     void toggleFullScreen();
     Vec2i windowSize() const;
     void processGamepadInput();
+    void cleanUp();
 };
 
 Application* Application::m_instance = nullptr;
@@ -179,13 +180,29 @@ Application::Application()
   m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
     std::move(fileSystem), std::move(logger));
 
-  m_game = createGame(*m_engine);
-
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 
   glfwSetKeyCallback(m_window, Application::onKeyboardInput);
   glfwSetCursorPosCallback(m_window, Application::onMouseMove);
   glfwSetJoystickCallback(Application::onJoystickEvent);
+
+  try {
+    m_game = createGame(*m_engine);
+  }
+  catch (...) {
+    cleanUp();
+    throw;
+  }
+}
+
+void Application::cleanUp()
+{
+  m_engine->resourceManager().deactivate();
+
+  m_game.reset();
+  m_engine.reset();
+  glfwDestroyWindow(m_window);
+  glfwTerminate();
 }
 
 void Application::run()
@@ -387,12 +404,7 @@ void Application::exitInputCapture()
 
 Application::~Application()
 {
-  m_engine->resourceManager().deactivate();
-
-  m_game.reset();
-  m_engine.reset();
-  glfwDestroyWindow(m_window);
-  glfwTerminate();
+  cleanUp();
 }
 
 } // namespace

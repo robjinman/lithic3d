@@ -1,6 +1,7 @@
 #include "lithic3d/factory.hpp"
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/sys_collision.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/utils.hpp"
 
@@ -25,8 +26,8 @@ class FactoryImpl : public Factory
     FactoryImpl(Ecs& ecs, ModelLoader&  modelLoader, RenderResourceLoader& renderResourceLoader);
 
     MaterialHandle createMaterial(const std::filesystem::path& texturePath) override;
-    EntityId createCuboid(const Vec3f& size, MaterialHandle material,
-      const Vec2f& textureSize) override;
+    EntityId createCuboid(const Vec3f& size, MaterialHandle material, const Vec2f& textureSize,
+      float inverseMass) override;
 
   private:
     Ecs& m_ecs;
@@ -55,13 +56,14 @@ MaterialHandle FactoryImpl::createMaterial(const std::filesystem::path& textureP
 }
 
 EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
-  const Vec2f& textureSize)
+  const Vec2f& textureSize, float inverseMass)
 {
   auto id = m_ecs.idGen().getNewEntityId();
-  m_ecs.componentStore().allocate<DSpatial, DModel>(id);
+  m_ecs.componentStore().allocate<DSpatial, DModel, DCollision>(id);
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
+  auto& sysCollision = m_ecs.system<SysCollision>();
 
   DSpatial spatial{};
   spatial.parent = sysSpatial.root();
@@ -96,6 +98,11 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
   render->model = m_modelLoader.loadModelAsync(std::move(model)).wait();
 
   sysRender3d.addEntity(id, std::move(render));
+
+  DCollision collision{
+    .inverseMass = inverseMass
+  };
+  sysCollision.addEntity(id, collision);
 
   return id;
 }

@@ -13,7 +13,7 @@ class Factory
     // TODO: Label async?
     virtual render::MaterialHandle createMaterial(const std::filesystem::path& texturePath) = 0;
     virtual EntityId createCuboid(const Vec3f& size, render::MaterialHandle material,
-      const Vec2f& textureSize) = 0;
+      const Vec2f& textureSize, float inverseMass) = 0;
 
     virtual ~Factory() = default;
 };

@@ -6,6 +6,11 @@ namespace lithic3d
 namespace
 {
 
+const Force GravitationalForce{
+  .force{ 0.f, -metresToWorldUnits(9.8f) / (TICKS_PER_SECOND * TICKS_PER_SECOND), 0.f },
+  .lifetime = std::numeric_limits<uint32_t>::max()
+};
+
 using CollisionPair = std::pair<EntityId, EntityId>;
 
 class SysCollisionImpl : public SysCollision
@@ -16,18 +21,23 @@ class SysCollisionImpl : public SysCollision
     void addEntity(EntityId id, const DCollision& data) override;
     void addEntity(EntityId id, const DTerrainChunk data) override;
 
+    void setInverseMass(EntityId id, float inverseMass) override;
+    void applyForce(EntityId id, const Vec3f& force, float seconds) override;
+    void setStationary(EntityId id) override;
+
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override;
 
-    void applyGravity();
-    std::vector<CollisionPair> findPossibleCollisions();
-
   private:
     Logger& m_logger;
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
+
+    void applyForce(CCollision& comp, const Force& force);
+    std::vector<CollisionPair> findPossibleCollisions();
+    void integrate();
 };
 
 SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -39,7 +49,25 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& l
 
 void SysCollisionImpl::addEntity(EntityId id, const DCollision& data)
 {
+  auto& componentStore = m_ecs.componentStore();
 
+  assertHasComponent<CGlobalTransform>(componentStore, id);
+  assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CCollision>(componentStore, id);
+
+  CCollision comp{
+    .inverseMass = data.inverseMass,
+    .forces{},
+    .acceleration{},
+    .velocity{}
+  };
+
+  if (comp.inverseMass != 0) {
+    comp.forces[0] = GravitationalForce;
+  }
+
+  componentStore.instantiate<CCollision>(id) = comp;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk data)
@@ -48,6 +76,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk data)
 
   assertHasComponent<CGlobalTransform>(componentStore, id);
   assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
@@ -65,9 +94,45 @@ bool SysCollisionImpl::hasEntity(EntityId entityId) const
   return false;
 }
 
-void SysCollisionImpl::applyGravity()
+void SysCollisionImpl::applyForce(EntityId id, const Vec3f& force, float seconds)
 {
+  // TODO
+}
 
+void SysCollisionImpl::applyForce(CCollision& comp, const Force& force)
+{
+  uint32_t freeIndex = MAX_FORCES;
+  for (size_t i = 0; i < MAX_FORCES; ++i) {
+    if (comp.forces[i].lifetime == 0) {
+      freeIndex = i;
+    }
+  }
+  if (freeIndex == MAX_FORCES) {
+    m_logger.warn("Max forces exceeded on object");
+    return;
+  }
+  comp.forces[freeIndex] = force;
+}
+
+void SysCollisionImpl::setStationary(EntityId id)
+{
+  auto& comp = m_ecs.componentStore().component<CCollision>(id);
+  comp.acceleration = {};
+  comp.velocity = {};
+  comp.forces = {};
+
+  if (comp.inverseMass != 0) {
+    comp.forces[0] = GravitationalForce;
+  }
+}
+
+void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
+{
+  auto& comp = m_ecs.componentStore().component<CCollision>(id);
+  if (comp.inverseMass == 0.f && inverseMass != 0.f) {
+    applyForce(comp, GravitationalForce);
+  }
+  comp.inverseMass = inverseMass;
 }
 
 std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
@@ -77,7 +142,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
 
   std::vector<CollisionPair> pairs;
 
-  auto groups = m_ecs.componentStore().components<CSpatialFlags, CGlobalTransform, CCollision>();
+  auto groups = m_ecs.componentStore().components<CSpatialFlags, CBoundingBox, CCollision>();
 
   for (auto& group : groups) {
     auto flagsComps = group.components<CSpatialFlags>();
@@ -86,9 +151,9 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
     auto entityIds = group.entityIds();
 
     for (size_t i = 0; i < entityIds.size(); ++i) {
-      auto& flagsI = flagsComps[i].flags;
+      auto& flags = flagsComps[i].flags;
 
-      if (flagsI.test(SpatialFlags::ParentEnabled) && flagsI.test(SpatialFlags::Enabled)) {
+      if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)) {
         for (size_t j = i + 1; j < entityIds.size(); ++j) {
           auto& flagsJ = flagsComps[j].flags;
 
@@ -111,9 +176,42 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   return pairs;
 }
 
+void SysCollisionImpl::integrate()
+{
+  auto groups = m_ecs.componentStore().components<CSpatialFlags, CLocalTransform, CCollision>();
+
+  for (auto& group : groups) {
+    auto flagsComps = group.components<CSpatialFlags>();
+    auto localT = group.components<CLocalTransform>();
+    auto collisionComps = group.components<CCollision>();
+
+    for (size_t i = 0; i < flagsComps.size(); ++i) {
+      auto& flags = flagsComps[i].flags;
+      auto& collision = collisionComps[i];
+
+      if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)) {
+        Vec3f force;
+
+        for (auto& f : collision.forces) {
+          if (f.lifetime > 0) {
+            force += f.force;
+            --f.lifetime;
+          }
+        }
+
+        collision.acceleration = force * collision.inverseMass;
+        collision.velocity += collision.acceleration;
+
+        localT[i].transform = localT[i].transform * translationMatrix4x4(collision.velocity);
+        flags.set(SpatialFlags::Dirty);
+      }
+    }
+  }
+}
+
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  applyGravity();
+  integrate();
 
   auto pairs = findPossibleCollisions();
 
