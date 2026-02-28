@@ -15,14 +15,28 @@ struct Force
   uint32_t lifetime = 0;
 };
 
+// In model space
+struct BoundingBox
+{
+  Vec3f min;
+  Vec3f max;
+  Mat4x4f transform;
+};
+
+// TODO: Split up?
 struct CCollision
 {
+  BoundingBox boundingBox;
   float inverseMass = 1.f;
-  //Vec3f centreOfMass;
+  Vec3f centreOfMass;
+  float restitution = 0.5f;
   //float damping = 0.f;
-  std::array<Force, MAX_FORCES> forces;
-  Vec3f acceleration;
-  Vec3f velocity;
+  std::array<Force, MAX_FORCES> linearForces;
+  Vec3f linearAcceleration;
+  Vec3f linearVelocity;
+  std::array<Force, MAX_FORCES> torques;
+  Vec3f angularAcceleration;
+  Vec3f angularVelocity;
 
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };
@@ -64,6 +78,9 @@ struct DCollision
   using RequiredComponents = type_list<CSpatialFlags, CBoundingBox, CLocalTransform, CCollision>;
 
   float inverseMass = 1.f;
+  float restitution = 0.5f;
+  BoundingBox boundingBox;
+  Vec3f centreOfMass;
   //std::bitset<16> flags;
 };
 
@@ -79,8 +96,10 @@ struct DTerrainChunk
 class SysCollision : public System
 {
   public:
-    virtual void applyForce(EntityId id, const Vec3f& force, float seconds) = 0;
     virtual void setInverseMass(EntityId id, float inverseMass) = 0;
+    // TODO: function to apply force at offset
+    virtual void applyForce(EntityId id, const Vec3f& force, float seconds) = 0;
+    virtual void applyTorque(EntityId id, const Vec3f& torque, float seconds) = 0;
     virtual void setStationary(EntityId id) = 0;
 
     virtual void addEntity(EntityId id, const DCollision& data) = 0;

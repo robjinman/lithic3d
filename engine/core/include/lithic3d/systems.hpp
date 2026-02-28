@@ -9,9 +9,9 @@ namespace lithic3d
 namespace Systems
 {
   enum : uint32_t {
-    Collision,
     Animation2d,
     Spatial,
+    Collision,
     Ui,
     Behaviour,
     Render3d,

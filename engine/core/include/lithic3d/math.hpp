@@ -719,6 +719,7 @@ bool pointIsInsidePoly(const Vec2f& p, const std::vector<Vec2f>& poly);
 std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices);
 Mat2x2f inverse(const Mat2x2f& M);
 Mat3x3f inverse(const Mat3x3f& M);
+Mat4x4f inverse(const Mat4x4f& M);
 Mat4x4f screenSpaceTransform(const Vec2f& pos, const Vec2f& size, float rotation, Vec2f pivot);
 Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C);
 bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius);

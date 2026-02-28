@@ -78,11 +78,11 @@ EntityId Demo::constructGround()
 {
   auto material = m_factory->createMaterial("textures/ground.png").wait();
 
-  auto id = m_factory->createCuboid(metresToWorldUnits(Vec3f{ 50.f, 1.f, 50.f }), material,
+  auto id = m_factory->createCuboid(metresToWorldUnits(Vec3f{ 50.f, 10.f, 50.f }), material,
     metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f);
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
-    translationMatrix4x4(metresToWorldUnits(Vec3f{0.f, -1.f, 0.f }));
+    translationMatrix4x4(metresToWorldUnits(Vec3f{0.f, -5.f, 0.f }));
 
   return id;
 }

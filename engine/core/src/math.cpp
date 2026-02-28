@@ -306,6 +306,24 @@ Mat3x3f inverse(const Mat3x3f& M)
   return inv;
 }
 
+Mat4x4f inverse(const Mat4x4f& M)
+{
+  Mat3x3f rot{
+    M.at(0, 0), M.at(1, 0), M.at(2, 0),
+    M.at(0, 1), M.at(1, 1), M.at(2, 1),
+    M.at(0, 2), M.at(1, 2), M.at(2, 2)
+  };
+
+  Vec3f trans = -(rot * Vec3f{ M.at(0, 3), M.at(1, 3), M.at(2, 3) });
+
+  return {
+    rot.at(0, 0), rot.at(0, 1), rot.at(0, 2), trans[0],
+    rot.at(1, 0), rot.at(1, 1), rot.at(1, 2), trans[1],
+    rot.at(2, 0), rot.at(2, 1), rot.at(2, 2), trans[2],
+    0.f, 0.f, 0.f, 1.f
+  };
+}
+
 Mat4x4f Transform::toMatrix() const
 {
   Mat4x4f m = identityMatrix<4>();

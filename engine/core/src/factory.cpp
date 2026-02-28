@@ -100,7 +100,14 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
   sysRender3d.addEntity(id, std::move(render));
 
   DCollision collision{
-    .inverseMass = inverseMass
+    .inverseMass = inverseMass,
+    .restitution = 0.5f, // TODO
+    .boundingBox{
+      .min = -size * 0.5f,
+      .max = size * 0.5f,
+      .transform = identityMatrix<4>()
+    },
+    .centreOfMass = { 0.f, 0.f, 0.f }
   };
   sysCollision.addEntity(id, collision);
 
