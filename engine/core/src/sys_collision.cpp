@@ -267,7 +267,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   return pairs;
 }
 
-inline std::array<Vec3f, 8> vertices(const BoundingBox& box)
+inline std::array<Vec4f, 8> vertices(const BoundingBox& box, const Mat4x4f& transform)
 {
   // C------D
   // |\     |\
@@ -279,14 +279,14 @@ inline std::array<Vec3f, 8> vertices(const BoundingBox& box)
   //     \|     \|
   //      E------F
   return {
-    Vec3f{ box.min[0], box.min[1], box.min[2] },  // A  
-    Vec3f{ box.max[0], box.min[1], box.min[2] },  // B
-    Vec3f{ box.min[0], box.max[1], box.min[2] },  // C
-    Vec3f{ box.max[0], box.max[1], box.min[2] },  // D
-    Vec3f{ box.min[0], box.min[1], box.max[2] },  // E
-    Vec3f{ box.max[0], box.min[1], box.max[2] },  // F
-    Vec3f{ box.min[0], box.max[1], box.max[2] },  // G
-    Vec3f{ box.max[0], box.max[1], box.max[2] }   // H
+    transform * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f },  // A  
+    transform * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f },  // B
+    transform * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f },  // C
+    transform * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f },  // D
+    transform * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f },  // E
+    transform * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f },  // F
+    transform * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f },  // G
+    transform * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }   // H
   };
 }
 
@@ -386,9 +386,9 @@ bool checkPointPlaneContact(const BoundingBox& box1, const Mat4x4f& box1Transfor
   int vertWithMaxPenetration = -1;
   std::array<Vec3f, 8> normals;
 
-  auto verts = vertices(box1);
+  auto verts = vertices(box1, box1Transform);
   for (size_t i = 0; i < 8; ++i) {
-    Vec3f worldSpaceVert = (box1Transform * Vec4f{ verts[i], { 1.f }}).sub<3>();
+    Vec3f worldSpaceVert = verts[i].sub<3>();
     float penetration = pointBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace,
       worldSpaceVert, normals[i]);
     if (penetration > maxPenetration) {
@@ -403,7 +403,7 @@ bool checkPointPlaneContact(const BoundingBox& box1, const Mat4x4f& box1Transfor
 
   contact.normal = normals[vertWithMaxPenetration];
   contact.penetration = maxPenetration;
-  contact.point = verts[vertWithMaxPenetration];
+  contact.point = verts[vertWithMaxPenetration].sub<3>();
 
   return true;
 }
@@ -458,24 +458,78 @@ void resolveInterpenetration(const Contact& contact)
   float totalInvMass = contact.A.collision->inverseMass + contact.B.collision->inverseMass;
   float a = contact.A.collision->inverseMass / totalInvMass;
   float b = contact.B.collision->inverseMass / totalInvMass;
-  auto da = contact.normal * a * contact.penetration;
+  auto da = contact.normal * a * contact.penetration; // TODO
   auto db = -contact.normal * b * contact.penetration;
+
+  // TODO: Consider moving objects backward along velocity vectors?
 
   auto& transA = *contact.A.localTransform;
   auto& transB = *contact.B.localTransform;
-  transA.transform = transA.transform * translationMatrix4x4(da);
-  transB.transform = transB.transform * translationMatrix4x4(db);
+  transA.transform = translationMatrix4x4(da) * transA.transform;
+  transB.transform = translationMatrix4x4(db) * transB.transform;
+
+  // TODO: Set dirty flag
+}
+
+void resolveVelocities(const Contact& contact)
+{
+  // TODO:
+  // * Calculate separating velocity between contacts
+  // * Calculate the desired change in linear velocity
+  // * For each object, calculate the change in linear and angular velocities that applying 1 unit
+  //   of impulse would produce.
+  // * Calculate the impulse required to achieve the desired separation velocity
+  // * Apply the impulse to each object
+
+  auto& A = contact.A;
+  auto& B = contact.B;
+
+  auto aOrigin = getTranslation(A.globalTransform->transform);
+  auto aPointRel = contact.point - aOrigin;
+  auto aTotalWorldSpaceV = A.collision->linearVelocity +
+    A.collision->angularVelocity.cross(aPointRel);
+  auto aWorldSpaceV = -contact.normal * aTotalWorldSpaceV.dot(contact.normal);
+
+  auto bOrigin = getTranslation(B.globalTransform->transform);
+  auto bPointRel = contact.point - bOrigin;
+  auto bTotalWorldSpaceV = B.collision->linearVelocity +
+    B.collision->angularVelocity.cross(bPointRel);
+  auto bWorldSpaceV = contact.normal * bTotalWorldSpaceV.dot(contact.normal);
+
+  auto totalClosingV = aWorldSpaceV + bWorldSpaceV;
+
+  float restitution = 0.5f; // TODO
+  auto desiredClosingV = totalClosingV * -restitution;
+  auto desiredDeltaV = totalClosingV - desiredClosingV;
+
+  Mat3x3f aI = identityMatrix<3>();  // TODO: inverse inertia tensor
+  Mat3x3f bI = identityMatrix<3>();  // TODO: inverse inertia tensor
+
+  Vec3f aDvPerUnitImpulse = aI * aPointRel.cross(contact.normal) +
+    contact.normal * A.collision->inverseMass;
+
+  Vec3f bDvPerUnitImpulse = bI * bPointRel.cross(contact.normal) +
+    contact.normal * B.collision->inverseMass;
+
+  auto dvPerUnitImpulse = aDvPerUnitImpulse + bDvPerUnitImpulse;
+
+  // Impulse needed to achieve desired delta v
+  auto impulse = desiredDeltaV / dvPerUnitImpulse;
+
+  // Apply the impulse
+
+  A.collision->linearVelocity += impulse * A.collision->inverseMass;
+  //A.collision->angularVelocity += aPointRel.cross(impulse);
+
+  B.collision->linearVelocity += impulse * B.collision->inverseMass;
+  //B.collision->angularVelocity += bPointRel.cross(impulse);
 }
 
 void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
 {
   for (auto& contact : contacts) {
     resolveInterpenetration(contact);
-
-    contact.A.collision->linearVelocity = {};
-    contact.A.collision->angularVelocity = {};
-    contact.B.collision->linearVelocity = {};
-    contact.B.collision->angularVelocity = {};
+    resolveVelocities(contact);
   }
 }
 
@@ -518,7 +572,7 @@ void SysCollisionImpl::integrate()
         collision.linearAcceleration = totalForce * collision.inverseMass;
         collision.linearVelocity += collision.linearAcceleration;
 
-        localT[i].transform = localT[i].transform * translationMatrix4x4(collision.linearVelocity);
+        localT[i].transform = translationMatrix4x4(collision.linearVelocity) * localT[i].transform;
         flags.set(SpatialFlags::Dirty);
       }
     }
@@ -527,8 +581,8 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  integrate();
   resolveContacts(generateContacts(findPossibleCollisions()));
+  integrate();
 }
 
 void SysCollisionImpl::processEvent(const Event& event)
