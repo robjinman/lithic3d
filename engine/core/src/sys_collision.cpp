@@ -17,6 +17,36 @@ uint32_t findFreeIndex(const std::array<Force, MAX_FORCES>& array)
   return MAX_FORCES;
 }
 
+Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
+{
+  float w = box.max[0] - box.min[0];
+  float h = box.max[1] - box.min[1];
+  float d = box.max[2] - box.min[2];
+
+  return {
+    12.f * inverseMass * 1.f / (h * h + d * d), 0.f, 0.f,
+    0.f, 12.f * inverseMass * 1.f / (w * w + d * d), 0.f,
+    0.f, 0.f, 12.f * inverseMass * 1.f / (w * w + h * h)
+  };
+}
+
+Mat3x3f tensorToWorldSpace(const Mat3x3f& I, const Mat4x4f& modelMatrix)
+{
+  // Normalise to remove scale
+  // TODO: Is that correct?
+  Vec3f i = Vec3f{ modelMatrix.at(0, 0), modelMatrix.at(1, 0), modelMatrix.at(2, 0) }.normalise();
+  Vec3f j = Vec3f{ modelMatrix.at(0, 1), modelMatrix.at(1, 1), modelMatrix.at(2, 1) }.normalise();
+  Vec3f k = Vec3f{ modelMatrix.at(0, 2), modelMatrix.at(1, 2), modelMatrix.at(2, 2) }.normalise();
+
+  Mat3x3f basisChange{
+    i[0], j[0], k[0],
+    i[1], j[1], k[1],
+    i[2], j[2], k[2]
+  };
+
+  return basisChange * I;
+}
+
 struct ObjectComponents
 {
   CCollision* collision = nullptr;
@@ -97,7 +127,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DCollision& data)
     .linearVelocity{},
     .torques{},
     .angularAcceleration{},
-    .angularVelocity{}
+    .angularVelocity{},
+    .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass)
   };
 
   if (comp.inverseMass != 0) {
@@ -202,12 +233,14 @@ void SysCollisionImpl::setStationary(EntityId id)
 void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
 {
   auto& comp = m_ecs.componentStore().component<CCollision>(id);
-  if (comp.inverseMass == 0.f && inverseMass != 0.f) {
-    comp.inverseMass = inverseMass;
+
+  bool shouldApplyGravity = comp.inverseMass == 0.f && inverseMass != 0.f;
+
+  comp.inverseMass = inverseMass;
+  comp.inverseInertialTensor = computeInverseInertialTensor(comp.boundingBox, comp.inverseMass);
+
+  if (shouldApplyGravity) {
     applyGravity(comp);
-  }
-  else {
-    comp.inverseMass = inverseMass;
   }
 }
 
@@ -498,31 +531,41 @@ void resolveVelocities(const Contact& contact)
 
   auto totalClosingV = aWorldSpaceV + bWorldSpaceV;
 
-  float restitution = 0.5f; // TODO
+  float restitution = 0.01f; // TODO
   auto desiredClosingV = totalClosingV * -restitution;
   auto desiredDeltaV = totalClosingV - desiredClosingV;
 
-  Mat3x3f aI = identityMatrix<3>();  // TODO: inverse inertia tensor
-  Mat3x3f bI = identityMatrix<3>();  // TODO: inverse inertia tensor
+  // TODO: Convert to world coordinates
+  const Mat3x3f& aI = tensorToWorldSpace(A.collision->inverseInertialTensor,
+    A.globalTransform->transform);
+  const Mat3x3f& bI = tensorToWorldSpace(B.collision->inverseInertialTensor,
+    B.globalTransform->transform);
 
   Vec3f aDvPerUnitImpulse = aI * aPointRel.cross(contact.normal) +
     contact.normal * A.collision->inverseMass;
 
+  // TODO: Negate?
   Vec3f bDvPerUnitImpulse = bI * bPointRel.cross(contact.normal) +
     contact.normal * B.collision->inverseMass;
 
   auto dvPerUnitImpulse = aDvPerUnitImpulse + bDvPerUnitImpulse;
 
   // Impulse needed to achieve desired delta v
-  auto impulse = desiredDeltaV / dvPerUnitImpulse;
+  // The teriary check looks redundant, but when desiredDeltaV[i] is zero,
+  // dvPerUnitImpulse[i] is probably zero too (due to infinite mass object)
+  Vec3f impulse{
+    desiredDeltaV[0] == 0.f ? 0.f : desiredDeltaV[0] / dvPerUnitImpulse[0],
+    desiredDeltaV[1] == 0.f ? 0.f : desiredDeltaV[1] / dvPerUnitImpulse[1],
+    desiredDeltaV[2] == 0.f ? 0.f : desiredDeltaV[2] / dvPerUnitImpulse[2]
+  };
 
   // Apply the impulse
 
   A.collision->linearVelocity += impulse * A.collision->inverseMass;
-  //A.collision->angularVelocity += aPointRel.cross(impulse);
+  A.collision->angularVelocity += aI * aPointRel.cross(impulse);
 
   B.collision->linearVelocity += impulse * B.collision->inverseMass;
-  //B.collision->angularVelocity += bPointRel.cross(impulse);
+  B.collision->angularVelocity += bI * bPointRel.cross(impulse);
 }
 
 void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
@@ -565,14 +608,17 @@ void SysCollisionImpl::integrate()
           }
         }
 
-        Mat3x3f I = identityMatrix<3>();  // TODO: inverse inertia tensor
-        collision.angularAcceleration = I * totalTorque;
+        collision.angularAcceleration = collision.inverseInertialTensor * totalTorque;
         collision.angularVelocity += collision.angularAcceleration;
 
         collision.linearAcceleration = totalForce * collision.inverseMass;
         collision.linearVelocity += collision.linearAcceleration;
 
-        localT[i].transform = translationMatrix4x4(collision.linearVelocity) * localT[i].transform;
+        auto translation = translationMatrix4x4(collision.linearVelocity);
+        auto angle = collision.angularVelocity.magnitude();
+        auto rotation = rotationMatrix4x4(collision.angularVelocity.normalise(), angle);
+
+        localT[i].transform = translation * localT[i].transform * rotation;
         flags.set(SpatialFlags::Dirty);
       }
     }

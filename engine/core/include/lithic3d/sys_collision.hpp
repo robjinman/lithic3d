@@ -37,6 +37,7 @@ struct CCollision
   std::array<Force, MAX_FORCES> torques;
   Vec3f angularAcceleration;
   Vec3f angularVelocity;
+  Mat3x3f inverseInertialTensor;
 
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };

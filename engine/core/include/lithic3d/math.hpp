@@ -515,6 +515,18 @@ inline Mat3x3f rotationMatrix3x3(const Vec3f& k, float theta)
   return identityMatrix<3>() + K * sin(theta) + (K * K) * (1.f - cos(theta));
 }
 
+// Rodrigues' rotation formula
+inline Mat4x4f rotationMatrix4x4(const Vec3f& k, float theta)
+{
+  auto m = rotationMatrix3x3(k, theta);
+  return {
+    m.at(0, 0), m.at(0, 1), m.at(0, 2), 0.f,
+    m.at(1, 0), m.at(1, 1), m.at(1, 2), 0.f,
+    m.at(2, 0), m.at(2, 1), m.at(2, 2), 0.f,
+    0.f, 0.f, 0.f, 1.f
+  };
+}
+
 // From Euler angles
 inline Mat3x3f rotationMatrix3x3(const Vec3f& ori)
 {

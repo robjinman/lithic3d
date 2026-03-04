@@ -32,13 +32,16 @@ class Demo : public Game
     Engine& m_engine;
     FactoryPtr m_factory;
     EntityId m_light;
-    EntityId m_cube;
     EntityId m_caption;
-    Vec3f m_cubeInitialPosition = metresToWorldUnits(Vec3f{ 0.f, 2.f, -8.f });
+    EntityId m_cube1;
+    EntityId m_cube2;
+    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.f, 4.f, -12.f });
+    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 2.f, 0.25f, -10.f });
     bool m_physicsActive = false;
 
     EntityId constructLight();
-    EntityId constructCube();
+    EntityId constructCube1();
+    EntityId constructCube2();
     EntityId constructGround();
     EntityId constructCaption();
     void resetState();
@@ -52,7 +55,8 @@ Demo::Demo(Engine& engine)
     m_engine.renderResourceLoader());
 
   m_light = constructLight();
-  m_cube = constructCube();
+  m_cube1 = constructCube1();
+  m_cube2 = constructCube2();
   constructGround();
   m_caption = constructCaption();
 
@@ -60,7 +64,7 @@ Demo::Demo(Engine& engine)
   camera.setPosition(metresToWorldUnits(Vec3f{ 0.f, 1.f, 0.f }));
 }
 
-EntityId Demo::constructCube()
+EntityId Demo::constructCube1()
 {
   auto material = m_factory->createMaterial("textures/bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
@@ -68,7 +72,21 @@ EntityId Demo::constructCube()
   auto id = m_factory->createCuboid(size, material, texSize, 0.f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = translationMatrix4x4(m_cubeInitialPosition);
+  auto transform = translationMatrix4x4(m_cube1InitialPosition);
+  sysSpatial.setEntityTransform(id, transform);
+
+  return id;
+}
+
+EntityId Demo::constructCube2()
+{
+  auto material = m_factory->createMaterial("textures/bricks.png");
+  auto size = metresToWorldUnits(Vec3f{ 4.f, 0.5f, 4.f });
+  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+  auto id = m_factory->createCuboid(size, material, texSize, 0.f);
+
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto transform = translationMatrix4x4(m_cube2InitialPosition);
   sysSpatial.setEntityTransform(id, transform);
 
   return id;
@@ -154,17 +172,20 @@ EntityId Demo::constructCaption()
 
 void Demo::enablePhysics()
 {
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube, 1.f);
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 1.f);
   m_physicsActive = true;
 }
 
 void Demo::resetState()
 {
-  auto t = translationMatrix4x4(m_cubeInitialPosition);
+  auto cube1T = translationMatrix4x4(m_cube1InitialPosition);
+  auto cube2T = translationMatrix4x4(m_cube2InitialPosition);
 
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube, 0.f);
-  m_engine.ecs().system<SysCollision>().setStationary(m_cube);
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube, t);
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.f);
+  m_engine.ecs().system<SysCollision>().setStationary(m_cube1);
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube1, cube1T);
+
+  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube2, cube2T);
 
   m_physicsActive = false;
 }
