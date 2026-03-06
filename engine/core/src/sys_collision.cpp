@@ -1,6 +1,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include <iostream> // TODO
+#include "lithic3d/input.hpp"
 
 namespace lithic3d
 {
@@ -33,7 +34,6 @@ Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
 Mat3x3f tensorToWorldSpace(const Mat3x3f& I, const Mat4x4f& modelMatrix)
 {
   // Normalise to remove scale
-  // TODO: Is that correct?
   Vec3f i = Vec3f{ modelMatrix.at(0, 0), modelMatrix.at(1, 0), modelMatrix.at(2, 0) }.normalise();
   Vec3f j = Vec3f{ modelMatrix.at(0, 1), modelMatrix.at(1, 1), modelMatrix.at(2, 1) }.normalise();
   Vec3f k = Vec3f{ modelMatrix.at(0, 2), modelMatrix.at(1, 2), modelMatrix.at(2, 2) }.normalise();
@@ -49,6 +49,7 @@ Mat3x3f tensorToWorldSpace(const Mat3x3f& I, const Mat4x4f& modelMatrix)
 
 struct ObjectComponents
 {
+  EntityId entityId = 0;
   CCollision* collision = nullptr;
   CGlobalTransform* globalTransform = nullptr;
   CLocalTransform* localTransform = nullptr;
@@ -280,11 +281,13 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
 
               pairs.push_back({
                 .A = {
+                  .entityId = entityIds[i],
                   .collision = &collisionComps[i],
                   .globalTransform = &globalTs[i],
                   .localTransform = &localTs[i]
                 },
                 .B = {
+                  .entityId = entityIds[j],
                   .collision = &collisionComps[j],
                   .globalTransform = &globalTs[j],
                   .localTransform = &localTs[j]
@@ -329,7 +332,8 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
 {
   auto Q = worldToBoxSpace * Vec4f{ P, { 1.f }};
 
-  bool isInside = Q[0] > box.min[0] && Q[0] < box.max[0] &&
+  bool isInside =
+    Q[0] > box.min[0] && Q[0] < box.max[0] &&
     Q[1] > box.min[1] && Q[1] < box.max[1] &&
     Q[2] > box.min[2] && Q[2] < box.max[2];
 
@@ -453,13 +457,7 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
   std::vector<Contact> contacts;
 
   for (auto& pair : pairs) {
-    Contact contact{
-      .A = pair.A,
-      .B = pair.B,
-      .point{},
-      .normal{},
-      .penetration = 0.f
-    };
+    Contact contact{};
 
     auto boxAToWorldSpace = pair.A.globalTransform->transform *
       pair.A.collision->boundingBox.transform;
@@ -473,14 +471,20 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     if (checkPointPlaneContact(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
       pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
+      contact.A = pair.A;
+      contact.B = pair.B;
       contacts.push_back(contact);
-    }
+    }/*
     else if (checkPointPlaneContact(pair.B.collision->boundingBox,
       pair.B.globalTransform->transform, pair.A.collision->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contact)) {
 
+      contact.A = pair.B;
+      contact.B = pair.A;
+      //contact.A = pair.A;
+      //contact.B = pair.B;
       contacts.push_back(contact);
-    }
+    }*/
   }
 
   return contacts;
@@ -491,8 +495,8 @@ void resolveInterpenetration(const Contact& contact)
   float totalInvMass = contact.A.collision->inverseMass + contact.B.collision->inverseMass;
   float a = contact.A.collision->inverseMass / totalInvMass;
   float b = contact.B.collision->inverseMass / totalInvMass;
-  auto da = contact.normal * a * contact.penetration; // TODO
-  auto db = -contact.normal * b * contact.penetration;
+  auto da = contact.normal * a * contact.penetration * 1.0f; // TODO
+  auto db = -contact.normal * b * contact.penetration * 1.0f; // TODO
 
   // TODO: Consider moving objects backward along velocity vectors?
 
@@ -517,6 +521,8 @@ void resolveVelocities(const Contact& contact)
   auto& A = contact.A;
   auto& B = contact.B;
 
+  // TODO: Use centre of mass
+
   auto aOrigin = getTranslation(A.globalTransform->transform);
   auto aPointRel = contact.point - aOrigin;
   auto aTotalWorldSpaceV = A.collision->linearVelocity +
@@ -531,33 +537,45 @@ void resolveVelocities(const Contact& contact)
 
   auto totalClosingV = aWorldSpaceV + bWorldSpaceV;
 
-  float restitution = 0.01f; // TODO
+  float restitution = 0.1f; // TODO
   auto desiredClosingV = totalClosingV * -restitution;
   auto desiredDeltaV = totalClosingV - desiredClosingV;
 
-  // TODO: Convert to world coordinates
   const Mat3x3f& aI = tensorToWorldSpace(A.collision->inverseInertialTensor,
     A.globalTransform->transform);
   const Mat3x3f& bI = tensorToWorldSpace(B.collision->inverseInertialTensor,
     B.globalTransform->transform);
 
-  Vec3f aDvPerUnitImpulse = aI * aPointRel.cross(contact.normal) +
-    contact.normal * A.collision->inverseMass;
+  auto aTorquePerUnitImpulse = aPointRel.cross(contact.normal);
+  auto aTotalAngularDvPerUnitImpulse = aI * aTorquePerUnitImpulse;
+  auto aAngularDvPerUnitImpulseInDirectionOfContactNormal =
+    contact.normal * aTotalAngularDvPerUnitImpulse.cross(aPointRel).dot(contact.normal);
+  auto aLinearDvPerUnitImpulse = contact.normal * A.collision->inverseMass;
+  Vec3f aDvPerUnitImpulse = aAngularDvPerUnitImpulseInDirectionOfContactNormal +
+    aLinearDvPerUnitImpulse;
 
   // TODO: Negate?
-  Vec3f bDvPerUnitImpulse = bI * bPointRel.cross(contact.normal) +
-    contact.normal * B.collision->inverseMass;
+  auto bTorquePerUnitImpulse = bPointRel.cross(contact.normal);
+  auto bTotalAngularDvPerUnitImpulse = bI * bTorquePerUnitImpulse;
+  auto bAngularDvPerUnitImpulseInDirectionOfContactNormal =
+    contact.normal * bTotalAngularDvPerUnitImpulse.cross(bPointRel).dot(contact.normal);
+  auto bLinearDvPerUnitImpulse = contact.normal * B.collision->inverseMass;
+  Vec3f bDvPerUnitImpulse = bAngularDvPerUnitImpulseInDirectionOfContactNormal +
+    bLinearDvPerUnitImpulse;
 
   auto dvPerUnitImpulse = aDvPerUnitImpulse + bDvPerUnitImpulse;
 
   // Impulse needed to achieve desired delta v
-  // The teriary check looks redundant, but when desiredDeltaV[i] is zero,
+  // The terniary check looks redundant, but when desiredDeltaV[i] is zero,
   // dvPerUnitImpulse[i] is probably zero too (due to infinite mass object)
   Vec3f impulse{
     desiredDeltaV[0] == 0.f ? 0.f : desiredDeltaV[0] / dvPerUnitImpulse[0],
     desiredDeltaV[1] == 0.f ? 0.f : desiredDeltaV[1] / dvPerUnitImpulse[1],
     desiredDeltaV[2] == 0.f ? 0.f : desiredDeltaV[2] / dvPerUnitImpulse[2]
   };
+
+  // TODO
+  //impulse = impulse * 0.2f;
 
   // Apply the impulse
 
@@ -572,6 +590,9 @@ void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
 {
   for (auto& contact : contacts) {
     resolveInterpenetration(contact);
+
+    m_ecs.system<SysSpatial>().update(0, {}); // TODO: This is a hack
+
     resolveVelocities(contact);
   }
 }
@@ -627,7 +648,13 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  resolveContacts(generateContacts(findPossibleCollisions()));
+  //while (true) {
+    auto contacts = generateContacts(findPossibleCollisions());
+    //if (contacts.empty()) {
+    //  break;
+    //}
+    resolveContacts(contacts);
+  //}
   integrate();
 }
 
