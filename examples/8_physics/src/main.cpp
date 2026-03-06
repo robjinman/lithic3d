@@ -36,6 +36,11 @@ class Demo : public Game
     EntityId m_cube1;
     EntityId m_cube2;
     Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.f, 4.f, 0.f });
+    Vec3f m_cube1InitialRotation = {
+      degreesToRadians(0.f),
+      degreesToRadians(10.f),
+      degreesToRadians(0.f)
+    };
     Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 8.f, 1.2f, 0.f });
     bool m_physicsActive = false;
 
@@ -77,7 +82,7 @@ EntityId Demo::constructCube1()
   auto id = m_factory->createCuboid(size, material, texSize, 0.f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = createTransform(m_cube1InitialPosition, { 0.f, 0.f, degreesToRadians(10.f) });
+  auto transform = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
   sysSpatial.setEntityTransform(id, transform);
 
   return id;
@@ -183,7 +188,7 @@ void Demo::enablePhysics()
 
 void Demo::resetState()
 {
-  auto cube1T = createTransform(m_cube1InitialPosition, { 0.f, 0.f, degreesToRadians(10.f) });
+  auto cube1T = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
   auto cube2T = translationMatrix4x4(m_cube2InitialPosition);
 
   m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.f);

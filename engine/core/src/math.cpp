@@ -298,8 +298,7 @@ Mat3x3f inverse(const Mat3x3f& M)
   for (int row = 0; row < 3; ++row) {
     for (int col = 0; col < 3; ++col) {
       int sign = (row + col) % 2 == 0 ? 1.0 : -1.0;
-
-      inv.set(row, col, sign * det_rp * minor(M, row, col));
+      inv.set(col, row, sign * det_rp * minor(M, row, col));
     }
   }
 
@@ -308,18 +307,18 @@ Mat3x3f inverse(const Mat3x3f& M)
 
 Mat4x4f inverse(const Mat4x4f& M)
 {
-  Mat3x3f rot{
-    M.at(0, 0), M.at(1, 0), M.at(2, 0),
-    M.at(0, 1), M.at(1, 1), M.at(2, 1),
-    M.at(0, 2), M.at(1, 2), M.at(2, 2)
-  };
+  Mat3x3f rotScaleInv = inverse(Mat3x3f{
+    M.at(0, 0), M.at(0, 1), M.at(0, 2),
+    M.at(1, 0), M.at(1, 1), M.at(1, 2),
+    M.at(2, 0), M.at(2, 1), M.at(2, 2)
+  });
 
-  Vec3f trans = -(rot * Vec3f{ M.at(0, 3), M.at(1, 3), M.at(2, 3) });
+  Vec3f transInv = -(rotScaleInv * Vec3f{ M.at(0, 3), M.at(1, 3), M.at(2, 3) });
 
   return {
-    rot.at(0, 0), rot.at(0, 1), rot.at(0, 2), trans[0],
-    rot.at(1, 0), rot.at(1, 1), rot.at(1, 2), trans[1],
-    rot.at(2, 0), rot.at(2, 1), rot.at(2, 2), trans[2],
+    rotScaleInv.at(0, 0), rotScaleInv.at(0, 1), rotScaleInv.at(0, 2), transInv[0],
+    rotScaleInv.at(1, 0), rotScaleInv.at(1, 1), rotScaleInv.at(1, 2), transInv[1],
+    rotScaleInv.at(2, 0), rotScaleInv.at(2, 1), rotScaleInv.at(2, 2), transInv[2],
     0.f, 0.f, 0.f, 1.f
   };
 }
@@ -342,9 +341,9 @@ Mat4x4f Transform::toMatrix() const
 Vec3f planeIntersection(const Plane& A, const Plane& B, const Plane& C)
 {
   auto M = inverse(Mat3x3f{
-    A.normal[0], B.normal[0], C.normal[0],
-    A.normal[1], B.normal[1], C.normal[1],
-    A.normal[2], B.normal[2], C.normal[2]
+    A.normal[0], A.normal[1], A.normal[2],
+    B.normal[0], B.normal[1], B.normal[2],
+    C.normal[0], C.normal[1], C.normal[2]
   });
 
   return (M * Vec3f{ A.distance, B.distance, C.distance }) * -1.f;
