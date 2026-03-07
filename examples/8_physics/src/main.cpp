@@ -35,13 +35,13 @@ class Demo : public Game
     EntityId m_caption;
     EntityId m_cube1;
     EntityId m_cube2;
-    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.f, 4.f, 0.f });
+    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.5f, 4.f, -1.f });
     Vec3f m_cube1InitialRotation = {
-      degreesToRadians(0.f),
-      degreesToRadians(10.f),
+      degreesToRadians(90.f),
+      degreesToRadians(46.f),
       degreesToRadians(0.f)
     };
-    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 8.f, 1.2f, 0.f });
+    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 3.f, 1.2f, 0.f });
     bool m_physicsActive = false;
 
     EntityId constructLight();
@@ -72,6 +72,9 @@ Demo::Demo(Engine& engine)
   m_engine.logger().info(STR("Cube 1 has ID " << m_cube1));
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
   m_engine.logger().info(STR("Ground has ID " << groundId));
+
+  // TODO
+  //enablePhysics();
 }
 
 EntityId Demo::constructCube1()
@@ -121,7 +124,8 @@ EntityId Demo::constructLight()
   m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   DSpatial spatial{
-    .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
+    .transform = createTransform(metresToWorldUnits(Vec3f{ 2.f, 10.f, 15.f }),
+      { -degreesToRadians(45.f), 0.f, 0.f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -129,9 +133,9 @@ EntityId Demo::constructLight()
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
   auto light = std::make_unique<DDirectionalLight>();
-  light->colour = { 1.f, 0.9f, 0.9f };
-  light->ambient = 0.4f;
-  light->specular = 0.9f;
+  light->colour = { 1.f, 1.f, 1.f };
+  light->ambient = 0.1f;
+  light->specular = 0.2f;
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
@@ -209,7 +213,12 @@ void Demo::onKeyDown(KeyboardKey key)
     else {
       enablePhysics();
     }
-  }
+  }/*
+  else if (key == KeyboardKey::N) {
+    static Tick tick = 0;
+    m_engine.logger().info(STR("Tick: " << tick));
+    m_engine.ecs().system<SysCollision>().update(tick++, {});
+  }*/
 }
 
 bool Demo::update()

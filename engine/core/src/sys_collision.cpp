@@ -31,6 +31,7 @@ Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
   };
 }
 
+// TODO: Rationalise this
 Mat3x3f tensorToWorldSpace(const Mat3x3f& I, const Mat4x4f& modelMatrix)
 {
   // Normalise to remove scale
@@ -38,13 +39,19 @@ Mat3x3f tensorToWorldSpace(const Mat3x3f& I, const Mat4x4f& modelMatrix)
   Vec3f j = Vec3f{ modelMatrix.at(0, 1), modelMatrix.at(1, 1), modelMatrix.at(2, 1) }.normalise();
   Vec3f k = Vec3f{ modelMatrix.at(0, 2), modelMatrix.at(1, 2), modelMatrix.at(2, 2) }.normalise();
 
-  Mat3x3f basisChange{
+  Mat3x3f R{
     i[0], j[0], k[0],
     i[1], j[1], k[1],
     i[2], j[2], k[2]
   };
 
-  return basisChange * I;
+  Mat3x3f invR{
+    i[0], i[1], i[2],
+    j[0], j[1], j[2],
+    k[0], k[1], k[2]
+  };
+
+  return R * I * invR;
 }
 
 struct ObjectComponents
@@ -315,14 +322,14 @@ inline std::array<Vec4f, 8> vertices(const BoundingBox& box, const Mat4x4f& tran
   //     \|     \|
   //      E------F
   return {
-    transform * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f },  // A  
-    transform * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f },  // B
-    transform * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f },  // C
-    transform * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f },  // D
-    transform * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f },  // E
-    transform * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f },  // F
-    transform * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f },  // G
-    transform * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }   // H
+    transform * box.transform * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f },  // A  
+    transform * box.transform * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f },  // B
+    transform * box.transform * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f },  // C
+    transform * box.transform * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f },  // D
+    transform * box.transform * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f },  // E
+    transform * box.transform * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f },  // F
+    transform * box.transform * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f },  // G
+    transform * box.transform * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }   // H
   };
 }
 
@@ -495,13 +502,16 @@ void resolveInterpenetration(const Contact& contact)
   float totalInvMass = contact.A.collision->inverseMass + contact.B.collision->inverseMass;
   float a = contact.A.collision->inverseMass / totalInvMass;
   float b = contact.B.collision->inverseMass / totalInvMass;
-  auto da = contact.normal * a * contact.penetration * 1.0f; // TODO
-  auto db = -contact.normal * b * contact.penetration * 1.0f; // TODO
+  auto da = contact.normal * a * contact.penetration;
+  auto db = -contact.normal * b * contact.penetration;
 
   // TODO: Consider moving objects backward along velocity vectors?
 
   auto& transA = *contact.A.localTransform;
   auto& transB = *contact.B.localTransform;
+  //transA.transform = transA.transform * translationMatrix4x4(da);
+  //transB.transform = transB.transform * translationMatrix4x4(db);
+
   transA.transform = translationMatrix4x4(da) * transA.transform;
   transB.transform = translationMatrix4x4(db) * transB.transform;
 
@@ -535,31 +545,28 @@ void resolveVelocities(const Contact& contact)
     B.collision->angularVelocity.cross(bPointRel);
   auto bWorldSpaceV = contact.normal * bTotalWorldSpaceV.dot(contact.normal);
 
-  auto totalClosingV = aWorldSpaceV + bWorldSpaceV;
+  auto totalSeparatingV = aWorldSpaceV + bWorldSpaceV;
 
-  float restitution = 0.1f; // TODO
-  auto desiredClosingV = totalClosingV * -restitution;
-  auto desiredDeltaV = totalClosingV - desiredClosingV;
+  float restitution = 0.3f; // TODO
+  auto desiredSeparatingV = totalSeparatingV * -restitution;
+  auto desiredDeltaV = totalSeparatingV - desiredSeparatingV;
 
-  const Mat3x3f& aI = tensorToWorldSpace(A.collision->inverseInertialTensor,
-    A.globalTransform->transform);
-  const Mat3x3f& bI = tensorToWorldSpace(B.collision->inverseInertialTensor,
-    B.globalTransform->transform);
+  Mat3x3f aI = tensorToWorldSpace(A.collision->inverseInertialTensor, A.globalTransform->transform);
+  Mat3x3f bI = tensorToWorldSpace(B.collision->inverseInertialTensor, B.globalTransform->transform);
 
-  auto aTorquePerUnitImpulse = aPointRel.cross(contact.normal);
-  auto aTotalAngularDvPerUnitImpulse = aI * aTorquePerUnitImpulse;
+  auto aAngularImpulsePerUnitImpulse = aPointRel.cross(contact.normal);
+  auto aTotalAngularDvPerUnitImpulse = aI * aAngularImpulsePerUnitImpulse;
   auto aAngularDvPerUnitImpulseInDirectionOfContactNormal =
     contact.normal * aTotalAngularDvPerUnitImpulse.cross(aPointRel).dot(contact.normal);
   auto aLinearDvPerUnitImpulse = contact.normal * A.collision->inverseMass;
   Vec3f aDvPerUnitImpulse = aAngularDvPerUnitImpulseInDirectionOfContactNormal +
     aLinearDvPerUnitImpulse;
 
-  // TODO: Negate?
-  auto bTorquePerUnitImpulse = bPointRel.cross(contact.normal);
-  auto bTotalAngularDvPerUnitImpulse = bI * bTorquePerUnitImpulse;
+  auto bAngularImpulsePerUnitImpulse = bPointRel.cross(-contact.normal);
+  auto bTotalAngularDvPerUnitImpulse = bI * bAngularImpulsePerUnitImpulse;
   auto bAngularDvPerUnitImpulseInDirectionOfContactNormal =
-    contact.normal * bTotalAngularDvPerUnitImpulse.cross(bPointRel).dot(contact.normal);
-  auto bLinearDvPerUnitImpulse = contact.normal * B.collision->inverseMass;
+    -contact.normal * bTotalAngularDvPerUnitImpulse.cross(bPointRel).dot(-contact.normal);
+  auto bLinearDvPerUnitImpulse = -contact.normal * B.collision->inverseMass;
   Vec3f bDvPerUnitImpulse = bAngularDvPerUnitImpulseInDirectionOfContactNormal +
     bLinearDvPerUnitImpulse;
 
@@ -574,16 +581,16 @@ void resolveVelocities(const Contact& contact)
     desiredDeltaV[2] == 0.f ? 0.f : desiredDeltaV[2] / dvPerUnitImpulse[2]
   };
 
-  // TODO
-  //impulse = impulse * 0.2f;
-
   // Apply the impulse
 
-  A.collision->linearVelocity += impulse * A.collision->inverseMass;
-  A.collision->angularVelocity += aI * aPointRel.cross(impulse);
+  auto aImpulse = contact.normal * impulse.magnitude();
+  auto bImpulse = -contact.normal * impulse.magnitude();
 
-  B.collision->linearVelocity += impulse * B.collision->inverseMass;
-  B.collision->angularVelocity += bI * bPointRel.cross(impulse);
+  A.collision->linearVelocity += aImpulse * A.collision->inverseMass;
+  A.collision->angularVelocity += aI * aPointRel.cross(aImpulse);
+
+  B.collision->linearVelocity += bImpulse * B.collision->inverseMass;
+  B.collision->angularVelocity += bI * bPointRel.cross(bImpulse);
 }
 
 void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
@@ -599,11 +606,14 @@ void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
 
 void SysCollisionImpl::integrate()
 {
-  auto groups = m_ecs.componentStore().components<CSpatialFlags, CLocalTransform, CCollision>();
+  auto groups = m_ecs.componentStore().components<
+    CSpatialFlags, CGlobalTransform, CLocalTransform, CCollision
+  >();
 
   for (auto& group : groups) {
     auto flagsComps = group.components<CSpatialFlags>();
     auto localT = group.components<CLocalTransform>();
+    auto globalT = group.components<CGlobalTransform>();
     auto collisionComps = group.components<CCollision>();
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
@@ -629,18 +639,23 @@ void SysCollisionImpl::integrate()
           }
         }
 
+        auto translation = translationMatrix4x4(collision.linearVelocity);
+        auto angle = collision.angularVelocity.magnitude();
+        auto rotation = rotationMatrix4x4(collision.angularVelocity.normalise(), angle);
+
+        auto currentOffset = getTranslation(globalT[i].transform);
+
+        auto t = translationMatrix4x4(currentOffset) * translation * rotation *
+          translationMatrix4x4(-currentOffset) * localT[i].transform;
+
+        localT[i].transform = t;
+        flags.set(SpatialFlags::Dirty);
+
         collision.angularAcceleration = collision.inverseInertialTensor * totalTorque;
         collision.angularVelocity += collision.angularAcceleration;
 
         collision.linearAcceleration = totalForce * collision.inverseMass;
         collision.linearVelocity += collision.linearAcceleration;
-
-        auto translation = translationMatrix4x4(collision.linearVelocity);
-        auto angle = collision.angularVelocity.magnitude();
-        auto rotation = rotationMatrix4x4(collision.angularVelocity.normalise(), angle);
-
-        localT[i].transform = translation * localT[i].transform * rotation;
-        flags.set(SpatialFlags::Dirty);
       }
     }
   }

@@ -81,7 +81,7 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
       BufferUsage::AttrNormal,
       BufferUsage::AttrTexCoord
     },
-    .flags{}
+    .flags{ bitflag(MeshFeatures::CastsShadow) }
   };
 
   auto model = std::make_unique<Model>();
