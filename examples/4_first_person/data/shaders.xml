@@ -53,7 +53,7 @@
         <is-skybox>false</is-skybox>
         <is-animated>false</is-animated>
         <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>false</casts-shadow>
+        <casts-shadow>true</casts-shadow>
         <is-quad>false</is-quad>
         <is-dynamic-text>false</is-dynamic-text>
       </flags>
@@ -113,7 +113,7 @@
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
-        <tangent>true</tangent>
+        <tangent>*</tangent>
         <joint-indices>false</joint-indices>
         <joint-weights>false</joint-weights>
       </vertex-layout>

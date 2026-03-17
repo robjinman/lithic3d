@@ -35,13 +35,18 @@ class Demo : public Game
     EntityId m_caption;
     EntityId m_cube1;
     EntityId m_cube2;
-    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.5f, 4.f, -1.f });
+    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 1.2f, 4.f, 0.f });
     Vec3f m_cube1InitialRotation = {
-      degreesToRadians(90.f),
-      degreesToRadians(46.f),
+      degreesToRadians(0.f),
+      degreesToRadians(0.f),
+      degreesToRadians(30.f)
+    };
+    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 2.5f, 0.6f, 0.f });
+    Vec3f m_cube2InitialRotation = {
+      degreesToRadians(1.f),
+      degreesToRadians(0.f),
       degreesToRadians(0.f)
     };
-    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 3.f, 1.2f, 0.f });
     bool m_physicsActive = false;
 
     EntityId constructLight();
@@ -94,7 +99,7 @@ EntityId Demo::constructCube1()
 EntityId Demo::constructCube2()
 {
   auto material = m_factory->createMaterial("textures/bricks.png");
-  auto size = metresToWorldUnits(Vec3f{ 4.f, 2.f, 4.f });
+  auto size = metresToWorldUnits(Vec3f{ 2.f, 1.f, 2.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
   auto id = m_factory->createCuboid(size, material, texSize, 0.f);
 
@@ -186,19 +191,22 @@ EntityId Demo::constructCaption()
 
 void Demo::enablePhysics()
 {
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 1.f);
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.1f);
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube2, 0.025f);
   m_physicsActive = true;
 }
 
 void Demo::resetState()
 {
   auto cube1T = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
-  auto cube2T = translationMatrix4x4(m_cube2InitialPosition);
+  auto cube2T = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
 
   m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.f);
   m_engine.ecs().system<SysCollision>().setStationary(m_cube1);
   m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube1, cube1T);
 
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube2, 0.f);
+  m_engine.ecs().system<SysCollision>().setStationary(m_cube2);
   m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube2, cube2T);
 
   m_physicsActive = false;

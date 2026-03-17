@@ -25,9 +25,9 @@ Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
   float d = box.max[2] - box.min[2];
 
   return {
-    12.f * inverseMass * 1.f / (h * h + d * d), 0.f, 0.f,
-    0.f, 12.f * inverseMass * 1.f / (w * w + d * d), 0.f,
-    0.f, 0.f, 12.f * inverseMass * 1.f / (w * w + h * h)
+    12.f * inverseMass / (h * h + d * d), 0.f, 0.f,
+    0.f, 12.f * inverseMass / (w * w + d * d), 0.f,
+    0.f, 0.f, 12.f * inverseMass / (w * w + h * h)
   };
 }
 
@@ -75,6 +75,12 @@ struct Contact
   Vec3f point;
   Vec3f normal;
   float penetration = 0.f;
+};
+
+struct Edge
+{
+  Vec3f A;
+  Vec3f B;
 };
 
 class SysCollisionImpl : public SysCollision
@@ -310,7 +316,16 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   return pairs;
 }
 
-inline std::array<Vec4f, 8> vertices(const BoundingBox& box, const Mat4x4f& transform)
+inline bool isInside(const BoundingBox& box, const Vec4f& P)
+{
+  return
+    P[0] > box.min[0] && P[0] < box.max[0] &&
+    P[1] > box.min[1] && P[1] < box.max[1] &&
+    P[2] > box.min[2] && P[2] < box.max[2];
+}
+
+// Returns box's vertices in world space
+inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& transform)
 {
   // C------D
   // |\     |\
@@ -322,14 +337,32 @@ inline std::array<Vec4f, 8> vertices(const BoundingBox& box, const Mat4x4f& tran
   //     \|     \|
   //      E------F
   return {
-    transform * box.transform * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f },  // A  
-    transform * box.transform * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f },  // B
-    transform * box.transform * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f },  // C
-    transform * box.transform * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f },  // D
-    transform * box.transform * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f },  // E
-    transform * box.transform * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f },  // F
-    transform * box.transform * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f },  // G
-    transform * box.transform * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }   // H
+    (transform * box.transform * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f }).sub<3>(),  // A  
+    (transform * box.transform * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f }).sub<3>(),  // B
+    (transform * box.transform * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f }).sub<3>(),  // C
+    (transform * box.transform * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f }).sub<3>(),  // D
+    (transform * box.transform * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // E
+    (transform * box.transform * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // F
+    (transform * box.transform * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f }).sub<3>(),  // G
+    (transform * box.transform * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }).sub<3>()   // H
+  };
+}
+
+inline std::array<Edge, 12> getEdges(const std::array<Vec3f, 8>& vertices)
+{
+  return {
+    Edge{ vertices[0], vertices[1] }, // AB
+    Edge{ vertices[1], vertices[3] }, // BD
+    Edge{ vertices[3], vertices[2] }, // DC
+    Edge{ vertices[2], vertices[0] }, // CA
+    Edge{ vertices[4], vertices[5] }, // EF
+    Edge{ vertices[5], vertices[7] }, // FH
+    Edge{ vertices[7], vertices[6] }, // HG
+    Edge{ vertices[6], vertices[4] }, // GE
+    Edge{ vertices[0], vertices[4] }, // AE
+    Edge{ vertices[1], vertices[5] }, // BF
+    Edge{ vertices[2], vertices[6] }, // CG
+    Edge{ vertices[3], vertices[7] }, // DH
   };
 }
 
@@ -339,12 +372,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
 {
   auto Q = worldToBoxSpace * Vec4f{ P, { 1.f }};
 
-  bool isInside =
-    Q[0] > box.min[0] && Q[0] < box.max[0] &&
-    Q[1] > box.min[1] && Q[1] < box.max[1] &&
-    Q[2] > box.min[2] && Q[2] < box.max[2];
-
-  if (!isInside) {
+  if (!isInside(box, Q)) {
     return 0.f;
   }
 
@@ -422,7 +450,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
 }
 
 // Check if any of box1's vertices intersect box2 and generate a contact
-bool checkPointPlaneContact(const BoundingBox& box1, const Mat4x4f& box1Transform,
+bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   const BoundingBox& box2, const Mat4x4f& box2ToWorldSpace, const Mat4x4f& worldToBox2Space,
   Contact& contact)
 {
@@ -430,11 +458,11 @@ bool checkPointPlaneContact(const BoundingBox& box1, const Mat4x4f& box1Transfor
   int vertWithMaxPenetration = -1;
   std::array<Vec3f, 8> normals;
 
-  auto verts = vertices(box1, box1Transform);
+  auto verts = getVertices(box1, box1Transform);
   for (size_t i = 0; i < 8; ++i) {
-    Vec3f worldSpaceVert = verts[i].sub<3>();
-    float penetration = pointBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace,
-      worldSpaceVert, normals[i]);
+    float penetration = pointBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, verts[i],
+      normals[i]);
+
     if (penetration > maxPenetration) {
       vertWithMaxPenetration = i;
       maxPenetration = penetration;
@@ -447,16 +475,136 @@ bool checkPointPlaneContact(const BoundingBox& box1, const Mat4x4f& box1Transfor
 
   contact.normal = normals[vertWithMaxPenetration];
   contact.penetration = maxPenetration;
-  contact.point = verts[vertWithMaxPenetration].sub<3>();
+  contact.point = verts[vertWithMaxPenetration];
 
   return true;
 }
 
-bool checkEdgeEdgeContact(const BoundingBox& box1, const Mat4x4f& box1Transform,
-  const BoundingBox& box2, const Mat4x4f& box2Transform, Contact& contact)
+// Solve system of equations for s and t:
+// l1: As + Bt + C = 0
+// l2: Ds + Et + F = 0
+// Returns false if no solution (lines are parallel)
+inline bool solve(const Vec3f& l1, const Vec3f& l2, Vec2f& st)
 {
-  // TODO
-  return false;
+  float determinant = l1[0] * l2[1] - l1[1] * l2[0];
+  if (determinant == 0.f) {
+    return false;
+  }
+  st = {
+    (l1[1] * l2[2] - l1[2] * l2[1]) / determinant,
+    (l1[2] * l2[0] - l2[2] * l1[0]) / determinant
+  };
+  return true;
+}
+
+// Returns penetration depth or 0 if there's no penetration
+float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
+  const Mat4x4f& boxToWorldSpace, const Edge& worldSpaceEdge, Vec3f& point, Vec3f& normal)
+{
+  Edge edge{
+    .A = (worldToBoxSpace * Vec4f{ worldSpaceEdge.A, { 1.f }}).sub<3>(),
+    .B = (worldToBoxSpace * Vec4f{ worldSpaceEdge.B, { 1.f }}).sub<3>()
+  };
+
+  if (
+    (edge.A[0] < box.min[0] && edge.B[0] < box.min[0]) ||
+    (edge.A[1] < box.min[1] && edge.B[1] < box.min[1]) ||
+    (edge.A[2] < box.min[2] && edge.B[2] < box.min[2]) ||
+    (edge.A[0] > box.max[0] && edge.B[0] > box.max[0]) ||
+    (edge.A[1] > box.max[1] && edge.B[1] > box.max[1]) ||
+    (edge.A[2] > box.max[2] && edge.B[2] > box.max[2])
+  ) {
+    return 0.f;
+  }
+
+  // Line: a + sv
+  Vec3f a = worldSpaceEdge.A;
+  Vec3f v = worldSpaceEdge.B - worldSpaceEdge.A;
+
+  auto boxEdges = getEdges(getVertices(box, boxToWorldSpace));
+
+  std::array<Vec3f, 12> normals;
+  std::array<Vec3f, 12> points;
+  int indexOfMinPenetration = -1;
+
+  float minSqPenetration = std::numeric_limits<float>::max();
+
+  for (size_t i = 0; i < 12; ++i) {
+    auto& boxEdge = boxEdges[i];
+
+    // Line: b + tw
+    Vec3f b = boxEdge.A;
+    Vec3f w = boxEdge.B - boxEdge.A;
+
+    Vec2f st;
+    if (!solve({
+      -v.squareMagnitude(),
+      v.dot(w),
+      v.dot(b) - v.dot(a)
+    },
+    {
+      -v.dot(w),
+      w.squareMagnitude(),
+      w.dot(b) - w.dot(a)
+    }, st)) {
+      continue;
+    }
+
+    Vec3f P = a + v * st[0];
+    if (!isInside(box, worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f })) {
+      continue;
+    }
+
+    Vec3f Q = b + w * st[1];
+
+    float sqPenetration = (Q - P).squareMagnitude();
+    if (sqPenetration < minSqPenetration) {
+      minSqPenetration = sqPenetration;
+      indexOfMinPenetration = i;
+      points[i] = P;
+      normals[i] = (Q - P).normalise();
+    }
+  }
+
+  if (indexOfMinPenetration != -1) {
+    normal = normals[indexOfMinPenetration];
+    point = points[indexOfMinPenetration];
+    return sqrt(minSqPenetration);
+  }
+
+  return 0.f;
+}
+
+// Check if any of box1's edges intersect box2 and generate a contact
+bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
+  const BoundingBox& box2, const Mat4x4f& box2ToWorldSpace, const Mat4x4f& worldToBox2Space,
+  Contact& contact)
+{
+  float maxPenetration = 0.f;
+  int edgeWithMaxPenetration = -1;
+  std::array<Vec3f, 12> points;
+  std::array<Vec3f, 12> normals;
+
+  auto edges = getEdges(getVertices(box1, box1Transform));
+  for (size_t i = 0; i < 12; ++i) {
+    float penetration = edgeBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, edges[i],
+      points[i], normals[i]);
+
+    if (penetration > maxPenetration) {
+      edgeWithMaxPenetration = i;
+      maxPenetration = penetration;
+    }
+  }
+
+  if (edgeWithMaxPenetration == -1) {
+    return false;
+  }
+
+  contact.normal = normals[edgeWithMaxPenetration];
+  contact.penetration = maxPenetration;
+  contact.point = points[edgeWithMaxPenetration];
+
+  return true;
 }
 
 std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
@@ -473,25 +621,28 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       pair.B.collision->boundingBox.transform;
     auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-    // TODO: checkEdgeEdgeContact
-
-    if (checkPointPlaneContact(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
+    if (checkForPointContacts(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
       pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
       contact.A = pair.A;
       contact.B = pair.B;
       contacts.push_back(contact);
-    }/*
-    else if (checkPointPlaneContact(pair.B.collision->boundingBox,
+    }
+    else if (checkForPointContacts(pair.B.collision->boundingBox,
       pair.B.globalTransform->transform, pair.A.collision->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contact)) {
 
       contact.A = pair.B;
       contact.B = pair.A;
-      //contact.A = pair.A;
-      //contact.B = pair.B;
       contacts.push_back(contact);
-    }*/
+    }
+    else if (checkForEdgeContacts(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
+      pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
+
+      contact.A = pair.A;
+      contact.B = pair.B;
+      contacts.push_back(contact);
+    }
   }
 
   return contacts;
@@ -500,6 +651,8 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
 void resolveInterpenetration(const Contact& contact)
 {
   float totalInvMass = contact.A.collision->inverseMass + contact.B.collision->inverseMass;
+  DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
+
   float a = contact.A.collision->inverseMass / totalInvMass;
   float b = contact.B.collision->inverseMass / totalInvMass;
   auto da = contact.normal * a * contact.penetration;
@@ -547,7 +700,8 @@ void resolveVelocities(const Contact& contact)
 
   auto totalSeparatingV = aWorldSpaceV + bWorldSpaceV;
 
-  float restitution = 0.3f; // TODO
+  // TODO: Correct to use average?
+  float restitution = 0.5f * (A.collision->restitution + B.collision->restitution);
   auto desiredSeparatingV = totalSeparatingV * -restitution;
   auto desiredDeltaV = totalSeparatingV - desiredSeparatingV;
 
@@ -573,12 +727,10 @@ void resolveVelocities(const Contact& contact)
   auto dvPerUnitImpulse = aDvPerUnitImpulse + bDvPerUnitImpulse;
 
   // Impulse needed to achieve desired delta v
-  // The terniary check looks redundant, but when desiredDeltaV[i] is zero,
-  // dvPerUnitImpulse[i] is probably zero too (due to infinite mass object)
   Vec3f impulse{
-    desiredDeltaV[0] == 0.f ? 0.f : desiredDeltaV[0] / dvPerUnitImpulse[0],
-    desiredDeltaV[1] == 0.f ? 0.f : desiredDeltaV[1] / dvPerUnitImpulse[1],
-    desiredDeltaV[2] == 0.f ? 0.f : desiredDeltaV[2] / dvPerUnitImpulse[2]
+    dvPerUnitImpulse[0] == 0.f ? 0.f : desiredDeltaV[0] / dvPerUnitImpulse[0],
+    dvPerUnitImpulse[1] == 0.f ? 0.f : desiredDeltaV[1] / dvPerUnitImpulse[1],
+    dvPerUnitImpulse[2] == 0.f ? 0.f : desiredDeltaV[2] / dvPerUnitImpulse[2]
   };
 
   // Apply the impulse
@@ -615,6 +767,7 @@ void SysCollisionImpl::integrate()
     auto localT = group.components<CLocalTransform>();
     auto globalT = group.components<CGlobalTransform>();
     auto collisionComps = group.components<CCollision>();
+    auto entityIds = group.entityIds(); // TODO
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
       auto& flags = flagsComps[i].flags;
@@ -651,11 +804,11 @@ void SysCollisionImpl::integrate()
         localT[i].transform = t;
         flags.set(SpatialFlags::Dirty);
 
-        collision.angularAcceleration = collision.inverseInertialTensor * totalTorque;
         collision.angularVelocity += collision.angularAcceleration;
+        collision.angularAcceleration = collision.inverseInertialTensor * totalTorque;
 
-        collision.linearAcceleration = totalForce * collision.inverseMass;
         collision.linearVelocity += collision.linearAcceleration;
+        collision.linearAcceleration = totalForce * collision.inverseMass;
       }
     }
   }

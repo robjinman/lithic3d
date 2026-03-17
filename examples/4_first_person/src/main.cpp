@@ -133,9 +133,9 @@ EntityId Demo::constructLight()
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
   auto light = std::make_unique<DDirectionalLight>();
-  light->colour = { 1.f, 0.9f, 0.9f };
-  light->ambient = 0.4f;
-  light->specular = 0.9f;
+  light->colour = { 1.f, 1.f, 1.f };
+  light->ambient = 0.1f;
+  light->specular = 0.5f;
 
   m_engine.ecs().system<SysRender3d>().addEntity(id, std::move(light));
 
@@ -197,7 +197,7 @@ EntityId Demo::constructGround()
   auto material = m_factory->createMaterial("textures/ground.png").wait();
 
   auto id = m_factory->createCuboid(metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material,
-    metresToWorldUnits(Vec2f{ 5.f, 5.f }));
+    metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f);
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
     translationMatrix4x4(metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));
