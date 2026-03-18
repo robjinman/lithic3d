@@ -35,11 +35,11 @@ class Demo : public Game
     EntityId m_caption;
     EntityId m_cube1;
     EntityId m_cube2;
-    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 1.2f, 4.f, 0.f });
+    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 1.5f, 4.f, 0.f });
     Vec3f m_cube1InitialRotation = {
-      degreesToRadians(0.f),
-      degreesToRadians(0.f),
-      degreesToRadians(30.f)
+      degreesToRadians(90.f),
+      degreesToRadians(46.f),
+      degreesToRadians(0.f)
     };
     Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 2.5f, 0.6f, 0.f });
     Vec3f m_cube2InitialRotation = {

@@ -18,6 +18,28 @@ uint32_t findFreeIndex(const std::array<Force, MAX_FORCES>& array)
   return MAX_FORCES;
 }
 
+// Returns the matrix that transforms FROM the new space
+Mat3x3f changeOfBasisMatrix(const Vec3f& yAxis, const Vec3f& other)
+{
+  Vec3f xAxis = yAxis.cross(other).normalise();
+  Vec3f zAxis = yAxis.cross(xAxis).normalise();
+
+  return {
+    xAxis[0], yAxis[0], zAxis[0],
+    xAxis[1], yAxis[1], zAxis[1],
+    xAxis[2], yAxis[2], zAxis[2]
+  };
+}
+
+Mat3x3f skewSymmetricMatrix(const Vec3f& v)
+{
+  return {
+    0.f, -v[2], v[1],
+    v[2], 0.f, -v[0],
+    -v[1], v[0], 0.f
+  };
+}
+
 Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
 {
   float w = box.max[0] - box.min[0];
@@ -32,12 +54,12 @@ Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
 }
 
 // TODO: Rationalise this
-Mat3x3f tensorToWorldSpace(const Mat3x3f& I, const Mat4x4f& modelMatrix)
+Mat3x3f transformTensor(const Mat3x3f& I, const Mat4x4f& m)
 {
   // Normalise to remove scale
-  Vec3f i = Vec3f{ modelMatrix.at(0, 0), modelMatrix.at(1, 0), modelMatrix.at(2, 0) }.normalise();
-  Vec3f j = Vec3f{ modelMatrix.at(0, 1), modelMatrix.at(1, 1), modelMatrix.at(2, 1) }.normalise();
-  Vec3f k = Vec3f{ modelMatrix.at(0, 2), modelMatrix.at(1, 2), modelMatrix.at(2, 2) }.normalise();
+  Vec3f i = Vec3f{ m.at(0, 0), m.at(1, 0), m.at(2, 0) }.normalise();
+  Vec3f j = Vec3f{ m.at(0, 1), m.at(1, 1), m.at(2, 1) }.normalise();
+  Vec3f k = Vec3f{ m.at(0, 2), m.at(1, 2), m.at(2, 2) }.normalise();
 
   Mat3x3f R{
     i[0], j[0], k[0],
@@ -75,6 +97,8 @@ struct Contact
   Vec3f point;
   Vec3f normal;
   float penetration = 0.f;
+  Mat3x3f toContactSpace;
+  Mat3x3f fromContactSpace;
 };
 
 struct Edge
@@ -476,6 +500,8 @@ bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform
   contact.normal = normals[vertWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = verts[vertWithMaxPenetration];
+  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, { 1.f, 1.f, 1.f });  // TODO
+  contact.toContactSpace = contact.fromContactSpace.t();
 
   return true;
 }
@@ -603,6 +629,8 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   contact.normal = normals[edgeWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = points[edgeWithMaxPenetration];
+  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, { 1.f, 1.f, 1.f });  // TODO
+  contact.toContactSpace = contact.fromContactSpace.t();
 
   return true;
 }
@@ -662,8 +690,6 @@ void resolveInterpenetration(const Contact& contact)
 
   auto& transA = *contact.A.localTransform;
   auto& transB = *contact.B.localTransform;
-  //transA.transform = transA.transform * translationMatrix4x4(da);
-  //transB.transform = transB.transform * translationMatrix4x4(db);
 
   transA.transform = translationMatrix4x4(da) * transA.transform;
   transB.transform = translationMatrix4x4(db) * transB.transform;
@@ -671,16 +697,16 @@ void resolveInterpenetration(const Contact& contact)
   // TODO: Set dirty flag
 }
 
+std::pair<Vec3f, Vec3f> getTangentAxes(const Vec3f& up, const Vec3f& other)
+{
+  Vec3f xAxis = up.cross(other).normalise();
+  Vec3f zAxis = up.cross(xAxis).normalise();
+
+  return { xAxis, zAxis };
+}
+
 void resolveVelocities(const Contact& contact)
 {
-  // TODO:
-  // * Calculate separating velocity between contacts
-  // * Calculate the desired change in linear velocity
-  // * For each object, calculate the change in linear and angular velocities that applying 1 unit
-  //   of impulse would produce.
-  // * Calculate the impulse required to achieve the desired separation velocity
-  // * Apply the impulse to each object
-
   auto& A = contact.A;
   auto& B = contact.B;
 
@@ -690,59 +716,48 @@ void resolveVelocities(const Contact& contact)
   auto aPointRel = contact.point - aOrigin;
   auto aTotalWorldSpaceV = A.collision->linearVelocity +
     A.collision->angularVelocity.cross(aPointRel);
-  auto aWorldSpaceV = -contact.normal * aTotalWorldSpaceV.dot(contact.normal);
+  auto aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
 
   auto bOrigin = getTranslation(B.globalTransform->transform);
   auto bPointRel = contact.point - bOrigin;
   auto bTotalWorldSpaceV = B.collision->linearVelocity +
     B.collision->angularVelocity.cross(bPointRel);
-  auto bWorldSpaceV = contact.normal * bTotalWorldSpaceV.dot(contact.normal);
+  auto bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
 
-  auto totalSeparatingV = aWorldSpaceV + bWorldSpaceV;
+  auto contactSpaceSeparatingV = bContactSpaceV - aContactSpaceV;
 
-  // TODO: Correct to use average?
   float restitution = 0.5f * (A.collision->restitution + B.collision->restitution);
-  auto desiredSeparatingV = totalSeparatingV * -restitution;
-  auto desiredDeltaV = totalSeparatingV - desiredSeparatingV;
-
-  Mat3x3f aI = tensorToWorldSpace(A.collision->inverseInertialTensor, A.globalTransform->transform);
-  Mat3x3f bI = tensorToWorldSpace(B.collision->inverseInertialTensor, B.globalTransform->transform);
-
-  auto aAngularImpulsePerUnitImpulse = aPointRel.cross(contact.normal);
-  auto aTotalAngularDvPerUnitImpulse = aI * aAngularImpulsePerUnitImpulse;
-  auto aAngularDvPerUnitImpulseInDirectionOfContactNormal =
-    contact.normal * aTotalAngularDvPerUnitImpulse.cross(aPointRel).dot(contact.normal);
-  auto aLinearDvPerUnitImpulse = contact.normal * A.collision->inverseMass;
-  Vec3f aDvPerUnitImpulse = aAngularDvPerUnitImpulseInDirectionOfContactNormal +
-    aLinearDvPerUnitImpulse;
-
-  auto bAngularImpulsePerUnitImpulse = bPointRel.cross(-contact.normal);
-  auto bTotalAngularDvPerUnitImpulse = bI * bAngularImpulsePerUnitImpulse;
-  auto bAngularDvPerUnitImpulseInDirectionOfContactNormal =
-    -contact.normal * bTotalAngularDvPerUnitImpulse.cross(bPointRel).dot(-contact.normal);
-  auto bLinearDvPerUnitImpulse = -contact.normal * B.collision->inverseMass;
-  Vec3f bDvPerUnitImpulse = bAngularDvPerUnitImpulseInDirectionOfContactNormal +
-    bLinearDvPerUnitImpulse;
-
-  auto dvPerUnitImpulse = aDvPerUnitImpulse + bDvPerUnitImpulse;
-
-  // Impulse needed to achieve desired delta v
-  Vec3f impulse{
-    dvPerUnitImpulse[0] == 0.f ? 0.f : desiredDeltaV[0] / dvPerUnitImpulse[0],
-    dvPerUnitImpulse[1] == 0.f ? 0.f : desiredDeltaV[1] / dvPerUnitImpulse[1],
-    dvPerUnitImpulse[2] == 0.f ? 0.f : desiredDeltaV[2] / dvPerUnitImpulse[2]
+  auto desiredContactSpaceSeparatingV = {
+    contactSpaceSeparatingV[0] * 0.95f, // TODO
+    contactSpaceSeparatingV[1] * -restitution,
+    contactSpaceSeparatingV[2] * 0.95f
   };
+  auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
-  // Apply the impulse
+  Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.globalTransform->transform);
+  Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.globalTransform->transform);
 
-  auto aImpulse = contact.normal * impulse.magnitude();
-  auto bImpulse = -contact.normal * impulse.magnitude();
+  Mat3x3f aQ = skewSymmetricMatrix(aPointRel);
+  Mat3x3f aM = scaleMatrix<3>(A.collision->inverseMass, false);
+  Mat3x3f aVelocityMatrix = (aQ * -1.f) * aI * aQ + aM;
 
-  A.collision->linearVelocity += aImpulse * A.collision->inverseMass;
-  A.collision->angularVelocity += aI * aPointRel.cross(aImpulse);
+  Mat3x3f bQ = skewSymmetricMatrix(bPointRel);
+  Mat3x3f bM = scaleMatrix<3>(B.collision->inverseMass, false);
+  Mat3x3f bVelocityMatrix = (bQ * -1.f) * bI * bQ + bM;
 
-  B.collision->linearVelocity += bImpulse * B.collision->inverseMass;
-  B.collision->angularVelocity += bI * bPointRel.cross(bImpulse);
+  Mat3x3f velocityMatrix = contact.fromContactSpace * (aVelocityMatrix + bVelocityMatrix)
+    * contact.toContactSpace;
+  Mat3x3f impulseMatrix = inverse(velocityMatrix);
+
+  Vec3f contactSpaceImpulse = impulseMatrix * desiredContactSpaceDv;
+
+  auto impulse = contact.fromContactSpace * contactSpaceImpulse;
+
+  A.collision->linearVelocity += impulse * A.collision->inverseMass;
+  A.collision->angularVelocity += aI * aPointRel.cross(impulse);
+
+  B.collision->linearVelocity += -impulse * B.collision->inverseMass;
+  B.collision->angularVelocity += bI * bPointRel.cross(-impulse);
 }
 
 void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)

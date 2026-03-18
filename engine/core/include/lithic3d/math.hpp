@@ -594,6 +594,16 @@ inline Mat4x4f createTransform(const Vec3f& pos, const Vec3f& ori)
   return translationMatrix4x4(pos) * rotationMatrix4x4(ori);
 }
 
+inline Mat4x4f createTransform(const Mat3x3f& rot, const Vec3f& transl)
+{
+  return {
+    rot.at(0, 0), rot.at(0, 1), rot.at(0, 2), transl[0],
+    rot.at(1, 0), rot.at(1, 1), rot.at(1, 2), transl[1],
+    rot.at(2, 0), rot.at(2, 1), rot.at(2, 2), transl[2],
+    0.f, 0.f, 0.f, 1.f
+  };
+}
+
 inline Mat4x4f fromVerticalToVectorTransform(const Vec3f& vec)
 {
   Vec3f u = vec.normalise();
