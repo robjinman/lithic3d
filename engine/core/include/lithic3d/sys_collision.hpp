@@ -38,6 +38,8 @@ struct CCollision
   Vec3f angularAcceleration;
   Vec3f angularVelocity;
   Mat3x3f inverseInertialTensor;
+  uint16_t framesIdle = 0;
+  bool idle = false;
 
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };

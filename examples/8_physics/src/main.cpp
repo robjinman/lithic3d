@@ -36,17 +36,17 @@ class Demo : public Game
     EntityId m_caption;
     EntityId m_cube1;
     EntityId m_cube2;
-    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 1.f, 5.f, 0.f });
+    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.6f, 6.f, 0.f });
     Vec3f m_cube1InitialRotation = {
       degreesToRadians(0.f),
       degreesToRadians(0.f),
       degreesToRadians(0.f)
     };
-    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 1.5f, 1.f, 0.f });
+    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 1.5f, 2.f, 0.f });
     Vec3f m_cube2InitialRotation = {
       degreesToRadians(0.f),
       degreesToRadians(0.f),
-      degreesToRadians(90.f)
+      degreesToRadians(5.f)
     };
     bool m_physicsActive = false;
 
@@ -79,7 +79,7 @@ Demo::Demo(Engine& engine)
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
   m_engine.logger().info(STR("Ground has ID " << groundId));
 
-  //enablePhysics();
+  enablePhysics();
 }
 
 Vec3f randomRotation()
