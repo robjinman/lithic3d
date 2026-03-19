@@ -9,6 +9,7 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/trace.hpp"
+#include "lithic3d/events.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -191,7 +192,7 @@ class SysRender2dImpl : public SysRender2d
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
-    void processEvent(const Event&) override {}
+    void processEvent(const Event& event) override;
 
     ~SysRender2dImpl() override;
 
@@ -218,6 +219,16 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
   float aspectRatio = static_cast<float>(viewport[0]) / viewport[1];
   m_camera = std::make_unique<Camera2d>(aspectRatio, renderer.getViewportRotation());
   m_mesh = m_renderResourceLoader.loadMeshAsync(quad()).wait();
+}
+
+void SysRender2dImpl::processEvent(const Event& event)
+{
+  if (event.name == g_strWindowResize) {
+    auto& e = dynamic_cast<const EWindowResize&>(event);
+    float aspect = static_cast<float>(e.width) / e.height;
+    float rotation = m_renderer.getViewportRotation();
+    m_camera->updateParameters(aspect, rotation);
+  }
 }
 
 render::Renderer& SysRender2dImpl::renderer()

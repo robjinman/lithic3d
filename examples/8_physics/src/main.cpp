@@ -79,7 +79,7 @@ Demo::Demo(Engine& engine)
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
   m_engine.logger().info(STR("Ground has ID " << groundId));
 
-  enablePhysics();
+  //enablePhysics();
 }
 
 Vec3f randomRotation()

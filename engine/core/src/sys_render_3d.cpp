@@ -9,6 +9,7 @@
 #include "lithic3d/component_store.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/model_loader.hpp"
+#include "lithic3d/events.hpp"
 #include <map>
 #include <cassert>
 #include <unordered_set>
@@ -116,7 +117,7 @@ class SysRender3dImpl : public SysRender3d
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
-    void processEvent(const Event&) override {}
+    void processEvent(const Event& event) override;
 
     void playAnimation(EntityId entityId, const std::string& name) override;
 
@@ -145,7 +146,6 @@ class SysRender3dImpl : public SysRender3d
     void doShadowPass();
     void doMainPass();
     void updateAnimations();
-    void updateCamera();
     std::array<LightProjection, 3> computeLightProjections(const Vec3f& worldSpaceLightDir) const;
 };
 
@@ -160,6 +160,16 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader,
   float aspect = static_cast<float>(viewport[0]) / viewport[1];
   float rotation = m_renderer.getViewportRotation();
   m_camera = std::make_unique<Camera3d>(aspect, rotation);
+}
+
+void SysRender3dImpl::processEvent(const Event& event)
+{
+  if (event.name == g_strWindowResize) {
+    auto& e = dynamic_cast<const EWindowResize&>(event);
+    float aspect = static_cast<float>(e.width) / e.height;
+    float rotation = m_renderer.getViewportRotation();
+    m_camera->updateParameters(aspect, rotation);
+  }
 }
 
 std::array<Vec3f, 4> frustumCrossSection(const std::array<Vec3f, 8>& corners, float percentage)
@@ -229,15 +239,6 @@ SysRender3dImpl::computeLightProjections(const Vec3f& worldSpaceLightDir) const
     computeLightProjection(midFrustum, worldSpaceLightDir),
     computeLightProjection(farFrustum, worldSpaceLightDir)
   };
-}
-
-// TODO: Never called?
-void SysRender3dImpl::updateCamera()
-{
-  auto viewport = m_renderer.getViewportSize();
-  float aspect = static_cast<float>(viewport[0]) / viewport[1];
-  float rotation = m_renderer.getViewportRotation();
-  m_camera->updateParameters(aspect, rotation);
 }
 
 render::Renderer& SysRender3dImpl::renderer()

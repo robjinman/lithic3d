@@ -4,7 +4,7 @@
 #include "lithic3d/file_system.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/ecs.hpp"
-#include "lithic3d/event_system.hpp"
+#include "lithic3d/events.hpp"
 #include "lithic3d/systems.hpp"
 #include "lithic3d/sys_animation_2d.hpp"
 #include "lithic3d/sys_behaviour.hpp"
@@ -32,7 +32,7 @@ class EngineImpl : public Engine
 
     void setClearColour(const Vec4f& colour) override;
     void update(const InputState& inputState) override;
-    void onWindowResize() override;
+    void onWindowResize(uint32_t w, uint32_t h) override;
     Tick currentTick() const override;
     float measuredTickRate() const override;
 
@@ -152,9 +152,10 @@ void EngineImpl::update(const InputState& inputState)
   m_eventSystem->processEvents();
 }
 
-void EngineImpl::onWindowResize()
+void EngineImpl::onWindowResize(uint32_t w, uint32_t h)
 {
   m_renderer->onResize();
+  m_eventSystem->raiseEvent(EWindowResize{w, h});
 }
 
 Logger& EngineImpl::logger()

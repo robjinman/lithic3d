@@ -288,7 +288,7 @@ void Application::toggleFullScreen()
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-    m_engine->onWindowResize();
+    m_engine->onWindowResize(m_initialWindowState.width, m_initialWindowState.height);
     m_game->onWindowResize(m_initialWindowState.width, m_initialWindowState.height);
 
     m_fullscreen = false;
@@ -307,7 +307,7 @@ void Application::toggleFullScreen()
 
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-    m_engine->onWindowResize();
+    m_engine->onWindowResize(m_config.fullscreenResolutionW, m_config.fullscreenResolutionH);
     m_game->onWindowResize(m_config.fullscreenResolutionW, m_config.fullscreenResolutionH);
 
     m_fullscreen = true;
@@ -316,7 +316,7 @@ void Application::toggleFullScreen()
 
 void Application::onWindowResize(int w, int h)
 {
-  m_engine->onWindowResize();
+  m_engine->onWindowResize(w, h);
   m_game->onWindowResize(w, h);
 }
 

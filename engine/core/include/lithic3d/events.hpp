@@ -7,6 +7,7 @@ namespace lithic3d
 {
 
 const HashedString g_strRequestDeletion = hashString("request_deletion");
+const HashedString g_strWindowResize = hashString("window_resize");
 
 class ERequestDeletion : public Event
 {
@@ -27,5 +28,18 @@ class ERequestDeletion : public Event
 
     EntityId entityId;
 };
+
+class EWindowResize : public Event
+{
+  public:
+    EWindowResize(uint32_t w, uint32_t h)
+      : Event(g_strWindowResize)
+      , width(w)
+      , height(h) {}
+
+    uint32_t width;
+    uint32_t height;
+};
+
 
 } // namespace lithic3d

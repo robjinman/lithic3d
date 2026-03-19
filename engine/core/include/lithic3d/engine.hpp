@@ -24,7 +24,7 @@ class Engine
   public:
     virtual void setClearColour(const Vec4f& colour) = 0;
     virtual void update(const InputState& inputState) = 0;
-    virtual void onWindowResize() = 0;
+    virtual void onWindowResize(uint32_t w, uint32_t h) = 0;
     virtual Tick currentTick() const = 0;
     virtual float measuredTickRate() const = 0;
 
