@@ -71,6 +71,7 @@ void EcsImpl::update(Tick tick, const InputState& inputState)
   deletePending();
 
   for (auto& entry : m_systems) {
+    //if (entry.first == 2) continue; // TODO
     entry.second->update(tick, inputState);
   }
 }

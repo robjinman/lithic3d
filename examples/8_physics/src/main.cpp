@@ -1,4 +1,5 @@
 #include <lithic3d/lithic3d.hpp>
+#include <random>
 
 namespace fs = std::filesystem;
 
@@ -35,17 +36,17 @@ class Demo : public Game
     EntityId m_caption;
     EntityId m_cube1;
     EntityId m_cube2;
-    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 1.5f, 4.f, 0.f });
+    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 1.f, 5.f, 0.f });
     Vec3f m_cube1InitialRotation = {
-      degreesToRadians(90.f),
-      degreesToRadians(46.f),
-      degreesToRadians(0.f)
-    };
-    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 2.5f, 0.6f, 0.f });
-    Vec3f m_cube2InitialRotation = {
-      degreesToRadians(1.f),
+      degreesToRadians(0.f),
       degreesToRadians(0.f),
       degreesToRadians(0.f)
+    };
+    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 1.5f, 1.f, 0.f });
+    Vec3f m_cube2InitialRotation = {
+      degreesToRadians(0.f),
+      degreesToRadians(0.f),
+      degreesToRadians(90.f)
     };
     bool m_physicsActive = false;
 
@@ -78,8 +79,15 @@ Demo::Demo(Engine& engine)
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
   m_engine.logger().info(STR("Ground has ID " << groundId));
 
-  // TODO
   //enablePhysics();
+}
+
+Vec3f randomRotation()
+{
+  static std::mt19937 gen;
+  std::uniform_real_distribution<float> dist(0, 2.f * PIf);
+
+  return { dist(gen), dist(gen), dist(gen) };
 }
 
 EntityId Demo::constructCube1()
@@ -104,7 +112,7 @@ EntityId Demo::constructCube2()
   auto id = m_factory->createCuboid(size, material, texSize, 0.f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = translationMatrix4x4(m_cube2InitialPosition);
+  auto transform = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
   sysSpatial.setEntityTransform(id, transform);
 
   return id;
@@ -198,7 +206,7 @@ void Demo::enablePhysics()
 
 void Demo::resetState()
 {
-  auto cube1T = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
+  auto cube1T = createTransform(m_cube1InitialPosition, randomRotation());
   auto cube2T = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
 
   m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.f);
@@ -221,12 +229,12 @@ void Demo::onKeyDown(KeyboardKey key)
     else {
       enablePhysics();
     }
-  }/*
+  }
   else if (key == KeyboardKey::N) {
     static Tick tick = 0;
     m_engine.logger().info(STR("Tick: " << tick));
     m_engine.ecs().system<SysCollision>().update(tick++, {});
-  }*/
+  }
 }
 
 bool Demo::update()

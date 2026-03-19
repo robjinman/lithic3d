@@ -652,6 +652,8 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     if (checkForPointContacts(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
       pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
+      //std::cout << "Point contact A->B\n";
+
       contact.A = pair.A;
       contact.B = pair.B;
       contacts.push_back(contact);
@@ -660,12 +662,16 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       pair.B.globalTransform->transform, pair.A.collision->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contact)) {
 
+      std::cout << "Point contact B->A\n";
+
       contact.A = pair.B;
       contact.B = pair.A;
       contacts.push_back(contact);
     }
     else if (checkForEdgeContacts(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
       pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
+
+      std::cout << "Edge contact A->B\n";
 
       contact.A = pair.A;
       contact.B = pair.B;
@@ -681,10 +687,12 @@ void resolveInterpenetration(const Contact& contact)
   float totalInvMass = contact.A.collision->inverseMass + contact.B.collision->inverseMass;
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
+  const float margin = 0.04f;
+
   float a = contact.A.collision->inverseMass / totalInvMass;
   float b = contact.B.collision->inverseMass / totalInvMass;
-  auto da = contact.normal * a * contact.penetration;
-  auto db = -contact.normal * b * contact.penetration;
+  auto da = contact.normal * a * (contact.penetration + margin);
+  auto db = -contact.normal * b * (contact.penetration + margin);
 
   // TODO: Consider moving objects backward along velocity vectors?
 
@@ -695,14 +703,6 @@ void resolveInterpenetration(const Contact& contact)
   transB.transform = translationMatrix4x4(db) * transB.transform;
 
   // TODO: Set dirty flag
-}
-
-std::pair<Vec3f, Vec3f> getTangentAxes(const Vec3f& up, const Vec3f& other)
-{
-  Vec3f xAxis = up.cross(other).normalise();
-  Vec3f zAxis = up.cross(xAxis).normalise();
-
-  return { xAxis, zAxis };
 }
 
 void resolveVelocities(const Contact& contact)
@@ -728,9 +728,9 @@ void resolveVelocities(const Contact& contact)
 
   float restitution = 0.5f * (A.collision->restitution + B.collision->restitution);
   auto desiredContactSpaceSeparatingV = {
-    contactSpaceSeparatingV[0] * 0.95f, // TODO
+    0.f,
     contactSpaceSeparatingV[1] * -restitution,
-    contactSpaceSeparatingV[2] * 0.95f
+    0.f
   };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
@@ -752,6 +752,15 @@ void resolveVelocities(const Contact& contact)
   Vec3f contactSpaceImpulse = impulseMatrix * desiredContactSpaceDv;
 
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
+
+  float planarImpulse = sqrt(impulse[0] * impulse[0] + impulse[2] * impulse[2]);
+  float friction = 0.5f; // TODO
+  if (planarImpulse > friction * impulse[1]) {
+    impulse[0] /= planarImpulse;
+    impulse[2] /= planarImpulse;
+    impulse[0] *= friction * impulse[1];
+    impulse[2] *= friction * impulse[1];
+  }
 
   A.collision->linearVelocity += impulse * A.collision->inverseMass;
   A.collision->angularVelocity += aI * aPointRel.cross(impulse);
@@ -831,13 +840,19 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  //while (true) {
+  const size_t MAX_ITERATIONS = 8;
+
+  size_t i = 0;
+  for (; i < MAX_ITERATIONS; ++i) {
     auto contacts = generateContacts(findPossibleCollisions());
-    //if (contacts.empty()) {
-    //  break;
-    //}
+    if (contacts.empty()) {
+      break;
+    }
     resolveContacts(contacts);
-  //}
+  }
+  if (i == MAX_ITERATIONS) {
+    DBG_LOG(m_logger, "Max iterations exceeded");
+  }
   integrate();
 }
 
