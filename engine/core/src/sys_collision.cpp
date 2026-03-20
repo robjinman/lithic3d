@@ -1,6 +1,5 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
-#include <iostream> // TODO
 #include "lithic3d/input.hpp"
 
 namespace lithic3d
@@ -82,8 +81,8 @@ struct ObjectComponents
 {
   EntityId entityId = 0;
   CCollision* collision = nullptr;
-  CGlobalTransform* globalTransform = nullptr;
   CLocalTransform* localTransform = nullptr;
+  CSpatialFlags* spatialFlags = nullptr;
 };
 
 struct CollisionPair
@@ -152,7 +151,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DCollision& data)
 {
   auto& componentStore = m_ecs.componentStore();
 
-  assertHasComponent<CGlobalTransform>(componentStore, id);
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
@@ -182,7 +180,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk data)
 {
   auto& componentStore = m_ecs.componentStore();
 
-  assertHasComponent<CGlobalTransform>(componentStore, id);
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
@@ -295,13 +292,12 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   std::vector<CollisionPair> pairs;
 
   auto groups = m_ecs.componentStore().components<
-    CSpatialFlags, CLocalTransform, CGlobalTransform, CBoundingBox, CCollision
+    CSpatialFlags, CLocalTransform, CBoundingBox, CCollision
   >();
 
   for (auto& group : groups) {
     auto flagsComps = group.components<CSpatialFlags>();
     auto localTs = group.components<CLocalTransform>();
-    auto globalTs = group.components<CGlobalTransform>();
     auto boundingBoxes = group.components<CBoundingBox>();
     auto collisionComps = group.components<CCollision>();
     auto entityIds = group.entityIds();
@@ -325,14 +321,14 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                 .A = {
                   .entityId = entityIds[i],
                   .collision = &collisionComps[i],
-                  .globalTransform = &globalTs[i],
-                  .localTransform = &localTs[i]
+                  .localTransform = &localTs[i],
+                  .spatialFlags = &flagsComps[i]
                 },
                 .B = {
                   .entityId = entityIds[j],
                   .collision = &collisionComps[j],
-                  .globalTransform = &globalTs[j],
-                  .localTransform = &localTs[j]
+                  .localTransform = &localTs[j],
+                  .spatialFlags = &flagsComps[j]
                 },
               });
             }
@@ -537,8 +533,6 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     .B = (worldToBoxSpace * Vec4f{ worldSpaceEdge.B, { 1.f }}).sub<3>()
   };
 
-  //std::cout << "Testing edge: (" << worldSpaceEdge.A << "), (" << worldSpaceEdge.B << ")\n";
-
   if (
     (edge.A[0] < box.min[0] && edge.B[0] < box.min[0]) ||
     (edge.A[1] < box.min[1] && edge.B[1] < box.min[1]) ||
@@ -547,7 +541,6 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     (edge.A[1] > box.max[1] && edge.B[1] > box.max[1]) ||
     (edge.A[2] > box.max[2] && edge.B[2] > box.max[2])
   ) {
-    //std::cout << "Doesn't intersect\n";
     return 0.f;
   }
 
@@ -565,7 +558,6 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
 
   for (size_t i = 0; i < 12; ++i) {
     auto& boxEdge = boxEdges[i];
-    //std::cout << "Box edge (" << i << "): (" << boxEdge.A << "),(" << boxEdge.B << ")\n";
 
     // Line: b + tw
     Vec3f b = boxEdge.A;
@@ -586,14 +578,12 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     }
 
     Vec3f P = a + v * st[0];
-    //std::cout << "P: " << P << "\n";
 
     if (!isInside(box, worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f })) {
       continue;
     }
 
     Vec3f Q = b + w * st[1];
-    //std::cout << "Q: " << Q << "\n";
 
     float sqPenetration = (Q - P).squareMagnitude();
     if (sqPenetration < minSqPenetration) {
@@ -607,11 +597,6 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   if (indexOfMinPenetration != -1) {
     normal = normals[indexOfMinPenetration];
     point = points[indexOfMinPenetration];
-
-    //std::cout << "Index " << indexOfMinPenetration << "\n";
-    //std::cout << "Penetration: " << sqrt(minSqPenetration) << "\n";
-    //std::cout << "Normal: " << normal << "\n";
-    //std::cout << "Point: " << point  << "\n";
 
     return sqrt(minSqPenetration);
   }
@@ -631,7 +616,6 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
 
   auto edges = getEdges(getVertices(box1, box1Transform));
   for (size_t i = 0; i < 12; ++i) {
-    //std::cout << "i = " << i << "\n";
     float penetration = edgeBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, edges[i],
       points[i], normals[i]);
 
@@ -645,7 +629,6 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
     return false;
   }
 
-  //std::cout << "Building contact with edge " << edgeWithMaxPenetration << "\n";
   contact.normal = normals[edgeWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = points[edgeWithMaxPenetration];
@@ -662,36 +645,36 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
   for (auto& pair : pairs) {
     Contact contact{};
 
-    auto boxAToWorldSpace = pair.A.globalTransform->transform *
+    auto boxAToWorldSpace = pair.A.localTransform->transform *
       pair.A.collision->boundingBox.transform;
     auto worldToBoxASpace = inverse(boxAToWorldSpace);
-    auto boxBToWorldSpace = pair.B.globalTransform->transform *
+    auto boxBToWorldSpace = pair.B.localTransform->transform *
       pair.B.collision->boundingBox.transform;
     auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-    if (checkForPointContacts(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
+    if (checkForPointContacts(pair.A.collision->boundingBox, pair.A.localTransform->transform,
       pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
-      //std::cout << "Point contact A->B\n";
+      //DBG_LOG(m_logger, "Point contact A->B");
 
       contact.A = pair.A;
       contact.B = pair.B;
       contacts.push_back(contact);
     }
     else if (checkForPointContacts(pair.B.collision->boundingBox,
-      pair.B.globalTransform->transform, pair.A.collision->boundingBox, boxAToWorldSpace,
+      pair.B.localTransform->transform, pair.A.collision->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contact)) {
 
-      //std::cout << "Point contact B->A\n";
+      //DBG_LOG(m_logger, "Point contact B->A");
 
       contact.A = pair.B;
       contact.B = pair.A;
       contacts.push_back(contact);
     }
-    else if (checkForEdgeContacts(pair.A.collision->boundingBox, pair.A.globalTransform->transform,
+    else if (checkForEdgeContacts(pair.A.collision->boundingBox, pair.A.localTransform->transform,
       pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
-      //std::cout << "Edge contact A->B\n";
+      //DBG_LOG(m_logger, "Edge contact A->B");
 
       contact.A = pair.A;
       contact.B = pair.B;
@@ -702,20 +685,32 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
   return contacts;
 }
 
-void updateTransform(const ObjectComponents& c, const Vec3f& linearVelocity,
-  const Vec3f& angularVelocity)
+void updateTransform(CLocalTransform& localT, CSpatialFlags& spatialFlags, const Vec3f& linearV,
+  const Vec3f& angularV)
 {
-  auto translation = translationMatrix4x4(linearVelocity);
-  auto angle = angularVelocity.magnitude();
-  auto rotation = rotationMatrix4x4(angularVelocity.normalise(), angle);
+  auto translation = translationMatrix4x4(linearV);
+  auto angle = angularV.magnitude();
+  auto rotation = rotationMatrix4x4(angularV.normalise(), angle);
 
-  auto currentOffset = getTranslation(c.globalTransform->transform);
+  auto currentOffset = getTranslation(localT.transform);
 
   auto t = translationMatrix4x4(currentOffset) * translation * rotation *
-    translationMatrix4x4(-currentOffset) * c.localTransform->transform;
+    translationMatrix4x4(-currentOffset) * localT.transform;
 
-  c.localTransform->transform = t;
-  //flags.set(SpatialFlags::Dirty);
+  localT.transform = t;
+  spatialFlags.flags.set(SpatialFlags::Dirty);
+}
+
+// Constructs a matrix that calculates the velocity induced by a given impulse.
+// Its inverse is a matrix that calculates the required impulse for a given velocity.
+//
+// I is the inverse inertia tensor in world space
+// relativePoint is the contact point relative to the centre of mass
+inline Mat3x3f velocityMatrix(float inverseMass, const Mat3x3f& I, const Vec3f& relativePoint)
+{
+  Mat3x3f Q = skewSymmetricMatrix(relativePoint);
+  Mat3x3f M = scaleMatrix<3>(inverseMass, false);
+  return (Q * -1.f) * I * Q + M;
 }
 
 void resolveInterpenetration(const Contact& contact)
@@ -733,39 +728,33 @@ void resolveInterpenetration(const Contact& contact)
   auto da = contact.normal * a * (contact.penetration + margin);
   auto db = -contact.normal * b * (contact.penetration + margin);
 
-  auto aOrigin = getTranslation(A.globalTransform->transform);
-  auto aPointRel = contact.point - aOrigin;
-
-  auto bOrigin = getTranslation(B.globalTransform->transform);
-  auto bPointRel = contact.point - bOrigin;
-
   if (A.collision->inverseMass != 0.f) {
-    Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.globalTransform->transform);
-    Mat3x3f aQ = skewSymmetricMatrix(aPointRel);
-    Mat3x3f aM = scaleMatrix<3>(A.collision->inverseMass, false);
-    Mat3x3f aVelocityMatrix = (aQ * -1.f) * aI * aQ + aM;
+    Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.localTransform->transform);
+
+    auto aOrigin = getTranslation(A.localTransform->transform);
+    auto aPointRel = contact.point - (aOrigin + A.collision->centreOfMass);
+    Mat3x3f aVelocityMatrix = velocityMatrix(A.collision->inverseMass, aI, aPointRel);
     Mat3x3f aImpulseMatrix = inverse(aVelocityMatrix);
     Vec3f aImpulse = aImpulseMatrix * da;
     Vec3f aLinearV = aImpulse * A.collision->inverseMass;
     Vec3f aAngularV = aI * aPointRel.cross(aImpulse);
 
-    updateTransform(contact.A, aLinearV, aAngularV);
+    updateTransform(*A.localTransform, *A.spatialFlags, aLinearV, aAngularV);
   }
 
   if (B.collision->inverseMass != 0.f) {
-    Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.globalTransform->transform);
-    Mat3x3f bQ = skewSymmetricMatrix(bPointRel);
-    Mat3x3f bM = scaleMatrix<3>(B.collision->inverseMass, false);
-    Mat3x3f bVelocityMatrix = (bQ * -1.f) * bI * bQ + bM;
+    Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.localTransform->transform);
+
+    auto bOrigin = getTranslation(B.localTransform->transform);
+    auto bPointRel = contact.point - (bOrigin + B.collision->centreOfMass);
+    Mat3x3f bVelocityMatrix = velocityMatrix(B.collision->inverseMass, bI, bPointRel);
     Mat3x3f bImpulseMatrix = inverse(bVelocityMatrix);
     Vec3f bImpulse = bImpulseMatrix * db;
     Vec3f bLinearV = bImpulse * B.collision->inverseMass;
     Vec3f bAngularV = bI * bPointRel.cross(bImpulse);
 
-    updateTransform(contact.B, bLinearV, bAngularV);
+    updateTransform(*B.localTransform, *B.spatialFlags, bLinearV, bAngularV);
   }
-
-  // TODO: Set dirty flag
 }
 
 void resolveVelocities(const Contact& contact)
@@ -778,14 +767,14 @@ void resolveVelocities(const Contact& contact)
 
   // TODO: Use centre of mass
 
-  auto aOrigin = getTranslation(A.globalTransform->transform);
-  auto aPointRel = contact.point - aOrigin;
+  auto aOrigin = getTranslation(A.localTransform->transform);
+  auto aPointRel = contact.point - (aOrigin + A.collision->centreOfMass);
   auto aTotalWorldSpaceV = A.collision->linearVelocity +
     A.collision->angularVelocity.cross(aPointRel);
   auto aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
 
-  auto bOrigin = getTranslation(B.globalTransform->transform);
-  auto bPointRel = contact.point - bOrigin;
+  auto bOrigin = getTranslation(B.localTransform->transform);
+  auto bPointRel = contact.point - (bOrigin + B.collision->centreOfMass);
   auto bTotalWorldSpaceV = B.collision->linearVelocity +
     B.collision->angularVelocity.cross(bPointRel);
   auto bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
@@ -796,16 +785,11 @@ void resolveVelocities(const Contact& contact)
   auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
-  Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.globalTransform->transform);
-  Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.globalTransform->transform);
+  Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.localTransform->transform);
+  Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.localTransform->transform);
 
-  Mat3x3f aQ = skewSymmetricMatrix(aPointRel);
-  Mat3x3f aM = scaleMatrix<3>(A.collision->inverseMass, false);
-  Mat3x3f aVelocityMatrix = (aQ * -1.f) * aI * aQ + aM;
-
-  Mat3x3f bQ = skewSymmetricMatrix(bPointRel);
-  Mat3x3f bM = scaleMatrix<3>(B.collision->inverseMass, false);
-  Mat3x3f bVelocityMatrix = (bQ * -1.f) * bI * bQ + bM;
+  Mat3x3f aVelocityMatrix = velocityMatrix(A.collision->inverseMass, aI, aPointRel);
+  Mat3x3f bVelocityMatrix = velocityMatrix(B.collision->inverseMass, bI, bPointRel);
 
   Mat3x3f velocityMatrix = contact.fromContactSpace * (aVelocityMatrix + bVelocityMatrix)
     * contact.toContactSpace;
@@ -835,9 +819,6 @@ void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
 {
   for (auto& contact : contacts) {
     resolveInterpenetration(contact);
-
-    m_ecs.system<SysSpatial>().update(0, {}); // TODO: This is a hack
-
     resolveVelocities(contact);
   }
 }
@@ -845,15 +826,13 @@ void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
 void SysCollisionImpl::integrate()
 {
   auto groups = m_ecs.componentStore().components<
-    CSpatialFlags, CGlobalTransform, CLocalTransform, CCollision
+    CSpatialFlags, CLocalTransform, CCollision
   >();
 
   for (auto& group : groups) {
     auto flagsComps = group.components<CSpatialFlags>();
     auto localT = group.components<CLocalTransform>();
-    auto globalT = group.components<CGlobalTransform>();
     auto collisionComps = group.components<CCollision>();
-    auto entityIds = group.entityIds(); // TODO
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
       auto& flags = flagsComps[i].flags;
@@ -891,29 +870,14 @@ void SysCollisionImpl::integrate()
           }
         }
 
-        auto translation = translationMatrix4x4(collision.linearVelocity);
-        auto angle = collision.angularVelocity.magnitude();
-        auto rotation = rotationMatrix4x4(collision.angularVelocity.normalise(), angle);
-
-        auto currentOffset = getTranslation(globalT[i].transform);
-
-        auto t = translationMatrix4x4(currentOffset) * translation * rotation *
-          translationMatrix4x4(-currentOffset) * localT[i].transform;
-
-        localT[i].transform = t;
-        flags.set(SpatialFlags::Dirty);
+        updateTransform(localT[i], flagsComps[i], collision.linearVelocity,
+          collision.angularVelocity);
 
         collision.linearAcceleration = totalForce * collision.inverseMass;
         collision.linearVelocity += collision.linearAcceleration;
 
-        //collision.lastFrameAcceleration = collision.linearAcceleration;
-
         collision.angularAcceleration = collision.inverseInertialTensor * totalTorque;
         collision.angularVelocity += collision.angularAcceleration;
-
-        //std::cout << "g = " << G << "\n";
-        //std::cout << "dv " << collision.linearVelocity << "\n";
-        //std::cout << "da " << collision.angularVelocity.magnitude() << "\n";
       }
     }
   }
@@ -923,12 +887,8 @@ void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
   const size_t MAX_ITERATIONS = 20;
 
-  //std::cout << "\n____UPDATE____\n";
-
   size_t i = 0;
   for (; i < MAX_ITERATIONS; ++i) {
-    //std::cout << "Iteration " << i << "\n";
-
     auto contacts = generateContacts(findPossibleCollisions());
     if (contacts.empty()) {
       break;

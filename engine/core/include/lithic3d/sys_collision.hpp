@@ -1,3 +1,6 @@
+// The collision system ignores an object's global transform and reads/updates only its local
+// transform. Essentially, objects are treated as though they are unparented.
+
 #pragma once
 
 #include "sys_spatial.hpp"
@@ -30,7 +33,6 @@ struct CCollision
   float inverseMass = 1.f;
   Vec3f centreOfMass;
   float restitution = 0.5f;
-  //float damping = 0.f;
   std::array<Force, MAX_FORCES> linearForces;
   Vec3f linearAcceleration;
   Vec3f linearVelocity;
@@ -84,13 +86,14 @@ struct DCollision
   float restitution = 0.5f;
   BoundingBox boundingBox;
   Vec3f centreOfMass;
+  // TODO: Coefficient of friction
   //std::bitset<16> flags;
 };
 
 struct DTerrainChunk
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CGlobalTransform, CBoundingBox
+    CSpatialFlags, CLocalTransform, CBoundingBox
   >;
 
   HeightMap heightMap;
