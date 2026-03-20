@@ -106,7 +106,7 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory
   auto worldFilePath = fs::path{"worlds"} / m_worldName / "world.xml";
 
   auto xmlData = m_fileSystem.readAppDataFile(worldFilePath);
-  auto worldXml = parseXml(xmlData);
+  auto worldXml = parseXml(xmlData.data());
 
   loadWorldInfo(*worldXml);
 
@@ -157,7 +157,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
     const auto cellSliceFilePath = worldsPath / m_worldName / cellSlicePath(x, y, sliceIdx);
 
     auto cellSliceXmlFileData = m_fileSystem.readAppDataFile(cellSliceFilePath);
-    auto cellSliceXml = parseXml(cellSliceXmlFileData);
+    auto cellSliceXml = parseXml(cellSliceXmlFileData.data());
 
     ASSERT(cellSliceXml->name() == "cell-slice", "Expected <cell-slice> element");
 

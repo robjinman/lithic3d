@@ -9,6 +9,10 @@ using namespace lithic3d::render;
 namespace
 {
 
+float VIEW_X = 70.f;
+float VIEW_Y = 7.f;
+float VIEW_Z = 75.f;
+
 class Demo : public Game
 {
   public:
@@ -36,13 +40,16 @@ class Demo : public Game
     EntityId m_caption;
     EntityId m_cube1;
     EntityId m_cube2;
-    Vec3f m_cube1InitialPosition = metresToWorldUnits(Vec3f{ 0.6f, 6.f, 0.f });
+    ResourceHandle m_terrain;
+    Vec3f m_cube1InitialPosition =
+      metresToWorldUnits(Vec3f{ VIEW_X + 0.6f, VIEW_Y + 1.f, VIEW_Z - 15.f });
     Vec3f m_cube1InitialRotation = {
       degreesToRadians(0.f),
       degreesToRadians(0.f),
       degreesToRadians(0.f)
     };
-    Vec3f m_cube2InitialPosition = metresToWorldUnits(Vec3f{ 1.5f, 2.f, 0.f });
+    Vec3f m_cube2InitialPosition =
+      metresToWorldUnits(Vec3f{ VIEW_X + 1.5f, VIEW_Y - 3.f, VIEW_Z - 15.f });
     Vec3f m_cube2InitialRotation = {
       degreesToRadians(0.f),
       degreesToRadians(0.f),
@@ -53,7 +60,7 @@ class Demo : public Game
     EntityId constructLight();
     EntityId constructCube1();
     EntityId constructCube2();
-    EntityId constructGround();
+    void constructGround();
     EntityId constructCaption();
     void resetState();
     void enablePhysics();
@@ -68,16 +75,15 @@ Demo::Demo(Engine& engine)
   m_light = constructLight();
   m_cube1 = constructCube1();
   m_cube2 = constructCube2();
-  auto groundId = constructGround();
+  constructGround();
   m_caption = constructCaption();
 
   auto& camera = m_engine.ecs().system<SysRender3d>().camera();
-  camera.setPosition(metresToWorldUnits(Vec3f{ 0.f, 4.f, 10.f }));
-  camera.rotate(-degreesToRadians(10.f), 0.f);
+  camera.setPosition(metresToWorldUnits(Vec3f{ VIEW_X, VIEW_Y, VIEW_Z }));
+  camera.rotate(-degreesToRadians(15.f), 0.f);
 
   m_engine.logger().info(STR("Cube 1 has ID " << m_cube1));
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
-  m_engine.logger().info(STR("Ground has ID " << groundId));
 
   //enablePhysics();
 }
@@ -118,17 +124,32 @@ EntityId Demo::constructCube2()
   return id;
 }
 
-EntityId Demo::constructGround()
+void Demo::constructGround()
 {
-  auto material = m_factory->createMaterial("textures/ground.png").wait();
+  TerrainConfig terrainConfig{
+    .world = "world",
+    .minHeight = 0.f,
+    .maxHeight = 10.f,
+    .cellWidth = 100.f,
+    .cellHeight = 100.f
+  };
 
-  auto id = m_factory->createCuboid(metresToWorldUnits(Vec3f{ 50.f, 10.f, 50.f }), material,
-    metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f);
+  auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem(),
+    m_engine.logger());
 
-  m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
-    translationMatrix4x4(metresToWorldUnits(Vec3f{0.f, -5.f, 0.f }));
+  const char* xmlTerrain =
+    "<terrain>"
+      "<splat-map>"
+        "<texture file=\"sand.png\"/>"
+        "<texture file=\"grass.png\"/>"
+        "<texture file=\"dirt.png\"/>"
+        "<texture file=\"snow.png\"/>"
+      "</splat-map>"
+    "</terrain>";
 
-  return id;
+  m_terrain = terrainBuilder->loadTerrainRegionAsync(0, 0, parseXml(xmlTerrain)).wait();
+  terrainBuilder->createEntities(m_terrain.id());
 }
 
 EntityId Demo::constructLight()
@@ -136,9 +157,10 @@ EntityId Demo::constructLight()
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
+  Vec3f pos = metresToWorldUnits(Vec3f{ VIEW_X + 2.f, VIEW_Y + 7.f, VIEW_Z + 5.f });
+
   DSpatial spatial{
-    .transform = createTransform(metresToWorldUnits(Vec3f{ 2.f, 10.f, 15.f }),
-      { -degreesToRadians(45.f), 0.f, 0.f }),
+    .transform = createTransform(pos, { -degreesToRadians(45.f), 0.f, 0.f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
     .enabled = true
   };
