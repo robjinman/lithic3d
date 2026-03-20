@@ -101,7 +101,8 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
 
   DCollision collision{
     .inverseMass = inverseMass,
-    .restitution = 0.2f, // TODO
+    .restitution = 0.2f,  // TODO
+    .friction = 0.4f,     // TODO
     .boundingBox{
       .min = -size * 0.5f,
       .max = size * 0.5f,

@@ -160,6 +160,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DCollision& data)
     .inverseMass = data.inverseMass,
     .centreOfMass = data.centreOfMass,
     .restitution = data.restitution,
+    .friction = data.friction,
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
@@ -800,7 +801,7 @@ void resolveVelocities(const Contact& contact)
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
   float planarImpulse = sqrt(impulse[0] * impulse[0] + impulse[2] * impulse[2]);
-  float friction = 0.4f; // TODO
+  float friction = 0.5f * (A.collision->friction + B.collision->friction);
   if (planarImpulse > friction * impulse[1]) {
     impulse[0] /= planarImpulse;
     impulse[2] /= planarImpulse;

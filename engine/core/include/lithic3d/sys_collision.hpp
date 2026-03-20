@@ -32,7 +32,8 @@ struct CCollision
   BoundingBox boundingBox;
   float inverseMass = 1.f;
   Vec3f centreOfMass;
-  float restitution = 0.5f;
+  float restitution = 0.2f;
+  float friction = 0.4f;
   std::array<Force, MAX_FORCES> linearForces;
   Vec3f linearAcceleration;
   Vec3f linearVelocity;
@@ -83,10 +84,10 @@ struct DCollision
   using RequiredComponents = type_list<CSpatialFlags, CBoundingBox, CLocalTransform, CCollision>;
 
   float inverseMass = 1.f;
-  float restitution = 0.5f;
+  float restitution = 0.2f;
+  float friction = 0.4f;
   BoundingBox boundingBox;
   Vec3f centreOfMass;
-  // TODO: Coefficient of friction
   //std::bitset<16> flags;
 };
 
