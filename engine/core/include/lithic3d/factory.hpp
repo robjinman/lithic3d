@@ -10,10 +10,11 @@ namespace lithic3d
 class Factory
 {
   public:
-    // TODO: Label async?
-    virtual render::MaterialHandle createMaterial(const std::filesystem::path& texturePath) = 0;
-    virtual EntityId createCuboid(const Vec3f& size, render::MaterialHandle material,
-      const Vec2f& textureSize, float inverseMass) = 0;
+    virtual render::MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) = 0;
+    virtual EntityId createStaticCuboid(const Vec3f& size, render::MaterialHandle material,
+      const Vec2f& textureSize, float restitution, float friction) = 0;
+    virtual EntityId createDynamicCuboid(const Vec3f& size, render::MaterialHandle material,
+      const Vec2f& textureSize, float inverseMass, float restitution, float friction) = 0;
 
     virtual ~Factory() = default;
 };

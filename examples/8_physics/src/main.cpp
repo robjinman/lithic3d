@@ -98,10 +98,10 @@ Vec3f randomRotation()
 
 EntityId Demo::constructCube1()
 {
-  auto material = m_factory->createMaterial("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("textures/bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  auto id = m_factory->createCuboid(size, material, texSize, 0.f);
+  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto transform = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
@@ -112,10 +112,10 @@ EntityId Demo::constructCube1()
 
 EntityId Demo::constructCube2()
 {
-  auto material = m_factory->createMaterial("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("textures/bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 2.f, 1.f, 2.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  auto id = m_factory->createCuboid(size, material, texSize, 0.f);
+  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto transform = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);

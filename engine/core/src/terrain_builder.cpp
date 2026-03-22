@@ -106,7 +106,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 
   auto id = m_ecs.idGen().getNewEntityId();
 
-  m_ecs.componentStore().allocate<DSpatial, DModel, DDynamicBox>(id); // TODO: DTerrainChunk
+  m_ecs.componentStore().allocate<DSpatial, DModel, DStaticBox>(id); // TODO: DTerrainChunk
 
   float minHeight = metresToWorldUnits(m_config.minHeight);
   float maxHeight = metresToWorldUnits(m_config.maxHeight);
@@ -136,16 +136,14 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
   //  .friction = 0.4f      // TODO
   //};
 
-  DDynamicBox collision{
-    .inverseMass = 0.f,
+  DStaticBox collision{
     .restitution = 0.2f,  // TODO
     .friction = 0.4f,     // TODO
     .boundingBox{
       .min = { 0.f, minHeight, 0.f },
       .max = { cellWidth, /*maxHeight*/minHeight + 10.f, cellHeight },
       .transform = identityMatrix<4>()
-    },
-    .centreOfMass = { 0.f, 0.f, 0.f }
+    }
   };
 
   sysCollision.addEntity(id, collision);
