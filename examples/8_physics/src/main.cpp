@@ -42,18 +42,18 @@ class Demo : public Game
     EntityId m_cube2;
     ResourceHandle m_terrain;
     Vec3f m_cube1InitialPosition =
-      metresToWorldUnits(Vec3f{ VIEW_X + 0.6f, VIEW_Y + 1.f, VIEW_Z - 15.f });
+      metresToWorldUnits(Vec3f{ VIEW_X + 1.2f, VIEW_Y + 1.f, VIEW_Z - 15.f });
     Vec3f m_cube1InitialRotation = {
       degreesToRadians(0.f),
       degreesToRadians(0.f),
       degreesToRadians(0.f)
     };
     Vec3f m_cube2InitialPosition =
-      metresToWorldUnits(Vec3f{ VIEW_X + 1.5f, VIEW_Y - 3.f, VIEW_Z - 15.f });
+      metresToWorldUnits(Vec3f{ VIEW_X + 1.5f, VIEW_Y - 2.f, VIEW_Z - 15.f });
     Vec3f m_cube2InitialRotation = {
-      degreesToRadians(0.f),
-      degreesToRadians(0.f),
-      degreesToRadians(5.f)
+      degreesToRadians(94.f),
+      degreesToRadians(5.f),
+      degreesToRadians(10.f)
     };
     bool m_physicsActive = false;
 
@@ -85,6 +85,7 @@ Demo::Demo(Engine& engine)
   m_engine.logger().info(STR("Cube 1 has ID " << m_cube1));
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
 
+  resetState();
   //enablePhysics();
 }
 
@@ -101,7 +102,7 @@ EntityId Demo::constructCube1()
   auto material = m_factory->createMaterialAsync("textures/bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
+  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto transform = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
@@ -115,7 +116,7 @@ EntityId Demo::constructCube2()
   auto material = m_factory->createMaterialAsync("textures/bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 2.f, 1.f, 2.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
+  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto transform = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
@@ -221,13 +222,17 @@ EntityId Demo::constructCaption()
 
 void Demo::enablePhysics()
 {
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.1f);
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube2, 0.025f);
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.05f);
+  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube2, 0.0125f);
   m_physicsActive = true;
 }
 
 void Demo::resetState()
 {
+  for (int i = 0; i < 14; ++i) {
+    randomRotation();
+  }
+
   auto cube1T = createTransform(m_cube1InitialPosition, randomRotation());
   auto cube2T = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
 

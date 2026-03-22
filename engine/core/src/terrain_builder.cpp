@@ -137,7 +137,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
   //};
 
   DStaticBox collision{
-    .restitution = 0.2f,  // TODO
+    .restitution = 0.f,  // TODO
     .friction = 0.4f,     // TODO
     .boundingBox{
       .min = { 0.f, minHeight, 0.f },

@@ -594,6 +594,12 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   return minPenetration;
 }
 
+inline Vec3f differentVector(const Vec3f& v)
+{
+  static auto r = rotationMatrix3x3({ 1.f, 2.f, 3.f });
+  return r * v;
+}
+
 // Check if any of box1's vertices intersect box2 and generate a contact
 bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   const BoundingBox& box2, const Mat4x4f& box2ToWorldSpace, const Mat4x4f& worldToBox2Space,
@@ -621,7 +627,7 @@ bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform
   contact.normal = normals[vertWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = verts[vertWithMaxPenetration];
-  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, { 1.f, 1.f, 1.f });  // TODO
+  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
   contact.toContactSpace = contact.fromContactSpace.t();
 
   return true;
@@ -697,6 +703,14 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
       continue;
     }
 
+    if (!inRange(st[0], 0.f, 1.f)) {
+      continue;
+    }
+
+    if (!inRange(st[1], 0.f, 1.f)) {
+      continue;
+    }
+
     Vec3f P = a + v * st[0];
 
     if (!isInside(box, worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f })) {
@@ -709,7 +723,7 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     if (sqPenetration < minSqPenetration) {
       minSqPenetration = sqPenetration;
       indexOfMinPenetration = i;
-      points[i] = P;  // TODO: Use midpoint between P and Q?
+      points[i] = P + (Q - P) * 0.5f;
       normals[i] = (Q - P).normalise();
     }
   }
@@ -752,7 +766,7 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   contact.normal = normals[edgeWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = points[edgeWithMaxPenetration];
-  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, { 1.f, 1.f, 1.f });  // TODO
+  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
   contact.toContactSpace = contact.fromContactSpace.t();
 
   return true;
@@ -763,8 +777,6 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
   std::vector<Contact> contacts;
 
   for (auto& pair : pairs) {
-    Contact contact{};
-
     // TODO: Not all entities have a collision box
     assert(pair.A.box != nullptr);
     assert(pair.B.box != nullptr);
@@ -776,33 +788,52 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       pair.B.box->boundingBox.transform;
     auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
+    std::array<Contact, 2> pointContacts{};
+    bool hasPointContact = false;
+
     if (checkForPointContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
-      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
+      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, pointContacts[0])) {
 
       //DBG_LOG(m_logger, "Point contact A->B");
 
-      contact.A = pair.A;
-      contact.B = pair.B;
-      contacts.push_back(contact);
+      pointContacts[0].A = pair.A;
+      pointContacts[0].B = pair.B;
+
+      hasPointContact = true;
     }
-    else if (checkForPointContacts(pair.B.box->boundingBox,
+
+    if (checkForPointContacts(pair.B.box->boundingBox,
       pair.B.localTransform->transform, pair.A.box->boundingBox, boxAToWorldSpace,
-      worldToBoxASpace, contact)) {
+      worldToBoxASpace, pointContacts[1])) {
 
       //DBG_LOG(m_logger, "Point contact B->A");
 
-      contact.A = pair.B;
-      contact.B = pair.A;
-      contacts.push_back(contact);
+      pointContacts[1].A = pair.B;
+      pointContacts[1].B = pair.A;
+
+      hasPointContact = true;
     }
-    else if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
-      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
-      //DBG_LOG(m_logger, "Edge contact A->B");
+    if (hasPointContact) {
+      if (pointContacts[0].penetration > pointContacts[1].penetration) {
+        contacts.push_back(pointContacts[0]);
+      }
+      else {
+        contacts.push_back(pointContacts[1]);
+      }
+    }
+    else {
+      Contact edgeContact{};
+      if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
+        pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, edgeContact)) {
 
-      contact.A = pair.A;
-      contact.B = pair.B;
-      contacts.push_back(contact);
+        //DBG_LOG(m_logger, "Edge contact A->B");
+
+        edgeContact.A = pair.A;
+        edgeContact.B = pair.B;
+
+        contacts.push_back(edgeContact);
+      }
     }
   }
 
@@ -857,10 +888,14 @@ void resolveInterpenetrationDynamicStatic(const Contact& contact)
 {
   auto& obj = contact.A.dynamic == nullptr ? contact.B : contact.A;
 
-  const float margin = -G;
-  auto delta = contact.normal * (contact.penetration + margin);
+  if (obj.dynamic->inverseMass != 0.f) {
+    auto outDir = contact.normal;
 
-  applyPositionDelta(obj, contact.point, delta);
+    const float margin = -G;
+    auto delta = outDir * (contact.penetration + margin);
+
+    applyPositionDelta(obj, contact.point, delta);
+  }
 }
 
 void resolveInterpenetrationDynamicDynamic(const Contact& contact)
@@ -873,17 +908,18 @@ void resolveInterpenetrationDynamicDynamic(const Contact& contact)
 
   const float margin = -G;
 
-  float a = A.dynamic->inverseMass / totalInvMass;
-  float b = B.dynamic->inverseMass / totalInvMass;
-  auto da = contact.normal * a * (contact.penetration + margin);
-  auto db = -contact.normal * b * (contact.penetration + margin);
-
   if (A.dynamic->inverseMass != 0.f) {
-    applyPositionDelta(A, contact.point, da);
+    float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
+    auto outDir = contact.normal;
+
+    applyPositionDelta(A, contact.point, outDir * a);
   }
 
   if (B.dynamic->inverseMass != 0.f) {
-    applyPositionDelta(B, contact.point, db);
+    float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
+    auto outDir = -contact.normal;
+
+    applyPositionDelta(B, contact.point, outDir * b);
   }
 }
 
@@ -935,7 +971,7 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   float d = contact.A.dynamic == nullptr ? 1.f : -1.f;
   auto contactSpaceSeparatingV = contactSpaceV * d;
 
-  float r = 0.5f * (dynaObj.collision->restitution + statObj.collision->restitution);
+  float r = dynaObj.collision->restitution + statObj.collision->restitution;
   auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
@@ -953,8 +989,10 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   float friction = 0.5f * (dynaObj.collision->friction + statObj.collision->friction);
   applyFriction(impulse, friction);
 
-  dynaObj.dynamic->linearVelocity += impulse * dynaObj.dynamic->inverseMass;
-  dynaObj.dynamic->angularVelocity += I * pointRel.cross(impulse);
+  float angularDamping = 0.9f;
+
+  dynaObj.dynamic->linearVelocity += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
+  dynaObj.dynamic->angularVelocity += I * pointRel.cross(impulse * -1.f * d) * angularDamping;
 }
 
 void resolveVelocitiesDynamicDynamic(const Contact& contact)
@@ -977,7 +1015,7 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
 
   auto contactSpaceSeparatingV = bContactSpaceV - aContactSpaceV;
 
-  float r = 0.5f * (A.collision->restitution + B.collision->restitution);
+  float r = A.collision->restitution + B.collision->restitution;
   auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
@@ -998,11 +1036,13 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   float friction = 0.5f * (A.collision->friction + B.collision->friction);
   applyFriction(impulse, friction);
 
+  const float angularDamping = 0.5f;
+
   A.dynamic->linearVelocity += impulse * A.dynamic->inverseMass;
-  A.dynamic->angularVelocity += aI * aPointRel.cross(impulse);
+  A.dynamic->angularVelocity += aI * aPointRel.cross(impulse) * angularDamping;
 
   B.dynamic->linearVelocity += -impulse * B.dynamic->inverseMass;
-  B.dynamic->angularVelocity += bI * bPointRel.cross(-impulse);
+  B.dynamic->angularVelocity += bI * bPointRel.cross(-impulse) * angularDamping;
 }
 
 void resolveVelocities(const Contact& contact)
@@ -1055,7 +1095,7 @@ void SysCollisionImpl::integrate()
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
 
         if (dynamic.linearVelocity.squareMagnitude() < G * G &&
-          dynamic.angularVelocity.squareMagnitude() < 0.01f) {
+          dynamic.angularVelocity.squareMagnitude() < 0.001f) {
 
           if (++dynamic.framesIdle > 10) {
             DBG_LOG(m_logger, "Setting idle");
@@ -1097,19 +1137,9 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  const size_t MAX_ITERATIONS = 20;
-
-  size_t i = 0;
-  for (; i < MAX_ITERATIONS; ++i) {
-    auto contacts = generateContacts(findPossibleCollisions());
-    if (contacts.empty()) {
-      break;
-    }
-    resolveContacts(contacts);
-  }
-  if (i == MAX_ITERATIONS) {
-    DBG_LOG(m_logger, "Max iterations exceeded");
-  }
+  auto pairs = findPossibleCollisions();
+  auto contacts = generateContacts(pairs);
+  resolveContacts(contacts);
   integrate();
 }
 
