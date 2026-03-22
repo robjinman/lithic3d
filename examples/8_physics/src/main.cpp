@@ -43,18 +43,8 @@ class Demo : public Game
     ResourceHandle m_terrain;
     Vec3f m_cube1InitialPosition =
       metresToWorldUnits(Vec3f{ VIEW_X + 1.2f, VIEW_Y + 1.f, VIEW_Z - 15.f });
-    Vec3f m_cube1InitialRotation = {
-      degreesToRadians(0.f),
-      degreesToRadians(0.f),
-      degreesToRadians(0.f)
-    };
     Vec3f m_cube2InitialPosition =
       metresToWorldUnits(Vec3f{ VIEW_X + 1.5f, VIEW_Y - 2.f, VIEW_Z - 15.f });
-    Vec3f m_cube2InitialRotation = {
-      degreesToRadians(94.f),
-      degreesToRadians(5.f),
-      degreesToRadians(10.f)
-    };
     bool m_physicsActive = false;
 
     EntityId constructLight();
@@ -86,7 +76,7 @@ Demo::Demo(Engine& engine)
   m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
 
   resetState();
-  //enablePhysics();
+  enablePhysics();
 }
 
 Vec3f randomRotation()
@@ -105,7 +95,7 @@ EntityId Demo::constructCube1()
   auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = createTransform(m_cube1InitialPosition, m_cube1InitialRotation);
+  auto transform = translationMatrix4x4(m_cube1InitialPosition);
   sysSpatial.setEntityTransform(id, transform);
 
   return id;
@@ -119,7 +109,7 @@ EntityId Demo::constructCube2()
   auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
+  auto transform = translationMatrix4x4(m_cube2InitialPosition);
   sysSpatial.setEntityTransform(id, transform);
 
   return id;
@@ -229,12 +219,12 @@ void Demo::enablePhysics()
 
 void Demo::resetState()
 {
-  for (int i = 0; i < 14; ++i) {
-    randomRotation();
-  }
+  //for (int i = 0; i < 13; ++i) {
+  //  randomRotation();
+  //}
 
   auto cube1T = createTransform(m_cube1InitialPosition, randomRotation());
-  auto cube2T = createTransform(m_cube2InitialPosition, m_cube2InitialRotation);
+  auto cube2T = createTransform(m_cube2InitialPosition, randomRotation());
 
   m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.f);
   m_engine.ecs().system<SysCollision>().setStationary(m_cube1);

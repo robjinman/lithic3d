@@ -190,7 +190,6 @@ class SysCollisionImpl : public SysCollision
     void applyGravity(CCollisionDynamic& comp);
     std::vector<CollisionPair> findPossibleCollisions();
     std::vector<Contact> generateContacts(const std::vector<CollisionPair>& pairs);
-    void resolveContacts(const std::vector<Contact>& contacts);
     void integrate();
 };
 
@@ -1068,14 +1067,6 @@ void resolveVelocities(const Contact& contact)
   }
 }
 
-void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
-{
-  for (auto& contact : contacts) {
-    resolveInterpenetration(contact);
-    resolveVelocities(contact);
-  }
-}
-
 void SysCollisionImpl::integrate()
 {
   auto groups = m_ecs.componentStore().components<
@@ -1137,9 +1128,21 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  auto pairs = findPossibleCollisions();
-  auto contacts = generateContacts(pairs);
-  resolveContacts(contacts);
+  size_t maxIterations = 8;
+
+  for (size_t i = 0; i < maxIterations; ++i) {
+    auto pairs = findPossibleCollisions();
+    auto contacts = generateContacts(pairs);
+    if (contacts.empty()) {
+      break;
+    }
+    for (auto& contact : contacts) {
+      resolveInterpenetration(contact);
+      if (i == 0) {
+        resolveVelocities(contact);
+      }
+    }
+  }
   integrate();
 }
 
