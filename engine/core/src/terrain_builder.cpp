@@ -100,13 +100,13 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
-  //auto& sysCollision = m_ecs.system<SysCollision>();
+  auto& sysCollision = m_ecs.system<SysCollision>();
 
   auto& region = m_regions.at(regionId);
 
   auto id = m_ecs.idGen().getNewEntityId();
 
-  m_ecs.componentStore().allocate<DSpatial, DModel>(id);
+  m_ecs.componentStore().allocate<DSpatial, DModel, DDynamicBox>(id); // TODO: DTerrainChunk
 
   float minHeight = metresToWorldUnits(m_config.minHeight);
   float maxHeight = metresToWorldUnits(m_config.maxHeight);
@@ -130,11 +130,25 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 
   sysRender3d.addEntity(id, std::move(render));
 
-  DTerrainChunk collision{
-    .heightMap = region.heightMap
+  //DTerrainChunk collision{
+  //  .heightMap = region.heightMap,
+  //  .restitution = 0.2f,  // TODO
+  //  .friction = 0.4f      // TODO
+  //};
+
+  DDynamicBox collision{
+    .inverseMass = 0.f,
+    .restitution = 0.2f,  // TODO
+    .friction = 0.4f,     // TODO
+    .boundingBox{
+      .min = { 0.f, minHeight, 0.f },
+      .max = { cellWidth, /*maxHeight*/minHeight + 10.f, cellHeight },
+      .transform = identityMatrix<4>()
+    },
+    .centreOfMass = { 0.f, 0.f, 0.f }
   };
 
-  // TODO
+  sysCollision.addEntity(id, collision);
 
   return { id };
 }
@@ -177,7 +191,7 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
 
   for (uint32_t i = 0; i < numVertices; ++i) {
     uint32_t pixelX = i % heightMap.width;
-    uint32_t pixelY = i / heightMap.height;
+    uint32_t pixelY = i / heightMap.width;
 
     float uvX = static_cast<float>(pixelX) / (heightMap.width - 1);
     float uvY = static_cast<float>(pixelY) / (heightMap.height - 1);

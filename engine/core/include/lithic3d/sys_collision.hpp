@@ -10,7 +10,7 @@
 namespace lithic3d
 {
 
-const size_t MAX_FORCES = 8;
+const size_t MAX_FORCES = 4;
 
 struct Force
 {
@@ -26,23 +26,10 @@ struct BoundingBox
   Mat4x4f transform;
 };
 
-// TODO: Split up?
 struct CCollision
 {
-  BoundingBox boundingBox;
-  float inverseMass = 1.f;
-  Vec3f centreOfMass;
   float restitution = 0.2f;
   float friction = 0.4f;
-  std::array<Force, MAX_FORCES> linearForces;
-  Vec3f linearAcceleration;
-  Vec3f linearVelocity;
-  std::array<Force, MAX_FORCES> torques;
-  Vec3f angularAcceleration;
-  Vec3f angularVelocity;
-  Mat3x3f inverseInertialTensor;
-  uint16_t framesIdle = 0;
-  bool idle = false;
 
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };
@@ -54,41 +41,68 @@ struct HeightMap
   size_t widthPx = 0.f;
   size_t heightPx = 0.f;
   std::vector<float> data;
-
-  inline float at(float x, float y) const
-  {
-    DBG_ASSERT(inRange(x, 0.f, width), "Value out of range");
-    DBG_ASSERT(inRange(y, 0.f, height), "Value out of range");
-
-    float xPx = x * widthPx / width;
-    float yPx = y * heightPx / height;
-
-    float height = data.at(yPx * widthPx + xPx);
-
-    // TODO: Interpolation. We need to interpolate between the heights of the 3 vertices of the
-    // triangle that (x, y) is part of. This requires knowing how the mesh is triangulated.
-
-    return height;
-  }
 };
 
-//namespace CollisionFlags
-//{
-//  enum : size_t
-//  {
-//  };
-//}
-
-struct DCollision
+struct CCollisionTerrain
 {
-  using RequiredComponents = type_list<CSpatialFlags, CBoundingBox, CLocalTransform, CCollision>;
+  HeightMap heightMap;
+
+  static constexpr ComponentTypeId TypeId = CCollisionTerrainTypeId;
+};
+
+struct CCollisionBox
+{
+  BoundingBox boundingBox;
+
+  static constexpr ComponentTypeId TypeId = CCollisionBoxTypeId;
+};
+
+struct CCollisionCapsule
+{
+  // TODO
+
+  static constexpr ComponentTypeId TypeId = CCollisionCapsuleTypeId;
+};
+
+struct CCollisionDynamic
+{
+  float inverseMass = 1.f;
+  Vec3f centreOfMass;
+  std::array<Force, MAX_FORCES> linearForces;
+  Vec3f linearAcceleration;
+  Vec3f linearVelocity;
+  std::array<Force, MAX_FORCES> torques;
+  Vec3f angularAcceleration;
+  Vec3f angularVelocity;
+  Mat3x3f inverseInertialTensor;
+  uint16_t framesIdle = 0;
+  bool idle = false;
+
+  static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
+};
+
+struct DDynamicBox
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionDynamic, CCollisionBox
+  >;
 
   float inverseMass = 1.f;
   float restitution = 0.2f;
   float friction = 0.4f;
   BoundingBox boundingBox;
   Vec3f centreOfMass;
-  //std::bitset<16> flags;
+};
+
+struct DStaticBox
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionBox
+  >;
+
+  float restitution = 0.2f;
+  float friction = 0.4f;
+  BoundingBox boundingBox;
 };
 
 struct DTerrainChunk
@@ -98,6 +112,8 @@ struct DTerrainChunk
   >;
 
   HeightMap heightMap;
+  float restitution = 0.2f;
+  float friction = 0.4f;
 };
 
 class SysCollision : public System
@@ -109,8 +125,9 @@ class SysCollision : public System
     virtual void applyTorque(EntityId id, const Vec3f& torque, float seconds) = 0;
     virtual void setStationary(EntityId id) = 0;
 
-    virtual void addEntity(EntityId id, const DCollision& data) = 0;
-    virtual void addEntity(EntityId id, const DTerrainChunk data) = 0;
+    virtual void addEntity(EntityId id, const DStaticBox& data) = 0;
+    virtual void addEntity(EntityId id, const DDynamicBox& data) = 0;
+    virtual void addEntity(EntityId id, const DTerrainChunk& data) = 0;
 
     static const SystemId id = Systems::Collision;
 };

@@ -19,7 +19,11 @@ enum : ComponentTypeId
   CBoundingBoxTypeId      = 1u << 9,
   CMaterial2dTypeId       = 1u << 10,
   CMesh2dTypeId           = 1u << 11,
-  CCollisionTypeId        = 1u << 12
+  CCollisionTypeId        = 1u << 12,
+  CCollisionTerrainTypeId = 1u << 13,
+  CCollisionDynamicTypeId = 1u << 14,
+  CCollisionBoxTypeId     = 1u << 15,
+  CCollisionCapsuleTypeId = 1u << 16
 };
 
 } // namespace lithic3d

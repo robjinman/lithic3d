@@ -80,9 +80,13 @@ Mat3x3f transformTensor(const Mat3x3f& I, const Mat4x4f& m)
 struct ObjectComponents
 {
   EntityId entityId = 0;
-  CCollision* collision = nullptr;
   CLocalTransform* localTransform = nullptr;
   CSpatialFlags* spatialFlags = nullptr;
+  CCollision* collision = nullptr;
+  CCollisionDynamic* dynamic = nullptr;
+  CCollisionBox* box = nullptr;
+  CCollisionCapsule* capsule = nullptr;
+  CCollisionTerrain* terrain = nullptr;
 };
 
 struct CollisionPair
@@ -108,13 +112,63 @@ struct Edge
   Vec3f B;
 };
 
+class HeightMapSampler
+{
+  public:
+    HeightMapSampler(const HeightMap& heightMap, const Vec3f& position)
+      : m_map(heightMap)
+      , m_pos(position) {}
+
+    std::array<Vec3f, 3> triangle(const Vec2f& p) const;
+
+  private:
+    const HeightMap m_map;
+    Vec3f m_pos;
+};
+
+std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
+{
+  DBG_ASSERT(inRange(p[0], m_pos[0], m_pos[0] + m_map.width), "Value out of range");
+  DBG_ASSERT(inRange(p[1], m_pos[1], m_pos[1] + m_map.height), "Value out of range");
+
+  float xIdx = (p[0] - m_pos[0]) * m_map.widthPx / m_map.width;
+  float zIdx = (p[1] - m_pos[1]) * m_map.heightPx / m_map.height;
+
+  float dx = m_map.width / (m_map.widthPx - 1);
+  float dz = m_map.height / (m_map.heightPx - 1);
+
+  auto xIdx0 = floorf(xIdx);
+  auto zIdx0 = floorf(zIdx);
+  auto xIdx1 = ceilf(xIdx);
+  auto zIdx1 = ceilf(zIdx);
+
+  auto getVertex = [this, dx, dz](float xIdx, float zIdx) {
+    size_t i = static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
+    return Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
+  };
+
+  Vec3f A = getVertex(xIdx0, zIdx1);
+  Vec3f B = getVertex(xIdx1, zIdx1);
+  Vec3f C = getVertex(xIdx1, zIdx0);
+  Vec3f D = getVertex(xIdx0, zIdx0);
+
+  Vec2f idx = Vec2f{ xIdx, zIdx };
+  float distanceFromD = (idx - Vec2f{ xIdx0, zIdx0 }).squareMagnitude();
+  float distanceFromB = (idx - Vec2f{ xIdx1, zIdx1 }).squareMagnitude();
+
+  return distanceFromD < distanceFromB ?
+    std::array<Vec3f, 3>{ A, C, D } :
+    std::array<Vec3f, 3>{ A, B, C };
+}
+
 class SysCollisionImpl : public SysCollision
 {
   public:
     SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
 
-    void addEntity(EntityId id, const DCollision& data) override;
-    void addEntity(EntityId id, const DTerrainChunk data) override;
+    void addEntity(EntityId id, const DStaticBox& data) override;
+    void addEntity(EntityId id, const DDynamicBox& data) override;
+    void addEntity(EntityId id, const DTerrainChunk& data) override;
 
     void setInverseMass(EntityId id, float inverseMass) override;
     void applyForce(EntityId id, const Vec3f& force, float seconds) override;
@@ -131,9 +185,9 @@ class SysCollisionImpl : public SysCollision
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
 
-    void applyForce(CCollision& comp, const Force& force);
-    void applyTorque(CCollision& comp, const Force& torque);
-    void applyGravity(CCollision& comp);
+    void applyForce(CCollisionDynamic& comp, const Force& force);
+    void applyTorque(CCollisionDynamic& comp, const Force& torque);
+    void applyGravity(CCollisionDynamic& comp);
     std::vector<CollisionPair> findPossibleCollisions();
     std::vector<Contact> generateContacts(const std::vector<CollisionPair>& pairs);
     void resolveContacts(const std::vector<Contact>& contacts);
@@ -147,20 +201,33 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& l
 {
 }
 
-void SysCollisionImpl::addEntity(EntityId id, const DCollision& data)
+void SysCollisionImpl::addEntity(EntityId id, const DStaticBox& data)
+{
+  // TODO
+}
+
+void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
 {
   auto& componentStore = m_ecs.componentStore();
 
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
+  assertHasComponent<CCollisionBox>(componentStore, id);
+  assertHasComponent<CCollisionDynamic>(componentStore, id);
 
-  CCollision comp{
-    .boundingBox = data.boundingBox,
+  componentStore.instantiate<CCollision>(id) = CCollision{
+    .restitution = data.restitution,
+    .friction = data.friction
+  };
+
+  componentStore.instantiate<CCollisionBox>(id) = CCollisionBox{
+    .boundingBox = data.boundingBox
+  };
+
+  CCollisionDynamic dynamic{
     .inverseMass = data.inverseMass,
     .centreOfMass = data.centreOfMass,
-    .restitution = data.restitution,
-    .friction = data.friction,
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
@@ -170,14 +237,14 @@ void SysCollisionImpl::addEntity(EntityId id, const DCollision& data)
     .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass)
   };
 
-  if (comp.inverseMass != 0) {
-    applyGravity(comp);
+  if (dynamic.inverseMass != 0) {
+    applyGravity(dynamic);
   }
 
-  componentStore.instantiate<CCollision>(id) = comp;
+  componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
 }
 
-void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk data)
+void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
 {
   auto& componentStore = m_ecs.componentStore();
 
@@ -200,7 +267,7 @@ bool SysCollisionImpl::hasEntity(EntityId entityId) const
   return false;
 }
 
-void SysCollisionImpl::applyGravity(CCollision& comp)
+void SysCollisionImpl::applyGravity(CCollisionDynamic& comp)
 {
   if (comp.inverseMass == 0.f) {
     return;
@@ -216,14 +283,14 @@ void SysCollisionImpl::applyGravity(CCollision& comp)
 
 void SysCollisionImpl::applyForce(EntityId id, const Vec3f& force, float seconds)
 {
-  auto& comp = m_ecs.componentStore().component<CCollision>(id);
+  auto& comp = m_ecs.componentStore().component<CCollisionDynamic>(id);
   applyForce(comp, {
     .force = force,
     .lifetime = static_cast<uint32_t>(seconds * TICKS_PER_SECOND)
   });
 }
 
-void SysCollisionImpl::applyForce(CCollision& comp, const Force& force)
+void SysCollisionImpl::applyForce(CCollisionDynamic& comp, const Force& force)
 {
   uint32_t i = findFreeIndex(comp.linearForces);
   if (i == MAX_FORCES) {
@@ -237,14 +304,14 @@ void SysCollisionImpl::applyForce(CCollision& comp, const Force& force)
 
 void SysCollisionImpl::applyTorque(EntityId id, const Vec3f& torque, float seconds)
 {
-  auto& comp = m_ecs.componentStore().component<CCollision>(id);
+  auto& comp = m_ecs.componentStore().component<CCollisionDynamic>(id);
   applyTorque(comp, {
     .force = torque,
     .lifetime = static_cast<uint32_t>(seconds * TICKS_PER_SECOND)
   });
 }
 
-void SysCollisionImpl::applyTorque(CCollision& comp, const Force& torque)
+void SysCollisionImpl::applyTorque(CCollisionDynamic& comp, const Force& torque)
 {
   uint32_t i = findFreeIndex(comp.torques);
   if (i == MAX_FORCES) {
@@ -258,7 +325,7 @@ void SysCollisionImpl::applyTorque(CCollision& comp, const Force& torque)
 
 void SysCollisionImpl::setStationary(EntityId id)
 {
-  auto& comp = m_ecs.componentStore().component<CCollision>(id);
+  auto& comp = m_ecs.componentStore().component<CCollisionDynamic>(id);
   comp.linearAcceleration = {};
   comp.linearVelocity = {};
   comp.linearForces = {};
@@ -273,15 +340,17 @@ void SysCollisionImpl::setStationary(EntityId id)
 
 void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
 {
-  auto& comp = m_ecs.componentStore().component<CCollision>(id);
+  auto& dynamic = m_ecs.componentStore().component<CCollisionDynamic>(id);
+  auto& box = m_ecs.componentStore().component<CCollisionBox>(id);
 
-  bool shouldApplyGravity = comp.inverseMass == 0.f && inverseMass != 0.f;
+  bool shouldApplyGravity = dynamic.inverseMass == 0.f && inverseMass != 0.f;
 
-  comp.inverseMass = inverseMass;
-  comp.inverseInertialTensor = computeInverseInertialTensor(comp.boundingBox, comp.inverseMass);
+  dynamic.inverseMass = inverseMass;
+  dynamic.inverseInertialTensor = computeInverseInertialTensor(box.boundingBox,
+    dynamic.inverseMass);
 
   if (shouldApplyGravity) {
-    applyGravity(comp);
+    applyGravity(dynamic);
   }
 }
 
@@ -301,6 +370,10 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
     auto localTs = group.components<CLocalTransform>();
     auto boundingBoxes = group.components<CBoundingBox>();
     auto collisionComps = group.components<CCollision>();
+    auto collisionBoxComps = group.components<CCollisionBox>();
+    auto collisionDynamicComps = group.components<CCollisionDynamic>();
+    auto collisionTerrainComps = group.components<CCollisionTerrain>();
+    auto collisionCapsuleComps = group.components<CCollisionCapsule>();
     auto entityIds = group.entityIds();
 
     for (size_t i = 0; i < entityIds.size(); ++i) {
@@ -321,15 +394,23 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
               pairs.push_back({
                 .A = {
                   .entityId = entityIds[i],
-                  .collision = &collisionComps[i],
                   .localTransform = &localTs[i],
-                  .spatialFlags = &flagsComps[i]
+                  .spatialFlags = &flagsComps[i],
+                  .collision = &collisionComps[i],
+                  .dynamic = collisionDynamicComps.empty() ? nullptr : &collisionDynamicComps[i],
+                  .box = collisionBoxComps.empty() ? nullptr : &collisionBoxComps[i],
+                  .capsule = collisionCapsuleComps.empty() ? nullptr : &collisionCapsuleComps[i],
+                  .terrain = collisionTerrainComps.empty() ? nullptr : &collisionTerrainComps[i]
                 },
                 .B = {
                   .entityId = entityIds[j],
-                  .collision = &collisionComps[j],
                   .localTransform = &localTs[j],
-                  .spatialFlags = &flagsComps[j]
+                  .spatialFlags = &flagsComps[j],
+                  .collision = &collisionComps[j],
+                  .dynamic = collisionDynamicComps.empty() ? nullptr : &collisionDynamicComps[j],
+                  .box = collisionBoxComps.empty() ? nullptr : &collisionBoxComps[j],
+                  .capsule = collisionCapsuleComps.empty() ? nullptr : &collisionCapsuleComps[j],
+                  .terrain = collisionTerrainComps.empty() ? nullptr : &collisionTerrainComps[j]
                 },
               });
             }
@@ -590,7 +671,7 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     if (sqPenetration < minSqPenetration) {
       minSqPenetration = sqPenetration;
       indexOfMinPenetration = i;
-      points[i] = P;
+      points[i] = P;  // TODO: Use midpoint between P and Q?
       normals[i] = (Q - P).normalise();
     }
   }
@@ -646,15 +727,19 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
   for (auto& pair : pairs) {
     Contact contact{};
 
+    // TODO: Not all entities have a collision box
+    assert(pair.A.box != nullptr);
+    assert(pair.B.box != nullptr);
+
     auto boxAToWorldSpace = pair.A.localTransform->transform *
-      pair.A.collision->boundingBox.transform;
+      pair.A.box->boundingBox.transform;
     auto worldToBoxASpace = inverse(boxAToWorldSpace);
     auto boxBToWorldSpace = pair.B.localTransform->transform *
-      pair.B.collision->boundingBox.transform;
+      pair.B.box->boundingBox.transform;
     auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-    if (checkForPointContacts(pair.A.collision->boundingBox, pair.A.localTransform->transform,
-      pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
+    if (checkForPointContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
+      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
       //DBG_LOG(m_logger, "Point contact A->B");
 
@@ -662,8 +747,8 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       contact.B = pair.B;
       contacts.push_back(contact);
     }
-    else if (checkForPointContacts(pair.B.collision->boundingBox,
-      pair.B.localTransform->transform, pair.A.collision->boundingBox, boxAToWorldSpace,
+    else if (checkForPointContacts(pair.B.box->boundingBox,
+      pair.B.localTransform->transform, pair.A.box->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contact)) {
 
       //DBG_LOG(m_logger, "Point contact B->A");
@@ -672,8 +757,8 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       contact.B = pair.A;
       contacts.push_back(contact);
     }
-    else if (checkForEdgeContacts(pair.A.collision->boundingBox, pair.A.localTransform->transform,
-      pair.B.collision->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
+    else if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
+      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contact)) {
 
       //DBG_LOG(m_logger, "Edge contact A->B");
 
@@ -716,7 +801,7 @@ inline Mat3x3f velocityMatrix(float inverseMass, const Mat3x3f& I, const Vec3f& 
 
 void resolveInterpenetration(const Contact& contact)
 {
-  float totalInvMass = contact.A.collision->inverseMass + contact.B.collision->inverseMass;
+  float totalInvMass = contact.A.dynamic->inverseMass + contact.B.dynamic->inverseMass;
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
   const float margin = -G;
@@ -724,34 +809,34 @@ void resolveInterpenetration(const Contact& contact)
   auto& A = contact.A;
   auto& B = contact.B;
 
-  float a = A.collision->inverseMass / totalInvMass;
-  float b = B.collision->inverseMass / totalInvMass;
+  float a = A.dynamic->inverseMass / totalInvMass;
+  float b = B.dynamic->inverseMass / totalInvMass;
   auto da = contact.normal * a * (contact.penetration + margin);
   auto db = -contact.normal * b * (contact.penetration + margin);
 
-  if (A.collision->inverseMass != 0.f) {
-    Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.localTransform->transform);
+  if (A.dynamic->inverseMass != 0.f) {
+    Mat3x3f aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
 
     auto aOrigin = getTranslation(A.localTransform->transform);
-    auto aPointRel = contact.point - (aOrigin + A.collision->centreOfMass);
-    Mat3x3f aVelocityMatrix = velocityMatrix(A.collision->inverseMass, aI, aPointRel);
+    auto aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
+    Mat3x3f aVelocityMatrix = velocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
     Mat3x3f aImpulseMatrix = inverse(aVelocityMatrix);
     Vec3f aImpulse = aImpulseMatrix * da;
-    Vec3f aLinearV = aImpulse * A.collision->inverseMass;
+    Vec3f aLinearV = aImpulse * A.dynamic->inverseMass;
     Vec3f aAngularV = aI * aPointRel.cross(aImpulse);
 
     updateTransform(*A.localTransform, *A.spatialFlags, aLinearV, aAngularV);
   }
 
-  if (B.collision->inverseMass != 0.f) {
-    Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.localTransform->transform);
+  if (B.dynamic->inverseMass != 0.f) {
+    Mat3x3f bI = transformTensor(B.dynamic->inverseInertialTensor, B.localTransform->transform);
 
     auto bOrigin = getTranslation(B.localTransform->transform);
-    auto bPointRel = contact.point - (bOrigin + B.collision->centreOfMass);
-    Mat3x3f bVelocityMatrix = velocityMatrix(B.collision->inverseMass, bI, bPointRel);
+    auto bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
+    Mat3x3f bVelocityMatrix = velocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
     Mat3x3f bImpulseMatrix = inverse(bVelocityMatrix);
     Vec3f bImpulse = bImpulseMatrix * db;
-    Vec3f bLinearV = bImpulse * B.collision->inverseMass;
+    Vec3f bLinearV = bImpulse * B.dynamic->inverseMass;
     Vec3f bAngularV = bI * bPointRel.cross(bImpulse);
 
     updateTransform(*B.localTransform, *B.spatialFlags, bLinearV, bAngularV);
@@ -763,21 +848,19 @@ void resolveVelocities(const Contact& contact)
   auto& A = contact.A;
   auto& B = contact.B;
 
-  A.collision->idle = false;
-  B.collision->idle = false;
+  A.dynamic->idle = false;
+  B.dynamic->idle = false;
 
   // TODO: Use centre of mass
 
   auto aOrigin = getTranslation(A.localTransform->transform);
-  auto aPointRel = contact.point - (aOrigin + A.collision->centreOfMass);
-  auto aTotalWorldSpaceV = A.collision->linearVelocity +
-    A.collision->angularVelocity.cross(aPointRel);
+  auto aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
+  auto aTotalWorldSpaceV = A.dynamic->linearVelocity + A.dynamic->angularVelocity.cross(aPointRel);
   auto aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
 
   auto bOrigin = getTranslation(B.localTransform->transform);
-  auto bPointRel = contact.point - (bOrigin + B.collision->centreOfMass);
-  auto bTotalWorldSpaceV = B.collision->linearVelocity +
-    B.collision->angularVelocity.cross(bPointRel);
+  auto bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
+  auto bTotalWorldSpaceV = B.dynamic->linearVelocity + B.dynamic->angularVelocity.cross(bPointRel);
   auto bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
 
   auto contactSpaceSeparatingV = bContactSpaceV - aContactSpaceV;
@@ -786,11 +869,11 @@ void resolveVelocities(const Contact& contact)
   auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
-  Mat3x3f aI = transformTensor(A.collision->inverseInertialTensor, A.localTransform->transform);
-  Mat3x3f bI = transformTensor(B.collision->inverseInertialTensor, B.localTransform->transform);
+  Mat3x3f aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
+  Mat3x3f bI = transformTensor(B.dynamic->inverseInertialTensor, B.localTransform->transform);
 
-  Mat3x3f aVelocityMatrix = velocityMatrix(A.collision->inverseMass, aI, aPointRel);
-  Mat3x3f bVelocityMatrix = velocityMatrix(B.collision->inverseMass, bI, bPointRel);
+  Mat3x3f aVelocityMatrix = velocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
+  Mat3x3f bVelocityMatrix = velocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
 
   Mat3x3f velocityMatrix = contact.fromContactSpace * (aVelocityMatrix + bVelocityMatrix)
     * contact.toContactSpace;
@@ -809,11 +892,11 @@ void resolveVelocities(const Contact& contact)
     impulse[2] *= friction * impulse[1];
   }
 
-  A.collision->linearVelocity += impulse * A.collision->inverseMass;
-  A.collision->angularVelocity += aI * aPointRel.cross(impulse);
+  A.dynamic->linearVelocity += impulse * A.dynamic->inverseMass;
+  A.dynamic->angularVelocity += aI * aPointRel.cross(impulse);
 
-  B.collision->linearVelocity += -impulse * B.collision->inverseMass;
-  B.collision->angularVelocity += bI * bPointRel.cross(-impulse);
+  B.dynamic->linearVelocity += -impulse * B.dynamic->inverseMass;
+  B.dynamic->angularVelocity += bI * bPointRel.cross(-impulse);
 }
 
 void SysCollisionImpl::resolveContacts(const std::vector<Contact>& contacts)
@@ -833,22 +916,22 @@ void SysCollisionImpl::integrate()
   for (auto& group : groups) {
     auto flagsComps = group.components<CSpatialFlags>();
     auto localT = group.components<CLocalTransform>();
-    auto collisionComps = group.components<CCollision>();
+    auto dynamicComps = group.components<CCollisionDynamic>();
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
       auto& flags = flagsComps[i].flags;
-      auto& collision = collisionComps[i];
+      auto& dynamic = dynamicComps[i];
 
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)
-        && !collision.idle && collision.inverseMass != 0.f) {
+        && !dynamic.idle && dynamic.inverseMass != 0.f) {
 
-        if (collision.linearVelocity.squareMagnitude() < G * G &&
-          collision.angularVelocity.squareMagnitude() < 0.01f) {
+        if (dynamic.linearVelocity.squareMagnitude() < G * G &&
+          dynamic.angularVelocity.squareMagnitude() < 0.01f) {
 
-          if (++collision.framesIdle > 10) {
+          if (++dynamic.framesIdle > 10) {
             DBG_LOG(m_logger, "Setting idle");
-            collision.idle = true;
-            collision.framesIdle = 0;
+            dynamic.idle = true;
+            dynamic.framesIdle = 0;
             continue;
           }
         }
@@ -857,8 +940,8 @@ void SysCollisionImpl::integrate()
         Vec3f totalTorque;
 
         for (size_t f = 0; f < MAX_FORCES; ++f) {
-          auto& force = collision.linearForces[f];
-          auto& torque = collision.torques[f];
+          auto& force = dynamic.linearForces[f];
+          auto& torque = dynamic.torques[f];
 
           if (force.lifetime > 0) {
             totalForce += force.force;
@@ -871,14 +954,13 @@ void SysCollisionImpl::integrate()
           }
         }
 
-        updateTransform(localT[i], flagsComps[i], collision.linearVelocity,
-          collision.angularVelocity);
+        updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
 
-        collision.linearAcceleration = totalForce * collision.inverseMass;
-        collision.linearVelocity += collision.linearAcceleration;
+        dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
+        dynamic.linearVelocity += dynamic.linearAcceleration;
 
-        collision.angularAcceleration = collision.inverseInertialTensor * totalTorque;
-        collision.angularVelocity += collision.angularAcceleration;
+        dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
+        dynamic.angularVelocity += dynamic.angularAcceleration;
       }
     }
   }

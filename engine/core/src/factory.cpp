@@ -59,7 +59,7 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
   const Vec2f& textureSize, float inverseMass)
 {
   auto id = m_ecs.idGen().getNewEntityId();
-  m_ecs.componentStore().allocate<DSpatial, DModel, DCollision>(id);
+  m_ecs.componentStore().allocate<DSpatial, DModel, DDynamicBox>(id);
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -99,7 +99,9 @@ EntityId FactoryImpl::createCuboid(const Vec3f& size, MaterialHandle material,
 
   sysRender3d.addEntity(id, std::move(render));
 
-  DCollision collision{
+  // TODO: Support DStaticBox also
+
+  DDynamicBox collision{
     .inverseMass = inverseMass,
     .restitution = 0.2f,  // TODO
     .friction = 0.4f,     // TODO

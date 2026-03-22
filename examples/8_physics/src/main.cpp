@@ -129,7 +129,7 @@ void Demo::constructGround()
   TerrainConfig terrainConfig{
     .world = "world",
     .minHeight = 0.f,
-    .maxHeight = 10.f,
+    .maxHeight = 6.f,
     .cellWidth = 100.f,
     .cellHeight = 100.f
   };

@@ -28,7 +28,7 @@ struct Prefab
 {
   std::optional<DSpatial> spatial;
   std::optional<DModelPtr> model;
-  std::optional<DCollision> collision;
+  //std::optional<DCollision> collision;
   // ...
 };
 
