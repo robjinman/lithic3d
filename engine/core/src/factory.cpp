@@ -25,6 +25,8 @@ class FactoryImpl : public Factory
   public:
     FactoryImpl(Ecs& ecs, ModelLoader&  modelLoader, RenderResourceLoader& renderResourceLoader);
 
+    // TODO: Use metres, not world units
+
     MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) override;
     EntityId createStaticCuboid(const Vec3f& size, MaterialHandle material,
       const Vec2f& textureSize, float restitution, float friction) override;

@@ -13,6 +13,20 @@ float VIEW_X = 70.f;
 float VIEW_Y = 7.f;
 float VIEW_Z = 75.f;
 
+struct Object
+{
+  bool randomRotation;
+  Vec3f dimensions;
+  Vec3f position;
+  Vec3f rotation;
+  float inverseMass = 0.f;
+};
+
+struct Scenario
+{
+  std::vector<Object> objects;
+};
+
 class Demo : public Game
 {
   public:
@@ -38,18 +52,52 @@ class Demo : public Game
     FactoryPtr m_factory;
     EntityId m_light;
     EntityId m_caption;
-    EntityId m_cube1;
-    EntityId m_cube2;
     ResourceHandle m_terrain;
-    Vec3f m_cube1InitialPosition =
-      metresToWorldUnits(Vec3f{ VIEW_X + 1.2f, VIEW_Y + 1.f, VIEW_Z - 15.f });
-    Vec3f m_cube2InitialPosition =
-      metresToWorldUnits(Vec3f{ VIEW_X + 1.5f, VIEW_Y - 2.f, VIEW_Z - 15.f });
+    std::vector<Scenario> m_scenarios = {
+      Scenario{
+        .objects = {
+          Object{
+            .randomRotation = false,
+            .dimensions = { 2.f, 2.f, 1.f },
+            .position = { VIEW_X + 2.6f, VIEW_Y + 2.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(45.f) },
+            .inverseMass = 0.1f / (1.f * 2.f * 2.f)
+          },
+          Object{
+            .randomRotation = false,
+            .dimensions = { 5.f, 0.5f, 5.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .inverseMass = 0.f
+          }
+        }
+      },
+      Scenario{
+        .objects = {
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X - 1.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .inverseMass = 0.1f / (1.f * 1.f * 1.f)
+          },
+          Object{
+            .randomRotation = false,
+            .dimensions = { 5.f, 0.5f, 5.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 3.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(5.f), degreesToRadians(7.f), degreesToRadians(2.f) },
+            .inverseMass = 0.1f / (5.f * 0.5f * 5.f)
+          }
+        }
+      }
+    };
+    size_t m_currentScenario = 0;
+    std::vector<EntityId> m_entityIds;
     bool m_physicsActive = false;
 
     EntityId constructLight();
-    EntityId constructCube1();
-    EntityId constructCube2();
+    void constructScenario(size_t i);
+    void destroyScenario();
     void constructGround();
     EntityId constructCaption();
     void resetState();
@@ -63,8 +111,6 @@ Demo::Demo(Engine& engine)
     m_engine.renderResourceLoader());
 
   m_light = constructLight();
-  m_cube1 = constructCube1();
-  m_cube2 = constructCube2();
   constructGround();
   m_caption = constructCaption();
 
@@ -72,10 +118,13 @@ Demo::Demo(Engine& engine)
   camera.setPosition(metresToWorldUnits(Vec3f{ VIEW_X, VIEW_Y, VIEW_Z }));
   camera.rotate(-degreesToRadians(15.f), 0.f);
 
-  m_engine.logger().info(STR("Cube 1 has ID " << m_cube1));
-  m_engine.logger().info(STR("Cube 2 has ID " << m_cube2));
+  constructScenario(0);
 
-  resetState();
+  // TODO: Delete
+  for (size_t i = 0; i < 45; ++i) {
+    resetState();
+  }
+
   enablePhysics();
 }
 
@@ -87,32 +136,27 @@ Vec3f randomRotation()
   return { dist(gen), dist(gen), dist(gen) };
 }
 
-EntityId Demo::constructCube1()
+void Demo::constructScenario(size_t i)
 {
-  auto material = m_factory->createMaterialAsync("textures/bricks.png");
-  auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
-  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
+  assert(m_entityIds.empty());
 
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = translationMatrix4x4(m_cube1InitialPosition);
-  sysSpatial.setEntityTransform(id, transform);
+  for (auto& obj : m_scenarios[i].objects) {
+    auto material = m_factory->createMaterialAsync("textures/bricks.png");
+    auto size = metresToWorldUnits(obj.dimensions);
+    auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+    auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
+    m_entityIds.push_back(id);
+  }
 
-  return id;
+  resetState();
 }
 
-EntityId Demo::constructCube2()
+void Demo::destroyScenario()
 {
-  auto material = m_factory->createMaterialAsync("textures/bricks.png");
-  auto size = metresToWorldUnits(Vec3f{ 2.f, 1.f, 2.f });
-  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
-
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto transform = translationMatrix4x4(m_cube2InitialPosition);
-  sysSpatial.setEntityTransform(id, transform);
-
-  return id;
+  for (auto id : m_entityIds) {
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
+  }
+  m_entityIds.clear();
 }
 
 void Demo::constructGround()
@@ -212,27 +256,38 @@ EntityId Demo::constructCaption()
 
 void Demo::enablePhysics()
 {
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.05f);
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube2, 0.0125f);
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+
+  assert(m_entityIds.size() == m_scenarios[m_currentScenario].objects.size());
+
+  for (size_t i = 0; i < m_entityIds.size(); ++i) {
+    auto& obj = m_scenarios[m_currentScenario].objects[i];
+    auto id = m_entityIds[i];
+
+    sysCollision.setInverseMass(id, obj.inverseMass);
+  }
+
   m_physicsActive = true;
 }
 
 void Demo::resetState()
 {
-  //for (int i = 0; i < 13; ++i) {
-  //  randomRotation();
-  //}
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
-  auto cube1T = createTransform(m_cube1InitialPosition, randomRotation());
-  auto cube2T = createTransform(m_cube2InitialPosition, randomRotation());
+  assert(m_entityIds.size() == m_scenarios[m_currentScenario].objects.size());
 
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube1, 0.f);
-  m_engine.ecs().system<SysCollision>().setStationary(m_cube1);
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube1, cube1T);
+  for (size_t i = 0; i < m_entityIds.size(); ++i) {
+    auto& obj = m_scenarios[m_currentScenario].objects[i];
+    auto id = m_entityIds[i];
 
-  m_engine.ecs().system<SysCollision>().setInverseMass(m_cube2, 0.f);
-  m_engine.ecs().system<SysCollision>().setStationary(m_cube2);
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube2, cube2T);
+    auto rotation = obj.randomRotation ? randomRotation() : obj.rotation;
+    auto transform = createTransform(metresToWorldUnits(obj.position), rotation);
+
+    sysCollision.setInverseMass(id, 0.f);
+    sysCollision.setStationary(id);
+    sysSpatial.setEntityTransform(id, transform);
+  }
 
   m_physicsActive = false;
 }
@@ -245,6 +300,18 @@ void Demo::onKeyDown(KeyboardKey key)
     }
     else {
       enablePhysics();
+    }
+  }
+  else if (key == KeyboardKey::Left) {
+    if (m_currentScenario > 0) {
+      destroyScenario();
+      constructScenario(--m_currentScenario);
+    }
+  }
+  else if (key == KeyboardKey::Right) {
+    if (m_currentScenario + 1 < m_scenarios.size()) {
+      destroyScenario();
+      constructScenario(++m_currentScenario);
     }
   }
   else if (key == KeyboardKey::N) {

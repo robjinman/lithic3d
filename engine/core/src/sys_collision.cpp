@@ -1,6 +1,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
+#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -392,6 +393,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
 
     for (size_t i = 0; i < entityIds1.size(); ++i) {
       auto& flags = flagsComps1[i].flags;
+      bool aIsInactive = collDynamicComps1.empty() || collDynamicComps1[i].idle;
 
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)) {
 
@@ -414,14 +416,22 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
             }
 
             auto& flagsJ = flagsComps2[j].flags;
+            bool bIsInactive = collDynamicComps2.empty() || collDynamicComps2[j].idle;
 
             if (flagsJ.test(SpatialFlags::ParentEnabled) && flagsJ.test(SpatialFlags::Enabled)) {
+              if (aIsInactive && bIsInactive) {
+                ++innerIdx;
+                continue;
+              }
+
               auto& box1 = boundingBoxes1[i].worldSpaceAabb;
               auto& box2 = boundingBoxes2[j].worldSpaceAabb;
 
               if (box1.max[0] >= box2.min[0] && box1.min[0] <= box2.max[0] &&
                 box1.max[1] >= box2.min[1] && box1.min[1] <= box2.max[1] &&
                 box1.max[2] >= box2.min[2] && box1.min[2] <= box2.max[2]) {
+
+                //std::cout << "Making pair: IDs(" << entityIds1[i] << ", " << entityIds2[j] << "). OuterIdx = " << outerIdx << ", innerIdx = " << innerIdx << "\n";
 
                 pairs.push_back({
                   .A = {
@@ -460,7 +470,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   return pairs;
 }
 
-inline bool isInside(const BoundingBox& box, const Vec4f& P)
+inline bool isInside(const BoundingBox& box, const Vec3f& P)
 {
   return
     P[0] > box.min[0] && P[0] < box.max[0] &&
@@ -492,6 +502,33 @@ inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& t
   };
 }
 
+// Returns box's inverse tangents at each vertex in world space
+inline std::array<Vec3f, 8> getInverseTangents(const BoundingBox& box, const Mat4x4f& transform)
+{
+  // C------D
+  // |\     |\
+  // | \    | \
+  // A--\---B  \
+  //  \  \   \  \
+  //   \  G------H
+  //    \ |    \ |
+  //     \|     \|
+  //      E------F
+  const float k = 0.57735026919; // One over root 3
+
+  // TODO: Shouldn't need to normalise
+  return {
+    (transform * box.transform * Vec4f{ k, k, k, 0.f }).sub<3>().normalise(),     // A  
+    (transform * box.transform * Vec4f{ -k, k, k, 0.f }).sub<3>().normalise(),    // B
+    (transform * box.transform * Vec4f{ k, -k, k, 0.f }).sub<3>().normalise(),    // C
+    (transform * box.transform * Vec4f{ -k, -k, k, 0.f }).sub<3>().normalise(),   // D
+    (transform * box.transform * Vec4f{ k, k, -k, 0.f }).sub<3>().normalise(),    // E
+    (transform * box.transform * Vec4f{ -k, k, -k, 0.f }).sub<3>().normalise(),   // F
+    (transform * box.transform * Vec4f{ k, -k, -k, 0.f }).sub<3>().normalise(),   // G
+    (transform * box.transform * Vec4f{ -k, -k, -k, 0.f }).sub<3>().normalise()   // H
+  };
+}
+
 inline std::array<Edge, 12> getEdges(const std::array<Vec3f, 8>& vertices)
 {
   return {
@@ -511,63 +548,89 @@ inline std::array<Edge, 12> getEdges(const std::array<Vec3f, 8>& vertices)
 }
 
 // Returns penetration depth or 0 if there's no penetration
+//
+// P is the point in world space
+// invTangent is the inverse tangent at P
 float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
-  const Mat4x4f& boxToWorldSpace, const Vec3f& P, Vec3f& normal)
+  const Mat4x4f& boxToWorldSpace, const Vec3f& P, const Vec3f& invTangent, Vec3f& normal)
 {
-  auto Q = worldToBoxSpace * Vec4f{ P, { 1.f }};
+  auto Q = (worldToBoxSpace * Vec4f{ P, { 1.f }}).sub<3>();
+  auto V = (worldToBoxSpace * Vec4f{ invTangent, { 0.f }}).sub<3>();
 
   if (!isInside(box, Q)) {
     return 0.f;
   }
 
-  float minPenetration = std::numeric_limits<float>::max();
-  int nearestFace = 0; // 0 min-x, 1 max-x, 2 min-y, 3 max-y, 4 min-z, 5 max-z
+  float w = std::min(std::min(box.max[0] - box.min[0], box.max[1] - box.min[1]),
+    box.max[2] - box.min[2]);
+
+  float maxScore = std::numeric_limits<float>::lowest();
+  int face = -1; // 0 min-x, 1 max-x, 2 min-y, 3 max-y, 4 min-z, 5 max-z
+  float contactPenetration = 0.f;
 
   // min-x (left) face
+  float alignment = V.dot({ -1.f, 0.f, 0.f });
   float penetration = Q[0] - box.min[0];
-  assert(penetration >= 0.f);
-  if (penetration < minPenetration) {
-    minPenetration = penetration;
-    nearestFace = 0;
+  float proximity = penetration / w;
+  float score = alignment / proximity;
+  if (score > maxScore) {
+    maxScore = score;
+    face = 0;
+    contactPenetration = penetration;
   }
   // max-x (right) face
+  alignment = V.dot({ 1.f, 0.f, 0.f });
   penetration = box.max[0] - Q[0];
-  assert(penetration >= 0.f);
-  if (penetration < minPenetration) {
-    minPenetration = penetration;
-    nearestFace = 1;
+  proximity = penetration / w;
+  score = alignment / proximity;
+  if (score > maxScore) {
+    maxScore = score;
+    face = 1;
+    contactPenetration = penetration;
   }
   // min-y (bottom) face
+  alignment = V.dot({ 0.f, -1.f, 0.f });
   penetration = Q[1] - box.min[1];
-  assert(penetration >= 0.f);
-  if (penetration < minPenetration) {
-    minPenetration = penetration;
-    nearestFace = 2;
+  proximity = penetration / w;
+  score = alignment / proximity;
+  if (score > maxScore) {
+    maxScore = score;
+    face = 2;
+    contactPenetration = penetration;
   }
   // max-y (top) face
+  alignment = V.dot({ 0.f, 1.f, 0.f });
   penetration = box.max[1] - Q[1];
-  assert(penetration >= 0.f);
-  if (penetration < minPenetration) {
-    minPenetration = penetration;
-    nearestFace = 3;
+  proximity = penetration / w;
+  score = alignment / proximity;
+  if (score > maxScore) {
+    maxScore = score;
+    face = 3;
+    contactPenetration = penetration;
   }
   // min-z (far) face
+  alignment = V.dot({ 0.f, 0.f, -1.f });
   penetration = Q[2] - box.min[2];
-  assert(penetration >= 0.f);
-  if (penetration < minPenetration) {
-    minPenetration = penetration;
-    nearestFace = 4;
+  proximity = penetration / w;
+  score = alignment / proximity;
+  if (score > maxScore) {
+    maxScore = score;
+    face = 4;
+    contactPenetration = penetration;
   }
   // max-z (near) face
+  alignment = V.dot({ 0.f, 0.f, 1.f });
   penetration = box.max[2] - Q[2];
-  assert(penetration >= 0.f);
-  if (penetration < minPenetration) {
-    minPenetration = penetration;
-    nearestFace = 5;
+  proximity = penetration / w;
+  score = alignment / proximity;
+  if (score > maxScore) {
+    maxScore = score;
+    face = 5;
+    contactPenetration = penetration;
   }
 
   // Set w components to zero to ignore translation
-  switch (nearestFace) {
+  switch (face) {
     case 0: // min-x (left) face
       normal = (boxToWorldSpace * Vec4f{ -1.f, 0.f, 0.f, 0.f }).sub<3>().normalise();
       break;
@@ -587,10 +650,10 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
       normal = (boxToWorldSpace * Vec4f{ 0.f, 0.f, 1.f, 0.f }).sub<3>().normalise();
       break;
     default:
-      assert(false);
+      return 0.f;
   }
 
-  return minPenetration;
+  return contactPenetration;
 }
 
 inline Vec3f differentVector(const Vec3f& v)
@@ -609,9 +672,10 @@ bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform
   std::array<Vec3f, 8> normals;
 
   auto verts = getVertices(box1, box1Transform);
+  auto invTangents = getInverseTangents(box1, box1Transform);
   for (size_t i = 0; i < 8; ++i) {
     float penetration = pointBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, verts[i],
-      normals[i]);
+      invTangents[i], normals[i]);
 
     if (penetration > maxPenetration) {
       vertWithMaxPenetration = i;
@@ -681,8 +745,15 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
 
   float minSqPenetration = std::numeric_limits<float>::max();
 
+  //std::cout << "Box\n";
+  for (auto& e : boxEdges) {
+    //std::cout << "(" << e.A << "), (" << e.B << "), ";
+  }
+
   for (size_t i = 0; i < 12; ++i) {
     auto& boxEdge = boxEdges[i];
+
+    //std::cout << "Testing against edge" << i << ": (" << boxEdge.A << "), (" << boxEdge.B << ")\n";
 
     // Line: b + tw
     Vec3f b = boxEdge.A;
@@ -699,24 +770,30 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
       w.squareMagnitude(),
       w.dot(b) - w.dot(a)
     }, st)) {
+      //std::cout << "Failed to solve\n";
       continue;
     }
 
     if (!inRange(st[0], 0.f, 1.f)) {
+      //std::cout << "s out of range\n";
       continue;
     }
 
     if (!inRange(st[1], 0.f, 1.f)) {
+      //std::cout << "t out of range\n";
       continue;
     }
 
     Vec3f P = a + v * st[0];
+    //std::cout << "P = (" << P << ")\n";
 
-    if (!isInside(box, worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f })) {
+    if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>())) {
+      //std::cout << "P not inside box\n";
       continue;
     }
 
     Vec3f Q = b + w * st[1];
+    //std::cout << "Q = (" << Q << ")\n";
 
     float sqPenetration = (Q - P).squareMagnitude();
     if (sqPenetration < minSqPenetration) {
@@ -730,6 +807,9 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   if (indexOfMinPenetration != -1) {
     normal = normals[indexOfMinPenetration];
     point = points[indexOfMinPenetration];
+
+    //std::cout << "Penetrating edge found! " << indexOfMinPenetration << "\n";
+    //std::cout << "Penetration = " << sqrt(minSqPenetration) << "\n";
 
     return sqrt(minSqPenetration);
   }
@@ -749,6 +829,8 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
 
   auto edges = getEdges(getVertices(box1, box1Transform));
   for (size_t i = 0; i < 12; ++i) {
+    //std::cout << "Edge " << i << ": (" << edges[i].A << "), (" << edges[i].B << ")\n";
+
     float penetration = edgeBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, edges[i],
       points[i], normals[i]);
 
@@ -768,17 +850,26 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
   contact.toContactSpace = contact.fromContactSpace.t();
 
+  //std::cout << "Found edge with max penetration (index " << edgeWithMaxPenetration << ")\n";
+  //std::cout << "Normal: " << contact.normal << "\n";
+  //std::cout << "Point: " << contact.point << "\n";
+  //std::cout << "Penetration: " << contact.penetration << "\n";
+
   return true;
 }
 
 std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
 {
-  std::vector<Contact> contacts;
+  std::vector<Contact> allContacts;
 
   for (auto& pair : pairs) {
     // TODO: Not all entities have a collision box
     assert(pair.A.box != nullptr);
     assert(pair.B.box != nullptr);
+
+    if (pair.A.entityId * pair.B.entityId == 12) {
+      //std::cout << "Hello!\n";
+    }
 
     auto boxAToWorldSpace = pair.A.localTransform->transform *
       pair.A.box->boundingBox.transform;
@@ -787,56 +878,48 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       pair.B.box->boundingBox.transform;
     auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-    std::array<Contact, 2> pointContacts{};
-    bool hasPointContact = false;
+    std::array<Contact, 3> contacts{};  // TODO: No need for array
 
     if (checkForPointContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
-      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, pointContacts[0])) {
+      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[0])) {
 
-      //DBG_LOG(m_logger, "Point contact A->B");
+      if (pair.A.entityId * pair.B.entityId == 12) {
+        DBG_LOG(m_logger, "Point contact A->B");
+      }
 
-      pointContacts[0].A = pair.A;
-      pointContacts[0].B = pair.B;
+      contacts[0].A = pair.A;
+      contacts[0].B = pair.B;
 
-      hasPointContact = true;
+      allContacts.push_back(contacts[0]);
     }
-
-    if (checkForPointContacts(pair.B.box->boundingBox,
+    else if (checkForPointContacts(pair.B.box->boundingBox,
       pair.B.localTransform->transform, pair.A.box->boundingBox, boxAToWorldSpace,
-      worldToBoxASpace, pointContacts[1])) {
+      worldToBoxASpace, contacts[1])) {
 
-      //DBG_LOG(m_logger, "Point contact B->A");
+      if (pair.A.entityId * pair.B.entityId == 12) {
+        DBG_LOG(m_logger, "Point contact B->A");
+      }
 
-      pointContacts[1].A = pair.B;
-      pointContacts[1].B = pair.A;
+      contacts[1].A = pair.B;
+      contacts[1].B = pair.A;
 
-      hasPointContact = true;
+      allContacts.push_back(contacts[1]);
     }
+    else if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
+      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[2])) {
 
-    if (hasPointContact) {
-      if (pointContacts[0].penetration > pointContacts[1].penetration) {
-        contacts.push_back(pointContacts[0]);
+      if (pair.A.entityId * pair.B.entityId == 12) {
+        DBG_LOG(m_logger, "Edge contact A->B");
       }
-      else {
-        contacts.push_back(pointContacts[1]);
-      }
-    }
-    else {
-      Contact edgeContact{};
-      if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
-        pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, edgeContact)) {
 
-        //DBG_LOG(m_logger, "Edge contact A->B");
+      contacts[2].A = pair.A;
+      contacts[2].B = pair.B;
 
-        edgeContact.A = pair.A;
-        edgeContact.B = pair.B;
-
-        contacts.push_back(edgeContact);
-      }
+      allContacts.push_back(contacts[2]);
     }
   }
 
-  return contacts;
+  return allContacts;
 }
 
 void updateTransform(CLocalTransform& localT, CSpatialFlags& spatialFlags, const Vec3f& linearV,
@@ -890,7 +973,7 @@ void resolveInterpenetrationDynamicStatic(const Contact& contact)
   if (obj.dynamic->inverseMass != 0.f) {
     auto outDir = contact.normal;
 
-    const float margin = -G;
+    const float margin = -G * 0.f;
     auto delta = outDir * (contact.penetration + margin);
 
     applyPositionDelta(obj, contact.point, delta);
@@ -905,7 +988,7 @@ void resolveInterpenetrationDynamicDynamic(const Contact& contact)
   float totalInvMass = A.dynamic->inverseMass + B.dynamic->inverseMass;
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
-  const float margin = -G;
+  const float margin = -G * 0.f;
 
   if (A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
@@ -959,6 +1042,7 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   auto& dynaObj = contact.A.dynamic == nullptr ? contact.B : contact.A;
   auto& statObj = contact.A.dynamic == nullptr ? contact.A : contact.B;
 
+  //std::cout << "Waking up " << dynaObj.entityId << "\n";
   dynaObj.dynamic->idle = false;
 
   auto origin = getTranslation(dynaObj.localTransform->transform);
@@ -988,10 +1072,11 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   float friction = 0.5f * (dynaObj.collision->friction + statObj.collision->friction);
   applyFriction(impulse, friction);
 
-  float angularDamping = 0.9f;
+  float angularDamping = 1.f;
 
-  dynaObj.dynamic->linearVelocity += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
-  dynaObj.dynamic->angularVelocity += I * pointRel.cross(impulse * -1.f * d) * angularDamping;
+  dynaObj.dynamic->pendingLinearVelocity += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
+  dynaObj.dynamic->pendingAngularVelocity += I * pointRel.cross(impulse * -1.f * d) * angularDamping;
+  dynaObj.dynamic->pendingN++;
 }
 
 void resolveVelocitiesDynamicDynamic(const Contact& contact)
@@ -999,6 +1084,8 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   auto& A = contact.A;
   auto& B = contact.B;
 
+  //std::cout << "Waking up " << A.entityId << "\n";
+  //std::cout << "Waking up " << B.entityId << "\n";
   A.dynamic->idle = false;
   B.dynamic->idle = false;
 
@@ -1035,13 +1122,15 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   float friction = 0.5f * (A.collision->friction + B.collision->friction);
   applyFriction(impulse, friction);
 
-  const float angularDamping = 0.5f;
+  const float angularDamping = 1.f;
 
-  A.dynamic->linearVelocity += impulse * A.dynamic->inverseMass;
-  A.dynamic->angularVelocity += aI * aPointRel.cross(impulse) * angularDamping;
+  A.dynamic->pendingLinearVelocity += impulse * A.dynamic->inverseMass;
+  A.dynamic->pendingAngularVelocity += aI * aPointRel.cross(impulse) * angularDamping;
+  A.dynamic->pendingN++;
 
-  B.dynamic->linearVelocity += -impulse * B.dynamic->inverseMass;
-  B.dynamic->angularVelocity += bI * bPointRel.cross(-impulse) * angularDamping;
+  B.dynamic->pendingLinearVelocity += -impulse * B.dynamic->inverseMass;
+  B.dynamic->pendingAngularVelocity += bI * bPointRel.cross(-impulse) * angularDamping;
+  B.dynamic->pendingN++;
 }
 
 void resolveVelocities(const Contact& contact)
@@ -1077,6 +1166,7 @@ void SysCollisionImpl::integrate()
     auto flagsComps = group.components<CSpatialFlags>();
     auto localT = group.components<CLocalTransform>();
     auto dynamicComps = group.components<CCollisionDynamic>();
+    auto entityIds = group.entityIds();
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
       auto& flags = flagsComps[i].flags;
@@ -1085,10 +1175,24 @@ void SysCollisionImpl::integrate()
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
 
-        if (dynamic.linearVelocity.squareMagnitude() < G * G &&
-          dynamic.angularVelocity.squareMagnitude() < 0.001f) {
+        if (dynamic.pendingN != 0) {
+          dynamic.linearVelocity += dynamic.pendingLinearVelocity / static_cast<float>(dynamic.pendingN);
+          dynamic.angularVelocity += dynamic.pendingAngularVelocity / static_cast<float>(dynamic.pendingN);
+          dynamic.pendingLinearVelocity = {};
+          dynamic.pendingAngularVelocity = {};
+          dynamic.pendingN = 0;
+        }
 
-          if (++dynamic.framesIdle > 10) {
+        //std::cout << "id: " << entityIds[i] << "\n";
+        //std::cout << "v: " << dynamic.linearVelocity << "\n";
+        //std::cout << "a: " << dynamic.angularVelocity << "\n";
+        //std::cout << "v sq: " << dynamic.linearVelocity.squareMagnitude() << "\n";
+        //std::cout << "a sq: " << dynamic.angularVelocity.squareMagnitude() << "\n";
+
+        if (dynamic.linearVelocity.squareMagnitude() < 0.02f &&
+          dynamic.angularVelocity.squareMagnitude() < 0.0001f) {
+
+          if (++dynamic.framesIdle > TICKS_PER_SECOND / 2) {
             DBG_LOG(m_logger, "Setting idle");
             dynamic.idle = true;
             dynamic.framesIdle = 0;
@@ -1128,9 +1232,10 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 8;
+  size_t maxIterations = 4;
 
-  for (size_t i = 0; i < maxIterations; ++i) {
+  size_t i = 0;
+  for (; i < maxIterations; ++i) {
     auto pairs = findPossibleCollisions();
     auto contacts = generateContacts(pairs);
     if (contacts.empty()) {
@@ -1138,10 +1243,12 @@ void SysCollisionImpl::update(Tick tick, const InputState& inputState)
     }
     for (auto& contact : contacts) {
       resolveInterpenetration(contact);
-      if (i == 0) {
-        resolveVelocities(contact);
-      }
+      resolveVelocities(contact);
     }
+  }
+
+  if (i == maxIterations) {
+    DBG_LOG(m_logger, "Max iterations reached");
   }
   integrate();
 }
