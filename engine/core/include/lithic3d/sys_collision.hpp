@@ -74,13 +74,13 @@ struct CCollisionDynamic
   std::array<Force, MAX_FORCES> torques;
   Vec3f angularAcceleration;
   Vec3f angularVelocity;
-  Vec3f pendingLinearVelocity = {};
-  Vec3f pendingAngularVelocity = {};
-  uint16_t pendingN = 0.f;
-  Vec3f linearAccelerationOfLastUpdate = {};
   Mat3x3f inverseInertialTensor;
+  Vec3f resolverDeltaLinearV;
+  Vec3f resolverDeltaAngularV;
+  uint16_t resolverNumAdjustments = 0;
   uint16_t framesIdle = 0;
   bool idle = false;
+  bool hasCollided = false;
 
   static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
 };

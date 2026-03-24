@@ -1,7 +1,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
-#include <iostream> // TODO
+#include <iostream>
 
 namespace lithic3d
 {
@@ -248,7 +248,13 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
     .torques{},
     .angularAcceleration{},
     .angularVelocity{},
-    .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass)
+    .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass),
+    .resolverDeltaLinearV{},
+    .resolverDeltaAngularV{},
+    .resolverNumAdjustments = 0,
+    .framesIdle = 0,
+    .idle = false,
+    .hasCollided = false
   };
 
   if (dynamic.inverseMass != 0) {
@@ -430,8 +436,6 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
               if (box1.max[0] >= box2.min[0] && box1.min[0] <= box2.max[0] &&
                 box1.max[1] >= box2.min[1] && box1.min[1] <= box2.max[1] &&
                 box1.max[2] >= box2.min[2] && box1.min[2] <= box2.max[2]) {
-
-                //std::cout << "Making pair: IDs(" << entityIds1[i] << ", " << entityIds2[j] << "). OuterIdx = " << outerIdx << ", innerIdx = " << innerIdx << "\n";
 
                 pairs.push_back({
                   .A = {
@@ -745,16 +749,8 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
 
   float minSqPenetration = std::numeric_limits<float>::max();
 
-  //std::cout << "Box\n";
-  for (auto& e : boxEdges) {
-    //std::cout << "(" << e.A << "), (" << e.B << "), ";
-  }
-  //std::cout << "\n";
-
   for (size_t i = 0; i < 12; ++i) {
     auto& boxEdge = boxEdges[i];
-
-    //std::cout << "Testing against edge" << i << ": (" << boxEdge.A << "), (" << boxEdge.B << ")\n";
 
     // Line: b + tw
     Vec3f b = boxEdge.A;
@@ -771,37 +767,24 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
       w.squareMagnitude(),
       w.dot(b) - w.dot(a)
     }, st)) {
-      //std::cout << "Failed to solve\n";
       continue;
     }
 
-    //std::cout << "s = " << st[0] << "\n";
-    //std::cout << "t = " << st[1] << "\n";
-
     if (!inRange(st[0], 0.f, 1.f)) {
-      //std::cout << "s out of range\n";
       continue;
     }
 
     if (!inRange(st[1], 0.f, 1.f)) {
-      //std::cout << "t out of range\n";
       continue;
     }
 
     Vec3f P = a + v * st[0];
-    //std::cout << "P = (" << P << ")\n";
-
     Vec3f Q = b + w * st[1];
-    //std::cout << "Q = (" << Q << ")\n";
 
     auto QP = Q - P;
     float sqPenetration = QP.squareMagnitude();
 
-    //std::cout << "Penetration = " << QP.magnitude() << "\n";
-    //std::cout << "sqPenetration = " << sqPenetration << "\n";
-
     if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>(), 0.002f)) {
-      //std::cout << "P not inside box\n";
       continue;
     }
 
@@ -816,9 +799,6 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   if (indexOfMinPenetration != -1) {
     normal = normals[indexOfMinPenetration];
     point = points[indexOfMinPenetration];
-
-    //std::cout << "Penetrating edge found! " << indexOfMinPenetration << "\n";
-    //std::cout << "Penetration = " << sqrt(minSqPenetration) << "\n";
 
     return sqrt(minSqPenetration);
   }
@@ -838,8 +818,6 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
 
   auto edges = getEdges(getVertices(box1, box1Transform));
   for (size_t i = 0; i < 12; ++i) {
-    //std::cout << "Edge " << i << ": (" << edges[i].A << "), (" << edges[i].B << ")\n";
-
     float penetration = edgeBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, edges[i],
       points[i], normals[i]);
 
@@ -859,11 +837,6 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
   contact.toContactSpace = contact.fromContactSpace.t();
 
-  //std::cout << "Found edge with max penetration (index " << edgeWithMaxPenetration << ")\n";
-  //std::cout << "Normal: " << contact.normal << "\n";
-  //std::cout << "Point: " << contact.point << "\n";
-  //std::cout << "Penetration: " << contact.penetration << "\n";
-
   return true;
 }
 
@@ -875,8 +848,6 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     // TODO: Not all entities have a collision box
     assert(pair.A.box != nullptr);
     assert(pair.B.box != nullptr);
-
-    //std::cout << "Checking for contacts between " << pair.A.entityId << " and " << pair.B.entityId << "\n";
 
     auto boxAToWorldSpace = pair.A.localTransform->transform *
       pair.A.box->boundingBox.transform;
@@ -890,8 +861,6 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     if (checkForPointContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
       pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[0])) {
 
-      //std::cout << "Point contact A->B, IDs " << pair.A.entityId << "->" << pair.B.entityId << "\n";
-
       contacts[0].A = pair.A;
       contacts[0].B = pair.B;
 
@@ -901,8 +870,6 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       pair.B.localTransform->transform, pair.A.box->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contacts[1])) {
 
-      //std::cout << "Point contact B->A, IDs " << pair.B.entityId << "->" << pair.A.entityId << "\n";
-
       contacts[1].A = pair.B;
       contacts[1].B = pair.A;
 
@@ -910,8 +877,6 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     }
     else if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
       pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[2])) {
-
-      //std::cout << "Edge contact A->B, IDs " << pair.A.entityId << "->" << pair.B.entityId << "\n";
 
       contacts[2].A = pair.A;
       contacts[2].B = pair.B;
@@ -964,18 +929,6 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   Vec3f linearV = impulse * obj.dynamic->inverseMass;
   Vec3f angularV = I * pointRel.cross(impulse);
 
-  //float angularVMagnitude = angularV.magnitude();
-  //float linearVMagnitude = linearV.magnitude();
-  //float totalVMagnitude = angularVMagnitude + linearVMagnitude;
-
-  //std::cout << angularV.magnitude() << "\n";
-  //float maxAngularV = 0.03f;
-  //if (angularVMagnitude > maxAngularV) {
-  //  std::cout << "Big angular V! " << angularVMagnitude << "\n";
-  //  angularV = (angularV / angularVMagnitude) * maxAngularV;
-  //  linearV = (linearV / linearVMagnitude) * (totalVMagnitude - maxAngularV);
-  //}
-
   updateTransform(*obj.localTransform, *obj.spatialFlags, linearV, angularV);
 }
 
@@ -985,9 +938,7 @@ void resolveInterpenetrationDynamicStatic(const Contact& contact)
 
   if (obj.dynamic->inverseMass != 0.f) {
     auto outDir = contact.normal;
-
-    const float margin = -G * 0.f;
-    auto delta = outDir * (contact.penetration + margin);
+    auto delta = outDir * contact.penetration;
 
     applyPositionDelta(obj, contact.point, delta);
   }
@@ -1001,17 +952,15 @@ void resolveInterpenetrationDynamicDynamic(const Contact& contact)
   float totalInvMass = A.dynamic->inverseMass + B.dynamic->inverseMass;
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
-  const float margin = -G * 0.f;
-
   if (A.dynamic->inverseMass != 0.f) {
-    float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
+    float a = (A.dynamic->inverseMass / totalInvMass) * contact.penetration;
     auto outDir = contact.normal;
 
     applyPositionDelta(A, contact.point, outDir * a);
   }
 
   if (B.dynamic->inverseMass != 0.f) {
-    float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
+    float b = (B.dynamic->inverseMass / totalInvMass) * contact.penetration;
     auto outDir = -contact.normal;
 
     applyPositionDelta(B, contact.point, outDir * b);
@@ -1039,8 +988,7 @@ void resolveInterpenetration(const Contact& contact)
   }
 }
 
-// TODO: Rename
-void applyFriction(Vec3f& impulse, float friction)
+void reapplyLateralImpulse(Vec3f& impulse, float friction)
 {
   float planarImpulse = sqrt(impulse[0] * impulse[0] + impulse[2] * impulse[2]);
   if (planarImpulse > friction * impulse[1]) {
@@ -1056,13 +1004,12 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   auto& dynaObj = contact.A.dynamic == nullptr ? contact.B : contact.A;
   auto& statObj = contact.A.dynamic == nullptr ? contact.A : contact.B;
 
-  //std::cout << "Waking up " << dynaObj.entityId << "\n";
-  dynaObj.dynamic->idle = false;
+  // Interferes with the reapplication of lateral impulse below (for some reason)
+  if (!dynaObj.dynamic->hasCollided) {
+    dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
+    dynaObj.dynamic->hasCollided = true;
+  }
 
-  //dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
-  dynaObj.dynamic->linearVelocity -= dynaObj.dynamic->linearAccelerationOfLastUpdate;
-  dynaObj.dynamic->linearAccelerationOfLastUpdate = {};
-  
   auto origin = getTranslation(dynaObj.localTransform->transform);
   auto pointRel = contact.point - (origin + dynaObj.dynamic->centreOfMass);
   auto totalWorldSpaceV = dynaObj.dynamic->linearVelocity +
@@ -1070,20 +1017,11 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   auto contactSpaceV = contact.toContactSpace * totalWorldSpaceV;
 
   float d = contact.A.dynamic == nullptr ? 1.f : -1.f;
-  auto contactSpaceSeparatingV = contactSpaceV * d; // TODO: Rename to closing V?
-
-  if (contactSpaceSeparatingV[1] < 0.f) {
-    //contactSpaceSeparatingV[1] = 0.f;
-    //std::cout << "Hello\n";
-    //return;
-  }
+  auto contactSpaceClosingV = contactSpaceV * d;
 
   float r = dynaObj.collision->restitution + statObj.collision->restitution;
-  Vec3f desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
-  //desiredContactSpaceSeparatingV += Vec3f{ 0.f, (contact.toContactSpace * dynaObj.dynamic->linearAccelerationOfLastUpdate)[1], 0.f } * d;
-  //dynaObj.dynamic->linearAccelerationOfLastUpdate = {};
-  auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
-  //desiredContactSpaceDv -= contact.toContactSpace * Vec3f{ 0.f, G, 0.f };
+  Vec3f desiredContactSpaceClosingV = { 0.f, contactSpaceClosingV[1] * -r, 0.f };
+  auto desiredContactSpaceDv = contactSpaceClosingV - desiredContactSpaceClosingV;
 
   Mat3x3f I = transformTensor(dynaObj.dynamic->inverseInertialTensor,
     dynaObj.localTransform->transform);
@@ -1096,16 +1034,13 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
 
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
-  float friction = 0.5f * (dynaObj.collision->friction + statObj.collision->friction);
-  //applyFriction(impulse, friction);
+  // Interferes with the adjustment to linear velocity above
+  //float friction = 0.5f * (dynaObj.collision->friction + statObj.collision->friction);
+  //reapplyLateralImpulse(impulse, friction);
 
-  float angularDamping = 1.f;
-
-  //dynaObj.dynamic->linearVelocity = {};
-  //dynaObj.dynamic->angularVelocity = {};
-  dynaObj.dynamic->pendingLinearVelocity += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
-  dynaObj.dynamic->pendingAngularVelocity += I * pointRel.cross(impulse * -1.f * d) * angularDamping;
-  dynaObj.dynamic->pendingN++;
+  dynaObj.dynamic->resolverDeltaLinearV += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
+  dynaObj.dynamic->resolverDeltaAngularV += I * pointRel.cross(impulse * -1.f * d);
+  ++dynaObj.dynamic->resolverNumAdjustments;
 }
 
 void resolveVelocitiesDynamicDynamic(const Contact& contact)
@@ -1113,13 +1048,12 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   auto& A = contact.A;
   auto& B = contact.B;
 
-  //std::cout << "Waking up " << A.entityId << "\n";
-  //std::cout << "Waking up " << B.entityId << "\n";
-  A.dynamic->idle = false;
-  B.dynamic->idle = false;
-
-  //A.dynamic->linearVelocity -= { 0.f, G, 0.f };
-  //B.dynamic->linearVelocity -= { 0.f, G, 0.f };
+  if (A.dynamic->framesIdle == 0 || B.dynamic->framesIdle == 0) {
+    A.dynamic->framesIdle = 0;
+    A.dynamic->idle = false;
+    B.dynamic->framesIdle = 0;
+    B.dynamic->idle = false;
+  }
 
   auto aOrigin = getTranslation(A.localTransform->transform);
   auto aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
@@ -1131,15 +1065,11 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   auto bTotalWorldSpaceV = B.dynamic->linearVelocity + B.dynamic->angularVelocity.cross(bPointRel);
   auto bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
 
-  auto contactSpaceSeparatingV = bContactSpaceV - aContactSpaceV;
+  auto contactSpaceClosingV = bContactSpaceV - aContactSpaceV;
 
   float r = A.collision->restitution + B.collision->restitution;
-  Vec3f desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
-  //desiredContactSpaceSeparatingV -= { 0.f, (contact.toContactSpace * A.dynamic->linearAccelerationOfLastUpdate)[1], 0.f };
-  //desiredContactSpaceSeparatingV += { 0.f, (contact.toContactSpace * B.dynamic->linearAccelerationOfLastUpdate)[1], 0.f };
-  //A.dynamic->linearAccelerationOfLastUpdate = {};
-  //B.dynamic->linearAccelerationOfLastUpdate = {};
-  auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
+  Vec3f desiredContactSpaceClosingV = { 0.f, contactSpaceClosingV[1] * -r, 0.f };
+  auto desiredContactSpaceDv = contactSpaceClosingV - desiredContactSpaceClosingV;
 
   Mat3x3f aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
   Mat3x3f bI = transformTensor(B.dynamic->inverseInertialTensor, B.localTransform->transform);
@@ -1156,21 +1086,15 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
   float friction = 0.5f * (A.collision->friction + B.collision->friction);
-  applyFriction(impulse, friction);
+  reapplyLateralImpulse(impulse, friction);
 
-  const float angularDamping = 1.f;
+  A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
+  A.dynamic->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
+  ++A.dynamic->resolverNumAdjustments;
 
-  //A.dynamic->linearVelocity = {};
-  //A.dynamic->angularVelocity = {};
-  A.dynamic->pendingLinearVelocity += impulse * A.dynamic->inverseMass;
-  A.dynamic->pendingAngularVelocity += aI * aPointRel.cross(impulse) * angularDamping;
-  A.dynamic->pendingN++;
-
-  //B.dynamic->linearVelocity = {};
-  //B.dynamic->angularVelocity = {};
-  B.dynamic->pendingLinearVelocity += -impulse * B.dynamic->inverseMass;
-  B.dynamic->pendingAngularVelocity += bI * bPointRel.cross(-impulse) * angularDamping;
-  B.dynamic->pendingN++;
+  B.dynamic->resolverDeltaLinearV += -impulse * B.dynamic->inverseMass;
+  B.dynamic->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
+  ++B.dynamic->resolverNumAdjustments;
 }
 
 void resolveVelocities(const Contact& contact)
@@ -1215,24 +1139,23 @@ void SysCollisionImpl::integrate()
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
 
-        if (dynamic.pendingN != 0) {
-          dynamic.linearVelocity += dynamic.pendingLinearVelocity / static_cast<float>(dynamic.pendingN);
-          dynamic.angularVelocity += dynamic.pendingAngularVelocity / static_cast<float>(dynamic.pendingN);
-          dynamic.pendingLinearVelocity = {};
-          dynamic.pendingAngularVelocity = {};
-          dynamic.pendingN = 0;
+        if (dynamic.resolverNumAdjustments > 0) {
+          dynamic.linearVelocity += dynamic.resolverDeltaLinearV / dynamic.resolverNumAdjustments;
+          dynamic.angularVelocity += dynamic.resolverDeltaAngularV / dynamic.resolverNumAdjustments;
+          dynamic.resolverDeltaLinearV = {};
+          dynamic.resolverDeltaAngularV = {};
+          dynamic.resolverNumAdjustments = 0;
         }
 
-        //std::cout << "id: " << entityIds[i] << "\n";
-        //std::cout << "v: " << dynamic.linearVelocity << "\n";
-        //std::cout << "a: " << dynamic.angularVelocity << "\n";
-        //std::cout << "v sq: " << dynamic.linearVelocity.squareMagnitude() << "\n";
-        //std::cout << "a sq: " << dynamic.angularVelocity.squareMagnitude() << "\n";
+        // Tweak these idle thresholds
+        const float idleMaxLinearV = 0.02f;
+        const float idleMaxAngularV = 0.0005f;
+        const size_t idleSeconds = 3;
 
-        if (dynamic.linearVelocity.squareMagnitude() < 0.01f &&
-          dynamic.angularVelocity.squareMagnitude() < 0.00001f) {
+        if (dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
+          dynamic.angularVelocity.squareMagnitude() < idleMaxAngularV) {
 
-          if (++dynamic.framesIdle > TICKS_PER_SECOND) {
+          if (++dynamic.framesIdle > TICKS_PER_SECOND * idleSeconds) {
             DBG_LOG(m_logger, "Setting idle");
             dynamic.idle = true;
             dynamic.framesIdle = 0;
@@ -1242,6 +1165,10 @@ void SysCollisionImpl::integrate()
             dynamic.angularAcceleration = {};
             continue;
           }
+        }
+        else {
+          //DBG_LOG(m_logger, STR("dv " << dynamic.linearVelocity.squareMagnitude()));
+          //DBG_LOG(m_logger, STR("da " << dynamic.angularVelocity.squareMagnitude()));
         }
 
         Vec3f totalForce;
@@ -1264,13 +1191,13 @@ void SysCollisionImpl::integrate()
 
         updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
 
-        dynamic.linearAccelerationOfLastUpdate = dynamic.linearAcceleration;
-
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
 
         dynamic.angularVelocity += dynamic.angularAcceleration;
         dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
+
+        dynamic.hasCollided = false;
       }
     }
   }
@@ -1278,13 +1205,10 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 1;
+  size_t maxIterations = 2;
 
   auto pairs = findPossibleCollisions();
-
-  size_t i = 0;
-  for (; i < maxIterations; ++i) {
-    //auto pairs = findPossibleCollisions();
+  for (size_t i = 0; i < maxIterations; ++i) {
     auto contacts = generateContacts(pairs);
     if (contacts.empty()) {
       break;
@@ -1293,10 +1217,6 @@ void SysCollisionImpl::update(Tick tick, const InputState& inputState)
       resolveInterpenetration(contact);
       resolveVelocities(contact);
     }
-  }
-
-  if (i == maxIterations) {
-    //DBG_LOG(m_logger, "Max iterations reached");
   }
   integrate();
 }

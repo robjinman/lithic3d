@@ -116,7 +116,7 @@ class Demo : public Game
         }
       }
     };
-    size_t m_currentScenario = 1;
+    size_t m_currentScenario = 0;
     std::vector<EntityId> m_entityIds;
     bool m_physicsActive = false;
 
@@ -334,6 +334,9 @@ void Demo::onKeyDown(KeyboardKey key)
     else {
       enablePhysics();
     }
+  }
+  else if (key == KeyboardKey::F) {
+    m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
   }
   else if (key == KeyboardKey::Left) {
     if (m_currentScenario > 0) {
