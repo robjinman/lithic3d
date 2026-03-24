@@ -470,12 +470,12 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   return pairs;
 }
 
-inline bool isInside(const BoundingBox& box, const Vec3f& P)
+inline bool isInside(const BoundingBox& box, const Vec3f& P, float epsilon = 0.f)
 {
   return
-    P[0] > box.min[0] && P[0] < box.max[0] &&
-    P[1] > box.min[1] && P[1] < box.max[1] &&
-    P[2] > box.min[2] && P[2] < box.max[2];
+    P[0] > box.min[0] - epsilon && P[0] < box.max[0] + epsilon &&
+    P[1] > box.min[1] - epsilon && P[1] < box.max[1] + epsilon &&
+    P[2] > box.min[2] - epsilon && P[2] < box.max[2] + epsilon;
 }
 
 // Returns box's vertices in world space
@@ -749,6 +749,7 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   for (auto& e : boxEdges) {
     //std::cout << "(" << e.A << "), (" << e.B << "), ";
   }
+  //std::cout << "\n";
 
   for (size_t i = 0; i < 12; ++i) {
     auto& boxEdge = boxEdges[i];
@@ -774,6 +775,9 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
       continue;
     }
 
+    //std::cout << "s = " << st[0] << "\n";
+    //std::cout << "t = " << st[1] << "\n";
+
     if (!inRange(st[0], 0.f, 1.f)) {
       //std::cout << "s out of range\n";
       continue;
@@ -787,20 +791,25 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     Vec3f P = a + v * st[0];
     //std::cout << "P = (" << P << ")\n";
 
-    if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>())) {
+    Vec3f Q = b + w * st[1];
+    //std::cout << "Q = (" << Q << ")\n";
+
+    auto QP = Q - P;
+    float sqPenetration = QP.squareMagnitude();
+
+    //std::cout << "Penetration = " << QP.magnitude() << "\n";
+    //std::cout << "sqPenetration = " << sqPenetration << "\n";
+
+    if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>(), 0.002f)) {
       //std::cout << "P not inside box\n";
       continue;
     }
 
-    Vec3f Q = b + w * st[1];
-    //std::cout << "Q = (" << Q << ")\n";
-
-    float sqPenetration = (Q - P).squareMagnitude();
     if (sqPenetration < minSqPenetration) {
       minSqPenetration = sqPenetration;
       indexOfMinPenetration = i;
-      points[i] = P + (Q - P) * 0.5f;
-      normals[i] = (Q - P).normalise();
+      points[i] = P + QP * 0.5f;
+      normals[i] = QP.normalise();
     }
   }
 
@@ -867,9 +876,7 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     assert(pair.A.box != nullptr);
     assert(pair.B.box != nullptr);
 
-    if (pair.A.entityId * pair.B.entityId == 12) {
-      //std::cout << "Hello!\n";
-    }
+    //std::cout << "Checking for contacts between " << pair.A.entityId << " and " << pair.B.entityId << "\n";
 
     auto boxAToWorldSpace = pair.A.localTransform->transform *
       pair.A.box->boundingBox.transform;
@@ -883,9 +890,7 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     if (checkForPointContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
       pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[0])) {
 
-      if (pair.A.entityId * pair.B.entityId == 12) {
-        DBG_LOG(m_logger, "Point contact A->B");
-      }
+      //std::cout << "Point contact A->B, IDs " << pair.A.entityId << "->" << pair.B.entityId << "\n";
 
       contacts[0].A = pair.A;
       contacts[0].B = pair.B;
@@ -896,9 +901,7 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       pair.B.localTransform->transform, pair.A.box->boundingBox, boxAToWorldSpace,
       worldToBoxASpace, contacts[1])) {
 
-      if (pair.A.entityId * pair.B.entityId == 12) {
-        DBG_LOG(m_logger, "Point contact B->A");
-      }
+      //std::cout << "Point contact B->A, IDs " << pair.B.entityId << "->" << pair.A.entityId << "\n";
 
       contacts[1].A = pair.B;
       contacts[1].B = pair.A;
@@ -908,9 +911,7 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
     else if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
       pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[2])) {
 
-      if (pair.A.entityId * pair.B.entityId == 12) {
-        DBG_LOG(m_logger, "Edge contact A->B");
-      }
+      //std::cout << "Edge contact A->B, IDs " << pair.A.entityId << "->" << pair.B.entityId << "\n";
 
       contacts[2].A = pair.A;
       contacts[2].B = pair.B;
@@ -1058,6 +1059,10 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   //std::cout << "Waking up " << dynaObj.entityId << "\n";
   dynaObj.dynamic->idle = false;
 
+  //dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
+  dynaObj.dynamic->linearVelocity -= dynaObj.dynamic->linearAccelerationOfLastUpdate;
+  dynaObj.dynamic->linearAccelerationOfLastUpdate = {};
+  
   auto origin = getTranslation(dynaObj.localTransform->transform);
   auto pointRel = contact.point - (origin + dynaObj.dynamic->centreOfMass);
   auto totalWorldSpaceV = dynaObj.dynamic->linearVelocity +
@@ -1065,11 +1070,20 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   auto contactSpaceV = contact.toContactSpace * totalWorldSpaceV;
 
   float d = contact.A.dynamic == nullptr ? 1.f : -1.f;
-  auto contactSpaceSeparatingV = contactSpaceV * d;
+  auto contactSpaceSeparatingV = contactSpaceV * d; // TODO: Rename to closing V?
 
-  float r = 0.f;// dynaObj.collision->restitution + statObj.collision->restitution;
-  auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
+  if (contactSpaceSeparatingV[1] < 0.f) {
+    //contactSpaceSeparatingV[1] = 0.f;
+    //std::cout << "Hello\n";
+    //return;
+  }
+
+  float r = dynaObj.collision->restitution + statObj.collision->restitution;
+  Vec3f desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
+  //desiredContactSpaceSeparatingV += Vec3f{ 0.f, (contact.toContactSpace * dynaObj.dynamic->linearAccelerationOfLastUpdate)[1], 0.f } * d;
+  //dynaObj.dynamic->linearAccelerationOfLastUpdate = {};
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
+  //desiredContactSpaceDv -= contact.toContactSpace * Vec3f{ 0.f, G, 0.f };
 
   Mat3x3f I = transformTensor(dynaObj.dynamic->inverseInertialTensor,
     dynaObj.localTransform->transform);
@@ -1087,6 +1101,8 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
 
   float angularDamping = 1.f;
 
+  //dynaObj.dynamic->linearVelocity = {};
+  //dynaObj.dynamic->angularVelocity = {};
   dynaObj.dynamic->pendingLinearVelocity += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
   dynaObj.dynamic->pendingAngularVelocity += I * pointRel.cross(impulse * -1.f * d) * angularDamping;
   dynaObj.dynamic->pendingN++;
@@ -1102,6 +1118,9 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   A.dynamic->idle = false;
   B.dynamic->idle = false;
 
+  //A.dynamic->linearVelocity -= { 0.f, G, 0.f };
+  //B.dynamic->linearVelocity -= { 0.f, G, 0.f };
+
   auto aOrigin = getTranslation(A.localTransform->transform);
   auto aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
   auto aTotalWorldSpaceV = A.dynamic->linearVelocity + A.dynamic->angularVelocity.cross(aPointRel);
@@ -1114,8 +1133,12 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
 
   auto contactSpaceSeparatingV = bContactSpaceV - aContactSpaceV;
 
-  float r = 0.f;// A.collision->restitution + B.collision->restitution;
-  auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
+  float r = A.collision->restitution + B.collision->restitution;
+  Vec3f desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
+  //desiredContactSpaceSeparatingV -= { 0.f, (contact.toContactSpace * A.dynamic->linearAccelerationOfLastUpdate)[1], 0.f };
+  //desiredContactSpaceSeparatingV += { 0.f, (contact.toContactSpace * B.dynamic->linearAccelerationOfLastUpdate)[1], 0.f };
+  //A.dynamic->linearAccelerationOfLastUpdate = {};
+  //B.dynamic->linearAccelerationOfLastUpdate = {};
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
   Mat3x3f aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
@@ -1137,10 +1160,14 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
 
   const float angularDamping = 1.f;
 
+  //A.dynamic->linearVelocity = {};
+  //A.dynamic->angularVelocity = {};
   A.dynamic->pendingLinearVelocity += impulse * A.dynamic->inverseMass;
   A.dynamic->pendingAngularVelocity += aI * aPointRel.cross(impulse) * angularDamping;
   A.dynamic->pendingN++;
 
+  //B.dynamic->linearVelocity = {};
+  //B.dynamic->angularVelocity = {};
   B.dynamic->pendingLinearVelocity += -impulse * B.dynamic->inverseMass;
   B.dynamic->pendingAngularVelocity += bI * bPointRel.cross(-impulse) * angularDamping;
   B.dynamic->pendingN++;
@@ -1202,10 +1229,10 @@ void SysCollisionImpl::integrate()
         //std::cout << "v sq: " << dynamic.linearVelocity.squareMagnitude() << "\n";
         //std::cout << "a sq: " << dynamic.angularVelocity.squareMagnitude() << "\n";
 
-        if (dynamic.linearVelocity.squareMagnitude() < 0.02f &&
-          dynamic.angularVelocity.squareMagnitude() < 0.0001f) {
-/*
-          if (++dynamic.framesIdle > TICKS_PER_SECOND / 2) {
+        if (dynamic.linearVelocity.squareMagnitude() < 0.01f &&
+          dynamic.angularVelocity.squareMagnitude() < 0.00001f) {
+
+          if (++dynamic.framesIdle > TICKS_PER_SECOND) {
             DBG_LOG(m_logger, "Setting idle");
             dynamic.idle = true;
             dynamic.framesIdle = 0;
@@ -1214,7 +1241,7 @@ void SysCollisionImpl::integrate()
             dynamic.linearAcceleration = {};
             dynamic.angularAcceleration = {};
             continue;
-          }*/
+          }
         }
 
         Vec3f totalForce;
@@ -1237,6 +1264,8 @@ void SysCollisionImpl::integrate()
 
         updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
 
+        dynamic.linearAccelerationOfLastUpdate = dynamic.linearAcceleration;
+
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
 
@@ -1251,9 +1280,11 @@ void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
   size_t maxIterations = 1;
 
+  auto pairs = findPossibleCollisions();
+
   size_t i = 0;
   for (; i < maxIterations; ++i) {
-    auto pairs = findPossibleCollisions();
+    //auto pairs = findPossibleCollisions();
     auto contacts = generateContacts(pairs);
     if (contacts.empty()) {
       break;

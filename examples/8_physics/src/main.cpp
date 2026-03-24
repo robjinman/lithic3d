@@ -10,7 +10,7 @@ namespace
 {
 
 float VIEW_X = 70.f;
-float VIEW_Y = 7.f;
+float VIEW_Y = 12.f;
 float VIEW_Z = 75.f;
 
 struct Object
@@ -77,21 +77,46 @@ class Demo : public Game
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
-            .position = { VIEW_X - 0.f, VIEW_Y - 1.f, VIEW_Z - 15.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 15.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false
           },
           Object{
             .randomRotation = false,
             .dimensions = { 4.f, 1.f, 4.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 5.f, VIEW_Z - 15.f },
-            .rotation = { degreesToRadians(5.f), degreesToRadians(7.f), degreesToRadians(2.f) },
+            .position = { VIEW_X + 0.f, VIEW_Y - 3.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(15.f), degreesToRadians(-7.f), degreesToRadians(6.f) },
+            .infiniteMass = false
+          }
+        }
+      },
+      Scenario{
+        .objects = {
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 3.f, 0.5f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 3.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 2.f, 1.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 15.f },
+            .rotation = {},
             .infiniteMass = false
           }
         }
       }
     };
-    size_t m_currentScenario = 0;
+    size_t m_currentScenario = 1;
     std::vector<EntityId> m_entityIds;
     bool m_physicsActive = false;
 
@@ -118,14 +143,18 @@ Demo::Demo(Engine& engine)
   camera.setPosition(metresToWorldUnits(Vec3f{ VIEW_X, VIEW_Y, VIEW_Z }));
   camera.rotate(-degreesToRadians(15.f), 0.f);
 
-  constructScenario(0);
+  constructScenario(m_currentScenario);
 
   // TODO: Delete
-  for (size_t i = 0; i < 45; ++i) {
-    resetState();
-  }
+  //for (size_t i = 0; i < 45; ++i) {
+  //  resetState();
+  //}
 
   enablePhysics();
+
+  for (size_t i = 0; i < 476; ++i) {
+    //onKeyDown(KeyboardKey::N);
+  }
 }
 
 Vec3f randomRotation()
@@ -265,7 +294,8 @@ void Demo::enablePhysics()
     auto id = m_entityIds[i];
 
     if (!obj.infiniteMass) {
-      auto invMass = 0.1f / (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2]);
+      auto invMass = 1.f /
+        (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2] * WORLD_UNITS_PER_METRE);
       sysCollision.setInverseMass(id, invMass);
     }
   }

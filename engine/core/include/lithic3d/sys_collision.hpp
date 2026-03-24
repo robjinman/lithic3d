@@ -77,6 +77,7 @@ struct CCollisionDynamic
   Vec3f pendingLinearVelocity = {};
   Vec3f pendingAngularVelocity = {};
   uint16_t pendingN = 0.f;
+  Vec3f linearAccelerationOfLastUpdate = {};
   Mat3x3f inverseInertialTensor;
   uint16_t framesIdle = 0;
   bool idle = false;

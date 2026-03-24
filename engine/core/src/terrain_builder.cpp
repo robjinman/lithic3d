@@ -141,7 +141,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
     .friction = 0.4f,     // TODO
     .boundingBox{
       .min = { 0.f, minHeight, 0.f },
-      .max = { cellWidth, /*maxHeight*/minHeight + 10.f, cellHeight },
+      .max = { cellWidth, maxHeight, cellHeight },
       .transform = identityMatrix<4>()
     }
   };
