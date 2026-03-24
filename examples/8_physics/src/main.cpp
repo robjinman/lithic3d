@@ -114,9 +114,55 @@ class Demo : public Game
             .infiniteMass = false
           }
         }
+      },
+      Scenario{
+        .objects = {
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 3.f, 0.5f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 2.f, 1.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y- 2.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 3.5f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 13.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 14.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+          Object{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X - 1.f, VIEW_Y + 5.5f, VIEW_Z - 14.f },
+            .rotation = {},
+            .infiniteMass = false
+          },
+        }
       }
     };
-    size_t m_currentScenario = 0;
+    size_t m_currentScenario = 3;
     std::vector<EntityId> m_entityIds;
     bool m_physicsActive = false;
 
@@ -146,9 +192,9 @@ Demo::Demo(Engine& engine)
   constructScenario(m_currentScenario);
 
   // TODO: Delete
-  //for (size_t i = 0; i < 45; ++i) {
-  //  resetState();
-  //}
+  for (size_t i = 0; i < 6; ++i) {
+    resetState();
+  }
 
   enablePhysics();
 

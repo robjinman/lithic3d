@@ -937,8 +937,9 @@ void resolveInterpenetrationDynamicStatic(const Contact& contact)
   auto& obj = contact.A.dynamic == nullptr ? contact.B : contact.A;
 
   if (obj.dynamic->inverseMass != 0.f) {
+    const float margin = 0.01f;
     auto outDir = contact.normal;
-    auto delta = outDir * contact.penetration;
+    auto delta = outDir * (contact.penetration + margin);
 
     applyPositionDelta(obj, contact.point, delta);
   }
@@ -952,15 +953,17 @@ void resolveInterpenetrationDynamicDynamic(const Contact& contact)
   float totalInvMass = A.dynamic->inverseMass + B.dynamic->inverseMass;
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
+  const float margin = 0.01f;
+
   if (A.dynamic->inverseMass != 0.f) {
-    float a = (A.dynamic->inverseMass / totalInvMass) * contact.penetration;
+    float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
     auto outDir = contact.normal;
 
     applyPositionDelta(A, contact.point, outDir * a);
   }
 
   if (B.dynamic->inverseMass != 0.f) {
-    float b = (B.dynamic->inverseMass / totalInvMass) * contact.penetration;
+    float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
     auto outDir = -contact.normal;
 
     applyPositionDelta(B, contact.point, outDir * b);
@@ -1197,6 +1200,14 @@ void SysCollisionImpl::integrate()
         dynamic.angularVelocity += dynamic.angularAcceleration;
         dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
 
+        // Cap the angular velocity
+        // TODO: This is a hack
+        float angularV = dynamic.angularVelocity.magnitude();
+        float maxAngularV = 0.2f;
+        if (angularV > maxAngularV) {
+          dynamic.angularVelocity = dynamic.angularVelocity * maxAngularV / angularV;
+        }
+
         dynamic.hasCollided = false;
       }
     }
@@ -1205,10 +1216,10 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 2;
+  size_t maxIterations = 4;
 
-  auto pairs = findPossibleCollisions();
   for (size_t i = 0; i < maxIterations; ++i) {
+    auto pairs = findPossibleCollisions();  // TODO: Slow!
     auto contacts = generateContacts(pairs);
     if (contacts.empty()) {
       break;
