@@ -19,7 +19,7 @@ struct Object
   Vec3f dimensions;
   Vec3f position;
   Vec3f rotation;
-  float inverseMass = 0.f;
+  bool infiniteMass;
 };
 
 struct Scenario
@@ -61,14 +61,14 @@ class Demo : public Game
             .dimensions = { 2.f, 2.f, 1.f },
             .position = { VIEW_X + 2.6f, VIEW_Y + 2.f, VIEW_Z - 15.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(45.f) },
-            .inverseMass = 0.1f / (1.f * 2.f * 2.f)
+            .infiniteMass = false
           },
           Object{
             .randomRotation = false,
             .dimensions = { 5.f, 0.5f, 5.f },
             .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 15.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
-            .inverseMass = 0.f
+            .infiniteMass = true
           }
         }
       },
@@ -77,16 +77,16 @@ class Demo : public Game
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
-            .position = { VIEW_X - 1.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .position = { VIEW_X - 0.f, VIEW_Y - 1.f, VIEW_Z - 15.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
-            .inverseMass = 0.1f / (1.f * 1.f * 1.f)
+            .infiniteMass = false
           },
           Object{
             .randomRotation = false,
-            .dimensions = { 5.f, 0.5f, 5.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 3.f, VIEW_Z - 15.f },
+            .dimensions = { 4.f, 1.f, 4.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 5.f, VIEW_Z - 15.f },
             .rotation = { degreesToRadians(5.f), degreesToRadians(7.f), degreesToRadians(2.f) },
-            .inverseMass = 0.1f / (5.f * 0.5f * 5.f)
+            .infiniteMass = false
           }
         }
       }
@@ -144,7 +144,7 @@ void Demo::constructScenario(size_t i)
     auto material = m_factory->createMaterialAsync("textures/bricks.png");
     auto size = metresToWorldUnits(obj.dimensions);
     auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-    auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.3f, 0.4f);
+    auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
     m_entityIds.push_back(id);
   }
 
@@ -264,7 +264,10 @@ void Demo::enablePhysics()
     auto& obj = m_scenarios[m_currentScenario].objects[i];
     auto id = m_entityIds[i];
 
-    sysCollision.setInverseMass(id, obj.inverseMass);
+    if (!obj.infiniteMass) {
+      auto invMass = 0.1f / (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2]);
+      sysCollision.setInverseMass(id, invMass);
+    }
   }
 
   m_physicsActive = true;

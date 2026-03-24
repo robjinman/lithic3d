@@ -963,6 +963,18 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   Vec3f linearV = impulse * obj.dynamic->inverseMass;
   Vec3f angularV = I * pointRel.cross(impulse);
 
+  //float angularVMagnitude = angularV.magnitude();
+  //float linearVMagnitude = linearV.magnitude();
+  //float totalVMagnitude = angularVMagnitude + linearVMagnitude;
+
+  //std::cout << angularV.magnitude() << "\n";
+  //float maxAngularV = 0.03f;
+  //if (angularVMagnitude > maxAngularV) {
+  //  std::cout << "Big angular V! " << angularVMagnitude << "\n";
+  //  angularV = (angularV / angularVMagnitude) * maxAngularV;
+  //  linearV = (linearV / linearVMagnitude) * (totalVMagnitude - maxAngularV);
+  //}
+
   updateTransform(*obj.localTransform, *obj.spatialFlags, linearV, angularV);
 }
 
@@ -1026,6 +1038,7 @@ void resolveInterpenetration(const Contact& contact)
   }
 }
 
+// TODO: Rename
 void applyFriction(Vec3f& impulse, float friction)
 {
   float planarImpulse = sqrt(impulse[0] * impulse[0] + impulse[2] * impulse[2]);
@@ -1054,7 +1067,7 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   float d = contact.A.dynamic == nullptr ? 1.f : -1.f;
   auto contactSpaceSeparatingV = contactSpaceV * d;
 
-  float r = dynaObj.collision->restitution + statObj.collision->restitution;
+  float r = 0.f;// dynaObj.collision->restitution + statObj.collision->restitution;
   auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
@@ -1070,7 +1083,7 @@ void resolveVelocitiesDynamicStatic(const Contact& contact)
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
   float friction = 0.5f * (dynaObj.collision->friction + statObj.collision->friction);
-  applyFriction(impulse, friction);
+  //applyFriction(impulse, friction);
 
   float angularDamping = 1.f;
 
@@ -1101,7 +1114,7 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
 
   auto contactSpaceSeparatingV = bContactSpaceV - aContactSpaceV;
 
-  float r = A.collision->restitution + B.collision->restitution;
+  float r = 0.f;// A.collision->restitution + B.collision->restitution;
   auto desiredContactSpaceSeparatingV = { 0.f, contactSpaceSeparatingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceSeparatingV - desiredContactSpaceSeparatingV;
 
@@ -1191,13 +1204,17 @@ void SysCollisionImpl::integrate()
 
         if (dynamic.linearVelocity.squareMagnitude() < 0.02f &&
           dynamic.angularVelocity.squareMagnitude() < 0.0001f) {
-
+/*
           if (++dynamic.framesIdle > TICKS_PER_SECOND / 2) {
             DBG_LOG(m_logger, "Setting idle");
             dynamic.idle = true;
             dynamic.framesIdle = 0;
+            dynamic.linearVelocity = {};
+            dynamic.angularVelocity = {};
+            dynamic.linearAcceleration = {};
+            dynamic.angularAcceleration = {};
             continue;
-          }
+          }*/
         }
 
         Vec3f totalForce;
@@ -1220,11 +1237,11 @@ void SysCollisionImpl::integrate()
 
         updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
 
-        dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
         dynamic.linearVelocity += dynamic.linearAcceleration;
+        dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
 
-        dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
         dynamic.angularVelocity += dynamic.angularAcceleration;
+        dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
       }
     }
   }
@@ -1232,7 +1249,7 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 4;
+  size_t maxIterations = 1;
 
   size_t i = 0;
   for (; i < maxIterations; ++i) {
@@ -1248,7 +1265,7 @@ void SysCollisionImpl::update(Tick tick, const InputState& inputState)
   }
 
   if (i == maxIterations) {
-    DBG_LOG(m_logger, "Max iterations reached");
+    //DBG_LOG(m_logger, "Max iterations reached");
   }
   integrate();
 }
