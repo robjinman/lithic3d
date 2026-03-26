@@ -141,12 +141,12 @@ EntityId FactoryImpl::createDynamicCuboid(const Vec3f& size, MaterialHandle mate
     .inverseMass = inverseMass,
     .restitution = restitution,
     .friction = friction,
+    .centreOfMass = { 0.f, 0.f, 0.f },
     .boundingBox{
       .min = -size * 0.5f,
       .max = size * 0.5f,
       .transform = identityMatrix<4>()
-    },
-    .centreOfMass = { 0.f, 0.f, 0.f }
+    }
   };
   sysCollision.addEntity(id, collision);
 

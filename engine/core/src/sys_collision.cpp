@@ -1,10 +1,70 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
-#include <iostream>
 
 namespace lithic3d
 {
+
+std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
+{
+  DBG_ASSERT(inRange(p[0], m_pos[0], m_pos[0] + m_map.width), "Value out of range");
+  DBG_ASSERT(inRange(p[1], m_pos[2], m_pos[2] + m_map.height), "Value out of range");
+
+  float xIdx = (p[0] - m_pos[0]) * (m_map.widthPx - 1) / m_map.width;
+  float zIdx = (p[1] - m_pos[2]) * (m_map.heightPx - 1) / m_map.height;
+
+  float dx = m_map.width / (m_map.widthPx - 1);
+  float dz = m_map.height / (m_map.heightPx - 1);
+
+  auto xIdx0 = floorf(xIdx);
+  auto zIdx0 = floorf(zIdx);
+  auto xIdx1 = ceilf(xIdx);
+  auto zIdx1 = ceilf(zIdx);
+
+  auto getVertex = [this, dx, dz](float xIdx, float zIdx) {
+    size_t i = static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
+    return Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+  };
+
+  Vec3f A = getVertex(xIdx0, zIdx1);
+  Vec3f B = getVertex(xIdx1, zIdx1);
+  Vec3f C = getVertex(xIdx1, zIdx0);
+  Vec3f D = getVertex(xIdx0, zIdx0);
+
+  Vec2f idx = Vec2f{ xIdx, zIdx };
+  float distanceFromD = (idx - Vec2f{ xIdx0, zIdx0 }).squareMagnitude();
+  float distanceFromB = (idx - Vec2f{ xIdx1, zIdx1 }).squareMagnitude();
+
+  return distanceFromD < distanceFromB ?
+    std::array<Vec3f, 3>{ A, C, D } :
+    std::array<Vec3f, 3>{ A, B, C };
+}
+
+void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
+  std::vector<Vec3f>& vertices) const
+{
+  size_t w = m_map.widthPx - 1;
+  size_t h = m_map.heightPx - 1;
+  auto xIdx0 = static_cast<size_t>(floorf((min[0] - m_pos[0]) * w / m_map.width));
+  auto zIdx0 = static_cast<size_t>(floorf((min[1] - m_pos[2]) * h / m_map.height));
+  auto xIdx1 = static_cast<size_t>(ceilf((max[0] - m_pos[0]) * w / m_map.width));
+  auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
+
+  float dx = m_map.width / w;
+  float dz = m_map.height / h;
+
+  auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
+    size_t i = zIdx * m_map.widthPx + xIdx;
+    return Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+  };
+
+  for (size_t j = zIdx0; j <= zIdx1; ++j) {
+    for (size_t i = xIdx0; i <= xIdx1; ++i) {
+      vertices.push_back(getVertex(i, j));
+    }
+  }
+}
+
 namespace
 {
 
@@ -113,54 +173,15 @@ struct Edge
   Vec3f B;
 };
 
-class HeightMapSampler
+struct PolyhedronData
 {
-  public:
-    HeightMapSampler(const HeightMap& heightMap, const Vec3f& position)
-      : m_map(heightMap)
-      , m_pos(position) {}
-
-    std::array<Vec3f, 3> triangle(const Vec2f& p) const;
-
-  private:
-    const HeightMap m_map;
-    Vec3f m_pos;
+  Vec3f centreOfMass;
+  std::vector<Vec3f> vertices;
+  std::vector<std::array<uint16_t, 2>> edges;
+  std::vector<std::array<uint16_t, 3>> faces;
 };
 
-std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
-{
-  DBG_ASSERT(inRange(p[0], m_pos[0], m_pos[0] + m_map.width), "Value out of range");
-  DBG_ASSERT(inRange(p[1], m_pos[1], m_pos[1] + m_map.height), "Value out of range");
-
-  float xIdx = (p[0] - m_pos[0]) * m_map.widthPx / m_map.width;
-  float zIdx = (p[1] - m_pos[1]) * m_map.heightPx / m_map.height;
-
-  float dx = m_map.width / (m_map.widthPx - 1);
-  float dz = m_map.height / (m_map.heightPx - 1);
-
-  auto xIdx0 = floorf(xIdx);
-  auto zIdx0 = floorf(zIdx);
-  auto xIdx1 = ceilf(xIdx);
-  auto zIdx1 = ceilf(zIdx);
-
-  auto getVertex = [this, dx, dz](float xIdx, float zIdx) {
-    size_t i = static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
-    return Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
-  };
-
-  Vec3f A = getVertex(xIdx0, zIdx1);
-  Vec3f B = getVertex(xIdx1, zIdx1);
-  Vec3f C = getVertex(xIdx1, zIdx0);
-  Vec3f D = getVertex(xIdx0, zIdx0);
-
-  Vec2f idx = Vec2f{ xIdx, zIdx };
-  float distanceFromD = (idx - Vec2f{ xIdx0, zIdx0 }).squareMagnitude();
-  float distanceFromB = (idx - Vec2f{ xIdx1, zIdx1 }).squareMagnitude();
-
-  return distanceFromD < distanceFromB ?
-    std::array<Vec3f, 3>{ A, C, D } :
-    std::array<Vec3f, 3>{ A, B, C };
-}
+using PolyhedronDataPtr = std::unique_ptr<PolyhedronData>;
 
 class SysCollisionImpl : public SysCollision
 {
@@ -170,6 +191,8 @@ class SysCollisionImpl : public SysCollision
     void addEntity(EntityId id, const DStaticBox& data) override;
     void addEntity(EntityId id, const DDynamicBox& data) override;
     void addEntity(EntityId id, const DTerrainChunk& data) override;
+    void addEntity(EntityId id, const DPolyhedron& data) override;
+    void addEntity(EntityId id, const DCapsule& data) override;
 
     void setInverseMass(EntityId id, float inverseMass) override;
     void applyForce(EntityId id, const Vec3f& force, float seconds) override;
@@ -185,6 +208,7 @@ class SysCollisionImpl : public SysCollision
     Logger& m_logger;
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
+    std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedrons;
 
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& comp, const Force& torque);
@@ -192,6 +216,12 @@ class SysCollisionImpl : public SysCollision
     std::vector<CollisionPair> findPossibleCollisions();
     std::vector<Contact> generateContacts(const std::vector<CollisionPair>& pairs);
     void integrate();
+
+    void generateBoxPolyContacts(const ObjectComponents& A, const ObjectComponents& B,
+      std::vector<Contact>& contacts) const;
+
+    void generateCapsulePolyContacts(const ObjectComponents& A, const ObjectComponents& B,
+      std::vector<Contact>& contacts) const;
 };
 
 SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -207,12 +237,14 @@ void SysCollisionImpl::addEntity(EntityId id, const DStaticBox& data)
 
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
   assertHasComponent<CCollisionBox>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
     .restitution = data.restitution,
-    .friction = data.friction
+    .friction = data.friction,
+    .isPolyhedron = false
   };
 
   componentStore.instantiate<CCollisionBox>(id) = CCollisionBox{
@@ -226,13 +258,15 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
 
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
   assertHasComponent<CCollisionBox>(componentStore, id);
   assertHasComponent<CCollisionDynamic>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
     .restitution = data.restitution,
-    .friction = data.friction
+    .friction = data.friction,
+    .isPolyhedron = false
   };
 
   componentStore.instantiate<CCollisionBox>(id) = CCollisionBox{
@@ -270,21 +304,83 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
 
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CCollision>(componentStore, id);
+  assertHasComponent<CCollisionTerrain>(componentStore, id);
+
+  componentStore.instantiate<CCollision>(id) = CCollision{
+    .restitution = data.restitution,
+    .friction = data.friction,
+    .isPolyhedron = false
+  };
+
+  componentStore.instantiate<CCollisionTerrain>(id) = CCollisionTerrain{
+    .heightMap = data.heightMap
+  };
+}
+
+void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
+{
+  auto& componentStore = m_ecs.componentStore();
+
+  assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
+    .restitution = data.restitution,
+    .friction = data.friction,
+    .isPolyhedron = true
   };
+
+  auto poly = std::make_unique<PolyhedronData>();
+  poly->centreOfMass = data.centreOfMass;
+
+  // TODO
+
+  m_polyhedrons[id] = std::move(poly);
+}
+
+void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
+{
+  auto& componentStore = m_ecs.componentStore();
+
+  assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CCollision>(componentStore, id);
+  assertHasComponent<CCollisionDynamic>(componentStore, id);
+
+  componentStore.instantiate<CCollision>(id) = CCollision{
+    .restitution = data.restitution,
+    .friction = data.friction,
+    .isPolyhedron = false
+  };
+
+  componentStore.instantiate<CCollisionCapsule>(id) = CCollisionCapsule{
+    .capsule = data.capsule
+  };
+
+  CCollisionDynamic dynamic{
+    // TODO
+  };
+
+  if (dynamic.inverseMass != 0) {
+    applyGravity(dynamic);
+  }
+
+  componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
 }
 
 void SysCollisionImpl::removeEntity(EntityId entityId)
 {
-  // TODO
+  m_polyhedrons.erase(entityId);
 }
 
 bool SysCollisionImpl::hasEntity(EntityId entityId) const
 {
-  // TODO
-  return false;
+  return m_ecs.componentStore().hasComponentForEntity<CCollision>(entityId);
 }
 
 void SysCollisionImpl::applyGravity(CCollisionDynamic& comp)
@@ -494,42 +590,35 @@ inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& t
   //    \ |    \ |
   //     \|     \|
   //      E------F
+  auto t = transform * box.transform;
   return {
-    (transform * box.transform * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f }).sub<3>(),  // A  
-    (transform * box.transform * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f }).sub<3>(),  // B
-    (transform * box.transform * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f }).sub<3>(),  // C
-    (transform * box.transform * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f }).sub<3>(),  // D
-    (transform * box.transform * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // E
-    (transform * box.transform * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // F
-    (transform * box.transform * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f }).sub<3>(),  // G
-    (transform * box.transform * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }).sub<3>()   // H
+    (t * Vec4f{ box.min[0], box.min[1], box.min[2], 1.f }).sub<3>(),  // A  
+    (t * Vec4f{ box.max[0], box.min[1], box.min[2], 1.f }).sub<3>(),  // B
+    (t * Vec4f{ box.min[0], box.max[1], box.min[2], 1.f }).sub<3>(),  // C
+    (t * Vec4f{ box.max[0], box.max[1], box.min[2], 1.f }).sub<3>(),  // D
+    (t * Vec4f{ box.min[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // E
+    (t * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // F
+    (t * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f }).sub<3>(),  // G
+    (t * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }).sub<3>()   // H
   };
 }
 
 // Returns box's inverse tangents at each vertex in world space
 inline std::array<Vec3f, 8> getInverseTangents(const BoundingBox& box, const Mat4x4f& transform)
 {
-  // C------D
-  // |\     |\
-  // | \    | \
-  // A--\---B  \
-  //  \  \   \  \
-  //   \  G------H
-  //    \ |    \ |
-  //     \|     \|
-  //      E------F
-  const float k = 0.57735026919; // One over root 3
+  const float k = 0.57735026919f; // One over root 3
+  auto t = transform * box.transform;
 
   // TODO: Shouldn't need to normalise
   return {
-    (transform * box.transform * Vec4f{ k, k, k, 0.f }).sub<3>().normalise(),     // A  
-    (transform * box.transform * Vec4f{ -k, k, k, 0.f }).sub<3>().normalise(),    // B
-    (transform * box.transform * Vec4f{ k, -k, k, 0.f }).sub<3>().normalise(),    // C
-    (transform * box.transform * Vec4f{ -k, -k, k, 0.f }).sub<3>().normalise(),   // D
-    (transform * box.transform * Vec4f{ k, k, -k, 0.f }).sub<3>().normalise(),    // E
-    (transform * box.transform * Vec4f{ -k, k, -k, 0.f }).sub<3>().normalise(),   // F
-    (transform * box.transform * Vec4f{ k, -k, -k, 0.f }).sub<3>().normalise(),   // G
-    (transform * box.transform * Vec4f{ -k, -k, -k, 0.f }).sub<3>().normalise()   // H
+    (t * Vec4f{ k, k, k, 0.f }).sub<3>(),   // A  
+    (t * Vec4f{ -k, k, k, 0.f }).sub<3>(),  // B
+    (t * Vec4f{ k, -k, k, 0.f }).sub<3>(),  // C
+    (t * Vec4f{ -k, -k, k, 0.f }).sub<3>(), // D
+    (t * Vec4f{ k, k, -k, 0.f }).sub<3>(),  // E
+    (t * Vec4f{ -k, k, -k, 0.f }).sub<3>(), // F
+    (t * Vec4f{ k, -k, -k, 0.f }).sub<3>(), // G
+    (t * Vec4f{ -k, -k, -k, 0.f }).sub<3>() // H
   };
 }
 
@@ -666,20 +755,20 @@ inline Vec3f differentVector(const Vec3f& v)
   return r * v;
 }
 
-// Check if any of box1's vertices intersect box2 and generate a contact
-bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
-  const BoundingBox& box2, const Mat4x4f& box2ToWorldSpace, const Mat4x4f& worldToBox2Space,
-  Contact& contact)
+bool boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
 {
+  auto boxBToWorldSpace = B.localTransform->transform * B.box->boundingBox.transform;
+  auto worldToBoxBSpace = inverse(boxBToWorldSpace);
+
   float maxPenetration = 0.f;
   int vertWithMaxPenetration = -1;
   std::array<Vec3f, 8> normals;
 
-  auto verts = getVertices(box1, box1Transform);
-  auto invTangents = getInverseTangents(box1, box1Transform);
+  auto verts = getVertices(A.box->boundingBox, A.localTransform->transform);
+  auto invTangents = getInverseTangents(A.box->boundingBox, A.localTransform->transform);
   for (size_t i = 0; i < 8; ++i) {
-    float penetration = pointBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, verts[i],
-      invTangents[i], normals[i]);
+    float penetration = pointBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
+      verts[i], invTangents[i], normals[i]);
 
     if (penetration > maxPenetration) {
       vertWithMaxPenetration = i;
@@ -691,6 +780,8 @@ bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform
     return false;
   }
 
+  contact.A = A;
+  contact.B = B;
   contact.normal = normals[vertWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = verts[vertWithMaxPenetration];
@@ -698,6 +789,14 @@ bool checkForPointContacts(const BoundingBox& box1, const Mat4x4f& box1Transform
   contact.toContactSpace = contact.fromContactSpace.t();
 
   return true;
+}
+
+bool boxBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+{
+  if (boxXBoxPointContact(A, B, contact)) {
+    return true;
+  }
+  return boxXBoxPointContact(B, A, contact);
 }
 
 // Solve system of equations for s and t:
@@ -781,9 +880,10 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     Vec3f P = a + v * st[0];
     Vec3f Q = b + w * st[1];
 
-    auto QP = Q - P;
-    float sqPenetration = QP.squareMagnitude();
+    auto PQ = Q - P;
+    float sqPenetration = PQ.squareMagnitude();
 
+    // TODO: Replace with distance to centre test
     if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>(), 0.002f)) {
       continue;
     }
@@ -791,8 +891,8 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     if (sqPenetration < minSqPenetration) {
       minSqPenetration = sqPenetration;
       indexOfMinPenetration = i;
-      points[i] = P + QP * 0.5f;
-      normals[i] = QP.normalise();
+      points[i] = P + PQ * 0.5f;
+      normals[i] = PQ.normalise();
     }
   }
 
@@ -806,20 +906,20 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   return 0.f;
 }
 
-// Check if any of box1's edges intersect box2 and generate a contact
-bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
-  const BoundingBox& box2, const Mat4x4f& box2ToWorldSpace, const Mat4x4f& worldToBox2Space,
-  Contact& contact)
+bool boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
 {
   float maxPenetration = 0.f;
   int edgeWithMaxPenetration = -1;
   std::array<Vec3f, 12> points;
   std::array<Vec3f, 12> normals;
 
-  auto edges = getEdges(getVertices(box1, box1Transform));
+  auto boxBToWorldSpace = B.localTransform->transform * B.box->boundingBox.transform;
+  auto worldToBoxBSpace = inverse(boxBToWorldSpace);
+
+  auto edges = getEdges(getVertices(A.box->boundingBox, A.localTransform->transform));
   for (size_t i = 0; i < 12; ++i) {
-    float penetration = edgeBoxPenetration(box2, worldToBox2Space, box2ToWorldSpace, edges[i],
-      points[i], normals[i]);
+    float penetration = edgeBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
+      edges[i], points[i], normals[i]);
 
     if (penetration > maxPenetration) {
       edgeWithMaxPenetration = i;
@@ -831,6 +931,8 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
     return false;
   }
 
+  contact.A = A;
+  contact.B = B;
   contact.normal = normals[edgeWithMaxPenetration];
   contact.penetration = maxPenetration;
   contact.point = points[edgeWithMaxPenetration];
@@ -840,52 +942,274 @@ bool checkForEdgeContacts(const BoundingBox& box1, const Mat4x4f& box1Transform,
   return true;
 }
 
-std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
+void generateBoxBoxContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
 {
-  std::vector<Contact> allContacts;
+  assert(A.box != nullptr);
+  assert(B.box != nullptr);
 
-  for (auto& pair : pairs) {
-    // TODO: Not all entities have a collision box
-    assert(pair.A.box != nullptr);
-    assert(pair.B.box != nullptr);
+  Contact contact;
 
-    auto boxAToWorldSpace = pair.A.localTransform->transform *
-      pair.A.box->boundingBox.transform;
-    auto worldToBoxASpace = inverse(boxAToWorldSpace);
-    auto boxBToWorldSpace = pair.B.localTransform->transform *
-      pair.B.box->boundingBox.transform;
-    auto worldToBoxBSpace = inverse(boxBToWorldSpace);
+  if (boxBoxPointContact(A, B, contact)) {
+    contacts.push_back(contact);
+  }
+  else if (boxBoxEdgeContact(A, B, contact)) {
+    contacts.push_back(contact);
+  }
+}
 
-    std::array<Contact, 3> contacts{};  // TODO: No need for array
+void generateCapsuleCapsuleContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  assert(A.capsule != nullptr);
+  assert(B.capsule != nullptr);
 
-    if (checkForPointContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
-      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[0])) {
+  // TODO
+}
 
-      contacts[0].A = pair.A;
-      contacts[0].B = pair.B;
+void generateCapsuleTerrainContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  assert(A.capsule != nullptr);
+  assert(B.terrain != nullptr);
 
-      allContacts.push_back(contacts[0]);
+  // TODO
+}
+
+void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  assert(A.box != nullptr);
+  assert(B.capsule != nullptr);
+
+  // TODO
+}
+
+void SysCollisionImpl::generateBoxPolyContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts) const
+{
+  assert(A.box != nullptr);
+  auto i = m_polyhedrons.find(B.entityId);
+  assert(i != m_polyhedrons.end());
+  const PolyhedronData& poly = *i->second;
+
+  // TODO
+}
+
+void SysCollisionImpl::generateCapsulePolyContacts(const ObjectComponents& A,
+  const ObjectComponents& B, std::vector<Contact>& contacts) const
+{
+  assert(A.capsule != nullptr);
+  auto i = m_polyhedrons.find(B.entityId);
+  assert(i != m_polyhedrons.end());
+  const PolyhedronData& poly = *i->second;
+
+  // TODO
+}
+
+bool boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+{
+  assert(A.box != nullptr);
+  assert(B.terrain != nullptr);
+
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(B.localTransform->transform)};
+
+  auto verts = getVertices(A.box->boundingBox, A.localTransform->transform);
+  std::array<Vec3f, 8> normals;
+
+  int vertWithMaxPenetration = -1;
+  float maxPenetration = 0.f;
+
+  for (size_t i = 0; i < verts.size(); ++i) {
+    auto& vert = verts[i];
+
+    auto triangle = sampler.triangle({ vert[0], vert[2] });
+    float maxY = std::max(std::max(triangle[0][1], triangle[1][1]), triangle[2][1]);
+
+    if (vert[1] > maxY) {
+      continue;
     }
-    else if (checkForPointContacts(pair.B.box->boundingBox,
-      pair.B.localTransform->transform, pair.A.box->boundingBox, boxAToWorldSpace,
-      worldToBoxASpace, contacts[1])) {
 
-      contacts[1].A = pair.B;
-      contacts[1].B = pair.A;
+    auto AB = triangle[1] - triangle[0];
+    auto AC = triangle[2] - triangle[0];
 
-      allContacts.push_back(contacts[1]);
+    auto n = AB.cross(AC);
+    // d = -(Ax + By + Cz)
+    auto d = -(n[0] * triangle[0][0] + n[1] * triangle[0][1] + n[2] * triangle[0][2]);
+
+    float y = -(vert[0] * n[0] + n[2] * vert[2] + d) / n[1];
+
+    if (vert[1] > y) {
+      continue;
     }
-    else if (checkForEdgeContacts(pair.A.box->boundingBox, pair.A.localTransform->transform,
-      pair.B.box->boundingBox, boxBToWorldSpace, worldToBoxBSpace, contacts[2])) {
 
-      contacts[2].A = pair.A;
-      contacts[2].B = pair.B;
+    float penetration = y - vert[1];
 
-      allContacts.push_back(contacts[2]);
+    if (penetration > maxPenetration) {
+      normals[i] = n;
+      maxPenetration = penetration;
+      vertWithMaxPenetration = i;
     }
   }
 
-  return allContacts;
+  if (vertWithMaxPenetration != -1) {
+    contact.A = A;
+    contact.B = B;
+    contact.normal = normals[vertWithMaxPenetration].normalise();
+    contact.point = verts[vertWithMaxPenetration];
+    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+    contact.toContactSpace = contact.fromContactSpace.t();
+    contact.penetration = maxPenetration;
+
+    return true;
+  }
+
+  return false;
+}
+
+bool terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+{
+  assert(A.terrain != nullptr);
+  assert(B.box != nullptr);
+
+  HeightMapSampler sampler{A.terrain->heightMap, getTranslation(A.localTransform->transform)};
+
+  Vec2f min{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
+  Vec2f max{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };
+
+  auto boxVerts = getVertices(B.box->boundingBox, B.localTransform->transform);
+  for (auto& vert : boxVerts) {
+    if (vert[0] < min[0]) {
+      min[0] = vert[0];
+    }
+    if (vert[0] > max[0]) {
+      max[0] = vert[0];
+    }
+    if (vert[2] < min[1]) {
+      min[1] = vert[2];
+    }
+    if (vert[2] > max[1]) {
+      max[1] = vert[2];
+    }
+  }
+
+  std::vector<Vec3f> terrainVerts;
+  sampler.vertices(min, max, terrainVerts);
+
+  std::vector<Vec3f> normals;   // TODO: Avoid std::vector?
+  normals.resize(terrainVerts.size());
+  int vertWithMaxPenetration = -1;
+  float maxPenetration = 0.f;
+
+  auto boxToWorldSpace = B.localTransform->transform * B.box->boundingBox.transform;
+  auto worldToBoxSpace = inverse(boxToWorldSpace);
+
+  for (size_t i = 0; i < terrainVerts.size(); ++i) {
+    auto& vert = terrainVerts[i];
+    Vec3f invTangent{ 0.f, -1.f, 0.f }; // TODO: Good enough?
+
+    float penetration = pointBoxPenetration(B.box->boundingBox, worldToBoxSpace, boxToWorldSpace,
+      vert, invTangent, normals[i]);
+
+    if (penetration > maxPenetration) {
+      maxPenetration = penetration;
+      vertWithMaxPenetration = i;
+    }
+  }
+
+  if (vertWithMaxPenetration != -1) {
+    contact.A = A;
+    contact.B = B;
+    contact.normal = normals[vertWithMaxPenetration];
+    contact.point = terrainVerts[vertWithMaxPenetration];
+    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+    contact.toContactSpace = contact.fromContactSpace.t();
+    contact.penetration = maxPenetration;
+
+    return true;
+  }
+
+  return false;
+}
+
+bool boxTerrainPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+{
+  if (boxXTerrainPointContact(A, B, contact)) {
+    return true;
+  }
+
+  return terrainXBoxPointContact(B, A, contact);
+}
+
+bool boxTerrainEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+{
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(B.localTransform->transform)};
+
+  // TODO
+
+  return false;
+}
+
+void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  assert(A.box != nullptr);
+  assert(B.terrain != nullptr);
+
+  Contact contact;
+
+  if (boxTerrainPointContact(A, B, contact)) {
+    contacts.push_back(contact);
+  }
+  else if (boxTerrainEdgeContact(A, B, contact)) {
+    contacts.push_back(contact);
+  }
+}
+
+std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
+{
+  std::vector<Contact> contacts;
+
+  for (auto& pair : pairs) {
+    if (pair.A.box && pair.B.box) {
+      generateBoxBoxContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.box && pair.B.capsule) {
+      generateBoxCapsuleContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.box && pair.B.collision->isPolyhedron) {
+      generateBoxPolyContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.box && pair.B.terrain) {
+      generateBoxTerrainContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.capsule && pair.B.box) {
+      generateBoxCapsuleContacts(pair.B, pair.A, contacts);
+    }
+    else if (pair.A.capsule && pair.B.capsule) {
+      generateCapsuleCapsuleContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.capsule && pair.B.collision->isPolyhedron) {
+      generateCapsulePolyContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.capsule && pair.B.terrain) {
+      generateCapsuleTerrainContacts(pair.A, pair.B, contacts);
+    }
+    else if (pair.A.collision->isPolyhedron && pair.B.box) {
+      generateBoxPolyContacts(pair.B, pair.A, contacts);
+    }
+    else if (pair.A.collision->isPolyhedron && pair.B.capsule) {
+      generateCapsulePolyContacts(pair.B, pair.A, contacts);
+    }
+    else if (pair.A.terrain && pair.B.box) {
+      generateBoxTerrainContacts(pair.B, pair.A, contacts);
+    }
+    else if (pair.A.terrain && pair.B.capsule) {
+      generateCapsuleTerrainContacts(pair.B, pair.A, contacts);
+    }
+  }
+
+  return contacts;
 }
 
 void updateTransform(CLocalTransform& localT, CSpatialFlags& spatialFlags, const Vec3f& linearV,

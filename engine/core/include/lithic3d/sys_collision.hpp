@@ -1,6 +1,8 @@
 // The collision system ignores an object's global transform and reads/updates only its local
 // transform. Essentially, objects are treated as though they are unparented.
 
+// TODO: Remove centre of mass?
+
 #pragma once
 
 #include "sys_spatial.hpp"
@@ -30,17 +32,38 @@ struct CCollision
 {
   float restitution = 0.2f;
   float friction = 0.4f;
+  bool isPolyhedron = false;
 
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
+};
+
+struct Capsule
+{
+  // TODO
 };
 
 struct HeightMap
 {
   float width = 0.f;  // World units
   float height = 0.f;
-  size_t widthPx = 0.f;
-  size_t heightPx = 0.f;
+  uint32_t widthPx = 0.f;
+  uint32_t heightPx = 0.f;
   std::vector<float> data;
+};
+
+class HeightMapSampler
+{
+  public:
+    HeightMapSampler(const HeightMap& heightMap, const Vec3f& position)
+      : m_map(heightMap)
+      , m_pos(position) {}
+
+    std::array<Vec3f, 3> triangle(const Vec2f& p) const;
+    void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
+
+  private:
+    const HeightMap& m_map;
+    Vec3f m_pos;
 };
 
 struct CCollisionTerrain
@@ -59,7 +82,7 @@ struct CCollisionBox
 
 struct CCollisionCapsule
 {
-  // TODO
+  Capsule capsule;
 
   static constexpr ComponentTypeId TypeId = CCollisionCapsuleTypeId;
 };
@@ -94,8 +117,8 @@ struct DDynamicBox
   float inverseMass = 1.f;
   float restitution = 0.2f;
   float friction = 0.4f;
-  BoundingBox boundingBox;
   Vec3f centreOfMass;
+  BoundingBox boundingBox;
 };
 
 struct DStaticBox
@@ -112,12 +135,39 @@ struct DStaticBox
 struct DTerrainChunk
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CLocalTransform, CBoundingBox
+    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionTerrain
   >;
 
-  HeightMap heightMap;
   float restitution = 0.2f;
   float friction = 0.4f;
+  HeightMap heightMap;
+};
+
+// TODO: Support poly aggregates
+struct DPolyhedron
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision
+  >;
+
+  float restitution = 0.2f;
+  float friction = 0.4f;
+  Vec3f centreOfMass;
+  std::vector<Vec3f> vertices;
+  std::vector<uint16_t> indices;
+};
+
+struct DCapsule
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionDynamic, CCollisionCapsule
+  >;
+
+  float inverseMass = 1.f;
+  float restitution = 0.2f;
+  float friction = 0.4f;
+  Vec3f centreOfMass;
+  Capsule capsule;
 };
 
 class SysCollision : public System
@@ -132,6 +182,8 @@ class SysCollision : public System
     virtual void addEntity(EntityId id, const DStaticBox& data) = 0;
     virtual void addEntity(EntityId id, const DDynamicBox& data) = 0;
     virtual void addEntity(EntityId id, const DTerrainChunk& data) = 0;
+    virtual void addEntity(EntityId id, const DPolyhedron& data) = 0;
+    virtual void addEntity(EntityId id, const DCapsule& data) = 0;
 
     static const SystemId id = Systems::Collision;
 };

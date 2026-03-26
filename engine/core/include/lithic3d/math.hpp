@@ -694,10 +694,11 @@ std::ostream& operator<<(std::ostream& stream, const Rect<T>& r)
   return stream;
 }
 
+// Ax + By + Cz + D = 0
 struct Plane
 {
-  Vec3f normal;
-  float distance;
+  Vec3f normal;     // A, B, C
+  float distance;   // D
 
   void normalise()
   {
@@ -706,12 +707,6 @@ struct Plane
     normal = normal / magnitude;
   }
 };
-/*
-inline bool intersectsPlane(const Plane& plane, const Vec3f& pos, float radius)
-{
-  float distance = fabs(plane.distance) - (plane.normal * -plane.distance).dot(pos);
-  return distance <= radius;
-}*/
 
 namespace FrustumPlane
 {

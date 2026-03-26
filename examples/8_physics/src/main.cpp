@@ -9,9 +9,9 @@ using namespace lithic3d::render;
 namespace
 {
 
-float VIEW_X = 70.f;
-float VIEW_Y = 12.f;
-float VIEW_Z = 75.f;
+float VIEW_X = 280.f;
+float VIEW_Y = 6.f;
+float VIEW_Z = 300.f;
 
 struct Object
 {
@@ -240,8 +240,8 @@ void Demo::constructGround()
     .world = "world",
     .minHeight = 0.f,
     .maxHeight = 6.f,
-    .cellWidth = 100.f,
-    .cellHeight = 100.f
+    .cellWidth = 400.f,
+    .cellHeight = 400.f
   };
 
   auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),

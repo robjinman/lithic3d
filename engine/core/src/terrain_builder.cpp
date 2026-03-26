@@ -106,7 +106,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 
   auto id = m_ecs.idGen().getNewEntityId();
 
-  m_ecs.componentStore().allocate<DSpatial, DModel, DStaticBox>(id); // TODO: DTerrainChunk
+  m_ecs.componentStore().allocate<DSpatial, DModel, DTerrainChunk>(id);
 
   float minHeight = metresToWorldUnits(m_config.minHeight);
   float maxHeight = metresToWorldUnits(m_config.maxHeight);
@@ -130,21 +130,21 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 
   sysRender3d.addEntity(id, std::move(render));
 
-  //DTerrainChunk collision{
-  //  .heightMap = region.heightMap,
-  //  .restitution = 0.2f,  // TODO
-  //  .friction = 0.4f      // TODO
-  //};
-
-  DStaticBox collision{
-    .restitution = 0.f,  // TODO
+  DTerrainChunk collision{
+    .restitution = 0.f,   // TODO
     .friction = 0.4f,     // TODO
-    .boundingBox{
-      .min = { 0.f, minHeight, 0.f },
-      .max = { cellWidth, maxHeight, cellHeight },
-      .transform = identityMatrix<4>()
-    }
+    .heightMap = region.heightMap
   };
+
+  //DStaticBox collision{
+  //  .restitution = 0.f,  // TODO
+  //  .friction = 0.4f,     // TODO
+  //  .boundingBox{
+  //    .min = { 0.f, minHeight, 0.f },
+  //    .max = { cellWidth, maxHeight, cellHeight },
+  //    .transform = identityMatrix<4>()
+  //  }
+  //};
 
   sysCollision.addEntity(id, collision);
 
@@ -250,8 +250,8 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     HeightMap heightMap;
     heightMap.widthPx = heightMapTexture->width;
     heightMap.heightPx = heightMapTexture->height;
-    heightMap.width = m_config.cellWidth;
-    heightMap.height = m_config.cellHeight;
+    heightMap.width = metresToWorldUnits(m_config.cellWidth);
+    heightMap.height = metresToWorldUnits(m_config.cellHeight);
     heightMap.data = constructHeightMap(*mesh);
 
     render::MaterialFeatureSet materialFeatures{
