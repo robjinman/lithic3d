@@ -9,9 +9,9 @@ using namespace lithic3d::render;
 namespace
 {
 
-float VIEW_X = 140.f;
-float VIEW_Y = 12.f;
-float VIEW_Z = 150.f;
+float VIEW_X = 100.f;
+float VIEW_Y = 10.f;
+float VIEW_Z = 175.f;
 
 struct Object
 {
@@ -59,24 +59,24 @@ class Demo : public Game
         .objects = {
           Object{
             .randomRotation = true,
-            .dimensions = { 2.f, 2.f, 1.f },
-            .position = { VIEW_X + 2.f, VIEW_Y + 2.f, VIEW_Z - 20.f },
-            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(45.f) },
+            .dimensions = { 2.f, 1.f, 2.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(45.f), degreesToRadians(180.f) },
             .infiniteMass = false,
             .isStatic = false
           },
           Object{
             .randomRotation = false,
-            .dimensions = { 5.f, 0.5f, 5.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 20.f },
-            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
-            .infiniteMass = true,
-            .isStatic = false
+            .dimensions = { 8.f, 0.5f, 8.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = true
           }
         }
       },
       Scenario{
-        .objects = {/*
+        .objects = {
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
@@ -84,7 +84,7 @@ class Demo : public Game
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = false
-          },*/
+          },
           Object{
             .randomRotation = false,
             .dimensions = { 4.f, 1.f, 4.f },
@@ -197,12 +197,13 @@ Demo::Demo(Engine& engine)
     m_engine.renderResourceLoader());
 
   m_light = constructLight();
-  constructGround();
+  //constructGround();
+  constructTerrain();
   m_caption = constructCaption();
 
   auto& camera = m_engine.ecs().system<SysRender3d>().camera();
   camera.setPosition(metresToWorldUnits(Vec3f{ VIEW_X, VIEW_Y, VIEW_Z }));
-  camera.rotate(-degreesToRadians(15.f), 0.f);
+  camera.rotate(-degreesToRadians(20.f), 0.f);
 
   constructScenario(m_currentScenario);
 
@@ -211,11 +212,11 @@ Demo::Demo(Engine& engine)
   //  resetState();
   //}
 
-  enablePhysics();
+  //enablePhysics();
 
-  for (size_t i = 0; i < 115; ++i) {
-   // onKeyDown(KeyboardKey::N);
-  }
+  //for (size_t i = 0; i < 115; ++i) {
+  //  onKeyDown(KeyboardKey::N);
+  //}
 }
 
 Vec3f randomRotation()
@@ -289,7 +290,7 @@ void Demo::constructGround()
   auto material = m_factory->createMaterialAsync("textures/grass.png");
   auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
   auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
-  auto id = m_factory->createStaticCuboid(size, material, texSize, 0.2f, 0.4f);
+  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f); // TODO: Use static
   sysSpatial.setEntityTransform(id, translationMatrix4x4(size * 0.5f));
 }
 
@@ -371,7 +372,7 @@ void Demo::enablePhysics()
     auto id = m_entityIds[i];
 
     if (!obj.infiniteMass && !obj.isStatic) {
-      const float scale = WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE;
+      const float scale = 1.f;//WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE;
       auto invMass = 1.f / (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2] * scale);
       sysCollision.setInverseMass(id, invMass);
     }

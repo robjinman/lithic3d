@@ -64,6 +64,7 @@ class HeightMapSampler
       : m_map(heightMap)
       , m_pos(position) {}
 
+    inline bool inRange(const Vec2f& p) const;
     std::array<Vec3f, 3> triangle(const Vec2f& p) const;
     void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
     void edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const;
@@ -72,6 +73,12 @@ class HeightMapSampler
     const HeightMap& m_map;
     Vec3f m_pos;
 };
+
+inline bool HeightMapSampler::inRange(const Vec2f& p) const
+{
+  return lithic3d::inRange(p[0], m_pos[0], m_pos[0] + m_map.width) &&
+    lithic3d::inRange(p[1], m_pos[2], m_pos[2] + m_map.height);
+}
 
 struct CCollisionTerrain
 {

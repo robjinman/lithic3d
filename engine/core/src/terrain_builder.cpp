@@ -273,8 +273,8 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     //heightMapTexture->width = 3;
     //heightMapTexture->height = 3;
     //heightMapTexture->data = {
-    //  255, 255, 255,
     //  0, 0, 0,
+    //  0, 255, 0,
     //  0, 0, 0
     //};
 
