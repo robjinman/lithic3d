@@ -184,6 +184,7 @@ class Demo : public Game
     void constructScenario(size_t i);
     void destroyScenario();
     void constructGround();
+    void constructTerrain();
     EntityId constructCaption();
     void resetState();
     void enablePhysics();
@@ -254,7 +255,7 @@ void Demo::destroyScenario()
   m_entityIds.clear();
 }
 
-void Demo::constructGround()
+void Demo::constructTerrain()
 {
   TerrainConfig terrainConfig{
     .world = "world",
@@ -280,6 +281,16 @@ void Demo::constructGround()
 
   m_terrain = terrainBuilder->loadTerrainRegionAsync(0, 0, parseXml(xmlTerrain)).wait();
   terrainBuilder->createEntities(m_terrain.id());
+}
+
+void Demo::constructGround()
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto material = m_factory->createMaterialAsync("textures/grass.png");
+  auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
+  auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
+  auto id = m_factory->createStaticCuboid(size, material, texSize, 0.2f, 0.4f);
+  sysSpatial.setEntityTransform(id, translationMatrix4x4(size * 0.5f));
 }
 
 EntityId Demo::constructLight()

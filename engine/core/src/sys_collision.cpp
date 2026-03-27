@@ -1442,7 +1442,7 @@ void resolveVelocities(const Contact& contact)
     auto& dynaObj = contact.A.dynamic == nullptr ? contact.B : contact.A;
 
     if (!dynaObj.dynamic->hasCollided) {
-      dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
+      //dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
       dynaObj.dynamic->hasCollided = true;
     }
   }
@@ -1501,10 +1501,10 @@ void resolveVelocities(const Contact& contact)
 
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
-  if (bothDynamic) {
+  //if (bothDynamic) {
     float friction = 0.5f * (A.collision->friction + B.collision->friction);
     reapplyLateralImpulse(impulse, friction);
-  }
+  //}
 
   if (A.dynamic) {
     A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
@@ -1604,7 +1604,7 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 1;
+  size_t maxIterations = 4;
 
   for (size_t i = 0; i < maxIterations; ++i) {
     auto pairs = findPossibleCollisions();  // TODO: Slow!
