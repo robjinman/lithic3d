@@ -1604,7 +1604,7 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 4;
+  size_t maxIterations = 1;
 
   for (size_t i = 0; i < maxIterations; ++i) {
     auto pairs = findPossibleCollisions();  // TODO: Slow!

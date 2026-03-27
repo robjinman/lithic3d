@@ -69,7 +69,7 @@ class Demo : public Game
             .randomRotation = false,
             .dimensions = { 5.f, 0.5f, 5.f },
             .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 20.f },
-            .rotation = { degreesToRadians(20.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = true,
             .isStatic = false
           }
