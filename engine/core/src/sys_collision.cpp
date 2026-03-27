@@ -1,6 +1,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
+#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -20,6 +21,13 @@ std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
   auto zIdx0 = floorf(zIdx);
   auto xIdx1 = ceilf(xIdx);
   auto zIdx1 = ceilf(zIdx);
+
+  if (xIdx0 == xIdx1) {
+    ++xIdx1;
+  }
+  if (zIdx0 == zIdx1) {
+    ++zIdx1;
+  }
 
   auto getVertex = [this, dx, dz](float xIdx, float zIdx) {
     size_t i = static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
@@ -65,10 +73,48 @@ void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
   }
 }
 
+void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const
+{
+  size_t w = m_map.widthPx - 1;
+  size_t h = m_map.heightPx - 1;
+  auto xIdx0 = static_cast<size_t>(floorf((min[0] - m_pos[0]) * w / m_map.width));
+  auto zIdx0 = static_cast<size_t>(floorf((min[1] - m_pos[2]) * h / m_map.height));
+  auto xIdx1 = static_cast<size_t>(ceilf((max[0] - m_pos[0]) * w / m_map.width));
+  auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
+
+  float dx = m_map.width / w;
+  float dz = m_map.height / h;
+
+  auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
+    size_t i = zIdx * m_map.widthPx + xIdx;
+    return Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+  };
+
+  for (size_t j = zIdx0; j < zIdx1; ++j) {
+    for (size_t i = xIdx0; i < xIdx1; ++i) {
+      Vec3f A = getVertex(i, j + 1);
+      Vec3f B = getVertex(i + 1, j + 1);
+      Vec3f C = getVertex(i + 1, j);
+      Vec3f D = getVertex(i, j);
+
+      if (i > xIdx0) {
+        edges.push_back({ A, D });
+      }
+      if (j > zIdx0) {
+        edges.push_back({ C, D });
+      }
+      edges.push_back({ A, B });
+      edges.push_back({ B, C });
+      edges.push_back({ A, C });
+    }
+  }
+}
+
 namespace
 {
 
 const float G = -metresToWorldUnits(9.8f) / (TICKS_PER_SECOND * TICKS_PER_SECOND);
+//const float G = -9.8f / (TICKS_PER_SECOND * TICKS_PER_SECOND);
 
 uint32_t findFreeIndex(const std::array<Force, MAX_FORCES>& array)
 {
@@ -108,10 +154,12 @@ Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
   float h = box.max[1] - box.min[1];
   float d = box.max[2] - box.min[2];
 
+  float scale = 1.f; // TODO: Remove scale factor
+
   return {
-    12.f * inverseMass / (h * h + d * d), 0.f, 0.f,
-    0.f, 12.f * inverseMass / (w * w + d * d), 0.f,
-    0.f, 0.f, 12.f * inverseMass / (w * w + h * h)
+    scale * 12.f * inverseMass / (h * h + d * d), 0.f, 0.f,
+    0.f, scale * 12.f * inverseMass / (w * w + d * d), 0.f,
+    0.f, 0.f, scale * 12.f * inverseMass / (w * w + h * h)
   };
 }
 
@@ -165,12 +213,6 @@ struct Contact
   float penetration = 0.f;
   Mat3x3f toContactSpace;
   Mat3x3f fromContactSpace;
-};
-
-struct Edge
-{
-  Vec3f A;
-  Vec3f B;
 };
 
 struct PolyhedronData
@@ -389,7 +431,7 @@ void SysCollisionImpl::applyGravity(CCollisionDynamic& comp)
     return;
   }
 
-  float f = (1.f / comp.inverseMass) * G;
+  float f = G / comp.inverseMass;
 
   applyForce(comp, {
     .force{ 0.f, f, 0.f },
@@ -609,7 +651,6 @@ inline std::array<Vec3f, 8> getInverseTangents(const BoundingBox& box, const Mat
   const float k = 0.57735026919f; // One over root 3
   auto t = transform * box.transform;
 
-  // TODO: Shouldn't need to normalise
   return {
     (t * Vec4f{ k, k, k, 0.f }).sub<3>(),   // A  
     (t * Vec4f{ -k, k, k, 0.f }).sub<3>(),  // B
@@ -647,6 +688,8 @@ inline std::array<Edge, 12> getEdges(const std::array<Vec3f, 8>& vertices)
 float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   const Mat4x4f& boxToWorldSpace, const Vec3f& P, const Vec3f& invTangent, Vec3f& normal)
 {
+  //std::cout << "Testing vert (" << P << ")\n";
+
   auto Q = (worldToBoxSpace * Vec4f{ P, { 1.f }}).sub<3>();
   auto V = (worldToBoxSpace * Vec4f{ invTangent, { 0.f }}).sub<3>();
 
@@ -765,6 +808,39 @@ bool boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, C
   std::array<Vec3f, 8> normals;
 
   auto verts = getVertices(A.box->boundingBox, A.localTransform->transform);
+  Vec3f rangeMin{ 99999, 99999, 99999 };
+  Vec3f rangeMax{};
+  //std::cout << "Box A:\n";
+  for (auto& v : verts) {
+    //std::cout << "(" << v << "), ";
+    for (int i = 0; i < 3; ++i) {
+      if (v[i] < rangeMin[i]) {
+        rangeMin[i] = v[i];
+      }
+      if (v[i] > rangeMax[i]) {
+        rangeMax[i] = v[i];
+      }
+    }
+  }
+  //std::cout << "\n";
+
+  auto vertsB = getVertices(B.box->boundingBox, B.localTransform->transform);
+  //std::cout << "Box B:\n";
+  for (auto& v : vertsB) {
+    //std::cout << "(" << v << "), ";
+    for (int i = 0; i < 3; ++i) {
+      if (v[i] < rangeMin[i]) {
+        rangeMin[i] = v[i];
+      }
+      if (v[i] > rangeMax[i]) {
+        rangeMax[i] = v[i];
+      }
+    }
+  }
+  //std::cout << "\n";
+  //std::cout << "Min: " << rangeMin << "\n";
+  //std::cout << "Max: " << rangeMax << "\n";
+
   auto invTangents = getInverseTangents(A.box->boundingBox, A.localTransform->transform);
   for (size_t i = 0; i < 8; ++i) {
     float penetration = pointBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
@@ -794,9 +870,14 @@ bool boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, C
 bool boxBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
 {
   if (boxXBoxPointContact(A, B, contact)) {
+    //std::cout << "Box-box point contact (A->B)\n";
     return true;
   }
-  return boxXBoxPointContact(B, A, contact);
+  if (boxXBoxPointContact(B, A, contact)) {
+    //std::cout << "Box-box point contact (B->A)\n";
+    return true;
+  }
+  return false;
 }
 
 // Solve system of equations for s and t:
@@ -939,6 +1020,8 @@ bool boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Con
   contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
   contact.toContactSpace = contact.fromContactSpace.t();
 
+  //std::cout << "Box-box edge contact\n";
+
   return true;
 }
 
@@ -1037,13 +1120,16 @@ bool boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
     // d = -(Ax + By + Cz)
     auto d = -(n[0] * triangle[0][0] + n[1] * triangle[0][1] + n[2] * triangle[0][2]);
 
-    float y = -(vert[0] * n[0] + n[2] * vert[2] + d) / n[1];
+    float y = -(n[0] * vert[0] + n[2] * vert[2] + d) / n[1];
 
     if (vert[1] > y) {
       continue;
     }
 
-    float penetration = y - vert[1];
+    n = n.normalise();
+
+    float penetration = Vec3f{ 0.f, y - vert[1], 0.f }.dot(n);
+    assert(penetration >= 0.f);
 
     if (penetration > maxPenetration) {
       normals[i] = n;
@@ -1055,49 +1141,31 @@ bool boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
   if (vertWithMaxPenetration != -1) {
     contact.A = A;
     contact.B = B;
-    contact.normal = normals[vertWithMaxPenetration].normalise();
+    contact.normal = normals[vertWithMaxPenetration];
     contact.point = verts[vertWithMaxPenetration];
     contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
     contact.toContactSpace = contact.fromContactSpace.t();
     contact.penetration = maxPenetration;
 
+    //std::cout << "Point contact! box->terrain\n";
     return true;
   }
 
   return false;
 }
 
-bool terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+bool terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B,
+  const Vec2f& boxMin, const Vec2f& boxMax, Contact& contact)
 {
   assert(A.terrain != nullptr);
   assert(B.box != nullptr);
 
   HeightMapSampler sampler{A.terrain->heightMap, getTranslation(A.localTransform->transform)};
 
-  Vec2f min{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
-  Vec2f max{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };
-
-  auto boxVerts = getVertices(B.box->boundingBox, B.localTransform->transform);
-  for (auto& vert : boxVerts) {
-    if (vert[0] < min[0]) {
-      min[0] = vert[0];
-    }
-    if (vert[0] > max[0]) {
-      max[0] = vert[0];
-    }
-    if (vert[2] < min[1]) {
-      min[1] = vert[2];
-    }
-    if (vert[2] > max[1]) {
-      max[1] = vert[2];
-    }
-  }
-
   std::vector<Vec3f> terrainVerts;
-  sampler.vertices(min, max, terrainVerts);
+  sampler.vertices(boxMin, boxMax, terrainVerts);
 
-  std::vector<Vec3f> normals;   // TODO: Avoid std::vector?
-  normals.resize(terrainVerts.size());
+  std::vector<Vec3f> normals(terrainVerts.size());   // TODO: Avoid std::vector?
   int vertWithMaxPenetration = -1;
   float maxPenetration = 0.f;
 
@@ -1126,28 +1194,71 @@ bool terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
     contact.toContactSpace = contact.fromContactSpace.t();
     contact.penetration = maxPenetration;
 
+    //std::cout << "Point contact! terrain->box\n";
+
     return true;
   }
 
   return false;
 }
 
-bool boxTerrainPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+bool boxTerrainPointContact(const ObjectComponents& A, const Vec2f& boxMin, const Vec2f& boxMax,
+  const ObjectComponents& B, Contact& contact)
 {
+  assert(A.box != nullptr);
+  assert(B.terrain != nullptr);
+
   if (boxXTerrainPointContact(A, B, contact)) {
     return true;
   }
 
-  return terrainXBoxPointContact(B, A, contact);
+  return false;//terrainXBoxPointContact(B, A, boxMin, boxMax, contact);
 }
 
-bool boxTerrainEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
+bool boxTerrainEdgeContact(const ObjectComponents& A, const Vec2f& boxMin, const Vec2f& boxMax,
+  const ObjectComponents& B, Contact& contact)
 {
+  assert(A.box != nullptr);
+  assert(B.terrain != nullptr);
+
   HeightMapSampler sampler{B.terrain->heightMap, getTranslation(B.localTransform->transform)};
 
-  // TODO
+  std::vector<Edge> terrainEdges;
+  sampler.edges(boxMin, boxMax, terrainEdges);
 
-  return false;
+  float maxPenetration = 0.f;
+  int edgeWithMaxPenetration = -1;
+  std::vector<Vec3f> points(terrainEdges.size());
+  std::vector<Vec3f> normals(terrainEdges.size());
+
+  auto boxToWorldSpace = A.localTransform->transform * A.box->boundingBox.transform;
+  auto worldToBoxSpace = inverse(boxToWorldSpace);
+
+  for (size_t i = 0; i < terrainEdges.size(); ++i) {
+    float penetration = edgeBoxPenetration(A.box->boundingBox, worldToBoxSpace, boxToWorldSpace,
+      terrainEdges[i], points[i], normals[i]);
+
+    if (penetration > maxPenetration) {
+      edgeWithMaxPenetration = i;
+      maxPenetration = penetration;
+    }
+  }
+
+  if (edgeWithMaxPenetration == -1) {
+    return false;
+  }
+
+  contact.A = A;
+  contact.B = B;
+  contact.normal = normals[edgeWithMaxPenetration];
+  contact.penetration = maxPenetration;
+  contact.point = points[edgeWithMaxPenetration];
+  contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+  contact.toContactSpace = contact.fromContactSpace.t();
+
+  //std::cout << "Edge contact!\n";
+
+  return true;
 }
 
 void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponents& B,
@@ -1156,14 +1267,33 @@ void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponent
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
+  Vec2f boxMin{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
+  Vec2f boxMax{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };
+
+  auto boxVerts = getVertices(A.box->boundingBox, A.localTransform->transform);
+  for (auto& vert : boxVerts) {
+    if (vert[0] < boxMin[0]) {
+      boxMin[0] = vert[0];
+    }
+    if (vert[0] > boxMax[0]) {
+      boxMax[0] = vert[0];
+    }
+    if (vert[2] < boxMin[1]) {
+      boxMin[1] = vert[2];
+    }
+    if (vert[2] > boxMax[1]) {
+      boxMax[1] = vert[2];
+    }
+  }
+
   Contact contact;
 
-  if (boxTerrainPointContact(A, B, contact)) {
+  if (boxTerrainPointContact(A, boxMin, boxMax, B, contact)) {
     contacts.push_back(contact);
   }
-  else if (boxTerrainEdgeContact(A, B, contact)) {
-    contacts.push_back(contact);
-  }
+  //else if (boxTerrainEdgeContact(A, boxMin, boxMax, B, contact)) {
+  //  contacts.push_back(contact);
+  //}
 }
 
 std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
@@ -1241,9 +1371,11 @@ inline Mat3x3f computeVelocityMatrix(float inverseMass, const Mat3x3f& I,
   return (Q * -1.f) * I * Q + M;
 }
 
-void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const Vec3f& delta)
+void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const Vec3f& delta,
+  float angularDamping)
 {
-  Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, obj.localTransform->transform);
+  Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, obj.localTransform->transform)
+    * angularDamping;
 
   auto origin = getTranslation(obj.localTransform->transform);
   auto pointRel = point - (origin + obj.dynamic->centreOfMass);
@@ -1256,62 +1388,34 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   updateTransform(*obj.localTransform, *obj.spatialFlags, linearV, angularV);
 }
 
-void resolveInterpenetrationDynamicStatic(const Contact& contact)
-{
-  auto& obj = contact.A.dynamic == nullptr ? contact.B : contact.A;
-
-  if (obj.dynamic->inverseMass != 0.f) {
-    const float margin = 0.01f;
-    auto outDir = contact.normal;
-    auto delta = outDir * (contact.penetration + margin);
-
-    applyPositionDelta(obj, contact.point, delta);
-  }
-}
-
-void resolveInterpenetrationDynamicDynamic(const Contact& contact)
+void resolveInterpenetration(const Contact& contact)
 {
   auto& A = contact.A;
   auto& B = contact.B;
 
-  float totalInvMass = A.dynamic->inverseMass + B.dynamic->inverseMass;
+  float totalInvMass = 0.f;
+  if (A.dynamic) {
+    totalInvMass += A.dynamic->inverseMass;
+  }
+  if (B.dynamic) {
+    totalInvMass += B.dynamic->inverseMass;
+  }
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
   const float margin = 0.01f;
 
-  if (A.dynamic->inverseMass != 0.f) {
+  if (A.dynamic && A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
     auto outDir = contact.normal;
 
-    applyPositionDelta(A, contact.point, outDir * a);
+    applyPositionDelta(A, contact.point, outDir * a, 1.f);  // TODO: Damping?
   }
 
-  if (B.dynamic->inverseMass != 0.f) {
+  if (B.dynamic && B.dynamic->inverseMass != 0.f) {
     float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
     auto outDir = -contact.normal;
 
-    applyPositionDelta(B, contact.point, outDir * b);
-  }
-}
-
-void resolveInterpenetration(const Contact& contact)
-{
-  int numStatic = 0;
-  if (contact.A.dynamic == nullptr) {
-    ++numStatic;
-  }
-  if (contact.B.dynamic == nullptr) {
-    ++numStatic;
-  }
-
-  DBG_ASSERT(numStatic != 2, "Cannot resolve penetration between 2 static objects");
-
-  if (numStatic == 0) {
-    resolveInterpenetrationDynamicDynamic(contact);
-  }
-  else {
-    assert(numStatic == 1);
-    resolveInterpenetrationDynamicStatic(contact);
+    applyPositionDelta(B, contact.point, outDir * b, 1.f);
   }
 }
 
@@ -1326,71 +1430,48 @@ void reapplyLateralImpulse(Vec3f& impulse, float friction)
   }
 }
 
-void resolveVelocitiesDynamicStatic(const Contact& contact)
-{
-  auto& dynaObj = contact.A.dynamic == nullptr ? contact.B : contact.A;
-  auto& statObj = contact.A.dynamic == nullptr ? contact.A : contact.B;
-
-  // Interferes with the reapplication of lateral impulse below (for some reason)
-  if (!dynaObj.dynamic->hasCollided) {
-    dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
-    dynaObj.dynamic->hasCollided = true;
-  }
-
-  auto origin = getTranslation(dynaObj.localTransform->transform);
-  auto pointRel = contact.point - (origin + dynaObj.dynamic->centreOfMass);
-  auto totalWorldSpaceV = dynaObj.dynamic->linearVelocity +
-    dynaObj.dynamic->angularVelocity.cross(pointRel);
-  auto contactSpaceV = contact.toContactSpace * totalWorldSpaceV;
-
-  float d = contact.A.dynamic == nullptr ? 1.f : -1.f;
-  auto contactSpaceClosingV = contactSpaceV * d;
-
-  float r = dynaObj.collision->restitution + statObj.collision->restitution;
-  Vec3f desiredContactSpaceClosingV = { 0.f, contactSpaceClosingV[1] * -r, 0.f };
-  auto desiredContactSpaceDv = contactSpaceClosingV - desiredContactSpaceClosingV;
-
-  Mat3x3f I = transformTensor(dynaObj.dynamic->inverseInertialTensor,
-    dynaObj.localTransform->transform);
-
-  Mat3x3f velocityMatrix = contact.fromContactSpace *
-    computeVelocityMatrix(dynaObj.dynamic->inverseMass, I, pointRel) * contact.toContactSpace;
-  Mat3x3f impulseMatrix = inverse(velocityMatrix);
-
-  Vec3f contactSpaceImpulse = impulseMatrix * desiredContactSpaceDv;
-
-  auto impulse = contact.fromContactSpace * contactSpaceImpulse;
-
-  // Interferes with the adjustment to linear velocity above
-  //float friction = 0.5f * (dynaObj.collision->friction + statObj.collision->friction);
-  //reapplyLateralImpulse(impulse, friction);
-
-  dynaObj.dynamic->resolverDeltaLinearV += (impulse * -1.f * d) * dynaObj.dynamic->inverseMass;
-  dynaObj.dynamic->resolverDeltaAngularV += I * pointRel.cross(impulse * -1.f * d);
-  ++dynaObj.dynamic->resolverNumAdjustments;
-}
-
-void resolveVelocitiesDynamicDynamic(const Contact& contact)
+void resolveVelocities(const Contact& contact)
 {
   auto& A = contact.A;
   auto& B = contact.B;
 
-  if (A.dynamic->framesIdle == 0 || B.dynamic->framesIdle == 0) {
+  bool bothDynamic = A.dynamic && B.dynamic;
+
+  // Interferes with the reapplication of lateral impulse below (for some reason)
+  if (!bothDynamic) {
+    auto& dynaObj = contact.A.dynamic == nullptr ? contact.B : contact.A;
+
+    if (!dynaObj.dynamic->hasCollided) {
+      dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
+      dynaObj.dynamic->hasCollided = true;
+    }
+  }
+
+  if (bothDynamic && (A.dynamic->framesIdle == 0 || B.dynamic->framesIdle == 0)) {
     A.dynamic->framesIdle = 0;
     A.dynamic->idle = false;
     B.dynamic->framesIdle = 0;
     B.dynamic->idle = false;
   }
 
-  auto aOrigin = getTranslation(A.localTransform->transform);
-  auto aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
-  auto aTotalWorldSpaceV = A.dynamic->linearVelocity + A.dynamic->angularVelocity.cross(aPointRel);
-  auto aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
+  Vec3f aPointRel;
+  Vec3f bPointRel;
 
-  auto bOrigin = getTranslation(B.localTransform->transform);
-  auto bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
-  auto bTotalWorldSpaceV = B.dynamic->linearVelocity + B.dynamic->angularVelocity.cross(bPointRel);
-  auto bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
+  Vec3f aContactSpaceV;
+  if (A.dynamic) {
+    auto aOrigin = getTranslation(A.localTransform->transform);
+    aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
+    auto aTotalWorldSpaceV = A.dynamic->linearVelocity + A.dynamic->angularVelocity.cross(aPointRel);
+    aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
+  }
+
+  Vec3f bContactSpaceV;
+  if (B.dynamic) {
+    auto bOrigin = getTranslation(B.localTransform->transform);
+    bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
+    auto bTotalWorldSpaceV = B.dynamic->linearVelocity + B.dynamic->angularVelocity.cross(bPointRel);
+    bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
+  }
 
   auto contactSpaceClosingV = bContactSpaceV - aContactSpaceV;
 
@@ -1398,52 +1479,43 @@ void resolveVelocitiesDynamicDynamic(const Contact& contact)
   Vec3f desiredContactSpaceClosingV = { 0.f, contactSpaceClosingV[1] * -r, 0.f };
   auto desiredContactSpaceDv = contactSpaceClosingV - desiredContactSpaceClosingV;
 
-  Mat3x3f aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
-  Mat3x3f bI = transformTensor(B.dynamic->inverseInertialTensor, B.localTransform->transform);
+  Mat3x3f velocityMatrix;
+  Mat3x3f aI;
+  Mat3x3f bI;
 
-  Mat3x3f aVelocityMatrix = computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
-  Mat3x3f bVelocityMatrix = computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
+  if (A.dynamic) {
+    aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
+    velocityMatrix = velocityMatrix + computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
+  }
 
-  Mat3x3f velocityMatrix = contact.fromContactSpace * (aVelocityMatrix + bVelocityMatrix)
+  if (B.dynamic) {
+    bI = transformTensor(B.dynamic->inverseInertialTensor, B.localTransform->transform);
+    velocityMatrix = velocityMatrix + computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
+  }
+
+  Mat3x3f contactSpaceVelocityMatrix = contact.fromContactSpace * velocityMatrix
     * contact.toContactSpace;
-  Mat3x3f impulseMatrix = inverse(velocityMatrix);
+  Mat3x3f impulseMatrix = inverse(contactSpaceVelocityMatrix);
 
   Vec3f contactSpaceImpulse = impulseMatrix * desiredContactSpaceDv;
 
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
-  float friction = 0.5f * (A.collision->friction + B.collision->friction);
-  reapplyLateralImpulse(impulse, friction);
-
-  A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
-  A.dynamic->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
-  ++A.dynamic->resolverNumAdjustments;
-
-  B.dynamic->resolverDeltaLinearV += -impulse * B.dynamic->inverseMass;
-  B.dynamic->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
-  ++B.dynamic->resolverNumAdjustments;
-}
-
-void resolveVelocities(const Contact& contact)
-{
-  int numStatic = 0;
-  if (contact.A.dynamic == nullptr) {
-    ++numStatic;
-  }
-  if (contact.B.dynamic == nullptr) {
-    ++numStatic;
+  if (bothDynamic) {
+    float friction = 0.5f * (A.collision->friction + B.collision->friction);
+    reapplyLateralImpulse(impulse, friction);
   }
 
-  if (numStatic == 2) {
-    return;
+  if (A.dynamic) {
+    A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
+    A.dynamic->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
+    ++A.dynamic->resolverNumAdjustments;
   }
 
-  if (numStatic == 0) {
-    resolveVelocitiesDynamicDynamic(contact);
-  }
-  else {
-    assert(numStatic == 1);
-    resolveVelocitiesDynamicStatic(contact);
+  if (B.dynamic) {
+    B.dynamic->resolverDeltaLinearV += -impulse * B.dynamic->inverseMass;
+    B.dynamic->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
+    ++B.dynamic->resolverNumAdjustments;
   }
 }
 
@@ -1465,6 +1537,8 @@ void SysCollisionImpl::integrate()
 
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
+
+        updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
 
         if (dynamic.resolverNumAdjustments > 0) {
           dynamic.linearVelocity += dynamic.resolverDeltaLinearV / dynamic.resolverNumAdjustments;
@@ -1516,21 +1590,11 @@ void SysCollisionImpl::integrate()
           }
         }
 
-        updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
-
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
 
         dynamic.angularVelocity += dynamic.angularAcceleration;
         dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
-
-        // Cap the angular velocity
-        // TODO: This is a hack
-        float angularV = dynamic.angularVelocity.magnitude();
-        float maxAngularV = 0.2f;
-        if (angularV > maxAngularV) {
-          dynamic.angularVelocity = dynamic.angularVelocity * maxAngularV / angularV;
-        }
 
         dynamic.hasCollided = false;
       }
@@ -1540,7 +1604,7 @@ void SysCollisionImpl::integrate()
 
 void SysCollisionImpl::update(Tick tick, const InputState& inputState)
 {
-  size_t maxIterations = 4;
+  size_t maxIterations = 1;
 
   for (size_t i = 0; i < maxIterations; ++i) {
     auto pairs = findPossibleCollisions();  // TODO: Slow!

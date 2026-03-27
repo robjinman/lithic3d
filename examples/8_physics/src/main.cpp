@@ -9,9 +9,9 @@ using namespace lithic3d::render;
 namespace
 {
 
-float VIEW_X = 280.f;
-float VIEW_Y = 6.f;
-float VIEW_Z = 300.f;
+float VIEW_X = 140.f;
+float VIEW_Y = 12.f;
+float VIEW_Z = 150.f;
 
 struct Object
 {
@@ -20,6 +20,7 @@ struct Object
   Vec3f position;
   Vec3f rotation;
   bool infiniteMass;
+  bool isStatic;
 };
 
 struct Scenario
@@ -57,36 +58,40 @@ class Demo : public Game
       Scenario{
         .objects = {
           Object{
-            .randomRotation = false,
+            .randomRotation = true,
             .dimensions = { 2.f, 2.f, 1.f },
-            .position = { VIEW_X + 2.6f, VIEW_Y + 2.f, VIEW_Z - 15.f },
+            .position = { VIEW_X + 2.f, VIEW_Y + 2.f, VIEW_Z - 20.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(45.f) },
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = false,
             .dimensions = { 5.f, 0.5f, 5.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 15.f },
-            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
-            .infiniteMass = true
+            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(20.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = true,
+            .isStatic = false
           }
         }
       },
       Scenario{
-        .objects = {
+        .objects = {/*
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
-            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 15.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
-            .infiniteMass = false
-          },
+            .infiniteMass = false,
+            .isStatic = false
+          },*/
           Object{
             .randomRotation = false,
             .dimensions = { 4.f, 1.f, 4.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 3.f, VIEW_Z - 15.f },
-            .rotation = { degreesToRadians(15.f), degreesToRadians(-7.f), degreesToRadians(6.f) },
-            .infiniteMass = false
+            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
           }
         }
       },
@@ -95,23 +100,26 @@ class Demo : public Game
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 3.f, 0.5f },
-            .position = { VIEW_X - 0.f, VIEW_Y + 3.f, VIEW_Z - 15.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 3.f, VIEW_Z - 20.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 2.f, 1.5f },
-            .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 20.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
-            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 15.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 20.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           }
         }
       },
@@ -120,49 +128,55 @@ class Demo : public Game
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 3.f, 0.5f },
-            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 15.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 2.f, 1.5f },
-            .position = { VIEW_X + 0.f, VIEW_Y- 2.f, VIEW_Z - 15.f },
+            .position = { VIEW_X + 0.f, VIEW_Y- 2.f, VIEW_Z - 20.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
-            .position = { VIEW_X + 0.f, VIEW_Y + 3.5f, VIEW_Z - 15.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 3.5f, VIEW_Z - 20.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 0.5f, 0.5f, 0.5f },
-            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 13.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 18.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 0.5f, 0.5f, 0.5f },
-            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 14.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 19.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
           Object{
             .randomRotation = true,
             .dimensions = { 0.5f, 0.5f, 0.5f },
-            .position = { VIEW_X - 1.f, VIEW_Y + 5.5f, VIEW_Z - 14.f },
+            .position = { VIEW_X - 1.f, VIEW_Y + 5.5f, VIEW_Z - 19.f },
             .rotation = {},
-            .infiniteMass = false
+            .infiniteMass = false,
+            .isStatic = false
           },
         }
       }
     };
-    size_t m_currentScenario = 3;
+    size_t m_currentScenario = 0;
     std::vector<EntityId> m_entityIds;
     bool m_physicsActive = false;
 
@@ -192,14 +206,14 @@ Demo::Demo(Engine& engine)
   constructScenario(m_currentScenario);
 
   // TODO: Delete
-  for (size_t i = 0; i < 6; ++i) {
-    resetState();
-  }
+  //for (size_t i = 0; i < 6; ++i) {
+  //  resetState();
+  //}
 
   enablePhysics();
 
-  for (size_t i = 0; i < 476; ++i) {
-    //onKeyDown(KeyboardKey::N);
+  for (size_t i = 0; i < 115; ++i) {
+   // onKeyDown(KeyboardKey::N);
   }
 }
 
@@ -219,7 +233,13 @@ void Demo::constructScenario(size_t i)
     auto material = m_factory->createMaterialAsync("textures/bricks.png");
     auto size = metresToWorldUnits(obj.dimensions);
     auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-    auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
+    EntityId id = 0;
+    if (obj.isStatic) {
+      id = m_factory->createStaticCuboid(size, material, texSize, 0.2f, 0.4f);
+    }
+    else {
+      id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
+    }
     m_entityIds.push_back(id);
   }
 
@@ -239,9 +259,9 @@ void Demo::constructGround()
   TerrainConfig terrainConfig{
     .world = "world",
     .minHeight = 0.f,
-    .maxHeight = 6.f,
-    .cellWidth = 400.f,
-    .cellHeight = 400.f
+    .maxHeight = 8.f,
+    .cellWidth = 200.f,
+    .cellHeight = 200.f
   };
 
   auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
@@ -339,9 +359,9 @@ void Demo::enablePhysics()
     auto& obj = m_scenarios[m_currentScenario].objects[i];
     auto id = m_entityIds[i];
 
-    if (!obj.infiniteMass) {
-      auto invMass = 1.f /
-        (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2] * WORLD_UNITS_PER_METRE);
+    if (!obj.infiniteMass && !obj.isStatic) {
+      const float scale = WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE;
+      auto invMass = 1.f / (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2] * scale);
       sysCollision.setInverseMass(id, invMass);
     }
   }
@@ -360,11 +380,14 @@ void Demo::resetState()
     auto& obj = m_scenarios[m_currentScenario].objects[i];
     auto id = m_entityIds[i];
 
+    if (!obj.isStatic) {
+      sysCollision.setInverseMass(id, 0.f);
+      sysCollision.setStationary(id);
+    }
+
     auto rotation = obj.randomRotation ? randomRotation() : obj.rotation;
     auto transform = createTransform(metresToWorldUnits(obj.position), rotation);
 
-    sysCollision.setInverseMass(id, 0.f);
-    sysCollision.setStationary(id);
     sysSpatial.setEntityTransform(id, transform);
   }
 

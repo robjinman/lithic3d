@@ -35,7 +35,7 @@ vec4 computeTexelFromSplats(vec2 texCoord)
 {
   // Number of tiles to 1 cell length
   // TODO: Don't hard-code
-  float numTiles = 50.0;
+  float numTiles = 5.0;
 
   vec4 splat = texture(texSampler[0], texCoord);
 

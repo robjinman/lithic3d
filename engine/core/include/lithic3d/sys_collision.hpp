@@ -51,6 +51,12 @@ struct HeightMap
   std::vector<float> data;
 };
 
+struct Edge
+{
+  Vec3f A;
+  Vec3f B;
+};
+
 class HeightMapSampler
 {
   public:
@@ -60,6 +66,7 @@ class HeightMapSampler
 
     std::array<Vec3f, 3> triangle(const Vec2f& p) const;
     void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
+    void edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const;
 
   private:
     const HeightMap& m_map;

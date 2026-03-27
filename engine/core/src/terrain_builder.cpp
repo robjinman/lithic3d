@@ -129,6 +129,18 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
   render->model = region.model;
 
   sysRender3d.addEntity(id, std::move(render));
+/*
+  HeightMap hm{
+    .width = cellWidth,
+    .height = cellHeight,
+    .widthPx = 3,
+    .heightPx = 3,
+    .data = {
+      0.f, 0.f, 0.f,
+      0.f, maxHeight, 0.f,
+      0.f, 0.f, 0.f
+    }
+  };*/
 
   DTerrainChunk collision{
     .restitution = 0.f,   // TODO
@@ -222,10 +234,21 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
       indices[indexIdx++] = D;
 
       Vec3f AB = positions[B] - positions[A];
+      Vec3f AC = positions[C] - positions[A];
       Vec3f AD = positions[D] - positions[A];
 
-      normals[i] = AB.cross(AD).normalise();
+      auto abcNormal = AB.cross(AC);
+      auto acdNormal = AC.cross(AD);
+
+      normals[A] += abcNormal + acdNormal;
+      normals[B] += abcNormal;
+      normals[C] += abcNormal + acdNormal;
+      normals[D] += acdNormal;
     }
+  }
+
+  for (auto& n : normals) {
+    n = n.normalise();
   }
 
   mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{positions}, BufferUsage::AttrPosition});
@@ -245,6 +268,15 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
 
     auto heightMapTextureData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
     auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
+
+    // TODO
+    //heightMapTexture->width = 3;
+    //heightMapTexture->height = 3;
+    //heightMapTexture->data = {
+    //  255, 255, 255,
+    //  0, 0, 0,
+    //  0, 0, 0
+    //};
 
     auto mesh = constructMesh(*heightMapTexture);
     HeightMap heightMap;
