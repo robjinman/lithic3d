@@ -157,7 +157,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
     const auto cellSliceFilePath = worldsPath / m_worldName / cellSlicePath(x, y, sliceIdx);
 
     auto cellSliceXmlFileData = m_fileSystem.readAppDataFile(cellSliceFilePath);
-    auto cellSliceXml = parseXml(cellSliceXmlFileData.data());
+    auto cellSliceXml = parseXml(cellSliceXmlFileData);
 
     ASSERT(cellSliceXml->name() == "cell-slice", "Expected <cell-slice> element");
 

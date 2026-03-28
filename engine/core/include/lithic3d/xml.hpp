@@ -39,6 +39,7 @@ class XmlNode
 
 using XmlNodePtr = std::unique_ptr<XmlNode>;
 
+XmlNodePtr parseXml(const std::vector<char>& data);
 XmlNodePtr parseXml(std::string_view data);
 
 } // namespace lithic3d

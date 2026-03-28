@@ -112,7 +112,7 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterial("textures/fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("textures/fonts.png").wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -134,7 +134,7 @@ void Demo::rotateModel()
   float a = (2 * PIf / 600.f) * (m_engine.currentTick() % 600);
   auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, -0.1f, -0.5f })), { 0.f, a, 0.f });
 
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_model, m);
+  m_engine.ecs().system<SysSpatial>().setLocalTransform(m_model, m);
 }
 
 bool Demo::update()

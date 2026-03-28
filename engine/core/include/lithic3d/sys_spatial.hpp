@@ -33,7 +33,23 @@ struct Aabb
 {
   Vec3f min;
   Vec3f max;
+
+  inline void add(const Aabb& other)
+  {
+    min = {
+      std::min(min[0], other.min[0]),
+      std::min(min[1], other.min[1]),
+      std::min(min[2], other.min[2])
+    };
+    max = {
+      std::max(max[0], other.max[0]),
+      std::max(max[1], other.max[1]),
+      std::max(max[2], other.max[2])
+    };
+  }
 };
+
+Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m);
 
 struct CLocalTransform
 {
@@ -91,10 +107,15 @@ class SysSpatial : public System
   public:  
     virtual EntityId root() const = 0;
     virtual void addEntity(EntityId id, const DSpatial& data) = 0;
-    virtual void setEnabled(EntityId entityId, bool enabled) = 0;
+    virtual void setEnabled(EntityId id, bool enabled) = 0;
 
-    virtual void transformEntity(EntityId id, const Mat4x4f& m) = 0;
-    virtual void setEntityTransform(EntityId id, const Mat4x4f& m) = 0;
+    // TODO: Rethink terminology
+    virtual const Mat4x4f& getLocalTransform(EntityId id) const = 0;
+    virtual const Mat4x4f& getGlobalTransform(EntityId id) const = 0;
+    virtual void transformEntitySelf(EntityId id, const Mat4x4f& m) = 0;
+    virtual void transformEntityLocal(EntityId id, const Mat4x4f& m) = 0;
+    virtual void transformEntityWorld(EntityId id, const Mat4x4f& m) = 0; // Slow
+    virtual void setLocalTransform(EntityId id, const Mat4x4f& m) = 0;
 
     virtual EntityIdSet getIntersecting(const Frustum& frustum) const = 0;
 
@@ -107,6 +128,6 @@ class SysSpatial : public System
 
 using SysSpatialPtr = std::unique_ptr<SysSpatial>;
 
-SysSpatialPtr createSysSpatial(Ecs& ecs, EventSystem& eventSystem);
+SysSpatialPtr createSysSpatial(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
 
 } // namespace lithic3d

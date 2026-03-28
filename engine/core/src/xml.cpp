@@ -149,7 +149,19 @@ XmlNode::Iterator XmlNodeImpl::end() const
 XmlNodePtr parseXml(std::string_view data)
 {
   XMLDocument doc;
-  if (doc.Parse(data.data(), data.size()) != XMLError::XML_SUCCESS) {
+  auto result = doc.Parse(data.data(), data.size());
+  if (result != XMLError::XML_SUCCESS) {
+    EXCEPTION("Error parsing XML");
+  }
+
+  return std::make_unique<XmlNodeImpl>(*doc.RootElement());
+}
+
+XmlNodePtr parseXml(const std::vector<char>& data)
+{
+  XMLDocument doc;
+  auto result = doc.Parse(data.data(), data.size());
+  if (result != XMLError::XML_SUCCESS) {
     EXCEPTION("Error parsing XML");
   }
 

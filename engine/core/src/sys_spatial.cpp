@@ -1,26 +1,71 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/graph.hpp"
+#include "lithic3d/logger.hpp"
 #include <unordered_map>
 #include <array>
 #include <cstring>
 
 namespace lithic3d
 {
+
+Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m)
+{
+  Vec3f d = aabb.max - aabb.min;
+
+  Aabb bounds{
+    .min{
+      std::numeric_limits<float>::max(),
+      std::numeric_limits<float>::max(),
+      std::numeric_limits<float>::max()
+    },
+    .max{
+      std::numeric_limits<float>::lowest(),
+      std::numeric_limits<float>::lowest(),
+      std::numeric_limits<float>::lowest()
+    }
+  };
+
+  for (uint32_t i = 0; i < 8; ++i) {
+    Vec3f p = aabb.min + Vec3f{
+      i & 0b001 ? d[0] : 0.f,
+      i & 0b010 ? d[1] : 0.f,
+      i & 0b100 ? d[2] : 0.f
+    };
+
+    auto q = (m * Vec4f{ p[0], p[1], p[2], 1.f }).sub<3>();
+
+    for (uint32_t j = 0; j < 3; ++j) {
+      if (q[j] < bounds.min[j]) {
+        bounds.min[j] = q[j];
+      }
+      if (q[j] > bounds.max[j]) {
+        bounds.max[j] = q[j];
+      }
+    }
+  }
+
+  return bounds;
+}
+
 namespace
 {
 
 class SysSpatialImpl : public SysSpatial
 {
   public:
-    SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem);
+    SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
 
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event&) override {}
 
-    void transformEntity(EntityId id, const Mat4x4f& m) override;
-    void setEntityTransform(EntityId id, const Mat4x4f& m) override;
+    const Mat4x4f& getLocalTransform(EntityId id) const override;
+    const Mat4x4f& getGlobalTransform(EntityId id) const override;
+    void transformEntitySelf(EntityId id, const Mat4x4f& m) override;
+    void transformEntityLocal(EntityId id, const Mat4x4f& m) override;
+    void transformEntityWorld(EntityId id, const Mat4x4f& m) override;
+    void setLocalTransform(EntityId id, const Mat4x4f& m) override;
 
     EntityIdSet getIntersecting(const Frustum& frustum) const override;
 
@@ -31,6 +76,7 @@ class SysSpatialImpl : public SysSpatial
     const LooseOctree& dbg_getOctree() const override;
 
   private:
+    Logger& m_logger;
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     GraphPtr<EntityId, NULL_ENTITY_ID> m_sceneGraph;
@@ -39,8 +85,9 @@ class SysSpatialImpl : public SysSpatial
     void updateBoundingBox(EntityId entityId, const Mat4x4f& m);
 };
 
-SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem)
-  : m_ecs(ecs)
+SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
+  : m_logger(logger)
+  , m_ecs(ecs)
   , m_eventSystem(eventSystem)
 {
   EntityId root = m_ecs.idGen().getNewEntityId();
@@ -95,56 +142,70 @@ bool SysSpatialImpl::hasEntity(EntityId entityId) const
   return m_sceneGraph->hasItem(entityId);
 }
 
-void SysSpatialImpl::transformEntity(EntityId id, const Mat4x4f& m)
+const Mat4x4f& SysSpatialImpl::getGlobalTransform(EntityId id) const
 {
-  auto& c = m_ecs.componentStore().component<CLocalTransform>(id);
-  c.transform = m * c.transform;
+  auto& componentStore = m_ecs.componentStore();
+#ifndef NDEBUG
+  if (componentStore.component<CSpatialFlags>(id).flags.test(SpatialFlags::Dirty)) {
+    m_logger.debug(STR("Warning: Entity " << id << " global transform not at latest"));
+  }
+#endif
+  return componentStore.component<CGlobalTransform>(id).transform;
 }
 
-void SysSpatialImpl::setEntityTransform(EntityId id, const Mat4x4f& m)
+const Mat4x4f& SysSpatialImpl::getLocalTransform(EntityId id) const
 {
-  auto& c = m_ecs.componentStore().component<CLocalTransform>(id);
-  c.transform = m;
+  auto& componentStore = m_ecs.componentStore();
+  return componentStore.component<CLocalTransform>(id).transform;
+}
+
+void SysSpatialImpl::transformEntitySelf(EntityId id, const Mat4x4f& m)
+{
+  auto& componentStore = m_ecs.componentStore();
+  auto& localT = componentStore.component<CLocalTransform>(id);
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
+  localT.transform = localT.transform * m;
+  flags.flags.set(SpatialFlags::Dirty);
+}
+
+void SysSpatialImpl::transformEntityLocal(EntityId id, const Mat4x4f& m)
+{
+  auto& componentStore = m_ecs.componentStore();
+  auto& localT = componentStore.component<CLocalTransform>(id);
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
+  localT.transform = m * localT.transform;
+  flags.flags.set(SpatialFlags::Dirty);
+}
+
+void SysSpatialImpl::transformEntityWorld(EntityId id, const Mat4x4f& m)
+{
+  auto& componentStore = m_ecs.componentStore();
+  auto& localT = componentStore.component<CLocalTransform>(id);
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
+
+  auto& G = getGlobalTransform(id);
+  auto invG = inverse(G);
+  auto t = getTranslation(G);
+  auto T = translationMatrix4x4(t);
+  auto invT = translationMatrix4x4(-t);
+
+  localT.transform = localT.transform * invG * T * m * invT * G;
+  flags.flags.set(SpatialFlags::Dirty);
+}
+
+void SysSpatialImpl::setLocalTransform(EntityId id, const Mat4x4f& m)
+{
+  auto& localT = m_ecs.componentStore().component<CLocalTransform>(id);
+  auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
+  localT.transform = m;
+  flags.flags.set(SpatialFlags::Dirty);
 }
 
 void SysSpatialImpl::updateBoundingBox(EntityId entityId, const Mat4x4f& m)
 {
   auto& box = m_ecs.componentStore().component<CBoundingBox>(entityId);
 
-  Vec3f d = box.modelSpaceAabb.max - box.modelSpaceAabb.min;
-  std::array<Vec3f, 8> points;
-
-  for (uint32_t i = 0; i < 8; ++i) {
-    Vec3f P = box.modelSpaceAabb.min + Vec3f{
-      i & 0b001 ? d[0] : 0.f,
-      i & 0b010 ? d[1] : 0.f,
-      i & 0b100 ? d[2] : 0.f
-    };
-
-    points[i] = (m * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>();
-  }
-
-  box.worldSpaceAabb.min = {
-    std::numeric_limits<float>::max(),
-    std::numeric_limits<float>::max(),
-    std::numeric_limits<float>::max()
-  };
-  box.worldSpaceAabb.max = {
-    std::numeric_limits<float>::lowest(),
-    std::numeric_limits<float>::lowest(),
-    std::numeric_limits<float>::lowest()
-  };
-
-  for (size_t i = 0; i < 8; ++i) {
-    for (uint32_t j = 0; j < 3; ++j) {
-      if (points[i][j] < box.worldSpaceAabb.min[j]) {
-        box.worldSpaceAabb.min[j] = points[i][j];
-      }
-      if (points[i][j] > box.worldSpaceAabb.max[j]) {
-        box.worldSpaceAabb.max[j] = points[i][j];
-      }
-    }
-  }
+  box.worldSpaceAabb = transformAabb(box.modelSpaceAabb, m);
 
   Vec3f pos = box.worldSpaceAabb.min + (box.worldSpaceAabb.max - box.worldSpaceAabb.min) * 0.5f;
   float radius = (box.worldSpaceAabb.max - box.worldSpaceAabb.min).magnitude() * 0.5f;
@@ -219,9 +280,9 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 
 } // namespace
 
-SysSpatialPtr createSysSpatial(Ecs& ecs, EventSystem& eventSystem)
+SysSpatialPtr createSysSpatial(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
 {
-  return std::make_unique<SysSpatialImpl>(ecs, eventSystem);
+  return std::make_unique<SysSpatialImpl>(ecs, eventSystem, logger);
 }
 
 } // namespace lithic3d

@@ -432,7 +432,8 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
     .instanceBuffer = mesh->instanceBuffer != nullptr ?
       mesh->instanceBuffer->vkBuffer() : VK_NULL_HANDLE,
     .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.numElements()),
-    .numInstances = mesh->numInstances
+    .numInstances = mesh->numInstances,
+    .transform = mesh->mesh->transform
   };
 }
 

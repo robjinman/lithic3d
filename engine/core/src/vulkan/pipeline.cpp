@@ -669,7 +669,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
 
     DefaultPushConstants constants{
-      .modelMatrix = defaultNode.modelMatrix,
+      .modelMatrix = defaultNode.modelMatrix * buffers.transform,
       .shadowCascade = shadowMapCascade,
       ._padding0{},
       .colour = defaultNode.colour
@@ -687,7 +687,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
 
     SpritePushConstants constants{
-      .modelMatrix = spriteNode.modelMatrix,
+      .modelMatrix = spriteNode.modelMatrix * buffers.transform,
       .spriteUvCoords = {
         spriteNode.uvCoords[0],
         spriteNode.uvCoords[1],
@@ -709,7 +709,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     auto& quadNode = dynamic_cast<const QuadNode&>(node);
 
     QuadPushConstants constants{
-      .modelMatrix = quadNode.modelMatrix,
+      .modelMatrix = quadNode.modelMatrix * buffers.transform,
       .colour = quadNode.colour,
       .radius = quadNode.radius
     };
@@ -726,7 +726,7 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     auto& textNode = dynamic_cast<const DynamicTextNode&>(node);
 
     DynamicTextPushConstants constants;
-    constants.modelMatrix = textNode.modelMatrix;
+    constants.modelMatrix = textNode.modelMatrix * buffers.transform;
     constants.colour = textNode.colour;
 
     memset(constants.text, '\0', sizeof(constants.text));

@@ -89,7 +89,7 @@ EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr r
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
   auto sysRender3d = createSysRender3d(*m_ecs, *m_modelLoader, *m_renderer, *m_logger);
-  auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem);
+  auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem, *m_logger);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysUi = createSysUi(*m_ecs, *m_logger);

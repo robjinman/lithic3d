@@ -9,11 +9,11 @@ using namespace lithic3d::render;
 namespace
 {
 
-float VIEW_X = 100.f;
-float VIEW_Y = 10.f;
+float VIEW_X = 90.f;
+float VIEW_Y = 14.f;
 float VIEW_Z = 175.f;
 
-struct Object
+struct Box
 {
   bool randomRotation;
   Vec3f dimensions;
@@ -23,9 +23,24 @@ struct Object
   bool isStatic;
 };
 
+struct AggregateBox
+{
+  Vec3f dimensions;
+  Vec3f position;
+  Vec3f rotation;
+};
+
+struct Aggregate
+{
+  Vec3f position;
+  Vec3f rotation;
+  std::vector<AggregateBox> boxes;
+};
+
 struct Scenario
 {
-  std::vector<Object> objects;
+  std::vector<Box> boxes;
+  std::vector<Aggregate> aggregates;
 };
 
 class Demo : public Game
@@ -56,19 +71,57 @@ class Demo : public Game
     ResourceHandle m_terrain;
     std::vector<Scenario> m_scenarios = {
       Scenario{
-        .objects = {
-          Object{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 1.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .aggregates = {
+          Aggregate{
+            .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .boxes{
+              AggregateBox{
+                .dimensions = { 1.f, 1.f, 1.f },
+                .position = { 0.f, 0.f, 0.f },
+                .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+              },
+              AggregateBox{
+                .dimensions = { 1.f, 1.f, 1.f },
+                .position = { 1.f, 0.f, 0.f },
+                .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+              }
+            }
+          }
+        }
+      },
+      Scenario{
+        .boxes = {
+          Box{
             .randomRotation = true,
             .dimensions = { 2.f, 1.f, 2.f },
-            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 20.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 25.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(45.f), degreesToRadians(180.f) },
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = false,
-            .dimensions = { 8.f, 0.5f, 8.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 20.f },
+            .dimensions = { 8.f, 0.5f, 4.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 25.f },
             .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = true
@@ -76,8 +129,8 @@ class Demo : public Game
         }
       },
       Scenario{
-        .objects = {
-          Object{
+        .boxes = {
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
             .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
@@ -85,7 +138,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = false,
             .dimensions = { 4.f, 1.f, 4.f },
             .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 20.f },
@@ -96,8 +149,8 @@ class Demo : public Game
         }
       },
       Scenario{
-        .objects = {
-          Object{
+        .boxes = {
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 3.f, 0.5f },
             .position = { VIEW_X - 0.f, VIEW_Y + 3.f, VIEW_Z - 20.f },
@@ -105,7 +158,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 2.f, 1.5f },
             .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 20.f },
@@ -113,7 +166,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
             .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 20.f },
@@ -124,8 +177,8 @@ class Demo : public Game
         }
       },
       Scenario{
-        .objects = {
-          Object{
+        .boxes = {
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 3.f, 0.5f },
             .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
@@ -133,7 +186,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 2.f, 1.5f },
             .position = { VIEW_X + 0.f, VIEW_Y- 2.f, VIEW_Z - 20.f },
@@ -141,7 +194,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
             .position = { VIEW_X + 0.f, VIEW_Y + 3.5f, VIEW_Z - 20.f },
@@ -149,7 +202,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 0.5f, 0.5f, 0.5f },
             .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 18.f },
@@ -157,7 +210,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 0.5f, 0.5f, 0.5f },
             .position = { VIEW_X + 0.f, VIEW_Y + 5.5f, VIEW_Z - 19.f },
@@ -165,7 +218,7 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-          Object{
+          Box{
             .randomRotation = true,
             .dimensions = { 0.5f, 0.5f, 0.5f },
             .position = { VIEW_X - 1.f, VIEW_Y + 5.5f, VIEW_Z - 19.f },
@@ -177,7 +230,8 @@ class Demo : public Game
       }
     };
     size_t m_currentScenario = 0;
-    std::vector<EntityId> m_entityIds;
+    std::vector<EntityId> m_boxes;
+    std::vector<EntityId> m_aggregates;
     bool m_physicsActive = false;
 
     EntityId constructLight();
@@ -229,12 +283,14 @@ Vec3f randomRotation()
 
 void Demo::constructScenario(size_t i)
 {
-  assert(m_entityIds.empty());
+  assert(m_boxes.empty());
+  assert(m_aggregates.empty());
 
-  for (auto& obj : m_scenarios[i].objects) {
-    auto material = m_factory->createMaterialAsync("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("textures/bricks.png");
+  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+
+  for (auto& obj : m_scenarios[i].boxes) {
     auto size = metresToWorldUnits(obj.dimensions);
-    auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
     EntityId id = 0;
     if (obj.isStatic) {
       id = m_factory->createStaticCuboid(size, material, texSize, 0.2f, 0.4f);
@@ -242,7 +298,84 @@ void Demo::constructScenario(size_t i)
     else {
       id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
     }
-    m_entityIds.push_back(id);
+    m_boxes.push_back(id);
+  }
+
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+
+  for (auto& obj : m_scenarios[i].aggregates) {
+    auto id = m_engine.ecs().idGen().getNewEntityId();
+    m_engine.ecs().componentStore().allocate<DSpatial, DModel, DAggregate>(id);
+
+    DAggregate collision{};
+    auto model = std::make_unique<Model>();
+    Aabb bounds;
+
+    for (size_t j = 0; j < obj.boxes.size(); ++j) {
+      auto& box = obj.boxes[j];
+
+      auto mesh = render::cuboid(metresToWorldUnits(box.dimensions), texSize);
+      mesh->featureSet = MeshFeatureSet{
+        .vertexLayout = {
+          BufferUsage::AttrPosition,
+          BufferUsage::AttrNormal,
+          BufferUsage::AttrTexCoord
+        },
+        .flags{ bitflag(MeshFeatures::CastsShadow) }
+      };
+      Mat4x4f meshTransform = createTransform(metresToWorldUnits(box.position), box.rotation);
+      mesh->transform = meshTransform;
+
+      model->submodels.push_back(
+        std::unique_ptr<Submodel>(new Submodel{
+          .mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait(),
+          .material = material.wait(),
+          .skin = nullptr,
+          .jointTransforms{}
+        })
+      );
+
+      auto aabb = transformAabb({
+        .min = -metresToWorldUnits(box.dimensions) * 0.5f,
+        .max = metresToWorldUnits(box.dimensions) * 0.5f
+      }, meshTransform);
+
+      if (j == 0) {
+        bounds = aabb;
+      }
+      else {
+        bounds.add(aabb);
+      }
+
+      collision.boxes.push_back(DStaticBox{
+        .restitution = 0.2f,
+        .friction = 0.4f,
+        .boundingBox = {
+          .min = -metresToWorldUnits(box.dimensions) * 0.5f,
+          .max = metresToWorldUnits(box.dimensions) * 0.5f,
+          .transform = identityMatrix<4>()
+        }
+      });
+      collision.boxTransforms.push_back(meshTransform);
+    }
+
+    DSpatial spatial{};
+    spatial.parent = sysSpatial.root();
+    spatial.aabb = bounds;
+    spatial.transform = createTransform(metresToWorldUnits(obj.position), obj.rotation);
+
+    sysSpatial.addEntity(id, spatial);
+
+    auto render = std::make_unique<DModel>();
+    render->model = m_engine.modelLoader().loadModelAsync(std::move(model)).wait();
+
+    sysRender3d.addEntity(id, std::move(render));
+
+    sysCollision.addEntity(id, collision);
+
+    m_aggregates.push_back(id);
   }
 
   resetState();
@@ -250,10 +383,15 @@ void Demo::constructScenario(size_t i)
 
 void Demo::destroyScenario()
 {
-  for (auto id : m_entityIds) {
+  for (auto id : m_boxes) {
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
   }
-  m_entityIds.clear();
+  m_boxes.clear();
+
+  for (auto id : m_aggregates) {
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
+  }
+  m_aggregates.clear();
 }
 
 void Demo::constructTerrain()
@@ -291,7 +429,7 @@ void Demo::constructGround()
   auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
   auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
   auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f); // TODO: Use static
-  sysSpatial.setEntityTransform(id, translationMatrix4x4(size * 0.5f));
+  sysSpatial.setLocalTransform(id, translationMatrix4x4(size * 0.5f));
 }
 
 EntityId Demo::constructLight()
@@ -365,11 +503,12 @@ void Demo::enablePhysics()
 {
   auto& sysCollision = m_engine.ecs().system<SysCollision>();
 
-  assert(m_entityIds.size() == m_scenarios[m_currentScenario].objects.size());
+  assert(m_boxes.size() == m_scenarios[m_currentScenario].boxes.size());
+  assert(m_aggregates.size() == m_scenarios[m_currentScenario].aggregates.size());
 
-  for (size_t i = 0; i < m_entityIds.size(); ++i) {
-    auto& obj = m_scenarios[m_currentScenario].objects[i];
-    auto id = m_entityIds[i];
+  for (size_t i = 0; i < m_boxes.size(); ++i) {
+    auto& obj = m_scenarios[m_currentScenario].boxes[i];
+    auto id = m_boxes[i];
 
     if (!obj.infiniteMass && !obj.isStatic) {
       const float scale = 1.f;//WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE;
@@ -386,11 +525,12 @@ void Demo::resetState()
   auto& sysCollision = m_engine.ecs().system<SysCollision>();
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
-  assert(m_entityIds.size() == m_scenarios[m_currentScenario].objects.size());
+  assert(m_boxes.size() == m_scenarios[m_currentScenario].boxes.size());
+  assert(m_aggregates.size() == m_scenarios[m_currentScenario].aggregates.size());
 
-  for (size_t i = 0; i < m_entityIds.size(); ++i) {
-    auto& obj = m_scenarios[m_currentScenario].objects[i];
-    auto id = m_entityIds[i];
+  for (size_t i = 0; i < m_boxes.size(); ++i) {
+    auto& obj = m_scenarios[m_currentScenario].boxes[i];
+    auto id = m_boxes[i];
 
     if (!obj.isStatic) {
       sysCollision.setInverseMass(id, 0.f);
@@ -400,7 +540,7 @@ void Demo::resetState()
     auto rotation = obj.randomRotation ? randomRotation() : obj.rotation;
     auto transform = createTransform(metresToWorldUnits(obj.position), rotation);
 
-    sysSpatial.setEntityTransform(id, transform);
+    sysSpatial.setLocalTransform(id, transform);
   }
 
   m_physicsActive = false;

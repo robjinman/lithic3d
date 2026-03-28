@@ -1,7 +1,5 @@
-// The collision system ignores an object's global transform and reads/updates only its local
-// transform. Essentially, objects are treated as though they are unparented.
-
-// TODO: Remove centre of mass?
+// TODO: We currently assume all dynamic objects are unparented - i.e. their parent is the spatial
+// root node. Therefore we only read/write their local transforms.
 
 #pragma once
 
@@ -39,7 +37,8 @@ struct CCollision
 
 struct Capsule
 {
-  // TODO
+  float radius = 0.f;
+  float height = 0.f;
 };
 
 struct HeightMap
@@ -138,7 +137,7 @@ struct DDynamicBox
 struct DStaticBox
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionBox
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision, CCollisionBox
   >;
 
   float restitution = 0.2f;
@@ -157,11 +156,10 @@ struct DTerrainChunk
   HeightMap heightMap;
 };
 
-// TODO: Support poly aggregates
 struct DPolyhedron
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision
   >;
 
   float restitution = 0.2f;
@@ -169,6 +167,18 @@ struct DPolyhedron
   Vec3f centreOfMass;
   std::vector<Vec3f> vertices;
   std::vector<uint16_t> indices;
+};
+
+struct DAggregate
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform
+  >;
+
+  std::vector<DStaticBox> boxes;
+  std::vector<Mat4x4f> boxTransforms;
+  std::vector<DPolyhedron> polyhedra;
+  std::vector<Mat4x4f> polyhedraTransforms;
 };
 
 struct DCapsule
@@ -198,6 +208,7 @@ class SysCollision : public System
     virtual void addEntity(EntityId id, const DTerrainChunk& data) = 0;
     virtual void addEntity(EntityId id, const DPolyhedron& data) = 0;
     virtual void addEntity(EntityId id, const DCapsule& data) = 0;
+    virtual void addEntity(EntityId id, const DAggregate& data) = 0;
 
     static const SystemId id = Systems::Collision;
 };

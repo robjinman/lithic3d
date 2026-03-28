@@ -74,6 +74,7 @@ struct MeshBuffers
   VkBuffer instanceBuffer;
   uint32_t numIndices;
   uint32_t numInstances;
+  Mat4x4f transform;
 };
 
 enum class DescriptorSetNumber : uint32_t

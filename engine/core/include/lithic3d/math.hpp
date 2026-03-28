@@ -604,6 +604,18 @@ inline Mat4x4f createTransform(const Mat3x3f& rot, const Vec3f& transl)
   };
 }
 
+inline Mat4x4f applyRotation(const Mat4x4f& M, const Mat3x3f& R)
+{
+  Mat4x4f K;
+  for (size_t r = 0; r < 3; ++r) {
+    for (size_t c = 0; c < 3; ++c) {
+      K.set(r, c, M.at(r, 0) * R.at(0, c) + M.at(r, 1) * R.at(1, c) + M.at(r, 2) * R.at(2, c));
+    }
+    K.set(r, 3, M.at(r, 3));
+  }
+  return K;
+}
+
 inline Mat4x4f fromVerticalToVectorTransform(const Vec3f& vec)
 {
   Vec3f u = vec.normalise();

@@ -214,6 +214,7 @@ struct ObjectComponents
 {
   EntityId entityId = 0;
   CLocalTransform* localTransform = nullptr;
+  CGlobalTransform* globalTransform = nullptr;
   CSpatialFlags* spatialFlags = nullptr;
   CCollision* collision = nullptr;
   CCollisionDynamic* dynamic = nullptr;
@@ -259,6 +260,7 @@ class SysCollisionImpl : public SysCollision
     void addEntity(EntityId id, const DTerrainChunk& data) override;
     void addEntity(EntityId id, const DPolyhedron& data) override;
     void addEntity(EntityId id, const DCapsule& data) override;
+    void addEntity(EntityId id, const DAggregate& data) override;
 
     void setInverseMass(EntityId id, float inverseMass) override;
     void applyForce(EntityId id, const Vec3f& force, float seconds) override;
@@ -274,7 +276,8 @@ class SysCollisionImpl : public SysCollision
     Logger& m_logger;
     EventSystem& m_eventSystem;
     Ecs& m_ecs;
-    std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedrons;
+    std::unordered_map<EntityId, std::vector<EntityId>> m_aggregates;
+    std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
 
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& comp, const Force& torque);
@@ -304,6 +307,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DStaticBox& data)
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CGlobalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
   assertHasComponent<CCollisionBox>(componentStore, id);
 
@@ -371,6 +375,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CGlobalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
   assertHasComponent<CCollisionTerrain>(componentStore, id);
 
@@ -392,6 +397,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
   assertHasComponent<CSpatialFlags>(componentStore, id);
   assertHasComponent<CBoundingBox>(componentStore, id);
   assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CGlobalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
@@ -405,7 +411,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
 
   // TODO
 
-  m_polyhedrons[id] = std::move(poly);
+  m_polyhedra[id] = std::move(poly);
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
@@ -439,9 +445,66 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
   componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
 }
 
-void SysCollisionImpl::removeEntity(EntityId entityId)
+void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 {
-  m_polyhedrons.erase(entityId);
+  ASSERT(data.boxes.size() == data.boxTransforms.size(), "Incorrect number of box transforms");
+  ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
+    "Incorrect number of polyhedron transforms");
+
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+
+  for (size_t i = 0; i < data.boxes.size(); ++i) {
+    auto& box = data.boxes[i];
+
+    auto childId = m_ecs.idGen().getNewEntityId();
+    m_ecs.componentStore().allocate<DSpatial, DStaticBox>(childId);
+
+    DSpatial spatial{
+      .transform = data.boxTransforms[i],
+      .parent = id,
+      .enabled = true,
+      .aabb = transformAabb({
+        .min = box.boundingBox.min,
+        .max = box.boundingBox.max
+      }, box.boundingBox.transform)
+    };
+
+    sysSpatial.addEntity(childId, spatial);
+
+    addEntity(childId, box);
+
+    m_aggregates[id].push_back(childId);
+  }
+
+  for (size_t i = 0; i < data.polyhedra.size(); ++i) {
+    auto childId = m_ecs.idGen().getNewEntityId();
+    m_ecs.componentStore().allocate<DSpatial, DPolyhedron>(childId);
+
+    DSpatial spatial{
+      .transform = data.polyhedraTransforms[i],
+      .parent = id,
+      .enabled = true
+    };
+
+    sysSpatial.addEntity(childId, spatial);
+
+    addEntity(childId, data.polyhedra[i]);
+
+    m_aggregates[id].push_back(childId);
+  }
+}
+
+void SysCollisionImpl::removeEntity(EntityId id)
+{
+  m_polyhedra.erase(id);
+
+  auto i = m_aggregates.find(id);
+  if (i != m_aggregates.end()) {
+    for (auto childId : i->second) {
+      m_ecs.removeEntity(childId);
+    }
+    m_aggregates.erase(i);
+  }
 }
 
 bool SysCollisionImpl::hasEntity(EntityId entityId) const
@@ -544,13 +607,14 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   std::vector<CollisionPair> pairs;
 
   auto groups = m_ecs.componentStore().components<
-    CSpatialFlags, CLocalTransform, CBoundingBox, CCollision
+    CSpatialFlags, CLocalTransform, CGlobalTransform, CBoundingBox, CCollision
   >();
 
   size_t outerIdx = 0;
   for (auto& group1 : groups) {
     auto flagsComps1 = group1.components<CSpatialFlags>();
     auto localTs1 = group1.components<CLocalTransform>();
+    auto globalTs1 = group1.components<CGlobalTransform>();
     auto boundingBoxes1 = group1.components<CBoundingBox>();
     auto collComps1 = group1.components<CCollision>();
     auto collBoxComps1 = group1.components<CCollisionBox>();
@@ -569,6 +633,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
         for (auto& group2 : groups) {
           auto flagsComps2 = group2.components<CSpatialFlags>();
           auto localTs2 = group2.components<CLocalTransform>();
+          auto globalTs2 = group2.components<CGlobalTransform>();
           auto boundingBoxes2 = group2.components<CBoundingBox>();
           auto collComps2 = group2.components<CCollision>();
           auto collBoxComps2 = group2.components<CCollisionBox>();
@@ -603,6 +668,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                   .A = {
                     .entityId = entityIds1[i],
                     .localTransform = &localTs1[i],
+                    .globalTransform = collDynamicComps1.empty() ? &globalTs1[i] : nullptr,
                     .spatialFlags = &flagsComps1[i],
                     .collision = &collComps1[i],
                     .dynamic = collDynamicComps1.empty() ? nullptr : &collDynamicComps1[i],
@@ -613,6 +679,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                   .B = {
                     .entityId = entityIds2[j],
                     .localTransform = &localTs2[j],
+                    .globalTransform = collDynamicComps2.empty() ? &globalTs2[j] : nullptr,
                     .spatialFlags = &flagsComps2[j],
                     .collision = &collComps2[j],
                     .dynamic = collDynamicComps2.empty() ? nullptr : &collDynamicComps2[j],
@@ -820,17 +887,23 @@ inline Vec3f differentVector(const Vec3f& v)
   return r * v;
 }
 
+// For static objects, we read their global transform
+inline Mat4x4f& getTransform(const ObjectComponents& obj)
+{
+  return obj.globalTransform ? obj.globalTransform->transform : obj.localTransform->transform;
+}
+
 bool boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
 {
-  auto boxBToWorldSpace = B.localTransform->transform * B.box->boundingBox.transform;
+  auto boxBToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
   float maxPenetration = 0.f;
   int vertWithMaxPenetration = -1;
   std::array<Vec3f, 8> normals;
 
-  auto verts = getVertices(A.box->boundingBox, A.localTransform->transform);
-  auto invTangents = getInverseTangents(A.box->boundingBox, A.localTransform->transform);
+  auto verts = getVertices(A.box->boundingBox, getTransform(A));
+  auto invTangents = getInverseTangents(A.box->boundingBox, getTransform(A));
 
   for (size_t i = 0; i < 8; ++i) {
     float penetration = pointBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
@@ -979,10 +1052,10 @@ bool boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Con
   std::array<Vec3f, 12> points;
   std::array<Vec3f, 12> normals;
 
-  auto boxBToWorldSpace = B.localTransform->transform * B.box->boundingBox.transform;
+  auto boxBToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-  auto edges = getEdges(getVertices(A.box->boundingBox, A.localTransform->transform));
+  auto edges = getEdges(getVertices(A.box->boundingBox, getTransform(A)));
   for (size_t i = 0; i < 12; ++i) {
     float penetration = edgeBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
       edges[i], points[i], normals[i]);
@@ -1055,8 +1128,8 @@ void SysCollisionImpl::generateBoxPolyContacts(const ObjectComponents& A, const 
   std::vector<Contact>& contacts) const
 {
   assert(A.box != nullptr);
-  auto i = m_polyhedrons.find(B.entityId);
-  assert(i != m_polyhedrons.end());
+  auto i = m_polyhedra.find(B.entityId);
+  assert(i != m_polyhedra.end());
   const PolyhedronData& poly = *i->second;
 
   // TODO
@@ -1066,8 +1139,8 @@ void SysCollisionImpl::generateCapsulePolyContacts(const ObjectComponents& A,
   const ObjectComponents& B, std::vector<Contact>& contacts) const
 {
   assert(A.capsule != nullptr);
-  auto i = m_polyhedrons.find(B.entityId);
-  assert(i != m_polyhedrons.end());
+  auto i = m_polyhedra.find(B.entityId);
+  assert(i != m_polyhedra.end());
   const PolyhedronData& poly = *i->second;
 
   // TODO
@@ -1078,9 +1151,9 @@ bool boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(B.localTransform->transform)};
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
 
-  auto verts = getVertices(A.box->boundingBox, A.localTransform->transform);
+  auto verts = getVertices(A.box->boundingBox, getTransform(A));
   std::array<Vec3f, 8> normals;
 
   int vertWithMaxPenetration = -1;
@@ -1147,7 +1220,7 @@ bool terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(A.terrain != nullptr);
   assert(B.box != nullptr);
 
-  HeightMapSampler sampler{A.terrain->heightMap, getTranslation(A.localTransform->transform)};
+  HeightMapSampler sampler{A.terrain->heightMap, getTranslation(getTransform(A))};
 
   std::vector<Vec3f> terrainVerts;
   sampler.vertices(boxMin, boxMax, terrainVerts);
@@ -1156,7 +1229,7 @@ bool terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
   int vertWithMaxPenetration = -1;
   float maxPenetration = 0.f;
 
-  auto boxToWorldSpace = B.localTransform->transform * B.box->boundingBox.transform;
+  auto boxToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxSpace = inverse(boxToWorldSpace);
 
   for (size_t i = 0; i < terrainVerts.size(); ++i) {
@@ -1206,7 +1279,7 @@ bool boxTerrainEdgeContact(const ObjectComponents& A, const Vec2f& boxMin, const
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(B.localTransform->transform)};
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
 
   std::vector<Edge> terrainEdges;
   sampler.edges(boxMin, boxMax, terrainEdges);
@@ -1216,7 +1289,7 @@ bool boxTerrainEdgeContact(const ObjectComponents& A, const Vec2f& boxMin, const
   std::vector<Vec3f> points(terrainEdges.size());
   std::vector<Vec3f> normals(terrainEdges.size());
 
-  auto boxToWorldSpace = A.localTransform->transform * A.box->boundingBox.transform;
+  auto boxToWorldSpace = getTransform(A) * A.box->boundingBox.transform;
   auto worldToBoxSpace = inverse(boxToWorldSpace);
 
   for (size_t i = 0; i < terrainEdges.size(); ++i) {
@@ -1253,7 +1326,7 @@ void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponent
   Vec2f boxMin{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
   Vec2f boxMax{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };
 
-  auto boxVerts = getVertices(A.box->boundingBox, A.localTransform->transform);
+  auto boxVerts = getVertices(A.box->boundingBox, getTransform(A));
   for (auto& vert : boxVerts) {
     if (vert[0] < boxMin[0]) {
       boxMin[0] = vert[0];
@@ -1325,20 +1398,16 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
   return contacts;
 }
 
-void updateTransform(CLocalTransform& localT, CSpatialFlags& spatialFlags, const Vec3f& linearV,
-  const Vec3f& angularV)
+void updateTransform(Mat4x4f& T, const Vec3f& linearV, const Vec3f& angularV)
 {
   auto translation = translationMatrix4x4(linearV);
   auto angle = angularV.magnitude();
   auto rotation = rotationMatrix4x4(angularV.normalise(), angle);
 
-  auto currentOffset = getTranslation(localT.transform);
+  auto currentOffset = getTranslation(T);
 
-  auto t = translationMatrix4x4(currentOffset) * translation * rotation *
-    translationMatrix4x4(-currentOffset) * localT.transform;
-
-  localT.transform = t;
-  spatialFlags.flags.set(SpatialFlags::Dirty);
+  T = translationMatrix4x4(currentOffset) * translation * rotation *
+    translationMatrix4x4(-currentOffset) * T;
 }
 
 // Constructs a matrix that calculates the velocity induced by a given impulse.
@@ -1356,9 +1425,9 @@ inline Mat3x3f computeVelocityMatrix(float inverseMass, const Mat3x3f& I,
 
 void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const Vec3f& delta)
 {
-  Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, obj.localTransform->transform);
+  Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, getTransform(obj));
 
-  auto origin = getTranslation(obj.localTransform->transform);
+  auto origin = getTranslation(getTransform(obj));
   auto pointRel = point - (origin + obj.dynamic->centreOfMass);
   Mat3x3f velocityMatrix = computeVelocityMatrix(obj.dynamic->inverseMass, I, pointRel);
   Mat3x3f impulseMatrix = inverse(velocityMatrix);
@@ -1366,7 +1435,8 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   Vec3f linearV = impulse * obj.dynamic->inverseMass;
   Vec3f angularV = I * pointRel.cross(impulse);
 
-  updateTransform(*obj.localTransform, *obj.spatialFlags, linearV, angularV);
+  updateTransform(getTransform(obj), linearV, angularV);
+  obj.spatialFlags->flags.set(SpatialFlags::Dirty);
 }
 
 void resolveInterpenetration(const Contact& contact)
@@ -1440,7 +1510,7 @@ void resolveVelocities(const Contact& contact)
 
   Vec3f aContactSpaceV;
   if (A.dynamic) {
-    auto aOrigin = getTranslation(A.localTransform->transform);
+    auto aOrigin = getTranslation(getTransform(A));
     aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
     auto aTotalWorldSpaceV = A.dynamic->linearVelocity + A.dynamic->angularVelocity.cross(aPointRel);
     aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
@@ -1448,7 +1518,7 @@ void resolveVelocities(const Contact& contact)
 
   Vec3f bContactSpaceV;
   if (B.dynamic) {
-    auto bOrigin = getTranslation(B.localTransform->transform);
+    auto bOrigin = getTranslation(getTransform(B));
     bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
     auto bTotalWorldSpaceV = B.dynamic->linearVelocity + B.dynamic->angularVelocity.cross(bPointRel);
     bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
@@ -1465,12 +1535,12 @@ void resolveVelocities(const Contact& contact)
   Mat3x3f bI;
 
   if (A.dynamic) {
-    aI = transformTensor(A.dynamic->inverseInertialTensor, A.localTransform->transform);
+    aI = transformTensor(A.dynamic->inverseInertialTensor, getTransform(A));
     velocityMatrix = velocityMatrix + computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
   }
 
   if (B.dynamic) {
-    bI = transformTensor(B.dynamic->inverseInertialTensor, B.localTransform->transform);
+    bI = transformTensor(B.dynamic->inverseInertialTensor, getTransform(B));
     velocityMatrix = velocityMatrix + computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
   }
 
@@ -1569,7 +1639,8 @@ void SysCollisionImpl::integrate()
           }
         }
 
-        updateTransform(localT[i], flagsComps[i], dynamic.linearVelocity, dynamic.angularVelocity);
+        updateTransform(localT[i].transform, dynamic.linearVelocity, dynamic.angularVelocity);
+        flagsComps[i].flags.set(SpatialFlags::Dirty);
 
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;

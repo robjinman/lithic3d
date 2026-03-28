@@ -194,10 +194,10 @@ void Demo::constructModels()
 
 EntityId Demo::constructGround()
 {
-  auto material = m_factory->createMaterial("textures/ground.png").wait();
+  auto material = m_factory->createMaterialAsync("textures/ground.png").wait();
 
-  auto id = m_factory->createCuboid(metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material,
-    metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f);
+  auto id = m_factory->createStaticCuboid(metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material,
+    metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f, 0.4);
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
     translationMatrix4x4(metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));
