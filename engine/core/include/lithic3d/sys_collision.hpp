@@ -39,6 +39,7 @@ struct Capsule
 {
   float radius = 0.f;
   float height = 0.f;
+  Vec3f translation;
 };
 
 struct HeightMap
@@ -67,6 +68,8 @@ class HeightMapSampler
     std::array<Vec3f, 3> triangle(const Vec2f& p) const;
     void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
     void edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const;
+    void triangles(const Vec2f& min, const Vec2f& max,
+      std::vector<std::array<Vec3f, 3>>& triangles) const;
 
   private:
     const HeightMap& m_map;
@@ -100,6 +103,7 @@ struct CCollisionCapsule
   static constexpr ComponentTypeId TypeId = CCollisionCapsuleTypeId;
 };
 
+// TODO: Separate out rotation related fields
 struct CCollisionDynamic
 {
   float inverseMass = 1.f;
@@ -115,8 +119,10 @@ struct CCollisionDynamic
   Vec3f resolverDeltaAngularV;
   uint16_t resolverNumAdjustments = 0;
   uint16_t framesIdle = 0;
+  // TODO: Use bitfield
   bool idle = false;
   bool hasCollided = false;
+  bool canRotate = true;
 
   static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
 };

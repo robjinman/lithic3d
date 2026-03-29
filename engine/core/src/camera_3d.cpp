@@ -25,18 +25,25 @@ void Camera3d::updateParameters(float aspectRatio, float rotation)
   m_worldSpaceFrustum = computeFrustumFromMatrix(m_projection * m_viewMatrix);
 }
 
+void Camera3d::setTransform(const Mat4x4f& transform)
+{
+  auto rotation = getRotation3x3(transform);
+  m_direction = rotation * Vec3f{ 0.f, 0.f, -1.f };
+  m_position = getTranslation(transform);
+
+  onMove();
+}
+
 void Camera3d::setPosition(const Vec3f& position)
 {
   m_position = position;
-  m_viewMatrix = lookAt(m_position, m_position + m_direction);
-  m_worldSpaceFrustum = computeFrustumFromMatrix(m_projection * m_viewMatrix);
+  onMove();
 }
 
 void Camera3d::translate(const Vec3f& delta)
 {
   m_position += delta;
-  m_viewMatrix = lookAt(m_position, m_position + m_direction);
-  m_worldSpaceFrustum = computeFrustumFromMatrix(m_projection * m_viewMatrix);
+  onMove();
 }
 
 void Camera3d::rotate(float deltaPitch, float deltaYaw)
@@ -46,6 +53,11 @@ void Camera3d::rotate(float deltaPitch, float deltaYaw)
   auto yaw = rotationMatrix3x3(Vec3f{0, 1, 0}, -deltaYaw);
   m_direction = (yaw * pitch * m_direction).normalise();
 
+  onMove();
+}
+
+void Camera3d::onMove()
+{
   m_viewMatrix = lookAt(m_position, m_position + m_direction);
   m_worldSpaceFrustum = computeFrustumFromMatrix(m_projection * m_viewMatrix);
 }

@@ -10,6 +10,7 @@ class Camera3d
   public:
     Camera3d(float aspectRatio, float rotation);
 
+    void setTransform(const Mat4x4f& transform);
     void setPosition(const Vec3f& position);
     void translate(const Vec3f& delta);
     void rotate(float deltaPitch, float deltaYaw); // Yaw is rotation to the right
@@ -26,6 +27,8 @@ class Camera3d
     Mat4x4f m_projection;
     Mat4x4f m_viewMatrix;
     Frustum m_worldSpaceFrustum;
+
+    void onMove();
 };
 
 const Vec3f& Camera3d::getPosition() const

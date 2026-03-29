@@ -62,9 +62,11 @@ class SysSpatialImpl : public SysSpatial
 
     const Mat4x4f& getLocalTransform(EntityId id) const override;
     const Mat4x4f& getGlobalTransform(EntityId id) const override;
-    void transformEntitySelf(EntityId id, const Mat4x4f& m) override;
-    void transformEntityLocal(EntityId id, const Mat4x4f& m) override;
-    void transformEntityWorld(EntityId id, const Mat4x4f& m) override;
+
+    void translateEntitySelf(EntityId id, const Vec3f& t) override;
+
+    void rotateEntityLocal(EntityId id, const Mat3x3f& rot) override;
+    void translateEntityLocal(EntityId id, const Vec3f& t) override;
     void setLocalTransform(EntityId id, const Mat4x4f& m) override;
 
     EntityIdSet getIntersecting(const Frustum& frustum) const override;
@@ -159,37 +161,30 @@ const Mat4x4f& SysSpatialImpl::getLocalTransform(EntityId id) const
   return componentStore.component<CLocalTransform>(id).transform;
 }
 
-void SysSpatialImpl::transformEntitySelf(EntityId id, const Mat4x4f& m)
+void SysSpatialImpl::translateEntitySelf(EntityId id, const Vec3f& t)
 {
   auto& componentStore = m_ecs.componentStore();
   auto& localT = componentStore.component<CLocalTransform>(id);
   auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
-  localT.transform = localT.transform * m;
+  localT.transform = localT.transform * translationMatrix4x4(t);
   flags.flags.set(SpatialFlags::Dirty);
 }
 
-void SysSpatialImpl::transformEntityLocal(EntityId id, const Mat4x4f& m)
+void SysSpatialImpl::rotateEntityLocal(EntityId id, const Mat3x3f& rot)
 {
   auto& componentStore = m_ecs.componentStore();
   auto& localT = componentStore.component<CLocalTransform>(id);
   auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
-  localT.transform = m * localT.transform;
+  localT.transform = applyRotation(localT.transform, rot);
   flags.flags.set(SpatialFlags::Dirty);
 }
 
-void SysSpatialImpl::transformEntityWorld(EntityId id, const Mat4x4f& m)
+void SysSpatialImpl::translateEntityLocal(EntityId id, const Vec3f& t)
 {
   auto& componentStore = m_ecs.componentStore();
   auto& localT = componentStore.component<CLocalTransform>(id);
   auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id);
-
-  auto& G = getGlobalTransform(id);
-  auto invG = inverse(G);
-  auto t = getTranslation(G);
-  auto T = translationMatrix4x4(t);
-  auto invT = translationMatrix4x4(-t);
-
-  localT.transform = localT.transform * invG * T * m * invT * G;
+  localT.transform = translationMatrix4x4(t) * localT.transform;
   flags.flags.set(SpatialFlags::Dirty);
 }
 

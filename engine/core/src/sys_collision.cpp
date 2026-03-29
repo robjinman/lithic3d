@@ -1,6 +1,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
+#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -44,6 +45,52 @@ std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
   return distanceFromD < distanceFromB ?
     std::array<Vec3f, 3>{ A, C, D } :
     std::array<Vec3f, 3>{ A, B, C };
+}
+
+void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
+  std::vector<std::array<Vec3f, 3>>& triangles) const
+{
+  // TODO: Clip to range?
+  if (!inRange(min) || !inRange(max)) {
+    return;
+  }
+
+  size_t w = m_map.widthPx - 1;
+  size_t h = m_map.heightPx - 1;
+  auto xIdx0 = static_cast<size_t>(floorf((min[0] - m_pos[0]) * w / m_map.width));
+  auto zIdx0 = static_cast<size_t>(floorf((min[1] - m_pos[2]) * h / m_map.height));
+  auto xIdx1 = static_cast<size_t>(ceilf((max[0] - m_pos[0]) * w / m_map.width));
+  auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
+
+  if (xIdx0 == xIdx1) {
+    ++xIdx1;
+  }
+  if (zIdx0 == zIdx1) {
+    ++zIdx1;
+  }
+
+  DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
+  DBG_ASSERT(zIdx0 < zIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
+
+  float dx = m_map.width / w;
+  float dz = m_map.height / h;
+
+  auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
+    size_t i = zIdx * m_map.widthPx + xIdx;
+    return Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+  };
+
+  for (size_t j = zIdx0; j < zIdx1; ++j) {
+    for (size_t i = xIdx0; i < xIdx1; ++i) {
+      Vec3f A = getVertex(i, j + 1);
+      Vec3f B = getVertex(i + 1, j + 1);
+      Vec3f C = getVertex(i + 1, j);
+      Vec3f D = getVertex(i, j);
+
+      triangles.push_back({ A, C, D });
+      triangles.push_back({ A, B, C });
+    }
+  }
 }
 
 void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
@@ -358,7 +405,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
     .resolverNumAdjustments = 0,
     .framesIdle = 0,
     .idle = false,
-    .hasCollided = false
+    .hasCollided = false,
+    .canRotate = true
   };
 
   if (dynamic.inverseMass != 0) {
@@ -435,7 +483,22 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
   };
 
   CCollisionDynamic dynamic{
-    // TODO
+    .inverseMass = data.inverseMass,
+    .centreOfMass = data.centreOfMass,
+    .linearForces{},
+    .linearAcceleration{},
+    .linearVelocity{},
+    .torques{},
+    .angularAcceleration{},
+    .angularVelocity{},
+    .inverseInertialTensor{},
+    .resolverDeltaLinearV{},
+    .resolverDeltaAngularV{},
+    .resolverNumAdjustments = 0,
+    .framesIdle = 0,
+    .idle = false,
+    .hasCollided = false,
+    .canRotate = false
   };
 
   if (dynamic.inverseMass != 0) {
@@ -1106,13 +1169,151 @@ void generateCapsuleCapsuleContacts(const ObjectComponents& A, const ObjectCompo
   // TODO
 }
 
+bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents& B,
+  Contact& contact)
+{
+  assert(A.capsule != nullptr);
+  assert(B.terrain != nullptr);
+
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
+
+  float radius = A.capsule->capsule.radius;
+
+  // Calculate centre of capsule's bottom sphere
+  auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
+  P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
+
+  std::vector<std::array<Vec3f, 3>> triangles;
+  Vec2f p{ P[0], P[2] };
+  sampler.triangles(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, triangles);
+
+  float totalPenetration = 0.f;
+  Vec3f normal;
+  int numPlanesPenetrated = 0;
+
+  for (size_t i = 0; i < triangles.size(); ++i) {
+    auto& triangle = triangles[i];
+    float minX = std::min(std::min(triangle[0][0], triangle[1][0]), triangle[2][0]);
+    float maxX = std::max(std::max(triangle[0][0], triangle[1][0]), triangle[2][0]);
+    float maxY = std::max(std::max(triangle[0][1], triangle[1][1]), triangle[2][1]);
+    float minZ = std::min(std::min(triangle[0][2], triangle[1][2]), triangle[2][2]);
+    float maxZ = std::max(std::max(triangle[0][2], triangle[1][2]), triangle[2][2]);
+
+    if (P[1] - radius > maxY) {
+      continue;
+    }
+
+    if (P[0] - radius > maxX) {
+      continue;
+    }
+
+    if (P[0] + radius < minX) {
+      continue;
+    }
+
+    if (P[2] - radius > maxZ) {
+      continue;
+    }
+
+    if (P[2] + radius < minZ) {
+      continue;
+    }
+
+    auto AB = triangle[1] - triangle[0];
+    auto AC = triangle[2] - triangle[0];
+
+    auto n = AB.cross(AC);
+    // d = -(Ax + By + Cz)
+    auto d = -(n[0] * triangle[0][0] + n[1] * triangle[0][1] + n[2] * triangle[0][2]);
+
+    float penetration = -(n.dot(P) + d - radius);
+
+    if (penetration > 0.f) {
+      normal += n.normalise();
+      totalPenetration += penetration;
+      ++numPlanesPenetrated;
+    }
+  }
+
+  if (numPlanesPenetrated > 0) {
+    contact.A = A;
+    contact.B = B;
+    contact.normal = normal / numPlanesPenetrated;
+    contact.penetration = totalPenetration / numPlanesPenetrated;
+    contact.point = (P - contact.normal * contact.penetration);
+    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+    contact.toContactSpace = contact.fromContactSpace.t();
+
+    return true;
+  }
+
+  return false;
+}
+
+bool capsuleTerrainPointContact(const ObjectComponents& A, const ObjectComponents& B,
+  Contact& contact)
+{
+  assert(A.capsule != nullptr);
+  assert(B.terrain != nullptr);
+
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
+
+  float radius = A.capsule->capsule.radius;
+
+  // Calculate centre of capsule's bottom sphere
+  auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
+  P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
+
+  std::vector<Vec3f> terrainVerts;
+  Vec2f p{ P[0], P[2] };
+  sampler.vertices(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, terrainVerts);
+
+  int vertWithMaxPenetration = -1;
+  float maxPenetration = 0.f;
+
+  for (size_t i = 0; i < terrainVerts.size(); ++i) {
+    auto& vert = terrainVerts[i];
+    auto v = vert - P;
+
+    if (v.squareMagnitude() < radius * radius) {
+      float penetration = v.magnitude();
+      if (penetration > maxPenetration) {
+        vertWithMaxPenetration = i;
+        maxPenetration = penetration;
+      }
+    }
+  }
+
+  if (vertWithMaxPenetration != -1) {
+    contact.A = A;
+    contact.B = B;
+    contact.penetration = maxPenetration;
+    contact.point = terrainVerts[vertWithMaxPenetration];
+    contact.normal = (contact.point - P).normalise();
+    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+    contact.toContactSpace = contact.fromContactSpace.t();
+
+    return true;
+  }
+
+  return false;
+}
+
 void generateCapsuleTerrainContacts(const ObjectComponents& A, const ObjectComponents& B,
   std::vector<Contact>& contacts)
 {
   assert(A.capsule != nullptr);
   assert(B.terrain != nullptr);
 
-  // TODO
+  Contact contact;
+  //if (capsuleTerrainPointContact(A, B, contact)) {
+  //  std::cout << "Capsule-terrain point contact\n";
+  //  contacts.push_back(contact);
+  //}
+  if (capsuleTerrainFaceContact(A, B, contact)) {
+    //std::cout << "Capsule-terrain face contact\n";
+    contacts.push_back(contact);
+  }
 }
 
 void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponents& B,
@@ -1425,17 +1626,30 @@ inline Mat3x3f computeVelocityMatrix(float inverseMass, const Mat3x3f& I,
 
 void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const Vec3f& delta)
 {
-  Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, getTransform(obj));
+  if (obj.dynamic->canRotate) {
+    Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, getTransform(obj));
 
-  auto origin = getTranslation(getTransform(obj));
-  auto pointRel = point - (origin + obj.dynamic->centreOfMass);
-  Mat3x3f velocityMatrix = computeVelocityMatrix(obj.dynamic->inverseMass, I, pointRel);
-  Mat3x3f impulseMatrix = inverse(velocityMatrix);
-  Vec3f impulse = impulseMatrix * delta;
-  Vec3f linearV = impulse * obj.dynamic->inverseMass;
-  Vec3f angularV = I * pointRel.cross(impulse);
+    auto origin = getTranslation(getTransform(obj));
+    auto pointRel = point - (origin + obj.dynamic->centreOfMass);
+    Mat3x3f velocityMatrix = computeVelocityMatrix(obj.dynamic->inverseMass, I, pointRel);
+    Mat3x3f impulseMatrix = inverse(velocityMatrix);
+    Vec3f impulse = impulseMatrix * delta;
+    Vec3f linearV = impulse * obj.dynamic->inverseMass;
+    Vec3f angularV = I * pointRel.cross(impulse);
 
-  updateTransform(getTransform(obj), linearV, angularV);
+    updateTransform(getTransform(obj), linearV, angularV);
+  }
+  else {
+    if (obj.capsule) {
+      float mag = delta.magnitude();
+      Vec3f d = delta.normalise() * mag * 0.01f;
+      updateTransform(getTransform(obj), d, {});
+    }
+    else {
+      updateTransform(getTransform(obj), delta, {});
+    }
+  }
+
   obj.spatialFlags->flags.set(SpatialFlags::Dirty);
 }
 
@@ -1453,7 +1667,7 @@ void resolveInterpenetration(const Contact& contact)
   }
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
-  const float margin = 0.05f;
+  const float margin = 0.f;
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
@@ -1535,13 +1749,23 @@ void resolveVelocities(const Contact& contact)
   Mat3x3f bI;
 
   if (A.dynamic) {
-    aI = transformTensor(A.dynamic->inverseInertialTensor, getTransform(A));
-    velocityMatrix = velocityMatrix + computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
+    if (A.dynamic->canRotate) {
+      aI = transformTensor(A.dynamic->inverseInertialTensor, getTransform(A));
+      velocityMatrix += computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
+    }
+    else {
+      velocityMatrix += scaleMatrix<3>(A.dynamic->inverseMass, false);
+    }
   }
 
   if (B.dynamic) {
-    bI = transformTensor(B.dynamic->inverseInertialTensor, getTransform(B));
-    velocityMatrix = velocityMatrix + computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
+    if (B.dynamic->canRotate) {
+      bI = transformTensor(B.dynamic->inverseInertialTensor, getTransform(B));
+      velocityMatrix += computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
+    }
+    else {
+      velocityMatrix += scaleMatrix<3>(B.dynamic->inverseMass, false);
+    }
   }
 
   Mat3x3f contactSpaceVelocityMatrix = contact.toContactSpace * velocityMatrix
@@ -1559,13 +1783,17 @@ void resolveVelocities(const Contact& contact)
 
   if (A.dynamic) {
     A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
-    A.dynamic->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
+    if (A.dynamic->canRotate) {
+      A.dynamic->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
+    }
     ++A.dynamic->resolverNumAdjustments;
   }
 
   if (B.dynamic) {
     B.dynamic->resolverDeltaLinearV += -impulse * B.dynamic->inverseMass;
-    B.dynamic->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
+    if (B.dynamic->canRotate) {
+      B.dynamic->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
+    }
     ++B.dynamic->resolverNumAdjustments;
   }
 }
@@ -1601,7 +1829,7 @@ void SysCollisionImpl::integrate()
         const float idleMaxLinearV = 0.02f;
         const float idleMaxAngularV = 0.0005f;
         const size_t idleSeconds = 3;
-
+/*
         if (dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
           dynamic.angularVelocity.squareMagnitude() < idleMaxAngularV) {
 
@@ -1619,7 +1847,7 @@ void SysCollisionImpl::integrate()
         else {
           //DBG_LOG(m_logger, STR("dv " << dynamic.linearVelocity.squareMagnitude()));
           //DBG_LOG(m_logger, STR("da " << dynamic.angularVelocity.squareMagnitude()));
-        }
+        }*/
 
         Vec3f totalForce;
         Vec3f totalTorque;
@@ -1639,14 +1867,26 @@ void SysCollisionImpl::integrate()
           }
         }
 
-        updateTransform(localT[i].transform, dynamic.linearVelocity, dynamic.angularVelocity);
+        if (dynamic.canRotate) {
+          updateTransform(localT[i].transform, dynamic.linearVelocity, dynamic.angularVelocity);
+        }
+        else {
+          localT[i].transform = translationMatrix4x4(dynamic.linearVelocity) * localT[i].transform;
+        }
+
         flagsComps[i].flags.set(SpatialFlags::Dirty);
+
+        //std::cout << "force: " << totalForce << "\n";
+        //std::cout << "accel: " << dynamic.linearAcceleration << "\n";
+        //std::cout << dynamic.linearVelocity << "\n";
 
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
 
-        dynamic.angularVelocity += dynamic.angularAcceleration;
-        dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
+        if (dynamic.canRotate) {
+          dynamic.angularVelocity += dynamic.angularAcceleration;
+          dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
+        }
 
         dynamic.hasCollided = false;
       }

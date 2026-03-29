@@ -112,9 +112,13 @@ class SysSpatial : public System
     // TODO: Rethink terminology
     virtual const Mat4x4f& getLocalTransform(EntityId id) const = 0;
     virtual const Mat4x4f& getGlobalTransform(EntityId id) const = 0;
-    virtual void transformEntitySelf(EntityId id, const Mat4x4f& m) = 0;
-    virtual void transformEntityLocal(EntityId id, const Mat4x4f& m) = 0;
-    virtual void transformEntityWorld(EntityId id, const Mat4x4f& m) = 0; // Slow
+
+    // Relative to self axes
+    virtual void translateEntitySelf(EntityId id, const Vec3f& t) = 0;
+
+    // Relative to parent axes
+    virtual void rotateEntityLocal(EntityId id, const Mat3x3f& rot) = 0;
+    virtual void translateEntityLocal(EntityId id, const Vec3f& t) = 0;
     virtual void setLocalTransform(EntityId id, const Mat4x4f& m) = 0;
 
     virtual EntityIdSet getIntersecting(const Frustum& frustum) const = 0;

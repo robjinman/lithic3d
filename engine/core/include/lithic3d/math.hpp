@@ -365,6 +365,14 @@ class Matrix
       return m;
     }
 
+    Matrix<T, ROWS, COLS>& operator+=(const Matrix<T, ROWS, COLS>& rhs)
+    {
+      for (size_t i = 0; i < ROWS * COLS; ++i) {
+        m_data[i] += rhs.m_data[i];
+      }
+      return *this;
+    }
+
     Matrix<T, ROWS, COLS> operator*(T s) const
     {
       Matrix<T, ROWS, COLS> m;
@@ -609,10 +617,11 @@ inline Mat4x4f applyRotation(const Mat4x4f& M, const Mat3x3f& R)
   Mat4x4f K;
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 3; ++c) {
-      K.set(r, c, M.at(r, 0) * R.at(0, c) + M.at(r, 1) * R.at(1, c) + M.at(r, 2) * R.at(2, c));
+      K.set(r, c, R.at(r, 0) * M.at(0, c) + R.at(r, 1) * M.at(1, c) + R.at(r, 2) * M.at(2, c));
     }
     K.set(r, 3, M.at(r, 3));
   }
+  K.set(3, 3, 1.f);
   return K;
 }
 
