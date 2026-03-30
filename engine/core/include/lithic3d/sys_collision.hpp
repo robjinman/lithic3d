@@ -103,6 +103,17 @@ struct CCollisionCapsule
   static constexpr ComponentTypeId TypeId = CCollisionCapsuleTypeId;
 };
 
+struct CCollisionRotational
+{
+  Mat3x3f inverseInertialTensor;
+  std::array<Force, MAX_FORCES> torques;
+  Vec3f angularAcceleration;
+  Vec3f angularVelocity;
+  Vec3f resolverDeltaAngularV;
+
+  static constexpr ComponentTypeId TypeId = CCollisionRotationalTypeId;
+};
+
 // TODO: Separate out rotation related fields
 struct CCollisionDynamic
 {
@@ -111,18 +122,12 @@ struct CCollisionDynamic
   std::array<Force, MAX_FORCES> linearForces;
   Vec3f linearAcceleration;
   Vec3f linearVelocity;
-  std::array<Force, MAX_FORCES> torques;
-  Vec3f angularAcceleration;
-  Vec3f angularVelocity;
-  Mat3x3f inverseInertialTensor;
   Vec3f resolverDeltaLinearV;
-  Vec3f resolverDeltaAngularV;
   uint16_t resolverNumAdjustments = 0;
   uint16_t framesIdle = 0;
   // TODO: Use bitfield
   bool idle = false;
   bool hasCollided = false;
-  bool canRotate = true;
 
   static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
 };
@@ -130,7 +135,8 @@ struct CCollisionDynamic
 struct DDynamicBox
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionDynamic, CCollisionBox
+    CSpatialFlags, CBoundingBox, CLocalTransform, CCollision, CCollisionDynamic,
+    CCollisionRotational, CCollisionBox
   >;
 
   float inverseMass = 1.f;

@@ -24,7 +24,7 @@ enum : ComponentTypeId
   CCollisionDynamicTypeId     = 1u << 14,
   CCollisionBoxTypeId         = 1u << 15,
   CCollisionCapsuleTypeId     = 1u << 16,
-  //CCollisionPolyhedronTypeId  = 1u << 17
+  CCollisionRotationalTypeId  = 1u << 17
 };
 
 } // namespace lithic3d

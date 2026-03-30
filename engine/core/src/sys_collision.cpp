@@ -265,6 +265,7 @@ struct ObjectComponents
   CSpatialFlags* spatialFlags = nullptr;
   CCollision* collision = nullptr;
   CCollisionDynamic* dynamic = nullptr;
+  CCollisionRotational* rotational = nullptr;
   CCollisionBox* box = nullptr;
   CCollisionCapsule* capsule = nullptr;
   CCollisionTerrain* terrain = nullptr;
@@ -327,7 +328,8 @@ class SysCollisionImpl : public SysCollision
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
 
     void applyForce(CCollisionDynamic& comp, const Force& force);
-    void applyTorque(CCollisionDynamic& comp, const Force& torque);
+    void applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
+      const Force& torque);
     void applyGravity(CCollisionDynamic& comp);
     std::vector<CollisionPair> findPossibleCollisions();
     std::vector<Contact> generateContacts(const std::vector<CollisionPair>& pairs);
@@ -379,6 +381,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
   assertHasComponent<CCollision>(componentStore, id);
   assertHasComponent<CCollisionBox>(componentStore, id);
   assertHasComponent<CCollisionDynamic>(componentStore, id);
+  assertHasComponent<CCollisionRotational>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
     .restitution = data.restitution,
@@ -396,17 +399,11 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
-    .torques{},
-    .angularAcceleration{},
-    .angularVelocity{},
-    .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass),
     .resolverDeltaLinearV{},
-    .resolverDeltaAngularV{},
     .resolverNumAdjustments = 0,
     .framesIdle = 0,
     .idle = false,
-    .hasCollided = false,
-    .canRotate = true
+    .hasCollided = false
   };
 
   if (dynamic.inverseMass != 0) {
@@ -414,6 +411,14 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
   }
 
   componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
+
+  componentStore.instantiate<CCollisionRotational>(id) = CCollisionRotational{
+    .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass),
+    .torques{},
+    .angularAcceleration{},
+    .angularVelocity{},
+    .resolverDeltaAngularV{}
+  };
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
@@ -488,17 +493,11 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
-    .torques{},
-    .angularAcceleration{},
-    .angularVelocity{},
-    .inverseInertialTensor{},
     .resolverDeltaLinearV{},
-    .resolverDeltaAngularV{},
     .resolverNumAdjustments = 0,
     .framesIdle = 0,
     .idle = false,
-    .hasCollided = false,
-    .canRotate = false
+    .hasCollided = false
   };
 
   if (dynamic.inverseMass != 0) {
@@ -612,37 +611,43 @@ void SysCollisionImpl::applyForce(CCollisionDynamic& comp, const Force& force)
 
 void SysCollisionImpl::applyTorque(EntityId id, const Vec3f& torque, float seconds)
 {
-  auto& comp = m_ecs.componentStore().component<CCollisionDynamic>(id);
-  applyTorque(comp, {
+  auto& dynamic = m_ecs.componentStore().component<CCollisionDynamic>(id);
+  auto& rotational = m_ecs.componentStore().component<CCollisionRotational>(id);
+  applyTorque(dynamic, rotational, {
     .force = torque,
     .lifetime = static_cast<uint32_t>(seconds * TICKS_PER_SECOND)
   });
 }
 
-void SysCollisionImpl::applyTorque(CCollisionDynamic& comp, const Force& torque)
+void SysCollisionImpl::applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
+  const Force& torque)
 {
-  uint32_t i = findFreeIndex(comp.torques);
+  uint32_t i = findFreeIndex(rotational.torques);
   if (i == MAX_FORCES) {
     m_logger.warn("Max torques exceeded on object");
     return;
   }
-  comp.torques[i] = torque;
-  comp.idle = false;
-  comp.framesIdle = 0;
+  rotational.torques[i] = torque;
+  dynamic.idle = false;
+  dynamic.framesIdle = 0;
 }
 
 void SysCollisionImpl::setStationary(EntityId id)
 {
-  auto& comp = m_ecs.componentStore().component<CCollisionDynamic>(id);
-  comp.linearAcceleration = {};
-  comp.linearVelocity = {};
-  comp.linearForces = {};
-  comp.angularAcceleration = {};
-  comp.angularVelocity = {};
-  comp.torques = {};
+  auto& dynamic = m_ecs.componentStore().component<CCollisionDynamic>(id);
+  dynamic.linearAcceleration = {};
+  dynamic.linearVelocity = {};
+  dynamic.linearForces = {};
 
-  if (comp.inverseMass != 0.f) {
-    applyGravity(comp);
+  if (m_ecs.componentStore().hasComponentForEntity<CCollisionRotational>(id)) {
+    auto& rotational = m_ecs.componentStore().component<CCollisionRotational>(id);
+    rotational.angularAcceleration = {};
+    rotational.angularVelocity = {};
+    rotational.torques = {};
+  }
+
+  if (dynamic.inverseMass != 0.f) {
+    applyGravity(dynamic);
   }
 }
 
@@ -654,8 +659,12 @@ void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
   bool shouldApplyGravity = dynamic.inverseMass == 0.f && inverseMass != 0.f;
 
   dynamic.inverseMass = inverseMass;
-  dynamic.inverseInertialTensor = computeInverseInertialTensor(box.boundingBox,
-    dynamic.inverseMass);
+
+  if (m_ecs.componentStore().hasComponentForEntity<CCollisionRotational>(id)) {
+    auto& rotational = m_ecs.componentStore().component<CCollisionRotational>(id);
+    rotational.inverseInertialTensor = computeInverseInertialTensor(box.boundingBox,
+      dynamic.inverseMass);
+  }
 
   if (shouldApplyGravity) {
     applyGravity(dynamic);
@@ -682,6 +691,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
     auto collComps1 = group1.components<CCollision>();
     auto collBoxComps1 = group1.components<CCollisionBox>();
     auto collDynamicComps1 = group1.components<CCollisionDynamic>();
+    auto collRotationalComps1 = group1.components<CCollisionRotational>();
     auto collTerrainComps1 = group1.components<CCollisionTerrain>();
     auto collCapsuleComps1 = group1.components<CCollisionCapsule>();
     auto entityIds1 = group1.entityIds();
@@ -701,6 +711,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
           auto collComps2 = group2.components<CCollision>();
           auto collBoxComps2 = group2.components<CCollisionBox>();
           auto collDynamicComps2 = group2.components<CCollisionDynamic>();
+          auto collRotationalComps2 = group2.components<CCollisionRotational>();
           auto collTerrainComps2 = group2.components<CCollisionTerrain>();
           auto collCapsuleComps2 = group2.components<CCollisionCapsule>();
           auto entityIds2 = group2.entityIds();
@@ -735,6 +746,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                     .spatialFlags = &flagsComps1[i],
                     .collision = &collComps1[i],
                     .dynamic = collDynamicComps1.empty() ? nullptr : &collDynamicComps1[i],
+                    .rotational = collRotationalComps1.empty() ? nullptr : &collRotationalComps1[i],
                     .box = collBoxComps1.empty() ? nullptr : &collBoxComps1[i],
                     .capsule = collCapsuleComps1.empty() ? nullptr : &collCapsuleComps1[i],
                     .terrain = collTerrainComps1.empty() ? nullptr : &collTerrainComps1[i]
@@ -746,6 +758,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                     .spatialFlags = &flagsComps2[j],
                     .collision = &collComps2[j],
                     .dynamic = collDynamicComps2.empty() ? nullptr : &collDynamicComps2[j],
+                    .rotational = collRotationalComps2.empty() ? nullptr : &collRotationalComps2[j],
                     .box = collBoxComps2.empty() ? nullptr : &collBoxComps2[j],
                     .capsule = collCapsuleComps2.empty() ? nullptr : &collCapsuleComps2[j],
                     .terrain = collTerrainComps2.empty() ? nullptr : &collTerrainComps2[j]
@@ -1653,8 +1666,8 @@ inline Mat3x3f computeVelocityMatrix(float inverseMass, const Mat3x3f& I,
 
 void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const Vec3f& delta)
 {
-  if (obj.dynamic->canRotate) {
-    Mat3x3f I = transformTensor(obj.dynamic->inverseInertialTensor, getTransform(obj));
+  if (obj.rotational) {
+    Mat3x3f I = transformTensor(obj.rotational->inverseInertialTensor, getTransform(obj));
 
     auto origin = getTranslation(getTransform(obj));
     auto pointRel = point - (origin + obj.dynamic->centreOfMass);
@@ -1752,7 +1765,10 @@ void resolveVelocities(const Contact& contact)
   if (A.dynamic) {
     auto aOrigin = getTranslation(getTransform(A));
     aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
-    auto aTotalWorldSpaceV = A.dynamic->linearVelocity + A.dynamic->angularVelocity.cross(aPointRel);
+    auto aTotalWorldSpaceV = A.dynamic->linearVelocity;
+    if (A.rotational) {
+      aTotalWorldSpaceV += A.rotational->angularVelocity.cross(aPointRel);
+    }
     aContactSpaceV = contact.toContactSpace * aTotalWorldSpaceV;
   }
 
@@ -1760,7 +1776,10 @@ void resolveVelocities(const Contact& contact)
   if (B.dynamic) {
     auto bOrigin = getTranslation(getTransform(B));
     bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
-    auto bTotalWorldSpaceV = B.dynamic->linearVelocity + B.dynamic->angularVelocity.cross(bPointRel);
+    auto bTotalWorldSpaceV = B.dynamic->linearVelocity;
+    if (B.rotational) {
+      bTotalWorldSpaceV += B.rotational->angularVelocity.cross(bPointRel);
+    }
     bContactSpaceV = contact.toContactSpace * bTotalWorldSpaceV;
   }
 
@@ -1775,8 +1794,8 @@ void resolveVelocities(const Contact& contact)
   Mat3x3f bI;
 
   if (A.dynamic) {
-    if (A.dynamic->canRotate) {
-      aI = transformTensor(A.dynamic->inverseInertialTensor, getTransform(A));
+    if (A.rotational) {
+      aI = transformTensor(A.rotational->inverseInertialTensor, getTransform(A));
       velocityMatrix += computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
     }
     else {
@@ -1785,8 +1804,8 @@ void resolveVelocities(const Contact& contact)
   }
 
   if (B.dynamic) {
-    if (B.dynamic->canRotate) {
-      bI = transformTensor(B.dynamic->inverseInertialTensor, getTransform(B));
+    if (B.rotational) {
+      bI = transformTensor(B.rotational->inverseInertialTensor, getTransform(B));
       velocityMatrix += computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
     }
     else {
@@ -1809,16 +1828,16 @@ void resolveVelocities(const Contact& contact)
 
   if (A.dynamic) {
     A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
-    if (A.dynamic->canRotate) {
-      A.dynamic->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
+    if (A.rotational) {
+      A.rotational->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
     }
     ++A.dynamic->resolverNumAdjustments;
   }
 
   if (B.dynamic) {
     B.dynamic->resolverDeltaLinearV += -impulse * B.dynamic->inverseMass;
-    if (B.dynamic->canRotate) {
-      B.dynamic->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
+    if (B.rotational) {
+      B.rotational->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
     }
     ++B.dynamic->resolverNumAdjustments;
   }
@@ -1834,6 +1853,7 @@ void SysCollisionImpl::integrate()
     auto flagsComps = group.components<CSpatialFlags>();
     auto localT = group.components<CLocalTransform>();
     auto dynamicComps = group.components<CCollisionDynamic>();
+    auto rotationalComps = group.components<CCollisionRotational>();
     auto entityIds = group.entityIds();
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
@@ -1845,9 +1865,12 @@ void SysCollisionImpl::integrate()
 
         if (dynamic.resolverNumAdjustments > 0) {
           dynamic.linearVelocity += dynamic.resolverDeltaLinearV / dynamic.resolverNumAdjustments;
-          dynamic.angularVelocity += dynamic.resolverDeltaAngularV / dynamic.resolverNumAdjustments;
+          if (!rotationalComps.empty()) {
+            rotationalComps[i].angularVelocity +=
+              rotationalComps[i].resolverDeltaAngularV / dynamic.resolverNumAdjustments;
+            rotationalComps[i].resolverDeltaAngularV = {};
+          }
           dynamic.resolverDeltaLinearV = {};
-          dynamic.resolverDeltaAngularV = {};
           dynamic.resolverNumAdjustments = 0;
         }
 
@@ -1855,46 +1878,49 @@ void SysCollisionImpl::integrate()
         const float idleMaxLinearV = 0.02f;
         const float idleMaxAngularV = 0.0005f;
         const size_t idleSeconds = 3;
-/*
-        if (dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
-          dynamic.angularVelocity.squareMagnitude() < idleMaxAngularV) {
+
+        if (!rotationalComps.empty() && dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
+          rotationalComps[i].angularVelocity.squareMagnitude() < idleMaxAngularV) {
 
           if (++dynamic.framesIdle > TICKS_PER_SECOND * idleSeconds) {
             DBG_LOG(m_logger, "Setting idle");
             dynamic.idle = true;
             dynamic.framesIdle = 0;
             dynamic.linearVelocity = {};
-            dynamic.angularVelocity = {};
             dynamic.linearAcceleration = {};
-            dynamic.angularAcceleration = {};
+            rotationalComps[i].angularVelocity = {};
+            rotationalComps[i].angularAcceleration = {};
             continue;
           }
         }
         else {
           //DBG_LOG(m_logger, STR("dv " << dynamic.linearVelocity.squareMagnitude()));
           //DBG_LOG(m_logger, STR("da " << dynamic.angularVelocity.squareMagnitude()));
-        }*/
+        }
 
         Vec3f totalForce;
         Vec3f totalTorque;
 
         for (size_t f = 0; f < MAX_FORCES; ++f) {
           auto& force = dynamic.linearForces[f];
-          auto& torque = dynamic.torques[f];
 
           if (force.lifetime > 0) {
             totalForce += force.force;
             --force.lifetime;
           }
 
-          if (torque.lifetime > 0) {
-            totalTorque += torque.force;
-            --torque.lifetime;
+          if (!rotationalComps.empty()) {
+            auto& torque = rotationalComps[i].torques[f];
+            if (torque.lifetime > 0) {
+              totalTorque += torque.force;
+              --torque.lifetime;
+            }
           }
         }
 
-        if (dynamic.canRotate) {
-          updateTransform(localT[i].transform, dynamic.linearVelocity, dynamic.angularVelocity);
+        if (!rotationalComps.empty()) {
+          updateTransform(localT[i].transform, dynamic.linearVelocity,
+            rotationalComps[i].angularVelocity);
         }
         else {
           localT[i].transform = translationMatrix4x4(dynamic.linearVelocity) * localT[i].transform;
@@ -1905,9 +1931,10 @@ void SysCollisionImpl::integrate()
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
 
-        if (dynamic.canRotate) {
-          dynamic.angularVelocity += dynamic.angularAcceleration;
-          dynamic.angularAcceleration = dynamic.inverseInertialTensor * totalTorque;
+        if (!rotationalComps.empty()) {
+          rotationalComps[i].angularVelocity += rotationalComps[i].angularAcceleration;
+          rotationalComps[i].angularAcceleration =
+            rotationalComps[i].inverseInertialTensor * totalTorque;
         }
 
         dynamic.hasCollided = false;
