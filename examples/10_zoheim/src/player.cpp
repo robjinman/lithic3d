@@ -12,6 +12,7 @@ class PlayerImpl : public Player
     PlayerImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader, ModelLoader& modelLoader);
 
     void update() override;
+    const Mat4x4f& getTransform() const override;
     Vec3f getPosition() const override;
     void setPosition(const Vec3f& position) override;
     Vec3f getDirection() const override;
@@ -37,7 +38,6 @@ PlayerImpl::PlayerImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader, Mod
   , m_camera(m_ecs.system<SysRender3d>().camera())
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
-  auto& sysRender3d = m_ecs.system<SysRender3d>();
   auto& sysCollision = m_ecs.system<SysCollision>();
 
   m_entityId = m_ecs.idGen().getNewEntityId();
@@ -57,40 +57,13 @@ PlayerImpl::PlayerImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader, Mod
 
   sysSpatial.addEntity(m_entityId, spatial);
 
-  auto mesh = render::cuboid({ 10.f, 10.f, 10.f }, { 10.f, 10.f });
-  mesh->featureSet = render::MeshFeatureSet{
-    .vertexLayout = {
-      render::BufferUsage::AttrPosition,
-      render::BufferUsage::AttrNormal,
-      render::BufferUsage::AttrTexCoord
-    },
-    .flags{ bitflag(render::MeshFeatures::CastsShadow) }
-  };
-
-  auto material = std::make_unique<render::Material>();
-
-  auto model = std::make_unique<Model>();
-  model->submodels.push_back(
-    std::unique_ptr<Submodel>(new Submodel{
-      .mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait(),
-      .material = m_renderResourceLoader.loadMaterialAsync(std::move(material)),
-      .skin = nullptr,
-      .jointTransforms{}
-    })
-  );
-
-  auto render = std::make_unique<DModel>();
-  render->model = m_modelLoader.loadModelAsync(std::move(model)).wait();
-
-  sysRender3d.addEntity(m_entityId, std::move(render));
-
   DCapsule collision{
     .inverseMass = 0.1f,
     .restitution = 0.2f,
     .friction = 0.4f,
     .centreOfMass = { 0.f, 0.f, 0.f },
     .capsule{
-      .radius = 0.5f,
+      .radius = metresToWorldUnits(0.5f),
       .height = m_tallness,
       .translation{}
     }
@@ -101,6 +74,12 @@ PlayerImpl::PlayerImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader, Mod
 EntityId PlayerImpl::getId() const
 {
   return m_entityId;
+}
+
+const Mat4x4f& PlayerImpl::getTransform() const
+{
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  return sysSpatial.getLocalTransform(m_entityId);
 }
 
 Vec3f PlayerImpl::getPosition() const
@@ -147,7 +126,7 @@ void PlayerImpl::syncCamera()
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto t = sysSpatial.getLocalTransform(m_entityId);
-  m_camera.setTransform(t * translationMatrix4x4({ 0.f, m_tallness, 0.f }));
+  m_camera.setTransform(translationMatrix4x4({ 0.f, m_tallness, 0.f }) * t);
 }
 
 } // namespace

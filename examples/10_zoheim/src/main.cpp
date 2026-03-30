@@ -53,14 +53,39 @@ class Demo : public Game
     bool m_physicsActive = false;
     std::vector<Box> m_dynamicBoxes = {
       Box{
-        .size = { 1.f, 1.f, 1.f },
-        .position = { 0.f, 0.f, 2.f },
+        .size = { 0.7f, 0.7f, 0.7f },
+        .position = { -1.f, 4.f, -7.f },
+        .rotation = {},
+        .randomRotation = true
+      },
+      Box{
+        .size = { 0.5f, 1.f, 0.5f },
+        .position = { -1.f, 4.f, -9.f },
+        .rotation = {},
+        .randomRotation = true
+      },
+      Box{
+        .size = { 0.5f, 0.5f, 0.5f },
+        .position = { 1.f, 4.f, -7.f },
+        .rotation = {},
+        .randomRotation = true
+      },
+      Box{
+        .size = { 0.5f, 0.3f, 0.4f },
+        .position = { 1.f, 4.f, -9.f },
+        .rotation = {},
+        .randomRotation = true
+      },
+      Box{
+        .size = { 0.5f, 0.5f, 0.4f },
+        .position = { 0.f, 5.f, -8.f },
         .rotation = {},
         .randomRotation = true
       }
     };
 
     void constructLight();
+    void constructSkybox();
     void constructDynamicBoxes();
     void constructGround();
     void constructTerrain();
@@ -80,13 +105,14 @@ Demo::Demo(Engine& engine)
   m_player = createPlayer(m_engine.ecs(), m_engine.renderResourceLoader(), m_engine.modelLoader());
   constructLight();
   //constructGround();
+  constructSkybox();
   constructTerrain();
   constructCaption();
-  //constructDynamicBoxes();
+  constructDynamicBoxes();
 
   m_player->setPosition(metresToWorldUnits(Vec3f{ 50.f, 5.f, 50.f }));
 
-  //resetState();
+  resetState();
 }
 
 Vec3f randomRotation()
@@ -107,6 +133,49 @@ void Demo::constructDynamicBoxes()
     EntityId id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
     m_dynamicBoxIds.push_back(id);
   }
+}
+
+void Demo::constructSkybox()
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+
+  auto id = m_engine.ecs().idGen().getNewEntityId();
+  m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>(id);
+
+  auto mesh = render::cuboid({ 9999.f, 9999.f, 9999.f }, { 1.f, 1.f });
+  mesh->attributeBuffers.resize(1); // Just keep the positions
+  mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
+  mesh->featureSet.flags.set(MeshFeatures::IsSkybox, true);
+  auto indices = mesh->indexBuffer.data.data<uint16_t>();
+  std::reverse(indices.begin(), indices.end());
+
+  auto material = std::make_unique<Material>();
+  material->featureSet.flags.set(MaterialFeatures::HasCubeMap, true);
+  material->cubeMap = m_engine.renderResourceLoader().loadCubeMapAsync({
+    "textures/skybox/right.png",
+    "textures/skybox/left.png",
+    "textures/skybox/top.png",
+    "textures/skybox/bottom.png",
+    "textures/skybox/front.png",
+    "textures/skybox/back.png"
+  });
+
+  auto render = std::make_unique<DSkybox>();
+  render->model = std::make_unique<Submodel>();
+  render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+  render->model->material =
+    m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait();
+
+  sysRender3d.addEntity(id, std::move(render));
+
+  DSpatial spatial{
+    .transform = identityMatrix<4>(),
+    .parent = sysSpatial.root(),
+    .enabled = true
+  };
+
+  sysSpatial.addEntity(id, spatial);
 }
 
 void Demo::constructTerrain()
@@ -242,9 +311,10 @@ void Demo::resetState()
     sysCollision.setStationary(id);
 
     auto rotation = obj.randomRotation ? randomRotation() : obj.rotation;
-    auto transform = createTransform(metresToWorldUnits(obj.position), rotation);
+    auto objTransform = createTransform(metresToWorldUnits(obj.position), rotation);
+    auto& playerTransform = m_player->getTransform();
 
-    sysSpatial.setLocalTransform(id, transform);
+    sysSpatial.setLocalTransform(id, playerTransform * objTransform);
   }
 
   m_physicsActive = false;
@@ -300,7 +370,7 @@ void Demo::onMouseButtonUp()
 
 void Demo::processKeyboardInput()
 {
-  float metresPerSecond = 2.f;
+  float metresPerSecond = 6.f;
   float speed = metresToWorldUnits(metresPerSecond) / TICKS_PER_SECOND;
   const auto forward = m_player->getDirection();
   const auto right = m_player->getDirection().cross(Vec3f{0, 1, 0});
@@ -323,7 +393,6 @@ void Demo::processKeyboardInput()
     direction[1] = 0;
 
     direction = direction.normalise();
-    auto playerPos = m_player->getPosition();
     auto delta = direction * speed;
 
     m_player->translate(delta);

@@ -1005,10 +1005,14 @@ bool boxBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Co
 // l1: As + Bt + C = 0
 // l2: Ds + Et + F = 0
 // Returns false if no solution (lines are parallel)
+//
+// Method was derived by simply rearranging l1 to find s in terms of t, then substituting into l2
+// and solving for t. Vice-versa yields s. Both results had a common denominator, here referred to
+// as the determinant.
 inline bool solve(const Vec3f& l1, const Vec3f& l2, Vec2f& st)
 {
   float determinant = l1[0] * l2[1] - l1[1] * l2[0];
-  if (determinant == 0.f) {
+  if (fabs(determinant) < 0.00000001f) {
     return false;
   }
   st = {
@@ -1102,7 +1106,7 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     normal = normals[indexOfMinPenetration];
     point = points[indexOfMinPenetration];
 
-    return sqrt(minSqPenetration);
+    return sqrtf(minSqPenetration);
   }
 
   return 0.f;
@@ -1169,6 +1173,86 @@ void generateCapsuleCapsuleContacts(const ObjectComponents& A, const ObjectCompo
   // TODO
 }
 
+Vec3f closestPoint(const std::array<Vec3f, 3>& triangle, const Vec3f& P)
+{
+  auto& A = triangle[0];
+  auto& B = triangle[1];
+  auto& C = triangle[2];
+
+  auto AB = B - A;
+  auto AC = C - A;
+  auto AP = P - A;
+
+  float APdotAB = AP.dot(AB);
+  float APdotAC = AP.dot(AC);
+
+  if (APdotAB < 0.f && APdotAC < 0.f) {
+    return A;
+  }
+
+  auto BP = P - B;
+  auto BA = -AB;
+  auto BC = C - B;
+
+  if (BP.dot(BA) < 0.f && BP.dot(BC) < 0.f) {
+    return B;
+  }
+
+  auto CP = P - C;
+  auto CA = -AC;
+  auto CB = B - C;
+
+  if (CP.dot(CA) < 0.f && CP.dot(CB) < 0.f) {
+    return C;
+  }
+
+  // Point expressed in triangle basis
+  // P = A + s * AB + t * AC
+  // => AP = s * AB + t * AC
+
+  // 3 equations, 2 unknowns is over-determined system
+  // Project into 2D with dot product before solving
+
+  // AP . AB = s * AB . AB + t * AC . AB
+  // AP . AC = s * AB . AC + t * AC . AC
+
+  float ABdotAB = AB.dot(AB);
+  float ABdotAC = AB.dot(AC);
+  float ACdotAC = AC.dot(AC);
+
+  Vec2f st;
+  assert(solve({ ABdotAB, ABdotAC, -APdotAB }, { ABdotAC, ACdotAC, -APdotAC }, st));
+
+  // Barycentric coordinates
+  float beta = st[0];
+  float gamma = st[1];
+  float alpha = 1.f - gamma - beta;
+
+  float min = std::min(alpha, std::min(beta, gamma));
+
+  if (min < 0.f) {
+    if (min == alpha) {
+      // Find closest point on line segment BC
+      float s = BP.dot(BC) / BC.squareMagnitude();
+      return B + BC * s;
+    }
+
+    if (min == beta) {
+      // Find closest point on line segment AC
+      float s = AP.dot(AC) / AC.squareMagnitude();
+      return A + AC * s;
+    }
+
+    if (min == gamma) {
+      // Find closest point on line segment AB
+      float s = AP.dot(AB) / AB.squareMagnitude();
+      return A + AB * s;
+    }
+  }
+
+  return A + AB * st[0] + AC * st[1];
+}
+
 bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents& B,
   Contact& contact)
 {
@@ -1187,9 +1271,9 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
   Vec2f p{ P[0], P[2] };
   sampler.triangles(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, triangles);
 
-  float totalPenetration = 0.f;
-  Vec3f normal;
-  int numPlanesPenetrated = 0;
+  float maxPenetration = 0.f;
+  std::vector<Vec3f> points(triangles.size());
+  int triangleWithMaxPenetration = -1;
 
   for (size_t i = 0; i < triangles.size(); ++i) {
     auto& triangle = triangles[i];
@@ -1219,77 +1303,25 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
       continue;
     }
 
-    auto AB = triangle[1] - triangle[0];
-    auto AC = triangle[2] - triangle[0];
-
-    auto n = AB.cross(AC);
-    // d = -(Ax + By + Cz)
-    auto d = -(n[0] * triangle[0][0] + n[1] * triangle[0][1] + n[2] * triangle[0][2]);
-
-    float penetration = -(n.dot(P) + d - radius);
-
-    if (penetration > 0.f) {
-      normal += n.normalise();
-      totalPenetration += penetration;
-      ++numPlanesPenetrated;
-    }
-  }
-
-  if (numPlanesPenetrated > 0) {
-    contact.A = A;
-    contact.B = B;
-    contact.normal = normal / numPlanesPenetrated;
-    contact.penetration = totalPenetration / numPlanesPenetrated;
-    contact.point = (P - contact.normal * contact.penetration);
-    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
-    contact.toContactSpace = contact.fromContactSpace.t();
-
-    return true;
-  }
-
-  return false;
-}
-
-bool capsuleTerrainPointContact(const ObjectComponents& A, const ObjectComponents& B,
-  Contact& contact)
-{
-  assert(A.capsule != nullptr);
-  assert(B.terrain != nullptr);
-
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
-
-  float radius = A.capsule->capsule.radius;
-
-  // Calculate centre of capsule's bottom sphere
-  auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
-  P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
-
-  std::vector<Vec3f> terrainVerts;
-  Vec2f p{ P[0], P[2] };
-  sampler.vertices(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, terrainVerts);
-
-  int vertWithMaxPenetration = -1;
-  float maxPenetration = 0.f;
-
-  for (size_t i = 0; i < terrainVerts.size(); ++i) {
-    auto& vert = terrainVerts[i];
-    auto v = vert - P;
-
-    if (v.squareMagnitude() < radius * radius) {
-      float penetration = v.magnitude();
+    auto Q = closestPoint(triangle, P);
+    auto PQ = Q - P;
+    float sqDistance = PQ.squareMagnitude();
+    if (sqDistance < radius * radius) {
+      float penetration = radius - sqrtf(sqDistance);
       if (penetration > maxPenetration) {
-        vertWithMaxPenetration = i;
         maxPenetration = penetration;
+        points[i] = Q;
+        triangleWithMaxPenetration = i;
       }
     }
   }
 
-  if (vertWithMaxPenetration != -1) {
+  if (triangleWithMaxPenetration != -1) {
     contact.A = A;
     contact.B = B;
+    contact.point = points[triangleWithMaxPenetration];
+    contact.normal = (P - contact.point).normalise();
     contact.penetration = maxPenetration;
-    contact.point = terrainVerts[vertWithMaxPenetration];
-    contact.normal = (contact.point - P).normalise();
     contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
     contact.toContactSpace = contact.fromContactSpace.t();
 
@@ -1306,12 +1338,7 @@ void generateCapsuleTerrainContacts(const ObjectComponents& A, const ObjectCompo
   assert(B.terrain != nullptr);
 
   Contact contact;
-  //if (capsuleTerrainPointContact(A, B, contact)) {
-  //  std::cout << "Capsule-terrain point contact\n";
-  //  contacts.push_back(contact);
-  //}
   if (capsuleTerrainFaceContact(A, B, contact)) {
-    //std::cout << "Capsule-terrain face contact\n";
     contacts.push_back(contact);
   }
 }
@@ -1641,9 +1668,8 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   }
   else {
     if (obj.capsule) {
-      float mag = delta.magnitude();
-      Vec3f d = delta.normalise() * mag * 0.01f;
-      updateTransform(getTransform(obj), d, {});
+      // TODO: Do something different for capsules?
+      updateTransform(getTransform(obj), delta, {});
     }
     else {
       updateTransform(getTransform(obj), delta, {});
@@ -1686,7 +1712,7 @@ void resolveInterpenetration(const Contact& contact)
 
 void reapplyLateralImpulse(Vec3f& impulse, float friction)
 {
-  float planarImpulse = sqrt(impulse[0] * impulse[0] + impulse[2] * impulse[2]);
+  float planarImpulse = sqrtf(impulse[0] * impulse[0] + impulse[2] * impulse[2]);
   if (planarImpulse > friction * impulse[1]) {
     impulse[0] /= planarImpulse;
     impulse[2] /= planarImpulse;
@@ -1875,10 +1901,6 @@ void SysCollisionImpl::integrate()
         }
 
         flagsComps[i].flags.set(SpatialFlags::Dirty);
-
-        //std::cout << "force: " << totalForce << "\n";
-        //std::cout << "accel: " << dynamic.linearAcceleration << "\n";
-        //std::cout << dynamic.linearVelocity << "\n";
 
         dynamic.linearVelocity += dynamic.linearAcceleration;
         dynamic.linearAcceleration = totalForce * dynamic.inverseMass;
