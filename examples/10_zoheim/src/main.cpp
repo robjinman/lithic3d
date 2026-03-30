@@ -87,7 +87,6 @@ class Demo : public Game
     void constructLight();
     void constructSkybox();
     void constructDynamicBoxes();
-    void constructGround();
     void constructTerrain();
     void constructCaption();
     void resetState();
@@ -104,13 +103,12 @@ Demo::Demo(Engine& engine)
 
   m_player = createPlayer(m_engine.ecs(), m_engine.renderResourceLoader(), m_engine.modelLoader());
   constructLight();
-  //constructGround();
   constructSkybox();
   constructTerrain();
   constructCaption();
   constructDynamicBoxes();
 
-  m_player->setPosition(metresToWorldUnits(Vec3f{ 50.f, 5.f, 50.f }));
+  m_player->setPosition(metresToWorldUnits(Vec3f{ 500.f, 50.f, 500.f }));
 
   resetState();
 }
@@ -183,9 +181,9 @@ void Demo::constructTerrain()
   TerrainConfig terrainConfig{
     .world = "world",
     .minHeight = 0.f,
-    .maxHeight = 8.f,
-    .cellWidth = 200.f,
-    .cellHeight = 200.f
+    .maxHeight = 40.f,
+    .cellWidth = 1000.f,
+    .cellHeight = 1000.f
   };
 
   auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
@@ -204,16 +202,6 @@ void Demo::constructTerrain()
 
   m_terrain = terrainBuilder->loadTerrainRegionAsync(0, 0, parseXml(xmlTerrain)).wait();
   terrainBuilder->createEntities(m_terrain.id());
-}
-
-void Demo::constructGround()
-{
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto material = m_factory->createMaterialAsync("textures/grass.png");
-  auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
-  auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
-  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f); // TODO: Use static
-  sysSpatial.setLocalTransform(id, translationMatrix4x4(size * 0.5f));
 }
 
 void Demo::constructLight()

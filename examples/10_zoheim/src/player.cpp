@@ -31,7 +31,8 @@ class PlayerImpl : public Player
     void syncCamera();
 };
 
-PlayerImpl::PlayerImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader, ModelLoader& modelLoader)
+PlayerImpl::PlayerImpl(Ecs& ecs, RenderResourceLoader& renderResourceLoader,
+  ModelLoader& modelLoader)
   : m_ecs(ecs)
   , m_renderResourceLoader(renderResourceLoader)
   , m_modelLoader(modelLoader)
