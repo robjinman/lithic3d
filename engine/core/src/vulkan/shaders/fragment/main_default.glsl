@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 #include "common.glsl"
+#include "fragment/effects.glsl"
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
 layout(location = 0) in vec2 inTexCoord;
@@ -57,6 +58,6 @@ void main()
 //    discard;
 //  }
 //  else {
-    outColour = constants.colour * vec4(light, 1) * texel;
+  outColour = applyFog(constants.colour * vec4(light, 1) * texel, -inViewPos.z);
 //  }
 }

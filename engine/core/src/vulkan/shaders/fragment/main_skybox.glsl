@@ -26,8 +26,16 @@ layout(location = 8) in vec3 inBitangent;
 layout(location = 0) out vec4 outColour;
 #endif
 
+vec4 applyFogSky(vec4 fragColour)
+{
+  const float fogHeight = 1000.0;
+  float t = min(1, max(fogHeight - inWorldPos.y, 0) / fogHeight);
+
+  return vec4(fragColour.xyz + t * (vec3(1) - fragColour.xyz), fragColour.w);;
+}
+
 void main()
 {
   vec3 texel = texture(cubeMapSampler, inWorldPos).rgb;
-  outColour = vec4(texel, 1.0);
+  outColour = applyFogSky(vec4(texel, 1.0));
 }
