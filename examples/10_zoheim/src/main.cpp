@@ -42,6 +42,9 @@ class Demo : public Game
 
   private:
     Engine& m_engine;
+    WorldLoaderPtr m_worldLoader;
+    WorldGridPtr m_worldGrid;
+    EntityFactoryPtr m_entityFactory;
     FactoryPtr m_factory;
     EntityId m_light;
     EntityId m_caption;
@@ -87,7 +90,6 @@ class Demo : public Game
     void constructLight();
     void constructSkybox();
     void constructDynamicBoxes();
-    void constructTerrain();
     void constructCaption();
     void resetState();
     void enablePhysics();
@@ -98,17 +100,30 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
+  m_entityFactory = createEntityFactory(m_engine.ecs(), m_engine.modelLoader(),
+    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem(),
+    m_engine.logger());
+
+  m_worldLoader = createWorldLoader(m_engine.ecs(), m_engine.fileSystem(), *m_entityFactory,
+    m_engine.modelLoader(), m_engine.renderResourceLoader(), m_engine.resourceManager(),
+    m_engine.logger());
+
+  WorldTraversalOptions options{
+    .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
+  };
+
+  m_worldGrid = createWorldGrid(options, *m_worldLoader, m_engine.ecs(), m_engine.logger());
+
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
   m_player = createPlayer(m_engine.ecs(), m_engine.renderResourceLoader(), m_engine.modelLoader());
   constructLight();
   constructSkybox();
-  constructTerrain();
   constructCaption();
   constructDynamicBoxes();
 
-  m_player->setPosition(metresToWorldUnits(Vec3f{ 500.f, 50.f, 500.f }));
+  m_player->setPosition(metresToWorldUnits(Vec3f{ 1500.f, 50.f, 1500.f }));
 
   resetState();
 }
@@ -123,7 +138,7 @@ Vec3f randomRotation()
 
 void Demo::constructDynamicBoxes()
 {
-  auto material = m_factory->createMaterialAsync("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("textures/bricks_colour.png");
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
 
   for (auto& box : m_dynamicBoxes) {
@@ -174,34 +189,6 @@ void Demo::constructSkybox()
   };
 
   sysSpatial.addEntity(id, spatial);
-}
-
-void Demo::constructTerrain()
-{
-  TerrainConfig terrainConfig{
-    .world = "world",
-    .minHeight = 0.f,
-    .maxHeight = 40.f,
-    .cellWidth = 1000.f,
-    .cellHeight = 1000.f
-  };
-
-  auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
-    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem(),
-    m_engine.logger());
-
-  const char* xmlTerrain =
-    "<terrain>"
-      "<splat-map>"
-        "<texture file=\"sand.png\"/>"
-        "<texture file=\"grass.png\"/>"
-        "<texture file=\"dirt.png\"/>"
-        "<texture file=\"snow.png\"/>"
-      "</splat-map>"
-    "</terrain>";
-
-  m_terrain = terrainBuilder->loadTerrainRegionAsync(0, 0, parseXml(xmlTerrain)).wait();
-  terrainBuilder->createEntities(m_terrain.id());
 }
 
 void Demo::constructLight()
@@ -395,8 +382,10 @@ void Demo::processMouseInput()
 
 bool Demo::update()
 {
-  m_engine.update(m_inputState);
+  auto& camera = m_engine.ecs().system<SysRender3d>().camera();
 
+  m_engine.update(m_inputState);
+  m_worldGrid->update(camera.getPosition());
   processKeyboardInput();
   processMouseInput();
   m_player->update();

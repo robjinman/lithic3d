@@ -106,7 +106,7 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory
   auto worldFilePath = fs::path{"worlds"} / m_worldName / "world.xml";
 
   auto xmlData = m_fileSystem.readAppDataFile(worldFilePath);
-  auto worldXml = parseXml(xmlData.data());
+  auto worldXml = parseXml(xmlData);
 
   loadWorldInfo(*worldXml);
 
