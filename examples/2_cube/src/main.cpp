@@ -54,10 +54,10 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructCube()
 {
-  auto material = m_factory->createMaterial("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("textures/bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  return m_factory->createCuboid(size, material, texSize);
+  return m_factory->createStaticCuboid(size, material.wait(), texSize, 0.2f, 0.4f);
 }
 
 EntityId Demo::constructLight()
@@ -131,7 +131,7 @@ void Demo::rotateCube()
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
   auto m = createTransform(metresToWorldUnits(Vec3f{ 0.f, 0.f, -3.5f }), { b, a, 0.f });
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube, m);
+  m_engine.ecs().system<SysSpatial>().setLocalTransform(m_cube, m);
 }
 
 bool Demo::update()

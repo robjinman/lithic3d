@@ -99,8 +99,6 @@ EntityId Demo::constructSun()
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
 
-  auto& resourceLoader = m_engine.renderResourceLoader();
-
   auto light = std::make_unique<DDirectionalLight>();
   light->colour = { 1.f, 1.f, 1.f };
   light->ambient = 0.5f;
@@ -337,9 +335,9 @@ void Demo::onMouseMove(const Vec2f& pos, const Vec2f& delta)
   m_mouseDelta = delta;
 }
 
-void Demo::onLeftStickMove(const Vec2f& delta)
+void Demo::onLeftStickMove(const Vec2f&)
 {
-
+  // TODO
 }
 
 void Demo::onRightStickMove(const Vec2f& delta)

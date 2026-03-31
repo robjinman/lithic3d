@@ -58,7 +58,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = translationMatrix4x4(pos),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -105,7 +106,8 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);

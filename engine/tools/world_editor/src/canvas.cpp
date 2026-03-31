@@ -101,8 +101,8 @@ void CanvasImpl::initialise()
 
 EntityId CanvasImpl::constructCube()
 {
-  auto material = m_factory->createMaterial("textures/bricks.png");
-  return m_factory->createCuboid({ 1.f, 1.f, 1.f }, material, { 1.f, 1.f });
+  auto material = m_factory->createMaterialAsync("textures/bricks.png").wait();
+  return m_factory->createStaticCuboid({ 1.f, 1.f, 1.f }, material, { 1.f, 1.f }, 0.2f, 0.4f);
 }
 
 EntityId CanvasImpl::constructLight()
@@ -133,8 +133,8 @@ void CanvasImpl::rotateCube()
   float a = (2 * PIf / 360.f) * (m_engine->currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine->currentTick() % 720);
 
-  m_engine->ecs().system<SysSpatial>().setEntityTransform(m_cube, createTransform({ 0.f, 0.f, 5.f },
-    { b, a, 0.f }));
+  m_engine->ecs().system<SysSpatial>().setLocalTransform(m_cube,
+    createTransform(Vec3f{ 0.f, 0.f, 5.f }, { b, a, 0.f }));
 }
 
 void CanvasImpl::onTick(wxTimerEvent&)
@@ -149,7 +149,7 @@ void CanvasImpl::onResize(wxSizeEvent& e)
   // TODO: On OSX, resize metal layer
 
   if (m_engine != nullptr) {
-    m_engine->onWindowResize();
+    m_engine->onWindowResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
   }
 }
 

@@ -58,7 +58,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -105,14 +106,15 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterial("textures/fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("textures/fonts.png").wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),

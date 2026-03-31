@@ -123,7 +123,7 @@ Demo::Demo(Engine& engine)
   constructCaption();
   constructDynamicBoxes();
 
-  m_player->setPosition(metresToWorldUnits(Vec3f{ 1500.f, 50.f, 1500.f }));
+  m_player->setPosition(metresToWorldUnits(Vec3f{ 1400.f, 50.f, 1400.f }));
 
   resetState();
 }

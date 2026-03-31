@@ -370,7 +370,7 @@ std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml, Logger
 
 std::vector<ShaderProgramSpec> parseShaderManifest(const std::vector<char>& data, Logger& logger)
 {
-  auto root = parseXml(data.data());
+  auto root = parseXml(data);
   return parseShadersXml(*root, logger);
 }
 

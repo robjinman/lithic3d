@@ -109,7 +109,8 @@ void Demo::constructSkybox()
   DSpatial spatial{
     .transform = identityMatrix<4>(),
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);
@@ -127,7 +128,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = m,
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -144,8 +146,6 @@ EntityId Demo::constructLight()
 
 DModelPtr Demo::loadModel()
 {
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-
   auto render = std::make_unique<DModel>();
   render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
 
@@ -251,7 +251,6 @@ void Demo::processKeyboardInput()
     }
 
     direction = direction.normalise();
-    auto playerPos = m_player->getPosition();
     auto delta = direction * speed / static_cast<float>(TICKS_PER_SECOND);
 
     m_player->translate(delta);
@@ -317,14 +316,14 @@ void Demo::onKeyUp(KeyboardKey key)
   m_inputState.keysPressed.erase(key);
 }
 
-void Demo::onButtonDown(GamepadButton button)
+void Demo::onButtonDown(GamepadButton)
 {
-
+  // TODO
 }
 
-void Demo::onButtonUp(GamepadButton button)
+void Demo::onButtonUp(GamepadButton)
 {
-
+  // TODO
 }
 
 void Demo::onMouseButtonDown()
@@ -344,9 +343,9 @@ void Demo::onMouseMove(const Vec2f& pos, const Vec2f& delta)
   m_mouseDelta = delta;
 }
 
-void Demo::onLeftStickMove(const Vec2f& delta)
+void Demo::onLeftStickMove(const Vec2f&)
 {
-
+  // TODO
 }
 
 void Demo::onRightStickMove(const Vec2f& delta)

@@ -25,7 +25,7 @@
     </mesh-features>
     <material-features>
       <flags>
-        <has-transparency>hello</has-transparency>
+        <has-transparency>false</has-transparency>
         <has-texture>*</has-texture>
         <has-normal-map>false</has-normal-map>
         <has-cube-map>false</has-cube-map>
@@ -53,7 +53,7 @@
         <is-skybox>false</is-skybox>
         <is-animated>false</is-animated>
         <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>false</casts-shadow>
+        <casts-shadow>true</casts-shadow>
         <is-quad>false</is-quad>
         <is-dynamic-text>false</is-dynamic-text>
       </flags>
@@ -62,6 +62,40 @@
       <flags>
         <has-transparency>false</has-transparency>
         <has-texture>true</has-texture>
+        <has-normal-map>false</has-normal-map>
+        <has-cube-map>false</has-cube-map>
+        <is-double-sided>false</is-double-sided>
+      </flags>
+    </material-features>
+  </shader>
+
+  <shader>
+    <render-passes>
+      <render-pass>shadow</render-pass>
+    </render-passes>
+    <mesh-features>
+      <vertex-layout>
+        <position>true</position>
+        <normal>true</normal>
+        <uv>true</uv>
+        <tangent>*</tangent>
+        <joint-indices>false</joint-indices>
+        <joint-weights>false</joint-weights>
+      </vertex-layout>
+      <flags>
+        <is-instanced>false</is-instanced>
+        <is-skybox>false</is-skybox>
+        <is-animated>false</is-animated>
+        <!--<has-tangents>*</has-tangents>-->
+        <casts-shadow>true</casts-shadow>
+        <is-quad>false</is-quad>
+        <is-dynamic-text>false</is-dynamic-text>
+      </flags>
+    </mesh-features>
+    <material-features>
+      <flags>
+        <has-transparency>false</has-transparency>
+        <has-texture>false</has-texture>
         <has-normal-map>false</has-normal-map>
         <has-cube-map>false</has-cube-map>
         <is-double-sided>false</is-double-sided>

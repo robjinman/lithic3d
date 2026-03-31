@@ -54,8 +54,8 @@ Demo::Demo(Engine& engine)
   m_child = constructChild(model);
   constructCaption();
 
-  auto pos = translationMatrix4x4(metresToWorldUnits(Vec3f{-0.5f, 1.f, -3.f}));
-  m_engine.ecs().system<SysSpatial>().transformEntityLocal(m_parent, pos);
+  m_engine.ecs().system<SysSpatial>().translateEntityLocal(m_parent,
+    metresToWorldUnits(Vec3f{-0.5f, 1.f, -3.f}));
 }
 
 EntityId Demo::constructLight()
@@ -66,7 +66,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -138,7 +139,8 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);
@@ -162,7 +164,7 @@ EntityId Demo::constructCaption()
   return id;
 }
 
-void Demo::onKeyDown(KeyboardKey key)
+void Demo::onKeyDown(KeyboardKey)
 {
   // TODO
 }
@@ -177,7 +179,8 @@ bool Demo::update()
   Tick tick = m_engine.currentTick();
   if (tick % timeStep == 0) {
     if (tick < 10 * timeStep) {
-      sysSpatial.transformEntitySelf(m_parent, rotationMatrix4x4(Vec3f{ degreesToRadians(10.f), 0.f, 0.f }));
+      sysSpatial.rotateEntityLocal(m_parent,
+        rotationMatrix3x3({ degreesToRadians(10.f), 0.f, 0.f }));
     }
   }
 

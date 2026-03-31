@@ -70,7 +70,7 @@ void Demo::loadCubeResources()
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
       .mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)),
-      .material = m_factory->createMaterial("textures/bricks.png"),
+      .material = m_factory->createMaterialAsync("textures/bricks.png").wait(),
       .skin = nullptr,
       .jointTransforms{}
     })
@@ -145,7 +145,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -168,7 +169,8 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -210,7 +212,7 @@ void Demo::rotateCube()
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
 
   auto m = createTransform(metresToWorldUnits(Vec3f{ 0.f, 0.f, -5.f }), { b, a, 0.f });
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_cube, m);
+  m_engine.ecs().system<SysSpatial>().setLocalTransform(m_cube, m);
 }
 
 void Demo::rotateQuad()
@@ -220,7 +222,7 @@ void Demo::rotateQuad()
   Vec2f pos{ 0.1f, 0.8f };
   Vec2f size{ 0.08f, 0.08f };
   auto m = screenSpaceTransform(pos, size, a, { 0.5f, 0.5f });
-  m_engine.ecs().system<SysSpatial>().setEntityTransform(m_quad, m);
+  m_engine.ecs().system<SysSpatial>().setLocalTransform(m_quad, m);
 }
 
 void Demo::onKeyDown(KeyboardKey key)
