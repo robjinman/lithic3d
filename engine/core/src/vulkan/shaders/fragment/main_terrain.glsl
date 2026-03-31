@@ -38,12 +38,12 @@ vec4 computeTexelFromSplats(vec2 texCoord)
   // TODO: Don't hard-code
   float numTiles = 250.0;
 
-  vec4 splat = texture(texSampler[0], texCoord);
+  vec4 splat = texture(splatMapSampler, texCoord);
 
-  vec4 texel = splat[0] * texture(texSampler[1], texCoord * numTiles)
-    + splat[1] * texture(texSampler[2], texCoord * numTiles)
-    + splat[2] * texture(texSampler[3], texCoord * numTiles)
-    + (1.0 - splat[3]) * texture(texSampler[4], texCoord * numTiles);
+  vec4 texel = splat[0] * texture(texSampler[0], texCoord * numTiles)
+    + splat[1] * texture(texSampler[1], texCoord * numTiles)
+    + splat[2] * texture(texSampler[2], texCoord * numTiles)
+    + (1.0 - splat[3]) * texture(texSampler[3], texCoord * numTiles);
 
   return vec4(texel.xyz, 1);
 }

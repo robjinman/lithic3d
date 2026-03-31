@@ -102,6 +102,8 @@ class RenderResources
     // Threads: resource
     virtual void addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures) = 0;
     // Threads: resource
+    virtual void addSplatMap(ResourceId id, TexturePtr texture) = 0;
+    // Threads: resource
     virtual void removeTexture(ResourceId id) = 0;
     // Threads: resource
     virtual void removeCubeMap(ResourceId id) = 0;

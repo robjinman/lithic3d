@@ -264,20 +264,19 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     auto material = std::make_unique<render::Material>();
     material->featureSet = materialFeatures;
 
-    auto splatMapHandle = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png");
-    material->textures.push_back(splatMapHandle);
+    material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png");
 
     for (auto& textureXml : splatMapXml) {
       auto filePath = fs::path{"textures"} / textureXml.attribute("file");
 
+      ResourceHandle texture;
       if (!m_renderResourceLoader.hasTexture(filePath)) {
-        auto texture = m_renderResourceLoader.loadTextureAsync(filePath);
-        material->textures.push_back(texture);
+        texture = m_renderResourceLoader.loadTextureAsync(filePath);
       }
       else {
-        auto texture = m_renderResourceLoader.getTextureHandle(filePath);
-        material->textures.push_back(texture);
+        texture = m_renderResourceLoader.getTextureHandle(filePath);
       }
+      material->textures.push_back(texture);
     }
 
     auto submodel = std::make_unique<Submodel>();

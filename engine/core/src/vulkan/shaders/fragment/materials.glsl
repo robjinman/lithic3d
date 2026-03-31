@@ -8,6 +8,7 @@ layout(std140, set = DESCRIPTOR_SET_MATERIAL, binding = 0) uniform MaterialUbo
 layout(set = DESCRIPTOR_SET_MATERIAL, binding = 1) uniform sampler2D texSampler[5];
 layout(set = DESCRIPTOR_SET_MATERIAL, binding = 2) uniform sampler2D normalMapSampler[5];
 layout(set = DESCRIPTOR_SET_MATERIAL, binding = 3) uniform samplerCube cubeMapSampler;
+layout(set = DESCRIPTOR_SET_MATERIAL, binding = 4) uniform sampler2D splatMapSampler;
 
 vec4 computeTexel(vec2 texCoord)
 {

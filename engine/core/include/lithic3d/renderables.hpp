@@ -246,6 +246,7 @@ struct Material
   std::string name;
   MaterialFeatureSet featureSet;
   Vec4f colour = { 1, 1, 1, 1 };
+  ResourceHandle splatMap;
   std::vector<ResourceHandle> textures;
   std::vector<ResourceHandle> normalMaps;
   ResourceHandle cubeMap;

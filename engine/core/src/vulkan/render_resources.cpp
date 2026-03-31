@@ -82,7 +82,8 @@ enum class MaterialDescriptorSetBindings : uint32_t
   Ubo = 0,
   TextureSampler = 1,
   NormapMapSampler = 2,
-  CubeMapSampler = 3
+  CubeMapSampler = 3,
+  SplatMapSampler = 4
 };
 
 enum class ObjectDescriptorSetBindings : uint32_t
@@ -110,6 +111,7 @@ class RenderResourcesImpl : public RenderResources
     // Resources
     //
     void addTexture(ResourceId id, TexturePtr texture) override;
+    void addSplatMap(ResourceId id, TexturePtr texture) override;
     void addNormalMap(ResourceId id, TexturePtr texture) override;
     void addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures) override;
     void removeTexture(ResourceId id) override;
@@ -182,6 +184,7 @@ class RenderResourcesImpl : public RenderResources
 
     VkSampler m_textureSampler;
     VkSampler m_normalMapSampler;
+    VkSampler m_splatMapSampler;
     VkSampler m_cubeMapSampler;
 
     VkExtent2D m_shadowMapSize{ SHADOW_MAP_W, SHADOW_MAP_H };
@@ -192,6 +195,7 @@ class RenderResourcesImpl : public RenderResources
 
     void createTextureSampler();
     void createNormalMapSampler();
+    void createSplatMapSampler();
     void createCubeMapSampler();
     void createDescriptorPool();
     void addSamplerToDescriptorSet(VkDescriptorSet descriptorSet,
@@ -246,6 +250,21 @@ void RenderResourcesImpl::update()
 }
 
 void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
+{
+  DBG_TRACE(m_logger);
+  assertResourceThread();
+
+  auto textureData = std::make_unique<TextureData>();
+  textureData->image = m_bufferManager.createTexture(*texture);
+  //textureData->texture = std::move(texture);
+
+  {
+    std::scoped_lock lock{m_mutex};
+    m_textures[id] = std::move(textureData);
+  }
+}
+
+void RenderResourcesImpl::addSplatMap(ResourceId id, TexturePtr texture)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
@@ -568,6 +587,11 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
       addSamplerToDescriptorSet(materialData->descriptorSet, { imageView }, m_cubeMapSampler,
         static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
     }
+    if (material->splatMap) {
+      auto imageView = m_textures.at(material->splatMap.id())->image->vkImageView(0);
+      addSamplerToDescriptorSet(materialData->descriptorSet, { imageView }, m_splatMapSampler,
+        static_cast<uint32_t>(MaterialDescriptorSetBindings::SplatMapSampler));
+    }
 
     materialData->material = std::move(material);
     m_materials[id] = std::move(materialData);
@@ -842,6 +866,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
 
   createTextureSampler();
   createNormalMapSampler();
+  createSplatMapSampler();
   createCubeMapSampler();
 
   VkDescriptorSetLayoutBinding uboLayoutBinding{
@@ -876,11 +901,20 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
     .pImmutableSamplers = nullptr
   };
 
+  VkDescriptorSetLayoutBinding splatMapSamplerLayoutBinding{
+    .binding = static_cast<uint32_t>(MaterialDescriptorSetBindings::SplatMapSampler),
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .pImmutableSamplers = nullptr
+  };
+
   std::vector<VkDescriptorSetLayoutBinding> bindings{
     textureSamplerLayoutBinding,
     normalMapLayoutBinding,
     cubeMapLayoutBinding,
-    uboLayoutBinding
+    uboLayoutBinding,
+    splatMapSamplerLayoutBinding
     // ...
   };
 
@@ -1117,6 +1151,8 @@ void RenderResourcesImpl::createOverlayPassDescriptorSet()
   }
 }
 
+// TODO: Factor out common code from these create...Sampler() functions
+
 void RenderResourcesImpl::createTextureSampler()
 {
   DBG_TRACE(m_logger);
@@ -1146,6 +1182,38 @@ void RenderResourcesImpl::createTextureSampler()
   };
 
   VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler), // TODO: Use allocator
+    "Failed to create texture sampler");
+}
+
+void RenderResourcesImpl::createSplatMapSampler()
+{
+  DBG_TRACE(m_logger);
+
+  VkPhysicalDeviceProperties properties{};
+  vkGetPhysicalDeviceProperties(m_physicalDevice, &properties);
+
+  VkSamplerCreateInfo samplerInfo{
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .magFilter = VK_FILTER_LINEAR,
+    .minFilter = VK_FILTER_LINEAR,
+    .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    .mipLodBias = 0.f,
+    .anisotropyEnable = VK_FALSE, //VK_TRUE,
+    .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+    .compareEnable = VK_FALSE,
+    .compareOp = VK_COMPARE_OP_ALWAYS,
+    .minLod = 0.f,
+    .maxLod = 0.f,
+    .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE
+  };
+
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_splatMapSampler), // TODO: Use allocator
     "Failed to create texture sampler");
 }
 
@@ -1226,6 +1294,7 @@ RenderResourcesImpl::~RenderResourcesImpl()
   vkDestroySampler(m_device, m_shadowMapSampler, nullptr); // TODO: Use allocator
 
   vkDestroySampler(m_device, m_textureSampler, nullptr); // TODO: Use allocator
+  vkDestroySampler(m_device, m_splatMapSampler, nullptr);
   vkDestroySampler(m_device, m_normalMapSampler, nullptr);
   vkDestroySampler(m_device, m_cubeMapSampler, nullptr);
 
