@@ -1,2 +1,11 @@
 <cell-slice>
+  <entities>
+    <entity type="hut">
+      <transform>
+        <pos x="1400.0" y="1.8" z="1400.0"/>
+        <ori x="0" y="270" z="0"/>
+        <scale x="10" y="10" z="10"/>
+      </transform>
+    </entity>
+  </entities>
 </cell-slice>

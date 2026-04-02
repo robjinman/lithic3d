@@ -42,25 +42,28 @@ float sampleShadowMap(int cascade, vec2 uv, float lightSpacePosZ)
   return float(shadow) / (W * W);
 }
 
-vec3 computeDirectionalLight(vec3 worldPos, vec3 normal)
+vec3 computeDirectionalLight(vec3 worldPos, vec3 normal, bool receiveShadow)
 {
-  // TODO: Store these numbers somewhere
-  // Must match sizes of frustum sections calculated in SysRender3d.cpp
-  int cascade = 0;
-  if (inViewPos.z <= -2001.0) {
-    cascade = 2;
-  }
-  else if (inViewPos.z <= -501.0) {
-    cascade = 1;
-  }
+  float shadow = 0.0;
+  if (receiveShadow) {
+    // TODO: Store these numbers somewhere
+    // Must match sizes of frustum sections calculated in SysRender3d.cpp
+    int cascade = 0;
+    if (inViewPos.z <= -2001.0) {
+      cascade = 2;
+    }
+    else if (inViewPos.z <= -501.0) {
+      cascade = 1;
+    }
 
-  // TODO: Do perspective divide in vertex shader?
-  vec3 lightSpacePos = (inLightSpacePos[cascade] / inLightSpacePos[cascade].w).xyz;
-  vec2 lightSpaceXy = lightSpacePos.xy * 0.5 + 0.5;
-  float shadow = sampleShadowMap(cascade, lightSpaceXy, lightSpacePos.z);
+    // TODO: Do perspective divide in vertex shader?
+    vec3 lightSpacePos = (inLightSpacePos[cascade] / inLightSpacePos[cascade].w).xyz;
+    if (lightSpacePos.z > 1.0) {
+      return vec3(1, 0, 0);
+    }
 
-  if (lightSpacePos.z > 1.0) {
-    return vec3(1, 0, 0);
+    vec2 lightSpaceXy = lightSpacePos.xy * 0.5 + 0.5;
+    shadow = sampleShadowMap(cascade, lightSpaceXy, lightSpacePos.z);
   }
 
   float intensity = lighting.directionalLight.ambient;
@@ -89,9 +92,9 @@ vec3 computePointLight(vec3 worldPos, vec3 normal, int i)
   return intensity * lighting.pointLights[i].colour;
 }
 
-vec3 computeLight(vec3 worldPos, vec3 normal)
+vec3 computeLight(vec3 worldPos, vec3 normal, bool receiveShadow)
 {
-  vec3 light = computeDirectionalLight(worldPos, normal);
+  vec3 light = computeDirectionalLight(worldPos, normal, receiveShadow);
 
   for (int i = 0; i < lighting.numPointLights; ++i) {
     light += computePointLight(worldPos, normal, i);

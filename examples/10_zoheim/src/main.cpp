@@ -120,10 +120,10 @@ Demo::Demo(Engine& engine)
   m_player = createPlayer(m_engine.ecs(), m_engine.renderResourceLoader(), m_engine.modelLoader());
   constructLight();
   constructSkybox();
-  constructCaption();
+  //constructCaption();
   constructDynamicBoxes();
 
-  m_player->setPosition(metresToWorldUnits(Vec3f{ 1400.f, 50.f, 1400.f }));
+  m_player->setPosition(metresToWorldUnits(Vec3f{ 1400.f, 100.f, 1400.f }));
 
   resetState();
 }

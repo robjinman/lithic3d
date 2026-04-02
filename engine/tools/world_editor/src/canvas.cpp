@@ -24,6 +24,8 @@ class CanvasImpl : public Canvas
     void enable() override;
     void disable() override;
 
+    ~CanvasImpl() override;
+
   private:
     void initialise();
     wxPoint getCursorPos() const;
@@ -242,6 +244,12 @@ void CanvasImpl::enable()
 {
   m_disabled = false;
   Enable();
+}
+
+CanvasImpl::~CanvasImpl()
+{
+  m_timer->Stop();
+  m_engine->resourceManager().deactivate();
 }
 
 } // namespace
