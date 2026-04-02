@@ -1,9 +1,0 @@
-<entity name="hut">
-  <spatial>
-    <aabb>
-      <min x="-3.0" y="-3.0" z="-3.0"/>
-      <max x="3.0" y="3.0" z="3.0"/>
-    </aabb>
-  </spatial>
-  <model is-instanced="false" file="hut.gltf"/>
-</entity>

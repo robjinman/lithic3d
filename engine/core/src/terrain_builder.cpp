@@ -34,8 +34,9 @@ namespace
 struct TerrainRegion
 {
   HeightMap heightMap;
-  ResourceHandle model;
   Vec3f position;
+  ResourceHandle landModel;
+  ResourceHandle waterModel;
 };
 
 std::string cellName(uint32_t x, uint32_t y)
@@ -79,7 +80,13 @@ class TerrainBuilderImpl : public TerrainBuilder
     FileSystem& m_fileSystem;
     std::map<ResourceId, TerrainRegion> m_regions;
 
-    MeshPtr constructMesh(const Texture& heightMap) const;
+    MeshPtr constructLandMesh(const Texture& heightMap) const;
+    ResourceHandle constructLandModel(const fs::path& cellPath, const XmlNode& terrainXml,
+      HeightMap& heightMap) const;
+    MeshPtr constructWaterMesh(const Vec2f& cellSize, float level) const;
+    ResourceHandle constructWaterModel(const Vec2f& cellSize, float waterLevel) const;
+    EntityId createLandEntity(ResourceId regionId);
+    EntityId createWaterEntity(ResourceId regionId);
 };
 
 TerrainBuilderImpl::TerrainBuilderImpl(const TerrainConfig& config, Ecs& ecs,
@@ -96,7 +103,42 @@ TerrainBuilderImpl::TerrainBuilderImpl(const TerrainConfig& config, Ecs& ecs,
 {
 }
 
-std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
+EntityId TerrainBuilderImpl::createWaterEntity(ResourceId regionId)
+{
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender3d = m_ecs.system<SysRender3d>();
+
+  auto& region = m_regions.at(regionId);
+
+  auto id = m_ecs.idGen().getNewEntityId();
+
+  m_ecs.componentStore().allocate<DSpatial, DModel>(id);
+
+  float cellWidth = metresToWorldUnits(m_config.cellWidth);
+  float cellHeight = metresToWorldUnits(m_config.cellHeight);
+  float waterLevel = metresToWorldUnits(m_config.waterLevel);
+
+  DSpatial spatial{
+    .transform = translationMatrix4x4(region.position),
+    .parent = sysSpatial.root(),
+    .enabled = true,
+    .aabb = Aabb{
+      .min = { 0.f, waterLevel, 0.f },
+      .max = { cellWidth, waterLevel, cellHeight }
+    }
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  DModelPtr render = std::make_unique<DModel>();
+  render->model = region.waterModel;
+
+  sysRender3d.addEntity(id, std::move(render));
+
+  return id;
+}
+
+EntityId TerrainBuilderImpl::createLandEntity(ResourceId regionId)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -126,7 +168,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
   sysSpatial.addEntity(id, spatial);
 
   DModelPtr render = std::make_unique<DModel>();
-  render->model = region.model;
+  render->model = region.landModel;
 
   sysRender3d.addEntity(id, std::move(render));
 
@@ -138,10 +180,18 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
 
   sysCollision.addEntity(id, collision);
 
-  return { id };
+  return id;
 }
 
-MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
+std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
+{
+  return {
+    createLandEntity(regionId),
+    createWaterEntity(regionId)
+  };
+}
+
+MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
 {
   // TODO: Break into smaller chunks
 
@@ -237,6 +287,122 @@ MeshPtr TerrainBuilderImpl::constructMesh(const Texture& heightMap) const
   return mesh;
 }
 
+MeshPtr TerrainBuilderImpl::constructWaterMesh(const Vec2f& cellSize, float level) const
+{
+  MeshPtr mesh = std::make_unique<Mesh>();
+
+  mesh->featureSet = render::MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,  // TODO: Remove?
+      BufferUsage::AttrTexCoord // TODO: Remove?
+    },
+    .flags = 0
+  };
+
+  std::vector<Vec3f> positions{
+    Vec3f{ 0.f, level, 0.f },
+    Vec3f{ cellSize[0], level, 0.f },
+    Vec3f{ cellSize[0], level, cellSize[1] },
+    Vec3f{ 0.f, level, cellSize[1] }
+  };
+
+  std::vector<Vec3f> normals{
+    Vec3f{ 0.f, 1.f, 0.f },
+    Vec3f{ 0.f, 1.f, 0.f },
+    Vec3f{ 0.f, 1.f, 0.f },
+    Vec3f{ 0.f, 1.f, 0.f }
+  };
+
+  std::vector<Vec2f> texCoords
+  {
+    Vec2f{ 0.f, 0.f },
+    Vec2f{ 1.f, 0.f },
+    Vec2f{ 1.f, 1.f },
+    Vec2f{ 0.f, 1.f }
+  };
+
+  std::vector<uint16_t> indices{
+    0, 3, 1,
+    3, 2, 1
+  };
+
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{positions}, BufferUsage::AttrPosition});
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{normals}, BufferUsage::AttrNormal});
+  mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{texCoords}, BufferUsage::AttrTexCoord});
+  mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
+
+  return mesh;
+}
+
+ResourceHandle TerrainBuilderImpl::constructLandModel(const fs::path& cellPath,
+  const XmlNode& terrainXml, HeightMap& heightMap) const
+{
+  auto heightMapTextureData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
+  auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
+
+  auto mesh = constructLandMesh(*heightMapTexture);
+  heightMap.widthPx = heightMapTexture->width;
+  heightMap.heightPx = heightMapTexture->height;
+  heightMap.width = metresToWorldUnits(m_config.cellWidth);
+  heightMap.height = metresToWorldUnits(m_config.cellHeight);
+  heightMap.data = constructHeightMap(*mesh);
+
+  render::MaterialFeatureSet materialFeatures{
+    .flags = bitflag(render::MaterialFeatures::HasTexture)
+  };
+
+  auto& splatMapXml = *terrainXml.child("splat-map");
+
+  auto material = std::make_unique<render::Material>();
+  material->featureSet = materialFeatures;
+
+  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png");
+
+  for (auto& textureXml : splatMapXml) {
+    auto filePath = fs::path{"textures"} / textureXml.attribute("file");
+
+    ResourceHandle texture;
+    if (!m_renderResourceLoader.hasTexture(filePath)) {
+      texture = m_renderResourceLoader.loadTextureAsync(filePath);
+    }
+    else {
+      texture = m_renderResourceLoader.getTextureHandle(filePath);
+    }
+    material->textures.push_back(texture);
+  }
+
+  auto submodel = std::make_unique<Submodel>();
+  submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
+  submodel->material = m_renderResourceLoader.loadMaterialAsync(std::move(material));
+
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(std::move(submodel));
+
+  return m_modelLoader.loadModelAsync(std::move(model));
+}
+
+ResourceHandle TerrainBuilderImpl::constructWaterModel(const Vec2f& cellSize,
+  float waterLevel) const
+{
+  auto material = std::make_unique<render::Material>();
+  material->featureSet = {
+    .flags = 0
+  };
+  material->colour = { 0.f, 0.f, 1.f, 1.f };
+
+  auto mesh = constructWaterMesh(cellSize, waterLevel);
+
+  auto submodel = std::make_unique<Submodel>();
+  submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
+  submodel->material = m_renderResourceLoader.loadMaterialAsync(std::move(material));
+
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(std::move(submodel));
+
+  return m_modelLoader.loadModelAsync(std::move(model));
+}
+
 // TODO: Cache meshes
 ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y,
   XmlNodePtr terrainXml)
@@ -244,56 +410,14 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
   auto loader = [this, x, y, terrainXml = std::move(terrainXml)](ResourceId id) mutable {
     const auto cellPath = fs::path{"worlds"} / m_config.world / cellName(x, y);
 
-    auto heightMapTextureData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
-    auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
-
-    auto mesh = constructMesh(*heightMapTexture);
-    HeightMap heightMap;
-    heightMap.widthPx = heightMapTexture->width;
-    heightMap.heightPx = heightMapTexture->height;
-    heightMap.width = metresToWorldUnits(m_config.cellWidth);
-    heightMap.height = metresToWorldUnits(m_config.cellHeight);
-    heightMap.data = constructHeightMap(*mesh);
-
-    render::MaterialFeatureSet materialFeatures{
-      .flags = bitflag(render::MaterialFeatures::HasTexture)
-    };
-
-    auto& splatMapXml = *terrainXml->child("splat-map");
-
-    auto material = std::make_unique<render::Material>();
-    material->featureSet = materialFeatures;
-
-    material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png");
-
-    for (auto& textureXml : splatMapXml) {
-      auto filePath = fs::path{"textures"} / textureXml.attribute("file");
-
-      ResourceHandle texture;
-      if (!m_renderResourceLoader.hasTexture(filePath)) {
-        texture = m_renderResourceLoader.loadTextureAsync(filePath);
-      }
-      else {
-        texture = m_renderResourceLoader.getTextureHandle(filePath);
-      }
-      material->textures.push_back(texture);
-    }
-
-    auto submodel = std::make_unique<Submodel>();
-    submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
-    submodel->material = m_renderResourceLoader.loadMaterialAsync(std::move(material));
-
-    auto model = std::make_unique<Model>();
-    model->submodels.push_back(std::move(submodel));
+    Vec2f cellSize = metresToWorldUnits(Vec2f{ m_config.cellWidth, m_config.cellHeight });
+    float waterLevel = metresToWorldUnits(m_config.waterLevel);
 
     TerrainRegion region;
-    region.heightMap = heightMap;
-    region.position = metresToWorldUnits(Vec3f{
-      x * m_config.cellWidth,
-      0.f,
-      y * m_config.cellHeight
-    });
-    region.model = m_modelLoader.loadModelAsync(std::move(model));
+    region.position = { x * cellSize[0], 0.f, y * cellSize[1]
+    };
+    region.landModel = constructLandModel(cellPath, *terrainXml, region.heightMap);
+    region.waterModel = constructWaterModel(cellSize, waterLevel);
 
     m_regions.insert({ id, std::move(region) });
 

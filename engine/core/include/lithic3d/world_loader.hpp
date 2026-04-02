@@ -16,6 +16,7 @@ struct WorldInfo
   float cellHeight = 0;
   float minElevation = 0.f;
   float maxElevation = 0.f;
+  float waterLevel = 0.f;
 };
 
 class WorldLoader

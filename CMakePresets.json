@@ -73,7 +73,8 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/osx/release/package",
         "CMAKE_MACOSX_RPATH": true,
-        "CMAKE_INSTALL_RPATH": "/usr/local/lib"
+        "CMAKE_INSTALL_RPATH": "/usr/local/lib",
+        "CMAKE_EXPORT_COMPILE_COMMAND": "ON"
       }
     },
     {

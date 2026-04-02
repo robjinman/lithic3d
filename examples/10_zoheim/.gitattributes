@@ -1,5 +1,0 @@
-icons/** filter=lfs diff=lfs merge=lfs -text
-data/textures/** filter=lfs diff=lfs merge=lfs -text
-data/sounds/** filter=lfs diff=lfs merge=lfs -text
-data/worlds/**/*.png filter=lfs diff=lfs merge=lfs -text
-data/models/**/*.bin filter=lfs diff=lfs merge=lfs -text

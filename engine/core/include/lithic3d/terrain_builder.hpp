@@ -18,6 +18,8 @@ struct TerrainConfig
   // In metres
   float cellWidth = 100.f;
   float cellHeight = 100.f;
+
+  float waterLevel = 5.0f;
 };
 
 class TerrainBuilder
