@@ -389,7 +389,7 @@ ResourceHandle TerrainBuilderImpl::constructWaterModel(const Vec2f& cellSize,
   material->featureSet = {
     .flags = 0
   };
-  material->colour = { 0.f, 0.f, 1.f, 1.f };
+  material->colour = { 0.15f, 0.2f, 0.6f, 1.f };
 
   auto mesh = constructWaterMesh(cellSize, waterLevel);
 

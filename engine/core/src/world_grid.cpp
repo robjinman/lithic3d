@@ -43,6 +43,7 @@ class CellSlice
     void load();
     void unload();
     void update();
+    void wait();
 
     bool isUnloaded() const;
 
@@ -69,6 +70,13 @@ CellSlice::CellSlice(const SliceCoords& coords, WorldLoader& worldLoader, Ecs& e
   , m_ecs(ecs)
   , m_coords(coords)
 {}
+
+void CellSlice::wait()
+{
+  if (m_state == SliceState::LoadInitiated) {
+    m_handle.wait();
+  }
+}
 
 void CellSlice::load()
 {
@@ -175,6 +183,7 @@ class WorldGridImpl : public WorldGrid
       Logger& logger);
 
     void update(const Vec3f& cameraPos) override;
+    void wait() override;
 
   private:
     Logger& m_logger;
@@ -194,6 +203,13 @@ WorldGridImpl::WorldGridImpl(const WorldTraversalOptions& options, WorldLoader& 
   , m_worldLoader(worldLoader)
   , m_ecs(ecs)
 {
+}
+
+void WorldGridImpl::wait()
+{
+  for (auto& slice : m_slices) {
+    slice.second.wait();
+  }
 }
 
 void WorldGridImpl::update(const Vec3f& cameraPos)

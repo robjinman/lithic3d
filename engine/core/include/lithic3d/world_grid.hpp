@@ -21,6 +21,7 @@ class WorldGrid
 {
   public:
     virtual void update(const Vec3f& cameraPos) = 0;
+    virtual void wait() = 0;
 
     virtual ~WorldGrid() = default;
 };
