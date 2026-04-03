@@ -414,8 +414,7 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     float waterLevel = metresToWorldUnits(m_config.waterLevel);
 
     TerrainRegion region;
-    region.position = { x * cellSize[0], 0.f, y * cellSize[1]
-    };
+    region.position = { x * cellSize[0], 0.f, y * cellSize[1] };
     region.landModel = constructLandModel(cellPath, *terrainXml, region.heightMap);
     region.waterModel = constructWaterModel(cellSize, waterLevel);
 

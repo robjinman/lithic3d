@@ -110,7 +110,8 @@ class GpuBufferManagerImpl : public GpuBufferManager
 {
   public:
     GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance,
-      VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue, Logger& logger);
+      VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
+      WorkQueue& workQueue, Logger& logger);
 
     GpuBufferPtr createUbo(size_t size) override;
     GpuBufferPtr createVertexBuffer(const char* data, size_t size) override;
@@ -129,6 +130,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
 
   private:
     Logger& m_logger;
+    std::thread::id m_renderThreadId;
     WorkQueue& m_workQueue;
     VkQueue m_queue;
     VmaAllocator m_allocator;
@@ -150,9 +152,11 @@ class GpuBufferManagerImpl : public GpuBufferManager
 };
 
 GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue,
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
+  WorkQueue& workQueue,
   Logger& logger)
   : m_logger(logger)
+  , m_renderThreadId(renderThreadId)
   , m_workQueue(workQueue)
   , m_queue(queue)
   , m_physicalDevice(physicalDevice)
@@ -203,6 +207,8 @@ GpuBufferPtr GpuBufferManagerImpl::createStagingBuffer(size_t size)
   VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer->buffer,
     &buffer->allocation, &buffer->allocationInfo), "Failed to create buffer");
 
+  m_logger.info(STR("Created VkBuffer: " << buffer->buffer));
+
   return buffer;
 }
 
@@ -239,7 +245,7 @@ void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 
   vkEndCommandBuffer(commandBuffer);
 
-  m_workQueue.addWorkItem([this, commandBuffer]() {
+  auto task = [this, commandBuffer]() {
     VkSubmitInfo submitInfo{
       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .pNext = nullptr,
@@ -256,8 +262,16 @@ void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
     vkQueueWaitIdle(m_queue); // TODO: Submit commands asynchronously (see p201)
 
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-  }).wait_for(std::chrono::milliseconds(1000)); // Set a timeout to prevent deadlock in the event an
-                                                // exception is thrown from the render thread
+  };
+
+  if (std::this_thread::get_id() == m_renderThreadId) {
+    task();
+  }
+  else {
+    // Set a timeout to prevent deadlock in the event an
+    // exception is thrown from the render thread
+    m_workQueue.addWorkItem(task).wait_for(std::chrono::milliseconds(1000));
+  }
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
@@ -282,6 +296,8 @@ GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
 
   VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer->buffer,
     &buffer->allocation, &buffer->allocationInfo), "Failed to create buffer");
+
+  m_logger.info(STR("Created VkBuffer: " << buffer->buffer));
 
   return buffer;
 }
@@ -334,6 +350,8 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(size_t size, VkBufferUsage
 
   VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer->buffer,
     &buffer->allocation, &buffer->allocationInfo), "Failed to create buffer");
+
+  m_logger.info(STR("Created VkBuffer: " << buffer->buffer));
 
   return buffer;
 }
@@ -675,11 +693,11 @@ GpuBufferManagerImpl::~GpuBufferManagerImpl()
 } // namespace
 
 GpuBufferManagerPtr createGpuBufferManager(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue,
-  Logger& logger)
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
+  WorkQueue& workQueue, Logger& logger)
 {
   return std::make_unique<GpuBufferManagerImpl>(physicalDevice, device, instance, commandPool,
-    queue, workQueue, logger);
+    queue, renderThreadId, workQueue, logger);
 }
 
 } // namespace render

@@ -388,12 +388,13 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceMa
     auto commandPool = createResourceThreadCommandPool();
 
     m_bufferManager = createGpuBufferManager(m_physicalDevice, m_device, m_instance, commandPool,
-      m_graphicsQueue, m_workQueue, m_logger);
+      m_graphicsQueue, m_thread.id(), m_workQueue, m_logger);
 
     m_resources = createRenderResources(std::this_thread::get_id(), *m_bufferManager,
       m_physicalDevice, m_device, commandPool, m_logger);
   }).get();
   m_thread.run<void>([this]() {
+    m_resources->initialise();
     createDepthResources();
     createCommandBuffers();
     createSyncObjects();
@@ -1417,14 +1418,14 @@ void RendererImpl::createLogicalDevice()
     queueCreateInfos.push_back(queueCreateInfo);
   }
 
-  /*
-  VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{};
-  indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-  indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;*/
+  //VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{};
+  //indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+  //indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
 
   VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures{};
   dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
   dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+  dynamicRenderingFeatures.pNext = nullptr;//&indexingFeatures;
 
   VkPhysicalDeviceFeatures2 deviceFeatures2{};
   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;

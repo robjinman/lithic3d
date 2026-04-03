@@ -16,6 +16,10 @@ layout(location = 0) out vec4 outColour;
 
 void main()
 {
+#if defined(FEATURE_TEXTURE_MAPPING) // TODO: Should be true for all sprites
   vec4 texel = computeTexel(inTexCoord);
+#else
+  vec4 texel = vec4(1.0, 1.0, 1.0, 1.0);
+#endif
   outColour = constants.colour * texel;
 }

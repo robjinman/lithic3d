@@ -63,8 +63,8 @@ class GpuBufferManager
 using GpuBufferManagerPtr = std::unique_ptr<GpuBufferManager>;
 
 GpuBufferManagerPtr createGpuBufferManager(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkCommandPool commandPool, VkQueue queue, WorkQueue& workQueue,
-  Logger& logger);
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
+  WorkQueue& workQueue, Logger& logger);
 
 } // namespace render
 } // namespace lithic3d

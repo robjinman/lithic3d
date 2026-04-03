@@ -91,6 +91,7 @@ class RenderResources
 {
   public:
     // Threads: render
+    virtual void initialise() = 0;
     virtual void update() = 0;
 
     // Textures
