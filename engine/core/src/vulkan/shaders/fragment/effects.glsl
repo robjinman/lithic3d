@@ -1,4 +1,4 @@
-const float FOG_DISTANCE = 10000.0;
+const float FOG_DISTANCE = DRAW_DISTANCE / SQRT_3;
 
 vec4 applyFog(vec4 fragColour, float viewDistance)
 {

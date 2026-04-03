@@ -19,6 +19,7 @@ struct GameConfig
   uint32_t fullscreenResolutionH = 0;
   bool captureMouse = false;
   std::filesystem::path shaderManifest;
+  float drawDistance = 100.f; // In metres
 };
 
 class Game

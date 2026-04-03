@@ -45,14 +45,15 @@ float sampleShadowMap(int cascade, vec2 uv, float lightSpacePosZ)
 vec3 computeDirectionalLight(vec3 worldPos, vec3 normal, bool receiveShadow)
 {
   float shadow = 0.0;
+
   if (receiveShadow) {
     // TODO: Store these numbers somewhere
     // Must match sizes of frustum sections calculated in SysRender3d.cpp
     int cascade = 0;
-    if (inViewPos.z <= -2001.0) {
+    if (inViewPos.z <= -0.2 * DRAW_DISTANCE) {
       cascade = 2;
     }
-    else if (inViewPos.z <= -501.0) {
+    else if (inViewPos.z <= -0.05 * DRAW_DISTANCE) {
       cascade = 1;
     }
 

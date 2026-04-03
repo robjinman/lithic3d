@@ -177,8 +177,8 @@ Application::Application()
 
   logger->info("Finished compiling shaders");
 
-  m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
-    std::move(fileSystem), std::move(logger));
+  m_engine = createEngine(m_config.drawDistance, std::move(resourceManager), std::move(renderer),
+    std::move(audioSystem), std::move(fileSystem), std::move(logger));
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);
 

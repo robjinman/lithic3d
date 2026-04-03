@@ -43,7 +43,7 @@ class Engine
 
 using EnginePtr = std::unique_ptr<Engine>;
 
-EnginePtr createEngine(std::unique_ptr<ResourceManager> resourceManager,
+EnginePtr createEngine(float drawDistance, std::unique_ptr<ResourceManager> resourceManager,
   std::unique_ptr<render::Renderer> renderer, std::unique_ptr<AudioSystem> audioSystem,
   std::unique_ptr<FileSystem> fileSystem, std::unique_ptr<Logger> logger);
 

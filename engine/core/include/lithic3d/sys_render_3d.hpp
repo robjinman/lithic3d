@@ -104,7 +104,7 @@ LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
 
 class Logger;
 
-SysRender3dPtr createSysRender3d(const Ecs& ecs, const ModelLoader& modelLoader,
+SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
   render::Renderer& renderer, Logger& logger);
 
 } // namespace lithic3d

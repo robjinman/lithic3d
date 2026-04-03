@@ -4,8 +4,9 @@
 namespace lithic3d
 {
 
-Camera3d::Camera3d(float aspectRatio, float rotation)
-  : m_position{0, 0, 0}
+Camera3d::Camera3d(float aspectRatio, float rotation, float drawDistance)
+  : m_drawDistance(drawDistance)
+  , m_position{0, 0, 0}
   , m_direction{0, 0, -1}
 {
   m_viewMatrix = lookAt(m_position, m_position + m_direction);
@@ -17,12 +18,17 @@ void Camera3d::updateParameters(float aspectRatio, float rotation)
 {
   float vFov = degreesToRadians(45.f);
   float nearPlane = metresToWorldUnits(0.1f);
-  float farPlane = metresToWorldUnits(1000.f);
+  float farPlane = metresToWorldUnits(m_drawDistance);
 
   Mat4x4f rot = rotationMatrix4x4(Vec3f{ 0.f, 0.f, rotation });
   m_projection = rot * perspective(vFov, aspectRatio, nearPlane, farPlane);
 
   m_worldSpaceFrustum = computeFrustumFromMatrix(m_projection * m_viewMatrix);
+}
+
+float Camera3d::drawDistance() const
+{
+  return m_drawDistance;
 }
 
 void Camera3d::setTransform(const Mat4x4f& transform)

@@ -99,8 +99,8 @@ struct AnimationState
 class SysRender3dImpl : public SysRender3d
 {
   public:
-    SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
-      Logger& logger);
+    SysRender3dImpl(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+      Renderer& renderer, Logger& logger);
 
     double frameRate() const override;
 
@@ -149,8 +149,8 @@ class SysRender3dImpl : public SysRender3d
     std::array<LightProjection, 3> computeLightProjections(const Vec3f& worldSpaceLightDir) const;
 };
 
-SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
-  Logger& logger)
+SysRender3dImpl::SysRender3dImpl(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+  Renderer& renderer, Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
   , m_modelLoader(modelLoader)
@@ -159,7 +159,7 @@ SysRender3dImpl::SysRender3dImpl(const Ecs& ecs, const ModelLoader& modelLoader,
   auto viewport = m_renderer.getViewportSize();
   float aspect = static_cast<float>(viewport[0]) / viewport[1];
   float rotation = m_renderer.getViewportRotation();
-  m_camera = std::make_unique<Camera3d>(aspect, rotation);
+  m_camera = std::make_unique<Camera3d>(aspect, rotation, drawDistance);
 }
 
 void SysRender3dImpl::processEvent(const Event& event)
@@ -661,10 +661,10 @@ SysRender3dImpl::~SysRender3dImpl()
 
 } // namespace
 
-SysRender3dPtr createSysRender3d(const Ecs& ecs, const ModelLoader& modelLoader, Renderer& renderer,
-  Logger& logger)
+SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+  Renderer& renderer, Logger& logger)
 {
-  return std::make_unique<SysRender3dImpl>(ecs, modelLoader, renderer, logger);
+  return std::make_unique<SysRender3dImpl>(drawDistance, ecs, modelLoader, renderer, logger);
 }
 
 } // namespace lithic3d

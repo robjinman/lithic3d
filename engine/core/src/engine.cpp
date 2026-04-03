@@ -27,7 +27,7 @@ namespace
 class EngineImpl : public Engine
 {
   public:
-    EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
+    EngineImpl(float drawDistance, ResourceManagerPtr resourceManager, render::RendererPtr renderer,
       AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
@@ -67,8 +67,9 @@ class EngineImpl : public Engine
     void handleEvent(const Event& event);
 };
 
-EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
-  AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger)
+EngineImpl::EngineImpl(float drawDistance, ResourceManagerPtr resourceManager,
+  render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
+  LoggerPtr logger)
   : m_logger(std::move(logger))
   , m_resourceManager(std::move(resourceManager))
   , m_renderer(std::move(renderer))
@@ -88,7 +89,8 @@ EngineImpl::EngineImpl(ResourceManagerPtr resourceManager, render::RendererPtr r
   auto sysCollision = createSysCollision(*m_ecs, *m_eventSystem, *m_logger);
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
-  auto sysRender3d = createSysRender3d(*m_ecs, *m_modelLoader, *m_renderer, *m_logger);
+  auto sysRender3d = createSysRender3d(drawDistance, *m_ecs, *m_modelLoader, *m_renderer,
+    *m_logger);
   auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem, *m_logger);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
@@ -212,10 +214,11 @@ EngineImpl::~EngineImpl()
 
 } // namespace
 
-EnginePtr createEngine(ResourceManagerPtr resourceManager, render::RendererPtr renderer,
-  AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger)
+EnginePtr createEngine(float drawDistance, ResourceManagerPtr resourceManager,
+  render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
+  LoggerPtr logger)
 {
-  return std::make_unique<EngineImpl>(std::move(resourceManager), std::move(renderer),
+  return std::make_unique<EngineImpl>(drawDistance, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
 }
 

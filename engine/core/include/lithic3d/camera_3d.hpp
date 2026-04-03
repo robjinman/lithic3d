@@ -8,7 +8,8 @@ namespace lithic3d
 class Camera3d
 {
   public:
-    Camera3d(float aspectRatio, float rotation);
+    // drawDistance is in metres
+    Camera3d(float aspectRatio, float rotation, float drawDistance);
 
     void setTransform(const Mat4x4f& transform);
     void setPosition(const Vec3f& position);
@@ -20,8 +21,10 @@ class Camera3d
     inline const Mat4x4f& getProjectionMatrix() const;
     inline const Frustum& getWorldSpaceFrustum() const;
     void updateParameters(float aspectRatio, float rotation);
+    float drawDistance() const;
 
   private:
+    float m_drawDistance;
     Vec3f m_position;
     Vec3f m_direction;
     Mat4x4f m_projection;

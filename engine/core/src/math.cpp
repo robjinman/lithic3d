@@ -395,7 +395,7 @@ bool intersectsFrustum(const Frustum& frustum, const Vec3f& pos, float radius)
 
 bool pointIsOnPlane(const Plane& plane, const Vec3f& p)
 {
-  const float epsilon = 0.01f;
+  const float epsilon = 0.02f;
 
   auto a = plane.normal[0];
   auto b = plane.normal[1];

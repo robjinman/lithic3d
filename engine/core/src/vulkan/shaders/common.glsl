@@ -4,3 +4,7 @@
 #define DESCRIPTOR_SET_OBJECT 3
 
 #define NUM_SHADOW_MAPS 3
+
+#define DRAW_DISTANCE 10000.0   // TODO: Parameterise
+
+#define SQRT_3 1.73205080757

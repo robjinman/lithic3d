@@ -100,7 +100,7 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logge
   m_ecs.componentStore().instantiate<CSpatialFlags>(root);
 
   m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
-  m_octree = createLooseOctree({ -1000.f, -1000.f, -1000.f }, 10000.f); // TODO
+  m_octree = createLooseOctree({ -1000.f, -1000.f, -1000.f }, 17000.f); // TODO
 }
 
 const LooseOctree& SysSpatialImpl::dbg_getOctree() const

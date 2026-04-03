@@ -63,7 +63,7 @@ bool similar(const Vec3f& expected, const Vec3f& actual, float epsilon)
 TEST_F(Camera3dTest, computeFrustum_camera_at_origin_square_aspect)
 {
   float aspectRatio = 1.f;
-  Camera3d camera{aspectRatio, 0.f};
+  Camera3d camera{aspectRatio, 0.f, 1000.f};
 
   float vFov = degreesToRadians(45.f);
   float hFov = 2.f * atanf(aspectRatio * tanf(0.5f * vFov));
@@ -100,7 +100,7 @@ TEST_F(Camera3dTest, computeFrustum_camera_at_origin_square_aspect)
 TEST_F(Camera3dTest, computeFrustum_returns_valid_frustum_at_various_orientations)
 {
   float aspectRatio = 1.4f;
-  Camera3d camera{aspectRatio, 0.f};
+  Camera3d camera{aspectRatio, 0.f, 1000.f};
 
   camera.translate({ -5.f, 1.f, -5.f });
   camera.rotate(degreesToRadians(-45.f), 0.f);
