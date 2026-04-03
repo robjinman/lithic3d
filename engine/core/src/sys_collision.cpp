@@ -654,7 +654,6 @@ void SysCollisionImpl::setStationary(EntityId id)
 void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
 {
   auto& dynamic = m_ecs.componentStore().component<CCollisionDynamic>(id);
-  auto& box = m_ecs.componentStore().component<CCollisionBox>(id);
 
   bool shouldApplyGravity = dynamic.inverseMass == 0.f && inverseMass != 0.f;
 
@@ -662,6 +661,8 @@ void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
 
   if (m_ecs.componentStore().hasComponentForEntity<CCollisionRotational>(id)) {
     auto& rotational = m_ecs.componentStore().component<CCollisionRotational>(id);
+    auto& box = m_ecs.componentStore().component<CCollisionBox>(id);
+
     rotational.inverseInertialTensor = computeInverseInertialTensor(box.boundingBox,
       dynamic.inverseMass);
   }
