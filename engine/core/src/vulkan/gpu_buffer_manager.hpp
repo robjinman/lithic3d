@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
+#include <ostream>
 
 namespace lithic3d
 {
@@ -55,9 +56,12 @@ class GpuBufferManager
     virtual GpuImagePtr createDepthAttachment(VkExtent2D extent) = 0;
     virtual GpuImagePtr createShadowMap(VkExtent2D extent) = 0;
 
+    virtual void update(uint32_t frame) = 0;  // Call every frame
     virtual void writeToBuffer(GpuBuffer& buffer, const char* data, size_t size) = 0;
 
     virtual ~GpuBufferManager() = default;
+
+    virtual void dbg_printMemUsageInfo(std::ostream& stream) const = 0;
 };
 
 using GpuBufferManagerPtr = std::unique_ptr<GpuBufferManager>;

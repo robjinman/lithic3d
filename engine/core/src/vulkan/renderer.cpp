@@ -241,6 +241,8 @@ class RendererImpl : public Renderer
 
     ~RendererImpl() override;
 
+    void dbg_printMemUsageInfo(std::ostream& stream) const override;
+
   private:
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
       VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type,
@@ -336,6 +338,7 @@ class RendererImpl : public Renderer
 
     Timer m_timer;
     std::atomic<double> m_frameRate;
+    uint32_t m_frameNumber = 0;
 
     Thread m_thread;
     std::atomic<bool> m_running;
@@ -836,7 +839,7 @@ void RendererImpl::renderLoop()
 {
   try {
     while (m_running) {
-      m_resources->update();
+      m_resources->update(m_frameNumber);
       m_workQueue.runAll();
 
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
@@ -907,6 +910,8 @@ void RendererImpl::renderLoop()
 
       m_frameRate = 1.0 / m_timer.elapsed();
       m_timer.reset();
+
+      ++m_frameNumber;
     }
   }
   catch (const std::exception& e) {
@@ -1190,7 +1195,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
   createInfo.clipped = VK_TRUE;
   createInfo.oldSwapchain = VK_NULL_HANDLE;// m_swapchain;
 
-  VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain), // TODO: Use allocator
+  VK_CHECK(vkCreateSwapchainKHR(m_device, &createInfo, nullptr, &m_swapchain),
     "Failed to create swap chain");
 
   uint32_t imageCount;
@@ -1208,7 +1213,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
 void RendererImpl::cleanupSwapChain()
 {
   for (auto imageView : m_swapchainImageViews) {
-    vkDestroyImageView(m_device, imageView, nullptr); // TODO: Use allocator
+    vkDestroyImageView(m_device, imageView, nullptr);
   }
   vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 }
@@ -1448,7 +1453,7 @@ void RendererImpl::createLogicalDevice()
   createInfo.ppEnabledLayerNames = ValidationLayers.data();
 #endif
 
-  VK_CHECK(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device), // TODO: Use allocator
+  VK_CHECK(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device),
     "Failed to create logical device");
 
   vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
@@ -1499,7 +1504,7 @@ VkCommandPool RendererImpl::createResourceThreadCommandPool()
 
   VkCommandPool pool;
 
-  VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &pool), // TODO: Use allocator
+  VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &pool),
     "Failed to create command pool");
 
   return pool;
@@ -1956,7 +1961,7 @@ void RendererImpl::createSyncObjects()
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]), // TODO: Use allocator
+    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]),
       "Failed to create semaphore");
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]),
       "Failed to create fence");
@@ -2087,7 +2092,7 @@ void RendererImpl::createInstance()
   createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   createInfo.ppEnabledExtensionNames = extensions.data();
 
-  VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance"); // TODO: Use allocator
+  VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
 
   loadVulkanExtensionFunctions(m_instance);
 }
@@ -2118,7 +2123,7 @@ void RendererImpl::setupDebugMessenger()
   if (func == nullptr) {
     EXCEPTION("Error getting pointer to vkCreateDebugUtilsMessengerEXT()");
   }
-  VK_CHECK(func(m_instance, &createInfo, nullptr, &m_debugMessenger), // TODO: Use allocator
+  VK_CHECK(func(m_instance, &createInfo, nullptr, &m_debugMessenger),
     "Error setting up debug messenger");
 }
 
@@ -2126,7 +2131,7 @@ void RendererImpl::destroyDebugMessenger()
 {
   auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
     vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
-  func(m_instance, m_debugMessenger, nullptr); // TODO: Use allocator
+  func(m_instance, m_debugMessenger, nullptr);
 }
 
 RendererImpl::~RendererImpl()
@@ -2143,13 +2148,13 @@ RendererImpl::~RendererImpl()
   m_resourceManager.waitAll();
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-    vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr); // TODO: Use allocator
+    vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
     vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
   }
   for (size_t i = 0; i < m_renderFinishedSemaphores.size(); ++i) {
-    vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr); // TODO: Use allocator
+    vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
   }
-  vkDestroyCommandPool(m_device, m_commandPool, nullptr); // TODO: Use allocator
+  vkDestroyCommandPool(m_device, m_commandPool, nullptr);
   m_pipelines.clear();
   cleanupSwapChain();
   m_depthImage.reset();
@@ -2157,9 +2162,14 @@ RendererImpl::~RendererImpl()
 #ifdef USE_VALIDATION_LAYERS
   destroyDebugMessenger();
 #endif
-  vkDestroySurfaceKHR(m_instance, m_surface, nullptr); // TODO: Use allocator
+  vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
   vkDestroyDevice(m_device, nullptr);
   vkDestroyInstance(m_instance, nullptr);
+}
+
+void RendererImpl::dbg_printMemUsageInfo(std::ostream& stream) const
+{
+  m_bufferManager->dbg_printMemUsageInfo(stream);
 }
 
 } // namespace

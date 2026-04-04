@@ -92,7 +92,7 @@ class RenderResources
   public:
     // Threads: render
     virtual void initialise() = 0;
-    virtual void update() = 0;
+    virtual void update(uint32_t frame) = 0;
 
     // Textures
     //

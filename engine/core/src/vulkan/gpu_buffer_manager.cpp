@@ -124,9 +124,12 @@ class GpuBufferManagerImpl : public GpuBufferManager
     GpuImagePtr createDepthAttachment(VkExtent2D extent) override;
     GpuImagePtr createShadowMap(VkExtent2D extent) override;
 
+    void update(uint32_t frame) override;
     void writeToBuffer(GpuBuffer& buffer, const char* data, size_t size) override;    
 
     ~GpuBufferManagerImpl();
+
+    void dbg_printMemUsageInfo(std::ostream& stream) const override;
 
   private:
     Logger& m_logger;
@@ -210,6 +213,11 @@ GpuBufferPtr GpuBufferManagerImpl::createStagingBuffer(size_t size)
   m_logger.info(STR("Created VkBuffer: " << buffer->buffer));
 
   return buffer;
+}
+
+void GpuBufferManagerImpl::update(uint32_t frame)
+{
+  vmaSetCurrentFrameIndex(m_allocator, frame);
 }
 
 VkCommandBuffer GpuBufferManagerImpl::beginSingleTimeCommands()
@@ -377,6 +385,8 @@ GpuBufferPtr GpuBufferManagerImpl::createInstanceBuffer(size_t size)
 void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const char* data, size_t size)
 {
   auto& buffer = dynamic_cast<GpuBufferImpl&>(buffer_);
+
+  assert(buffer.size() <= size);
 
   memcpy(buffer.allocationInfo.pMappedData, data, size);
 
@@ -688,6 +698,27 @@ GpuBufferManagerImpl::~GpuBufferManagerImpl()
 
   vmaDestroyAllocator(m_allocator);
   vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+}
+
+void GpuBufferManagerImpl::dbg_printMemUsageInfo(std::ostream& stream) const
+{
+  VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
+  vmaGetHeapBudgets(m_allocator, budgets);
+
+  for (size_t i = 0; i < VK_MAX_MEMORY_HEAPS; ++i) {
+    stream << "HEAP " << i << std::endl;
+
+    stream << "My heap currently has " << budgets[i].statistics.allocationCount
+      << " allocations taking " << budgets[i].statistics.allocationBytes / 1000000 << " MB"
+      << std::endl;
+
+    stream << "allocated out of " << budgets[i].statistics.blockCount
+      << " Vulkan device memory blocks taking " << budgets[i].statistics.blockBytes / 1000000
+      << " MB" << std::endl; 
+
+    stream << "Vulkan reports total usage " << budgets[i].usage / 1000000 << " MB with budget "
+      << budgets[i].budget / 1000000 << " MB" << std::endl;
+  }
 }
 
 } // namespace

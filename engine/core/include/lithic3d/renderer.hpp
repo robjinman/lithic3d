@@ -132,6 +132,8 @@ class Renderer
     virtual void endFrame() = 0;
 
     virtual ~Renderer() {}
+
+    virtual void dbg_printMemUsageInfo(std::ostream& stream) const = 0;
 };
 
 using RendererPtr = std::unique_ptr<Renderer>;

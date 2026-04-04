@@ -100,7 +100,7 @@ class RenderResourcesImpl : public RenderResources
       VkPhysicalDevice physicalDevice, VkDevice device, VkCommandPool commandPool, Logger& logger);
 
     void initialise() override;
-    void update() override;
+    void update(uint32_t frame) override;
 
     // Descriptor sets
     //
@@ -268,9 +268,10 @@ inline void RenderResourcesImpl::assertResourceThread() const
   ASSERT(std::this_thread::get_id() == m_resourceThreadId, "Must be on resource manager thread");
 }
 
-void RenderResourcesImpl::update()
+void RenderResourcesImpl::update(uint32_t frame)
 {
   m_scheduler.update();
+  m_bufferManager.update(frame);
 }
 
 void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
@@ -807,7 +808,7 @@ void RenderResourcesImpl::createShadowMap()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_shadowMapSampler), // TODO: Use allocator
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_shadowMapSampler),
     "Failed to create shadow map sampler");
 }
 
@@ -832,7 +833,7 @@ void RenderResourcesImpl::createDescriptorPool()
     .pPoolSizes = poolSizes.data()
   };
 
-  VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool), // TODO: Use allocator
+  VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
     "Failed to create descriptor pool");
 }
 
@@ -861,7 +862,7 @@ void RenderResourcesImpl::createGlobalDescriptorSetLayout()
     .pBindings = bindings.data()
   };
 
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_globalDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Global descriptor set layout: " << m_globalDescriptorSetLayout));
@@ -910,7 +911,7 @@ void RenderResourcesImpl::createRenderPassDescriptorSetLayout()
     .pBindings = bindings.data()
   };
   
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_renderPassDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Render pass descriptor set layout: " << m_renderPassDescriptorSetLayout));
@@ -999,7 +1000,7 @@ void RenderResourcesImpl::createMaterialDescriptorSetLayout()
     .pBindings = bindings.data()
   };
 
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_materialDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Material descriptor set layout: " << m_materialDescriptorSetLayout));
@@ -1030,7 +1031,7 @@ void RenderResourcesImpl::createObjectDescriptorSetLayout()
     .pBindings = bindings.data()
   };
   
-  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, // TODO: Use allocator
+  VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_objectDescriptorSetLayout), "Failed to create descriptor set layout");
 
   m_logger.info(STR("Object descriptor set layout: " << m_objectDescriptorSetLayout));
@@ -1238,7 +1239,7 @@ void RenderResourcesImpl::createTextureSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler), // TODO: Use allocator
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_textureSampler),
     "Failed to create texture sampler");
 }
 
@@ -1270,7 +1271,7 @@ void RenderResourcesImpl::createSplatMapSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_splatMapSampler), // TODO: Use allocator
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_splatMapSampler),
     "Failed to create texture sampler");
 }
 
@@ -1302,7 +1303,7 @@ void RenderResourcesImpl::createNormalMapSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_normalMapSampler), // TODO: Use allocator
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_normalMapSampler),
     "Failed to create normal map sampler");
 }
 
@@ -1334,7 +1335,7 @@ void RenderResourcesImpl::createCubeMapSampler()
     .unnormalizedCoordinates = VK_FALSE
   };
 
-  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_cubeMapSampler), // TODO: Use allocator
+  VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_cubeMapSampler),
     "Failed to create normal map sampler");
 }
 
@@ -1342,15 +1343,15 @@ RenderResourcesImpl::~RenderResourcesImpl()
 {
   DBG_TRACE(m_logger);
 
-  vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr); // TODO: Use allocator
+  vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_globalDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_renderPassDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_objectDescriptorSetLayout, nullptr);
 
-  vkDestroySampler(m_device, m_shadowMapSampler, nullptr); // TODO: Use allocator
+  vkDestroySampler(m_device, m_shadowMapSampler, nullptr);
 
-  vkDestroySampler(m_device, m_textureSampler, nullptr); // TODO: Use allocator
+  vkDestroySampler(m_device, m_textureSampler, nullptr);
   vkDestroySampler(m_device, m_splatMapSampler, nullptr);
   vkDestroySampler(m_device, m_normalMapSampler, nullptr);
   vkDestroySampler(m_device, m_cubeMapSampler, nullptr);
