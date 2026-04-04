@@ -140,6 +140,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkCommandPool m_commandPool;
+    uint32_t m_numMemoryHeaps = 0;
 
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
@@ -166,6 +167,10 @@ GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDe
   , m_device(device)
   , m_commandPool(commandPool)
 {
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+  m_numMemoryHeaps = memProperties.memoryHeapCount;
+
   VmaVulkanFunctions vulkanFunctions = {};
   vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
   vulkanFunctions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
@@ -386,7 +391,7 @@ void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const char* data, s
 {
   auto& buffer = dynamic_cast<GpuBufferImpl&>(buffer_);
 
-  assert(buffer.size() <= size);
+  assert(size <= buffer.size());
 
   memcpy(buffer.allocationInfo.pMappedData, data, size);
 
@@ -702,10 +707,10 @@ GpuBufferManagerImpl::~GpuBufferManagerImpl()
 
 void GpuBufferManagerImpl::dbg_printMemUsageInfo(std::ostream& stream) const
 {
-  VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
-  vmaGetHeapBudgets(m_allocator, budgets);
+  std::array<VmaBudget, VK_MAX_MEMORY_HEAPS> budgets;
+  vmaGetHeapBudgets(m_allocator, budgets.data());
 
-  for (size_t i = 0; i < VK_MAX_MEMORY_HEAPS; ++i) {
+  for (size_t i = 0; i < m_numMemoryHeaps; ++i) {
     stream << "HEAP " << i << std::endl;
 
     stream << "My heap currently has " << budgets[i].statistics.allocationCount

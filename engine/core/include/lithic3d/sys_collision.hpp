@@ -46,8 +46,8 @@ struct HeightMap
 {
   float width = 0.f;  // World units
   float height = 0.f;
-  uint32_t widthPx = 0.f;
-  uint32_t heightPx = 0.f;
+  uint32_t widthPx = 0;
+  uint32_t heightPx = 0;
   std::vector<float> data;
 };
 
