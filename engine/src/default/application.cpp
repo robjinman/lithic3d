@@ -322,6 +322,10 @@ void Application::onWindowResize(int w, int h)
 
 void Application::onMouseMove(float x, float y)
 {
+  if (m_config.captureMouse && !m_inputCaptured) {
+    return;
+  }
+
   Vec2f pos{ x, y };
   Vec2f delta = (pos - m_lastMousePos) / static_cast<Vec2f>(windowSize());
   m_game->onMouseMove(pos, delta);
