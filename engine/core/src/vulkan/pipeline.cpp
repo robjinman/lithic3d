@@ -3,6 +3,7 @@
 #include "vulkan/render_resources.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/trace.hpp"
 #include <array>
 #include <numeric>
 #include <cstring>
@@ -621,6 +622,8 @@ void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
 void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
   BindState& bindState, size_t currentFrame, uint32_t shadowMapCascade)
 {
+  DBG_TRACE(m_logger);
+
   auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
   auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(
     m_spec.renderPass, currentFrame);

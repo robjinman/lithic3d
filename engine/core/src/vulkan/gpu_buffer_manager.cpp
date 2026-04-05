@@ -167,6 +167,8 @@ GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDe
   , m_device(device)
   , m_commandPool(commandPool)
 {
+  DBG_TRACE(m_logger);
+
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
   m_numMemoryHeaps = memProperties.memoryHeapCount;
@@ -194,6 +196,8 @@ GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDe
 
 GpuBufferPtr GpuBufferManagerImpl::createStagingBuffer(size_t size)
 {
+  DBG_TRACE(m_logger);
+
   auto buffer = std::make_unique<GpuBufferImpl>(m_allocator);
 
   VkBufferCreateInfo bufferInfo{
@@ -222,6 +226,8 @@ GpuBufferPtr GpuBufferManagerImpl::createStagingBuffer(size_t size)
 
 void GpuBufferManagerImpl::update(uint32_t frame)
 {
+  DBG_TRACE(m_logger);
+
   vmaSetCurrentFrameIndex(m_allocator, frame);
 }
 
@@ -289,6 +295,8 @@ void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 
 GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
 {
+  DBG_TRACE(m_logger);
+
   auto buffer = std::make_unique<GpuBufferImpl>(m_allocator);
 
   VkBufferCreateInfo bufferInfo{
@@ -318,10 +326,13 @@ GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
 GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const char* data, size_t size,
   VkBufferUsageFlags usage)
 {
+  DBG_TRACE(m_logger);
+
   auto stagingBufferPtr = createStagingBuffer(size);
   auto& stagingBuffer = dynamic_cast<GpuBufferImpl&>(*stagingBufferPtr);
 
   memcpy(stagingBuffer.mappedAddress(), data, size);
+
   VK_CHECK(vmaFlushAllocation(m_allocator, stagingBuffer.allocation, 0, size),
     "Failed to flush memory ranges");
 
@@ -345,6 +356,8 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const char* data, size_t s
 
 GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(size_t size, VkBufferUsageFlags usage)
 {
+  DBG_TRACE(m_logger);
+
   auto buffer = std::make_unique<GpuBufferImpl>(m_allocator);
 
   VkBufferCreateInfo bufferInfo{
@@ -389,6 +402,8 @@ GpuBufferPtr GpuBufferManagerImpl::createInstanceBuffer(size_t size)
 
 void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const char* data, size_t size)
 {
+  DBG_TRACE(m_logger);
+
   auto& buffer = dynamic_cast<GpuBufferImpl&>(buffer_);
 
   assert(size <= buffer.size());
@@ -402,6 +417,8 @@ void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const char* data, s
 void GpuBufferManagerImpl::transitionImageLayout(GpuImageImpl& image, VkImageLayout oldLayout,
   VkImageLayout newLayout, uint32_t layerCount)
 {
+  DBG_TRACE(m_logger);
+
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
   VkImageMemoryBarrier barrier{
@@ -453,6 +470,8 @@ void GpuBufferManagerImpl::transitionImageLayout(GpuImageImpl& image, VkImageLay
 void GpuBufferManagerImpl::copyBufferToImage(GpuBuffer& buffer, GpuImage& image, uint32_t width,
   uint32_t height, VkDeviceSize bufferOffset, uint32_t layer)
 {
+  DBG_TRACE(m_logger);
+
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
   VkBufferImageCopy region{
@@ -477,6 +496,8 @@ void GpuBufferManagerImpl::copyBufferToImage(GpuBuffer& buffer, GpuImage& image,
 
 GpuImagePtr GpuBufferManagerImpl::createCubeMap(const std::array<TexturePtr, 6>& textures)
 {
+  DBG_TRACE(m_logger);
+
   auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
 
   VkDeviceSize imageSize = textures[0]->data.size();
@@ -545,6 +566,8 @@ GpuImagePtr GpuBufferManagerImpl::createCubeMap(const std::array<TexturePtr, 6>&
 
 GpuImagePtr GpuBufferManagerImpl::createTexture(const Texture& texture, VkFormat format)
 {
+  DBG_TRACE(m_logger);
+
   auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
 
   ASSERT(texture.data.size() % 4 == 0, "Texture data size should be multiple of 4");
@@ -609,6 +632,8 @@ GpuImagePtr GpuBufferManagerImpl::createNormalMap(const Texture& texture)
 
 GpuImagePtr GpuBufferManagerImpl::createDepthAttachment(VkExtent2D extent)
 {
+  DBG_TRACE(m_logger);
+
   auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
   auto depthFormat = findDepthFormat(m_physicalDevice);
 
@@ -652,6 +677,8 @@ GpuImagePtr GpuBufferManagerImpl::createDepthAttachment(VkExtent2D extent)
 // image views are for rendering into
 GpuImagePtr GpuBufferManagerImpl::createShadowMap(VkExtent2D extent)
 {
+  DBG_TRACE(m_logger);
+
   auto image = std::make_unique<GpuImageImpl>(m_allocator, m_device);
 
   auto depthFormat = findDepthFormat(m_physicalDevice);

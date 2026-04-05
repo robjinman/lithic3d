@@ -270,6 +270,8 @@ inline void RenderResourcesImpl::assertResourceThread() const
 
 void RenderResourcesImpl::update(uint32_t frame)
 {
+  DBG_TRACE(m_logger);
+
   m_scheduler.update();
   m_bufferManager.update(frame);
 }
@@ -454,8 +456,9 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
     }
 
     if (i->second->objectDescriptorSets.size() > 0) {
-      vkFreeDescriptorSets(m_device, m_descriptorPool, i->second->objectDescriptorSets.size(),
-        i->second->objectDescriptorSets.data());
+      VK_CHECK(vkFreeDescriptorSets(m_device, m_descriptorPool,
+        i->second->objectDescriptorSets.size(), i->second->objectDescriptorSets.data()),
+        "Failed to free descriptor sets");
     }
 
     m_meshes.erase(i);
@@ -514,6 +517,8 @@ void RenderResourcesImpl::addSamplerToDescriptorSet(VkDescriptorSet descriptorSe
   uint32_t maxArrayLen, const std::vector<VkImageView>& imageViews, VkSampler sampler,
   uint32_t binding)
 {
+  DBG_TRACE(m_logger);
+
   assert(imageViews.size() <= maxArrayLen);
 
   std::vector<VkDescriptorImageInfo> imageInfos;
@@ -620,35 +625,35 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
   m_bufferManager.writeToBuffer(*materialData->ubo, reinterpret_cast<const char*>(&ubo),
     sizeof(ubo));
 
+  //if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
+    std::vector<VkImageView> imageViews;
+    for (auto& texture : material->textures) {
+      imageViews.push_back(m_textures.at(texture.id())->image->vkImageView(0));
+    }
+    addSamplerToDescriptorSet(materialData->descriptorSet, SAMPLER_ARRAY_LEN, imageViews,
+      m_textureSampler, static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
+  //}
+  if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
+    std::vector<VkImageView> imageViews;
+    for (auto& normalMap : material->normalMaps) {
+      imageViews.push_back(m_textures.at(normalMap.id())->image->vkImageView(0));
+    }
+    addSamplerToDescriptorSet(materialData->descriptorSet, SAMPLER_ARRAY_LEN, imageViews,
+      m_normalMapSampler, static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
+  }
+  if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
+    VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView(0);
+    addSamplerToDescriptorSet(materialData->descriptorSet, 1, { imageView }, m_cubeMapSampler,
+      static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
+  }
+  if (material->splatMap) {
+    auto imageView = m_textures.at(material->splatMap.id())->image->vkImageView(0);
+    addSamplerToDescriptorSet(materialData->descriptorSet, 1, { imageView }, m_splatMapSampler,
+      static_cast<uint32_t>(MaterialDescriptorSetBindings::SplatMapSampler));
+  }
+
   {
     std::scoped_lock lock{m_mutex};
-
-    //if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
-      std::vector<VkImageView> imageViews;
-      for (auto& texture : material->textures) {
-        imageViews.push_back(m_textures.at(texture.id())->image->vkImageView(0));
-      }
-      addSamplerToDescriptorSet(materialData->descriptorSet, SAMPLER_ARRAY_LEN, imageViews,
-        m_textureSampler, static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
-    //}
-    if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
-      std::vector<VkImageView> imageViews;
-      for (auto& normalMap : material->normalMaps) {
-        imageViews.push_back(m_textures.at(normalMap.id())->image->vkImageView(0));
-      }
-      addSamplerToDescriptorSet(materialData->descriptorSet, SAMPLER_ARRAY_LEN, imageViews,
-        m_normalMapSampler, static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
-    }
-    if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
-      VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView(0);
-      addSamplerToDescriptorSet(materialData->descriptorSet, 1, { imageView }, m_cubeMapSampler,
-        static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
-    }
-    if (material->splatMap) {
-      auto imageView = m_textures.at(material->splatMap.id())->image->vkImageView(0);
-      addSamplerToDescriptorSet(materialData->descriptorSet, 1, { imageView }, m_splatMapSampler,
-        static_cast<uint32_t>(MaterialDescriptorSetBindings::SplatMapSampler));
-    }
 
     materialData->material = std::move(material);
     m_materials[id] = std::move(materialData);
@@ -668,7 +673,8 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
       return;
     }
 
-    vkFreeDescriptorSets(m_device, m_descriptorPool, 1, &i->second->descriptorSet);
+    VK_CHECK(vkFreeDescriptorSets(m_device, m_descriptorPool, 1, &i->second->descriptorSet),
+      "Failed to free descriptor set");
 
     m_materials.erase(i);
   });
@@ -769,6 +775,8 @@ GpuImage& RenderResourcesImpl::getShadowMap()
 
 void RenderResourcesImpl::createUbos()
 {
+  DBG_TRACE(m_logger);
+
   m_mainCameraUbo = fillArray<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT>([this]() {
     return m_bufferManager.createUbo(sizeof(CameraTransformsUbo));
   });
@@ -785,6 +793,8 @@ void RenderResourcesImpl::createUbos()
 
 void RenderResourcesImpl::createShadowMap()
 {
+  DBG_TRACE(m_logger);
+
   m_shadowMapImage = m_bufferManager.createShadowMap(m_shadowMapSize);
 
   VkSamplerCreateInfo samplerInfo{
@@ -819,16 +829,16 @@ void RenderResourcesImpl::createDescriptorPool()
   std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = 100; // TODO
+  poolSizes[0].descriptorCount = 200; // TODO
 
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = 100; // TODO
+  poolSizes[1].descriptorCount = 200; // TODO
 
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .pNext = nullptr,
     .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-    .maxSets = 200, // TODO
+    .maxSets = 400, // TODO
     .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
     .pPoolSizes = poolSizes.data()
   };
@@ -1039,6 +1049,8 @@ void RenderResourcesImpl::createObjectDescriptorSetLayout()
 
 void RenderResourcesImpl::createGlobalDescriptorSet()
 {
+  DBG_TRACE(m_logger);
+
   createGlobalDescriptorSetLayout();
 
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_globalDescriptorSetLayout);
@@ -1084,6 +1096,8 @@ void RenderResourcesImpl::createGlobalDescriptorSet()
 
 void RenderResourcesImpl::createMainPassDescriptorSet()
 {
+  DBG_TRACE(m_logger);
+
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_renderPassDescriptorSetLayout);
 
   VkDescriptorSetAllocateInfo allocInfo{
@@ -1166,6 +1180,8 @@ void RenderResourcesImpl::createMainPassDescriptorSet()
 
 void RenderResourcesImpl::createOverlayPassDescriptorSet()
 {
+  DBG_TRACE(m_logger);
+
   std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_renderPassDescriptorSetLayout);
 
   VkDescriptorSetAllocateInfo allocInfo{

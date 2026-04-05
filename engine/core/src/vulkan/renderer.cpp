@@ -654,8 +654,6 @@ void RendererImpl::drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
   const Mat4x4f& transform, const std::vector<Mat4x4f>& jointTransforms)
 {
-  DBG_TRACE(m_logger);
-
   drawModelInternal(mesh, meshFeatures, material, materialFeatures, transform, colour,
     jointTransforms);
 }
@@ -664,8 +662,6 @@ void RendererImpl::drawModel(ResourceId mesh, const MeshFeatureSet& meshFeatures
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Vec4f& colour,
   const Mat4x4f& transform)
 {
-  DBG_TRACE(m_logger);
-
   drawModelInternal(mesh, meshFeatures, material, materialFeatures, transform, colour,
     std::nullopt);
 }
@@ -674,6 +670,8 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
   ResourceId material, const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform,
   const Vec4f& colour, const std::optional<std::vector<Mat4x4f>>& jointTransforms)
 {
+  DBG_TRACE(m_logger);
+
   FrameState& frameState = m_frameStates.getWritable();
   RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
   RenderGraph& renderGraph = state.graph;
@@ -837,6 +835,8 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
 
 void RendererImpl::renderLoop()
 {
+  DBG_TRACE(m_logger);
+
   try {
     while (m_running) {
       m_resources->update(m_frameNumber);
@@ -925,6 +925,8 @@ void RendererImpl::renderLoop()
 
 void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
 {
+  DBG_TRACE(m_logger);
+
   auto& frameState = m_frameStates.getReadable();
   auto& renderPassState = frameState.renderPasses.at(renderPass);
 
@@ -943,6 +945,8 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
 
 void RendererImpl::updateLightTransformsUbo()
 {
+  DBG_TRACE(m_logger);
+
   auto& frameState = m_frameStates.getReadable();
   auto& shadowPass0State = frameState.renderPasses.at(RenderPass::Shadow0);
   auto& shadowPass1State = frameState.renderPasses.at(RenderPass::Shadow1);
@@ -965,6 +969,8 @@ void RendererImpl::updateLightTransformsUbo()
 
 void RendererImpl::updateLightingUbo()
 {
+  DBG_TRACE(m_logger);
+
   auto& frameState = m_frameStates.getReadable();
   auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
 
@@ -1013,6 +1019,8 @@ void RendererImpl::endFrame()
 
 void RendererImpl::finishFrame()
 {
+  DBG_TRACE(m_logger);
+
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -1134,6 +1142,8 @@ void RendererImpl::createSwapChain()
 
 void RendererImpl::createSwapChain(VkExtent2D extent)
 {
+  DBG_TRACE(m_logger);
+
   m_logger.info(STR("Creating swapchain with extent "
     << extent.width << ", " << extent.height));
 
@@ -1212,6 +1222,8 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
 
 void RendererImpl::cleanupSwapChain()
 {
+  DBG_TRACE(m_logger);
+
   for (auto imageView : m_swapchainImageViews) {
     vkDestroyImageView(m_device, imageView, nullptr);
   }
@@ -1220,6 +1232,8 @@ void RendererImpl::cleanupSwapChain()
 
 void RendererImpl::recreateSwapChain()
 {
+  DBG_TRACE(m_logger);
+
   int width = 0;
   int height = 0;
   m_window->getFrameBufferSize(width, height);
@@ -1527,6 +1541,8 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
 void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
   const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer, uint32_t shadowMapCascade)
 {
+  DBG_TRACE(m_logger);
+
   uint32_t scissorId = std::numeric_limits<uint32_t>::max();
   Pipeline* prevPipeline = nullptr;
   BindState bindState{};
@@ -1577,6 +1593,8 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
 
 void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t cascade)
 {
+  DBG_TRACE(m_logger);
+
   VkImageMemoryBarrier barrier1{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
     .pNext = nullptr,
@@ -1667,6 +1685,8 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
 void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
   bool shouldClear)
 {
+  DBG_TRACE(m_logger);
+
   auto& frameState = m_frameStates.getReadable();
   auto& colour = frameState.clearColour;
 
@@ -1773,6 +1793,8 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
   bool shouldClear)
 {
+  DBG_TRACE(m_logger);
+
   auto& frameState = m_frameStates.getReadable();
   auto& colour = frameState.clearColour;
 
@@ -1861,6 +1883,8 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
 void RendererImpl::doSsrRenderPass(VkCommandBuffer /*commandBuffer*/, uint32_t /*imageIndex*/,
   bool /*shouldClear*/)
 {
+  DBG_TRACE(m_logger);
+
   // TODO
 }
 
@@ -2116,6 +2140,8 @@ VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() c
 
 void RendererImpl::setupDebugMessenger()
 {
+  DBG_TRACE(m_logger);
+
   auto createInfo = getDebugMessengerCreateInfo();
 
   auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
@@ -2129,6 +2155,8 @@ void RendererImpl::setupDebugMessenger()
 
 void RendererImpl::destroyDebugMessenger()
 {
+  DBG_TRACE(m_logger);
+
   auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
     vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
   func(m_instance, m_debugMessenger, nullptr);

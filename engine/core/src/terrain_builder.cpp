@@ -81,10 +81,10 @@ class TerrainBuilderImpl : public TerrainBuilder
     std::map<ResourceId, TerrainRegion> m_regions;
 
     MeshPtr constructLandMesh(const Texture& heightMap) const;
-    ResourceHandle constructLandModel(const fs::path& cellPath, const XmlNode& terrainXml,
+    ResourceHandle constructLandModelAsync(const fs::path& cellPath, const XmlNode& terrainXml,
       HeightMap& heightMap) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize, float level) const;
-    ResourceHandle constructWaterModel(const Vec2f& cellSize, float waterLevel) const;
+    ResourceHandle constructWaterModelAsync(const Vec2f& cellSize, float waterLevel) const;
     EntityId createLandEntity(ResourceId regionId);
     EntityId createWaterEntity(ResourceId regionId);
 };
@@ -335,7 +335,7 @@ MeshPtr TerrainBuilderImpl::constructWaterMesh(const Vec2f& cellSize, float leve
   return mesh;
 }
 
-ResourceHandle TerrainBuilderImpl::constructLandModel(const fs::path& cellPath,
+ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellPath,
   const XmlNode& terrainXml, HeightMap& heightMap) const
 {
   auto heightMapTextureData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
@@ -356,7 +356,6 @@ ResourceHandle TerrainBuilderImpl::constructLandModel(const fs::path& cellPath,
 
   auto material = std::make_unique<render::Material>();
   material->featureSet = materialFeatures;
-
   material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png");
 
   for (auto& textureXml : splatMapXml) {
@@ -369,6 +368,7 @@ ResourceHandle TerrainBuilderImpl::constructLandModel(const fs::path& cellPath,
     else {
       texture = m_renderResourceLoader.getTextureHandle(filePath);
     }
+
     material->textures.push_back(texture);
   }
 
@@ -382,7 +382,7 @@ ResourceHandle TerrainBuilderImpl::constructLandModel(const fs::path& cellPath,
   return m_modelLoader.loadModelAsync(std::move(model));
 }
 
-ResourceHandle TerrainBuilderImpl::constructWaterModel(const Vec2f& cellSize,
+ResourceHandle TerrainBuilderImpl::constructWaterModelAsync(const Vec2f& cellSize,
   float waterLevel) const
 {
   auto material = std::make_unique<render::Material>();
@@ -415,8 +415,8 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
 
     TerrainRegion region;
     region.position = { x * cellSize[0], 0.f, y * cellSize[1] };
-    region.landModel = constructLandModel(cellPath, *terrainXml, region.heightMap);
-    region.waterModel = constructWaterModel(cellSize, waterLevel);
+    region.landModel = constructLandModelAsync(cellPath, *terrainXml, region.heightMap);
+    region.waterModel = constructWaterModelAsync(cellSize, waterLevel);
 
     m_regions.insert({ id, std::move(region) });
 

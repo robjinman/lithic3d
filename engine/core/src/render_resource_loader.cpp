@@ -4,6 +4,7 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
 #include <unordered_map>
+#include <mutex>
 
 namespace lithic3d
 {
@@ -45,6 +46,7 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
     render::Renderer& m_renderer;
     std::unordered_map<std::string, ResourceId> m_materials;
     std::unordered_map<std::filesystem::path, ResourceId> m_textures;
+    mutable std::mutex m_mutex;
 };
 
 RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceManager,
@@ -57,16 +59,20 @@ RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceMana
 
 bool RenderResourceLoaderImpl::hasMaterial(const std::string& name) const
 {
+  std::scoped_lock lock{m_mutex};
   return m_materials.contains(name);
 }
 
 bool RenderResourceLoaderImpl::hasTexture(const std::filesystem::path& path) const
 {
+  std::scoped_lock lock{m_mutex};
   return m_textures.contains(path);
 }
 
 ResourceHandle RenderResourceLoaderImpl::getMaterialHandle(const std::string& name) const
 {
+  std::scoped_lock lock{m_mutex};
+
   auto i = m_materials.find(name);
   ASSERT(i != m_materials.end(), "No material with name '" << name << "' loaded");
   return m_resourceManager.getHandle(i->second);
@@ -74,6 +80,8 @@ ResourceHandle RenderResourceLoaderImpl::getMaterialHandle(const std::string& na
 
 ResourceHandle RenderResourceLoaderImpl::getTextureHandle(const std::filesystem::path& path) const
 {
+  std::scoped_lock lock{m_mutex};
+
   auto i = m_textures.find(path);
   ASSERT(i != m_textures.end(), "No texture with path '" << path << "' loaded");
   return m_resourceManager.getHandle(i->second);
@@ -90,10 +98,20 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path)
     auto texture = render::loadRgbaTexture(data);
     m_renderer.addTexture(id, std::move(texture));
 
+    {
+      std::scoped_lock lock{m_mutex};
+      m_textures.insert({ path, id });
+    }
+
     return ManagedResource{
-      .unloader = [this](ResourceId id) {
+      .unloader = [this, path](ResourceId id) {
         DBG_TRACE(m_logger);
         m_renderer.removeTexture(id);
+
+        {
+          std::scoped_lock lock{m_mutex};
+          m_textures.erase(path);
+        }
       }
     };
   });
