@@ -229,7 +229,7 @@ class Demo : public Game
         }
       }
     };
-    size_t m_currentScenario = 0;
+    size_t m_currentScenario = 1;
     std::vector<EntityId> m_boxes;
     std::vector<EntityId> m_aggregates;
     bool m_physicsActive = false;
@@ -296,7 +296,7 @@ void Demo::constructScenario(size_t i)
       id = m_factory->createStaticCuboid(size, material, texSize, 0.2f, 0.4f);
     }
     else {
-      id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f);
+      id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.5f);
     }
     m_boxes.push_back(id);
   }
@@ -400,8 +400,9 @@ void Demo::constructTerrain()
     .world = "world",
     .minHeight = 0.f,
     .maxHeight = 8.f,
-    .cellWidth = 200.f,
-    .cellHeight = 200.f
+    .cellWidth = 400.f,
+    .cellHeight = 400.f,
+    .waterLevel = 0.f
   };
 
   auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
@@ -598,7 +599,8 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = false,
-    .shaderManifest = "shaders.xml"
+    .shaderManifest = "shaders.xml",
+    .drawDistance = 1000
   };
 }
 

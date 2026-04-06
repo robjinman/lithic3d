@@ -86,10 +86,10 @@
       <flags>
         <is-instanced>false</is-instanced>
         <is-skybox>false</is-skybox>
-        <is-terrain>true</is-terrain>
+        <is-terrain>*</is-terrain>
         <is-animated>false</is-animated>
         <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>true</casts-shadow>
+        <casts-shadow>*</casts-shadow>
         <is-quad>false</is-quad>
         <is-dynamic-text>false</is-dynamic-text>
       </flags>
@@ -97,7 +97,7 @@
     <material-features>
       <flags>
         <has-transparency>false</has-transparency>
-        <has-texture>true</has-texture>
+        <has-texture>*</has-texture>
         <has-normal-map>false</has-normal-map>
         <has-cube-map>false</has-cube-map>
         <is-double-sided>false</is-double-sided>

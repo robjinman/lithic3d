@@ -60,11 +60,14 @@ void Timer::reset()
 
 void Scheduler::update()
 {
+  std::scoped_lock lock{m_mutex};
+
   for (auto i = m_tasks.begin(); i != m_tasks.end();) {
     auto tick = i->first;
 
     if (m_currentTick >= tick) {
       for (auto& fn : i->second) {
+        // Assume fn doesn't call run(). This will deadlock.
         fn();
       }
 
@@ -80,6 +83,7 @@ void Scheduler::update()
 
 void Scheduler::run(Tick delay, std::function<void()>&& fn)
 {
+  std::scoped_lock{m_mutex};
   m_tasks[m_currentTick + delay].push_back(std::move(fn));
 }
 

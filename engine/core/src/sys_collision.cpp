@@ -1,7 +1,6 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
-#include <iostream> // TODO
 
 namespace lithic3d
 {
@@ -334,6 +333,7 @@ class SysCollisionImpl : public SysCollision
     std::vector<CollisionPair> findPossibleCollisions();
     std::vector<Contact> generateContacts(const std::vector<CollisionPair>& pairs);
     void integrate();
+    void resolveVelocities(const Contact& contact);
 
     void generateBoxPolyContacts(const ObjectComponents& A, const ObjectComponents& B,
       std::vector<Contact>& contacts) const;
@@ -402,8 +402,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
     .resolverDeltaLinearV{},
     .resolverNumAdjustments = 0,
     .framesIdle = 0,
-    .idle = false,
-    .hasCollided = false
+    .idle = false
   };
 
   if (dynamic.inverseMass != 0) {
@@ -496,8 +495,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
     .resolverDeltaLinearV{},
     .resolverNumAdjustments = 0,
     .framesIdle = 0,
-    .idle = false,
-    .hasCollided = false
+    .idle = false
   };
 
   if (dynamic.inverseMass != 0) {
@@ -659,6 +657,10 @@ void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
 
   dynamic.inverseMass = inverseMass;
 
+  if (inverseMass == 0.f) {
+    setStationary(id);
+  }
+
   if (m_ecs.componentStore().hasComponentForEntity<CCollisionRotational>(id)) {
     auto& rotational = m_ecs.componentStore().component<CCollisionRotational>(id);
     auto& box = m_ecs.componentStore().component<CCollisionBox>(id);
@@ -792,10 +794,10 @@ inline bool isInside(const BoundingBox& box, const Vec3f& P, float epsilon = 0.f
 inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& transform)
 {
   // C------D
-  // |\     |\
-  // | \    | \
-  // A--\---B  \
-  //  \  \   \  \
+  // |\     |\ 
+  // | \    | \ 
+  // A--\---B  \ 
+  //  \  \   \  \ 
   //   \  G------H
   //    \ |    \ |
   //     \|     \|
@@ -1707,7 +1709,7 @@ void resolveInterpenetration(const Contact& contact)
   }
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
-  const float margin = 0.f;
+  const float margin = 0.001f;
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration + margin);
@@ -1730,29 +1732,37 @@ void reapplyLateralImpulse(Vec3f& impulse, float friction)
   if (planarImpulse > friction * impulse[1]) {
     impulse[0] /= planarImpulse;
     impulse[2] /= planarImpulse;
-    impulse[0] *= friction * impulse[1];
+    impulse[0] *= friction * impulse[1];  // TODO: Rationalise this
     impulse[2] *= friction * impulse[1];
   }
 }
 
-void resolveVelocities(const Contact& contact)
+void SysCollisionImpl::resolveVelocities(const Contact& contact)
 {
   auto& A = contact.A;
   auto& B = contact.B;
 
-  bool bothDynamic = A.dynamic && B.dynamic;
+  bool aIsDynamic = A.dynamic && A.dynamic->inverseMass > 0.f;
+  bool bIsDynamic = B.dynamic && B.dynamic->inverseMass > 0.f;
 
-  // Interferes with the reapplication of lateral impulse below (for some reason)
-  if (!bothDynamic) {
-    auto& dynaObj = contact.A.dynamic == nullptr ? contact.B : contact.A;
-
-    if (!dynaObj.dynamic->hasCollided) {
-      dynaObj.dynamic->linearVelocity -= { 0.f, G, 0.f };
-      dynaObj.dynamic->hasCollided = true;
-    }
+  // Remove effect of gravity from last tick
+  if (aIsDynamic) {
+    A.dynamic->linearVelocity -= { 0.f, G, 0.f };
+  }
+  if (bIsDynamic) {
+    B.dynamic->linearVelocity -= { 0.f, G, 0.f };
   }
 
-  if (bothDynamic && (A.dynamic->framesIdle == 0 || B.dynamic->framesIdle == 0)) {
+  auto reapplyGravity = [aIsDynamic, bIsDynamic, &A, &B]() {
+    if (aIsDynamic) {
+      A.dynamic->linearVelocity += { 0.f, G, 0.f };
+    }
+    if (bIsDynamic) {
+      B.dynamic->linearVelocity += { 0.f, G, 0.f };
+    }
+  };
+
+  if (aIsDynamic && bIsDynamic && (A.dynamic->framesIdle == 0 || B.dynamic->framesIdle == 0)) {
     A.dynamic->framesIdle = 0;
     A.dynamic->idle = false;
     B.dynamic->framesIdle = 0;
@@ -1785,6 +1795,10 @@ void resolveVelocities(const Contact& contact)
   }
 
   auto contactSpaceClosingV = bContactSpaceV - aContactSpaceV;
+  if (contactSpaceClosingV.dot(contact.normal) < 0.f) {
+    reapplyGravity();
+    return;
+  }
 
   float r = A.collision->restitution + B.collision->restitution;
   Vec3f desiredContactSpaceClosingV = { 0.f, contactSpaceClosingV[1] * -r, 0.f };
@@ -1822,10 +1836,8 @@ void resolveVelocities(const Contact& contact)
 
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
-  if (bothDynamic) {
-    float friction = 0.5f * (A.collision->friction + B.collision->friction);
-    reapplyLateralImpulse(impulse, friction);
-  }
+  float friction = 0.5f * (A.collision->friction + B.collision->friction);
+  reapplyLateralImpulse(impulse, friction);
 
   if (A.dynamic) {
     A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
@@ -1842,6 +1854,8 @@ void resolveVelocities(const Contact& contact)
     }
     ++B.dynamic->resolverNumAdjustments;
   }
+
+  reapplyGravity();
 }
 
 void SysCollisionImpl::integrate()
@@ -1876,27 +1890,30 @@ void SysCollisionImpl::integrate()
         }
 
         // Tweak these idle thresholds
-        const float idleMaxLinearV = 0.02f;
-        const float idleMaxAngularV = 0.0005f;
+        const float idleMaxLinearV = 0.11f;
+        const float idleMaxAngularV = 0.0007f;
         const size_t idleSeconds = 3;
 
-        if (!rotationalComps.empty() && dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
-          rotationalComps[i].angularVelocity.squareMagnitude() < idleMaxAngularV) {
+        if (!rotationalComps.empty()) {
+          if (dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
+            rotationalComps[i].angularVelocity.squareMagnitude() < idleMaxAngularV) {
 
-          if (++dynamic.framesIdle > TICKS_PER_SECOND * idleSeconds) {
-            DBG_LOG(m_logger, "Setting idle");
-            dynamic.idle = true;
-            dynamic.framesIdle = 0;
-            dynamic.linearVelocity = {};
-            dynamic.linearAcceleration = {};
-            rotationalComps[i].angularVelocity = {};
-            rotationalComps[i].angularAcceleration = {};
-            continue;
+            if (++dynamic.framesIdle > TICKS_PER_SECOND * idleSeconds) {
+              DBG_LOG(m_logger, "Setting idle");
+              dynamic.idle = true;
+              dynamic.framesIdle = 0;
+              dynamic.linearVelocity = {};
+              dynamic.linearAcceleration = {};
+              rotationalComps[i].angularVelocity = {};
+              rotationalComps[i].angularAcceleration = {};
+              continue;
+            }
           }
-        }
-        else {
-          //DBG_LOG(m_logger, STR("dv " << dynamic.linearVelocity.squareMagnitude()));
-          //DBG_LOG(m_logger, STR("da " << dynamic.angularVelocity.squareMagnitude()));
+          else {
+            //DBG_LOG(m_logger, STR("id " << entityIds[i]));
+            //DBG_LOG(m_logger, STR("dv " << dynamic.linearVelocity.squareMagnitude()));
+            //DBG_LOG(m_logger, STR("da " << rotationalComps[i].angularVelocity.squareMagnitude()));
+          }
         }
 
         Vec3f totalForce;
@@ -1937,8 +1954,6 @@ void SysCollisionImpl::integrate()
           rotationalComps[i].angularAcceleration =
             rotationalComps[i].inverseInertialTensor * totalTorque;
         }
-
-        dynamic.hasCollided = false;
       }
     }
   }

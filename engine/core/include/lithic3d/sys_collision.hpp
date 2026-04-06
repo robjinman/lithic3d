@@ -127,7 +127,6 @@ struct CCollisionDynamic
   uint16_t framesIdle = 0;
   // TODO: Use bitfield
   bool idle = false;
-  bool hasCollided = false;
 
   static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
 };

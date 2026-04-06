@@ -174,7 +174,7 @@ EntityId TerrainBuilderImpl::createLandEntity(ResourceId regionId)
 
   DTerrainChunk collision{
     .restitution = 0.f,   // TODO
-    .friction = 0.4f,     // TODO
+    .friction = 0.8f,     // TODO
     .heightMap = region.heightMap
   };
 

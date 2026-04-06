@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <functional>
+#include <mutex>
 
 namespace lithic3d
 {
@@ -42,6 +43,7 @@ class Scheduler
   private:
     Tick m_currentTick = 0;
     std::map<Tick, std::vector<std::function<void()>>> m_tasks;
+    mutable std::mutex m_mutex;
 };
 
 } // namespace lithic3d
