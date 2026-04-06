@@ -12,6 +12,9 @@ FileSystemPtr createDefaultFileSystem(PlatformPathsPtr platformPaths);
 using namespace lithic3d;
 
 WindowDelegatePtr createWindowDelegate(WXWidget window);
+#ifdef PLATFORM_OSX
+void osxResizeMetalLayer(WXWidget window, int width, int height);
+#endif
 
 namespace
 {
@@ -27,7 +30,6 @@ class CanvasImpl : public Canvas
     ~CanvasImpl() override;
 
   private:
-    void initialise();
     wxPoint getCursorPos() const;
 
     void onResize(wxSizeEvent& e);
@@ -35,15 +37,17 @@ class CanvasImpl : public Canvas
     void onLeftMouseBtnDown(wxMouseEvent& e);
     void onLeftMouseBtnUp(wxMouseEvent& e);
     void onMouseMove(wxMouseEvent& e);
-    void onPaint(wxPaintEvent& e);
     void onTick(wxTimerEvent& e);
+    void onPaint(wxPaintEvent& e);
 
     // TODO: Remove
     FactoryPtr m_factory;
     EntityId m_cube = NULL_ENTITY_ID;
+
     EntityId constructCube();
     EntityId constructLight();
     void rotateCube();
+    void initialise();
 
     EnginePtr m_engine;
     bool m_disabled = false;
@@ -55,9 +59,6 @@ class CanvasImpl : public Canvas
 CanvasImpl::CanvasImpl(wxWindow* parent)
   : Canvas(parent)
 {
-  m_timer = new wxTimer(this);
-  m_timer->Start(1000.0 / TICKS_PER_SECOND);
-
   Bind(wxEVT_PAINT, &CanvasImpl::onPaint, this);
   Bind(wxEVT_SIZE, &CanvasImpl::onResize, this);
   Bind(wxEVT_KEY_DOWN, &CanvasImpl::onKeyPress, this);
@@ -65,40 +66,48 @@ CanvasImpl::CanvasImpl(wxWindow* parent)
   Bind(wxEVT_LEFT_UP, &CanvasImpl::onLeftMouseBtnUp, this);
   Bind(wxEVT_MOTION, &CanvasImpl::onMouseMove, this);
   Bind(wxEVT_TIMER, &CanvasImpl::onTick, this);
+
+  m_timer = new wxTimer(this);
+  m_timer->Start(1000.0 / TICKS_PER_SECOND);
+}
+
+void CanvasImpl::onPaint(wxPaintEvent& e)
+{
+  if (!m_engine) {
+    initialise();
+  }
 }
 
 void CanvasImpl::initialise()
 {
-  if (m_engine == nullptr) {
-    auto platformPaths = createPlatformPaths("lithic3d_world_editor", "freeholdapps");
-    auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
-    auto windowDelegate = createWindowDelegate(GetHandle());
-    auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-    auto audioSystem = createAudioSystem(*fileSystem, *logger);
-    auto resourceManager = createResourceManager(*logger);
-    auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem,
-      *logger, {});
+  auto platformPaths = createPlatformPaths("lithic3d_world_editor", "freeholdapps");
+  auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
+  auto windowDelegate = createWindowDelegate(GetHandle());
+  auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  auto audioSystem = createAudioSystem(*fileSystem, *logger);
+  auto resourceManager = createResourceManager(*logger);
+  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem,
+    *logger, {});
 
-    logger->info("Compiling shaders...");
+  logger->info("Compiling shaders...");
 
-    auto manifest = fileSystem->readAppDataFile("shaders.xml");
-    auto specs = parseShaderManifest(manifest, *logger);
-    for (auto& spec : specs) {
-      renderer->compileShader(spec);
-    }
-
-    logger->info("Finished compiling shaders");
-
-    m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
-      std::move(fileSystem), std::move(logger));
-
-    // TODO
-    m_factory = createFactory(m_engine->ecs(), m_engine->modelLoader(),
-      m_engine->renderResourceLoader());
-
-    constructLight();
-    m_cube = constructCube();
+  auto manifest = fileSystem->readAppDataFile("shaders.xml");
+  auto specs = parseShaderManifest(manifest, *logger);
+  for (auto& spec : specs) {
+    renderer->compileShader(spec);
   }
+
+  logger->info("Finished compiling shaders");
+
+  m_engine = createEngine(1000.f, std::move(resourceManager), std::move(renderer),
+    std::move(audioSystem), std::move(fileSystem), std::move(logger));
+
+  // TODO
+  m_factory = createFactory(m_engine->ecs(), m_engine->modelLoader(),
+    m_engine->renderResourceLoader());
+
+  constructLight();
+  m_cube = constructCube();
 }
 
 EntityId CanvasImpl::constructCube()
@@ -113,7 +122,7 @@ EntityId CanvasImpl::constructLight()
   m_engine->ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
 
   DSpatial spatial{
-    .transform = translationMatrix4x4(Vec3f{ 5.f, 5.f, -2.f }),
+    .transform = {},
     .parent = m_engine->ecs().system<SysSpatial>().root(),
     .enabled = true
   };
@@ -136,12 +145,15 @@ void CanvasImpl::rotateCube()
   float b = (2 * PIf / 720.f) * (m_engine->currentTick() % 720);
 
   m_engine->ecs().system<SysSpatial>().setLocalTransform(m_cube,
-    createTransform(Vec3f{ 0.f, 0.f, 5.f }, { b, a, 0.f }));
+    createTransform(Vec3f{ 0.f, 0.f, -5.f }, { b, a, 0.f }));
 }
 
-void CanvasImpl::onTick(wxTimerEvent&)
+void CanvasImpl::onTick(wxTimerEvent& e)
 {
-  Refresh(false);
+  if (m_engine) {
+    rotateCube();
+    m_engine->update({});
+  }
 }
 
 void CanvasImpl::onResize(wxSizeEvent& e)
@@ -153,6 +165,10 @@ void CanvasImpl::onResize(wxSizeEvent& e)
   if (m_engine != nullptr) {
     m_engine->onWindowResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
   }
+
+#ifdef PLATFORM_OSX
+  osxResizeMetalLayer(GetHandle(), e.GetSize().GetWidth(), e.GetSize().GetHeight());
+#endif
 }
 
 wxPoint CanvasImpl::getCursorPos() const
@@ -215,23 +231,6 @@ void CanvasImpl::onKeyPress(wxKeyEvent& e)
   auto key = e.GetKeyCode();
 
   // TODO
-}
-
-void CanvasImpl::onPaint(wxPaintEvent&)
-{
-  wxPaintDC dc(this);
-
-  if (m_engine == nullptr) {
-    initialise();
-    return;
-  }
-
-  if (m_engine != nullptr) {
-    rotateCube();
-    m_engine->update({});
-  }
-
-  Refresh(false);
 }
 
 void CanvasImpl::disable()

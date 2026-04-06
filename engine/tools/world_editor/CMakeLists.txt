@@ -78,7 +78,7 @@ if(TARGET shader_compiler)
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SHADER_OUT_DIR}"
     COMMAND "$<TARGET_FILE:shader_compiler>" "${SHADER_DIR}" "${SHADER_MANIFEST_PATH}" "${SHADER_OUT_DIR}"
     COMMAND ${CMAKE_COMMAND} -E touch "${SHADER_STAMP}"
-    DEPENDS ${SHADER_SRCS}
+    DEPENDS ${SHADER_SRCS} ${SHADER_MANIFEST_PATH}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Running shader_compiler to produce SPV files..."
   )

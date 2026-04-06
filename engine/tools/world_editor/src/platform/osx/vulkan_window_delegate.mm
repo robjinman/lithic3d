@@ -55,8 +55,12 @@ VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkInstance instance)
 {
   VkSurfaceKHR surface{};
 
-  VkMetalSurfaceCreateInfoEXT info{VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
-  info.pLayer = m_metalLayer;
+  VkMetalSurfaceCreateInfoEXT info{
+    .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+    .pNext = nullptr,
+    .flags = 0,
+    .pLayer = m_metalLayer
+  };
 
   if (vkCreateMetalSurfaceEXT(instance, &info, nullptr, &surface) != VK_SUCCESS) {
     EXCEPTION("Failed to create surface");
@@ -77,4 +81,12 @@ void VulkanWindowDelegateImpl::getFrameBufferSize(int& width, int& height) const
 lithic3d::WindowDelegatePtr createWindowDelegate(WXWidget window)
 {
   return std::make_unique<VulkanWindowDelegateImpl>(window);
+}
+
+void osxResizeMetalLayer(WXWidget window, int width, int height)
+{
+  NSView* view = (NSView*)window;
+  CAMetalLayer* metalLayer = (CAMetalLayer*)view.layer;
+  CGFloat scale = view.window.backingScaleFactor;
+  metalLayer.drawableSize = CGSizeMake(width * scale, height * scale);
 }
