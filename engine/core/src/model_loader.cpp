@@ -523,7 +523,7 @@ void ModelLoaderImpl::loadMeshes(const std::vector<std::vector<char>>& dataBuffe
 
     auto submodel = std::make_unique<Submodel>();
     submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
-    submodel->material = loadMaterialAsync(meshDesc.material);
+    submodel->material = loadMaterialAsync(meshDesc.material).wait();
 
     if (hasAnimations) {
       submodel->skin = constructSkin(dataBuffers, meshDesc.skin);

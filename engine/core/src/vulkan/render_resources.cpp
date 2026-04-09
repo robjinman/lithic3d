@@ -469,7 +469,8 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
 {
   std::scoped_lock lock{m_mutex};
 
-  auto& mesh = m_meshes.at(id);
+  MAP_GET(iMesh, m_meshes, id);
+  auto& mesh = iMesh->second;
 
   return {
     .vertexBuffer = mesh->vertexBuffer != nullptr ?
@@ -492,13 +493,14 @@ void RenderResourcesImpl::updateMeshInstances(ResourceId id,
 
   std::scoped_lock lock{m_mutex};
 
-  auto& mesh = m_meshes.at(id);
-  ASSERT(mesh->mesh->featureSet.flags.test(MeshFeatures::IsInstanced),
+  MAP_GET(iMesh, m_meshes, id);
+  auto& mesh = *iMesh->second;
+  ASSERT(mesh.mesh->featureSet.flags.test(MeshFeatures::IsInstanced),
     "Can't instance a non-instanced mesh");
-  ASSERT(instances.size() <= mesh->mesh->maxInstances, "Max instances exceeded for this mesh");
+  ASSERT(instances.size() <= mesh.mesh->maxInstances, "Max instances exceeded for this mesh");
 
-  mesh->numInstances = static_cast<uint32_t>(instances.size());
-  m_bufferManager.writeToBuffer(*mesh->instanceBuffer,
+  mesh.numInstances = static_cast<uint32_t>(instances.size());
+  m_bufferManager.writeToBuffer(*mesh.instanceBuffer,
     reinterpret_cast<const char*>(instances.data()), instances.size());
 }
 
@@ -508,7 +510,8 @@ void RenderResourcesImpl::updateJointTransforms(ResourceId id, const std::vector
   DBG_TRACE(m_logger);
   DBG_ASSERT(joints.size() <= MAX_JOINTS, "Max number of joints exceeded");
 
-  auto& mesh = *m_meshes.at(id);
+  MAP_GET(iMesh, m_meshes, id);
+  auto& mesh = *iMesh->second;
   m_bufferManager.writeToBuffer(*mesh.jointTransformsUbo[currentFrame],
     reinterpret_cast<const char*>(joints.data()), joints.size() * sizeof(Mat4x4f));
 }
@@ -628,7 +631,8 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
   //if (material->featureSet.flags.test(MaterialFeatures::HasTexture)) {
     std::vector<VkImageView> imageViews;
     for (auto& texture : material->textures) {
-      imageViews.push_back(m_textures.at(texture.id())->image->vkImageView(0));
+      MAP_GET(i, m_textures, texture.id());
+      imageViews.push_back(i->second->image->vkImageView(0));
     }
     addSamplerToDescriptorSet(materialData->descriptorSet, SAMPLER_ARRAY_LEN, imageViews,
       m_textureSampler, static_cast<uint32_t>(MaterialDescriptorSetBindings::TextureSampler));
@@ -636,18 +640,21 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
   if (material->featureSet.flags.test(MaterialFeatures::HasNormalMap)) {
     std::vector<VkImageView> imageViews;
     for (auto& normalMap : material->normalMaps) {
-      imageViews.push_back(m_textures.at(normalMap.id())->image->vkImageView(0));
+      MAP_GET(i, m_textures, normalMap.id());
+      imageViews.push_back(i->second->image->vkImageView(0));
     }
     addSamplerToDescriptorSet(materialData->descriptorSet, SAMPLER_ARRAY_LEN, imageViews,
       m_normalMapSampler, static_cast<uint32_t>(MaterialDescriptorSetBindings::NormapMapSampler));
   }
   if (material->featureSet.flags.test(MaterialFeatures::HasCubeMap)) {
-    VkImageView imageView = m_cubeMaps.at(material->cubeMap.id())->image->vkImageView(0);
+    MAP_GET(i, m_cubeMaps, material->cubeMap.id());
+    VkImageView imageView = i->second->image->vkImageView(0);
     addSamplerToDescriptorSet(materialData->descriptorSet, 1, { imageView }, m_cubeMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::CubeMapSampler));
   }
   if (material->splatMap) {
-    auto imageView = m_textures.at(material->splatMap.id())->image->vkImageView(0);
+    MAP_GET(i, m_textures, material->splatMap.id());
+    auto imageView = i->second->image->vkImageView(0);
     addSamplerToDescriptorSet(materialData->descriptorSet, 1, { imageView }, m_splatMapSampler,
       static_cast<uint32_t>(MaterialDescriptorSetBindings::SplatMapSampler));
   }
@@ -684,7 +691,12 @@ VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(ResourceId id) con
 {
   std::scoped_lock lock{m_mutex};
 
-  return id == NULL_RESOURCE_ID ? VK_NULL_HANDLE : m_materials.at(id)->descriptorSet;
+  if (id == NULL_RESOURCE_ID) {
+    return VK_NULL_HANDLE;
+  }
+
+  MAP_GET(i, m_materials, id);
+  return i->second->descriptorSet;
 }
 
 VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(ResourceId id,
@@ -693,7 +705,8 @@ VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(ResourceId id,
   std::scoped_lock lock{m_mutex};
 
   // TODO: Currently assume object is a mesh
-  auto& mesh = *m_meshes.at(id);
+  MAP_GET(i, m_meshes, id);
+  auto& mesh = *i->second;
   return mesh.objectDescriptorSets.size() > 0 ?
     mesh.objectDescriptorSets[currentFrame] :
     VK_NULL_HANDLE;

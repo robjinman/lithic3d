@@ -572,7 +572,8 @@ void RendererImpl::drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatu
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
   RenderGraph& renderGraph = state.graph;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
@@ -604,7 +605,8 @@ void RendererImpl::drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeature
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::unique_ptr<SpriteNode>(new SpriteNode{
@@ -632,7 +634,8 @@ void RendererImpl::drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures,
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<QuadNode>();
@@ -673,7 +676,8 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DefaultModelNode>();
@@ -707,7 +711,6 @@ void RendererImpl::drawPointLight(const Vec3f& colour, float ambient, float spec
   light.specular = specular;
   light.position = getTranslation(transform);
   light.direction = getDirection(transform);
-  //light.zFar = zFar;
 }
 
 void RendererImpl::drawDirectionalLight(const Vec3f& colour, float ambient, float specular,
@@ -723,7 +726,6 @@ void RendererImpl::drawDirectionalLight(const Vec3f& colour, float ambient, floa
   light.specular = specular;
   light.position = getTranslation(transform);
   light.direction = getDirection(transform);
-  //light.zFar = zFar;
 }
 
 void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures,
@@ -733,7 +735,8 @@ void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFe
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DynamicTextNode>();
@@ -759,7 +762,8 @@ void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeature
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  RenderPassState& state = frameState.renderPasses.at(frameState.currentRenderPass.value());
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<SkyboxNode>();
@@ -928,7 +932,8 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(renderPass);
+  MAP_GET(iState, frameState.renderPasses, renderPass);
+  auto& renderPassState = iState->second;
 
   CameraTransformsUbo cameraTransformsUbo{
     .viewMatrix = renderPassState.viewMatrix,
@@ -948,9 +953,12 @@ void RendererImpl::updateLightTransformsUbo()
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
-  auto& shadowPass0State = frameState.renderPasses.at(RenderPass::Shadow0);
-  auto& shadowPass1State = frameState.renderPasses.at(RenderPass::Shadow1);
-  auto& shadowPass2State = frameState.renderPasses.at(RenderPass::Shadow2);
+  MAP_GET(iShPass0, frameState.renderPasses, RenderPass::Shadow0);
+  auto& shadowPass0State = iShPass0->second;
+  MAP_GET(iShPass1, frameState.renderPasses, RenderPass::Shadow1);
+  auto& shadowPass1State = iShPass1->second;
+  MAP_GET(iShPass2, frameState.renderPasses, RenderPass::Shadow2);
+  auto& shadowPass2State = iShPass2->second;
 
   LightTransformsUbo lightTransformsUbo{
     .viewMatrix = {
@@ -972,7 +980,8 @@ void RendererImpl::updateLightingUbo()
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
+  MAP_GET(iState, frameState.renderPasses, RenderPass::Main);
+  auto& renderPassState = iState->second;
 
   LightingUbo lightingUbo{
     .viewPos = renderPassState.viewPos,
@@ -1530,8 +1539,7 @@ Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& 
   auto i = m_pipelines.find(key);
   if (i == m_pipelines.end()) {
     EXCEPTION("No shader has been compiled for this combination of pass/mesh/material features: "
-      << "[ RenderPass: " << static_cast<int>(renderPass)
-      << ", Mesh: (" << node.meshFeatures.vertexLayout << ") "
+      << "[ RenderPass: " << renderPass << ", Mesh: (" << node.meshFeatures.vertexLayout << ") "
       << node.meshFeatures.flags.to_string() << ", Material: "
       << node.materialFeatures.flags.to_string() << " ]");
   }
@@ -1651,7 +1659,8 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
   auto& frameState = m_frameStates.getReadable();
-  auto& renderPassState = frameState.renderPasses.at(shadowPass(cascade));
+  MAP_GET(iState, frameState.renderPasses, shadowPass(cascade));
+  auto& renderPassState = iState->second;
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(shadowPass(cascade), renderGraph, frameState.scissors, commandBuffer,
@@ -1760,7 +1769,8 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Main);
+  MAP_GET(iState, frameState.renderPasses, RenderPass::Main);
+  auto& renderPassState = iState->second;
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(RenderPass::Main, renderGraph, frameState.scissors, commandBuffer, 0);
@@ -1850,7 +1860,8 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
 
   vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
 
-  auto& renderPassState = frameState.renderPasses.at(RenderPass::Overlay);
+  MAP_GET(iState, frameState.renderPasses, RenderPass::Overlay);
+  auto& renderPassState = iState->second;
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.scissors, commandBuffer, 0);
@@ -2050,7 +2061,8 @@ void RendererImpl::pickPhysicalDevice()
     DBG_LOG(m_logger, STR("  maxComputeWorkGroupInvocations: "
       << props.limits.maxComputeWorkGroupInvocations));
 
-    size_t priority = deviceTypePriority.at(props.deviceType);
+    MAP_GET(iPriority, deviceTypePriority, props.deviceType);
+    size_t priority = iPriority->second;
     sortedDevices.insert(std::make_pair(priority, i));
   }
 

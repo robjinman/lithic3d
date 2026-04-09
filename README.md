@@ -191,7 +191,8 @@ To publish to the App Store
 
 Then use the Transporter app to perform the upload.
 
-### Example projects
+Example projects
+----------------
 
 A number of example projects are provided that demonstrate how to use the various features of Lithic3D. The easiest way to start a new project is to copy and modify one of them.
 

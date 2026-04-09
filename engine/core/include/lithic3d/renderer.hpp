@@ -140,6 +140,19 @@ using RendererPtr = std::unique_ptr<Renderer>;
 
 } // namespace render
 
+inline std::ostream& operator<<(std::ostream& stream, render::RenderPass renderPass)
+{
+  switch (renderPass) {
+    case render::RenderPass::Shadow0: stream << "Shadow0";  break;
+    case render::RenderPass::Shadow1: stream << "Shadow1";  break;
+    case render::RenderPass::Shadow2: stream << "Shadow2";  break;
+    case render::RenderPass::Main:    stream << "Main";     break;
+    case render::RenderPass::Ssr:     stream << "Ssr";      break;
+    case render::RenderPass::Overlay: stream << "Overlay";  break;
+  }
+  return stream;
+}
+
 class FileSystem;
 class Logger;
 class ResourceManager;

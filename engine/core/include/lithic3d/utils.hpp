@@ -4,6 +4,11 @@
 #include <array>
 #include <concepts>
 #include <filesystem>
+#include <map>
+
+#define MAP_GET(iter, map, key) \
+auto iter = map.find(key); \
+ASSERT(iter != map.end(), "Map doesn't contain key '" << key << "'");
 
 namespace lithic3d
 {
