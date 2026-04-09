@@ -12,16 +12,16 @@ namespace lithic3d
 std::string getVersionString()
 {
   static std::string s = []() {
-    return STR(Lithic3D_VERSION_MAJOR << "." << Lithic3D_VERSION_MINOR << "-" << PLATFORM_NAME);
+    return STR(Lithic3D_VERSION_MAJOR << "." << Lithic3D_VERSION_MINOR);
   }();
 
   return s;
 }
 
-//std::string getBuildId()
-//{
-//  return BUILD_ID;
-//}
+std::string getBuildId()
+{
+  return Lithic3D_BUILD_ID;
+}
 
 uint32_t getVersionMajor()
 {

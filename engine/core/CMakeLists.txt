@@ -43,6 +43,23 @@ endif()
 # Must come AFTER setting VCPKG_... variables
 project("Lithic3DCore")
 
+find_package(Git REQUIRED)
+
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} rev-parse --short=8 HEAD
+  OUTPUT_VARIABLE BUILD_ID
+  RESULT_VARIABLE result
+  ERROR_QUIET
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(result EQUAL 0)
+  message(STATUS "Last Git commit: ${BUILD_ID}")
+else()
+  message(FATAL_ERROR "Error obtaining Git SHA of last commit")
+endif()
+
+set(BUILD_ID "${BUILD_ID}" PARENT_SCOPE)
+
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 1)
 set(VERSION_MAJOR "${VERSION_MAJOR}" PARENT_SCOPE)
@@ -50,8 +67,6 @@ set(VERSION_MINOR "${VERSION_MINOR}" PARENT_SCOPE)
 
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}")
 set(VERSION_STRING "${VERSION_STRING}" PARENT_SCOPE)
-
-#string(TIMESTAMP BUILD_ID)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug")
