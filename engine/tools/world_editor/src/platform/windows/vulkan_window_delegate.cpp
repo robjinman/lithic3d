@@ -1,6 +1,8 @@
+#include <wx/wx.h>
+#define VK_USE_PLATFORM_WIN32_KHR 1
+#define VK_KHR_win32_surface 1
 #include <lithic3d/lithic3d.hpp>
 #include <lithic3d/vulkan/vulkan_window_delegate.hpp>
-#include <wx/wx.h>
 
 namespace
 {
@@ -13,18 +15,21 @@ class VulkanWindowDelegateImpl : public lithic3d::VulkanWindowDelegate
     const std::vector<const char*>& getRequiredExtensions() const override;
     VkSurfaceKHR createSurface(VkInstance instance) override;
     void getFrameBufferSize(int& width, int& height) const override;
+
+  private:
+    HWND m_hwnd;
 };
 
 VulkanWindowDelegateImpl::VulkanWindowDelegateImpl(WXWidget window)
 {
-  // TODO
+  m_hwnd = window;
 }
 
 const std::vector<const char*>& VulkanWindowDelegateImpl::getRequiredExtensions() const
 {
   static std::vector<const char*> extensions{
     VK_KHR_SURFACE_EXTENSION_NAME,
-    // TODO
+    "VK_KHR_win32_surface"
   };
 
   return extensions;
@@ -32,16 +37,26 @@ const std::vector<const char*>& VulkanWindowDelegateImpl::getRequiredExtensions(
 
 VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkInstance instance)
 {
-  VkSurfaceKHR surface;
+  VkWin32SurfaceCreateInfoKHR createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+  createInfo.hwnd = m_hwnd;
+  createInfo.hinstance = GetModuleHandle(NULL);
 
-  // TODO
+  VkSurfaceKHR surface;
+  if (vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &surface) != VK_SUCCESS) {
+    EXCEPTION("Error creating Vulkan surface");
+  }
 
   return surface;
 }
 
 void VulkanWindowDelegateImpl::getFrameBufferSize(int& width, int& height) const
 {
-  // TODO
+  RECT rect;
+  ASSERT(GetWindowRect(m_hwnd, &rect), "Error getting window size");
+
+  width = rect.right - rect.left;
+  height = rect.bottom - rect.top;
 }
 
 }
