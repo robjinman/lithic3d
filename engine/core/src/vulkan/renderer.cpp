@@ -175,14 +175,11 @@ class RendererImpl : public Renderer
     bool isStarted() const override;
     void onResize() override;
     double frameRate() const override;
-    // TODO: Is this just the perspective projection? What about orthographic?
-    //const ViewParams& getViewParams() const override;
     Vec2i getScreenSize() const override;
     Vec2i getViewportSize() const override;
     float getViewportRotation() const override;
     const ScreenMargins& getMargins() const override;
     void checkError() const override;
-    //Mat4x4f projectionMatrix() const override;
 
     // Initialisation
     //

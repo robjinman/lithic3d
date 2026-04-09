@@ -842,16 +842,16 @@ void RenderResourcesImpl::createDescriptorPool()
   std::array<VkDescriptorPoolSize, 2> poolSizes{};
 
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = 200; // TODO
+  poolSizes[0].descriptorCount = 1000; // TODO
 
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = 200; // TODO
+  poolSizes[1].descriptorCount = 1000; // TODO
 
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .pNext = nullptr,
     .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-    .maxSets = 400, // TODO
+    .maxSets = 2000, // TODO
     .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
     .pPoolSizes = poolSizes.data()
   };
