@@ -33,17 +33,19 @@ if(PLATFORM_ANDROID)
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/icons/android "${PROJECT_SOURCE_DIR}/src/android/src/main/res"
   )
 
+  set(GRADLE_COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew"
+    "--info" "bundle${CMAKE_BUILD_TYPE}"
+    "-PgameShortName=${GAME_SHORT_NAME}"
+    "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}"
+    "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
+    "-PgameVersionMajor=${GAME_VERSION_MAJOR}"
+    "-PgameVersionMinor=${GAME_VERSION_MINOR}")
+
   add_custom_target(android_bundle ALL
-    COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew"
-      "--info" "bundle${CMAKE_BUILD_TYPE}"
-      "-PgameShortName=${GAME_SHORT_NAME}"
-      "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}"
-      "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
-      "-PgameVersionMajor=${GAME_VERSION_MAJOR}"
-      "-PgameVersionMinor=${GAME_VERSION_MINOR}"
+    COMMAND ${GRADLE_COMMAND}
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/platform/android"
     USES_TERMINAL
-    COMMENT "Running Gradle build..."
+    COMMENT "Running Gradle build with command ${GRADLE_COMMAND}"
   )
 else()
   add_subdirectory("core")

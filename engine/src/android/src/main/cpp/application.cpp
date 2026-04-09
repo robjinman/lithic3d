@@ -143,8 +143,8 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
 
   logger->info("Finished compiling shaders");
   
-  m_engine = createEngine(std::move(resourceManager), std::move(renderer), std::move(audioSystem),
-    std::move(fileSystem), std::move(logger));
+  m_engine = createEngine(1000.f, std::move(resourceManager), std::move(renderer),
+    std::move(audioSystem), std::move(fileSystem), std::move(logger));
 
   m_game = createGame(*m_engine);
 }
@@ -153,7 +153,7 @@ bool Application::update()
 {
   auto screenSize = m_engine->renderer().getScreenSize();
   if (screenSize != m_screenSize) {
-    m_engine->onWindowResize();
+    m_engine->onWindowResize(screenSize[0], screenSize[1]);
     m_game->onWindowResize(screenSize[0], screenSize[1]);
     m_screenSize = screenSize;
   }
@@ -170,7 +170,8 @@ void Application::hideMobileControls()
 
 void Application::onConfigChange()
 {
-  m_engine->onWindowResize();
+  auto screenSize = m_engine->renderer().getScreenSize();
+  m_engine->onWindowResize(screenSize[0], screenSize[1]);
 }
 
 void Application::onLeftStickMove(float x, float y)

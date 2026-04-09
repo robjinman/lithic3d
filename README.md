@@ -128,6 +128,8 @@ Install the APKs
     java -jar ~/Downloads/bundletool-all-1.18.1.jar install-apks --apks=output.apks
 ```
 
+To debug the app, see [a relative link](docs/android_debugging.md).
+
 Before uploading to the Play Store, sign the bundle
 
 ```
