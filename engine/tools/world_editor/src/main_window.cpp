@@ -9,7 +9,7 @@ namespace
 class MainWindow : public wxFrame
 {
   public:
-    MainWindow(const wxString& title, const wxSize& size);
+    MainWindow(const wxString& title);
 
   private:
     void constructMenu();
@@ -27,8 +27,8 @@ class MainWindow : public wxFrame
     Canvas* m_canvas = nullptr;
 };
 
-MainWindow::MainWindow(const wxString& title, const wxSize& size)
-  : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, size)
+MainWindow::MainWindow(const wxString& title)
+  : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition)
 {
   Bind(wxEVT_MENU, &MainWindow::onExit, this, wxID_EXIT);
   Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
@@ -49,10 +49,12 @@ MainWindow::MainWindow(const wxString& title, const wxSize& size)
   constructLeftPanel();
   constructRightPanel();
 
-  m_splitter->SplitVertically(m_leftPanel, m_rightPanel, 500); // TODO
+  m_splitter->SplitVertically(m_leftPanel, m_rightPanel, 10000);
 
   CreateStatusBar();
   SetStatusText(wxEmptyString);
+
+  Maximize();
 }
 
 void MainWindow::onClose(wxCloseEvent& e)
@@ -101,14 +103,14 @@ void MainWindow::onAbout(wxCommandEvent&)
 {
   std::stringstream ss;
   ss << "Lithic3D World Editor." << std::endl << std::endl;
-  ss << "Copyright Freehold Apps Ltd 2025. All rights reserved.";
+  ss << "Copyright Freehold Apps Ltd 2025 - 2026. All rights reserved.";
 
   wxMessageBox(wxGetTranslation(ss.str()), "Lithic3D World Editor", wxOK | wxICON_INFORMATION);
 }
 
 } // namespace
 
-wxFrame* createMainWindow(const wxString& title, const wxSize& size)
+wxFrame* createMainWindow(const wxString& title)
 {
-  return new MainWindow(title, size);
+  return new MainWindow(title);
 }

@@ -3,13 +3,10 @@
 #include <X11/Xlib.h>
 #endif
 
-wxFrame* createMainWindow(const wxString& title, const wxSize& size);
+wxFrame* createMainWindow(const wxString& title);
 
 namespace
 {
-
-const int WINDOW_W = 800;
-const int WINDOW_H = 600;
 
 void doWithLogging(std::function<void()> fn)
 {
@@ -35,7 +32,7 @@ class Application : public wxApp
 
 bool Application::OnInit()
 {
-  wxFrame* frame = createMainWindow("Lithic3D World Editor", wxSize(WINDOW_W, WINDOW_H));
+  wxFrame* frame = createMainWindow("Lithic3D World Editor");
   frame->Show();
 
   return true;
