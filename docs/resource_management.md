@@ -39,7 +39,7 @@ The class should call waitAll() on the ResourceManager in its destructor.
             m_models.insert(id, std::make_unique<Model>(hSubresource, hMaterial, hMesh));
 
             return ManagedResource{
-              .unload = [this](ResourceId id) { deleteModel(id); }
+              .unloader = [this](ResourceId id) { deleteModel(id); }
             };
           });
         }

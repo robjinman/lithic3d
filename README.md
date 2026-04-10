@@ -3,28 +3,18 @@ Lithic3D
 
 C++/Vulkan game engine supporting Windows, Linux, Mac, iPhone, and Android.
 
+
+The current state of Lithic3D
+-----------------------------
+
+Lithic3D is still in early development and its API is in constant flux. I wouldn't yet recommend using it in any serious capacity. Its existence is mainly to serve the needs of the (Morrowind inspired) game I am currently working on. If and when I think Lithic3D is ready for others to use I'll bump the version number to 1.0.
+
+
 License
 -------
 
-Lithic3D uses a duel license model.
+Currently, Lithic3D is licensed under version 3 of the GNU General Public License. If you'd like to use Lithic3D with a less restrictive license, get in touch and we can negotiate something.
 
-Future releases of Lithic3D may have different licensing terms, so each time you upgrade to a newer version of Lithic3D please make sure you are compliant with the latest terms.
-
-### Freehold Software License (FSL)
-
-Lithic3D is free to use under the terms of the Freehold Software License (FSL). This is essentially LGPL, plus
-
-* Your application must not contain micro-transactions
-* Your application must not contain ads
-* Your application must not require that users pay a subscription; it must be either free or pay-once
-* Your application must not be reliant on remote servers - unless the server-side software is available for users to self-host
-* Your application must not contain "active" DRM that could threaten the user's long term ownership - except DRM added by a third-party app store (Google Play, Apple App Store, etc.)
-
-### Lesser Freehold Software License (LFSL)
-
-You can pay to use a less restrictive license.
-
-TODO
 
 Building from source
 --------------------
@@ -128,7 +118,7 @@ Install the APKs
     java -jar ~/Downloads/bundletool-all-1.18.1.jar install-apks --apks=output.apks
 ```
 
-To debug the app, see [a relative link](docs/android_debugging.md).
+To debug the app, see [Android Debugging](docs/android_debugging.md).
 
 Before uploading to the Play Store, sign the bundle
 
@@ -191,6 +181,7 @@ To publish to the App Store
 
 Then use the Transporter app to perform the upload.
 
+
 Example projects
 ----------------
 
@@ -201,3 +192,9 @@ To build one of the example projects such as 1_cube on linux
 ```
     LITHIC3D_PROJECT=./examples/1_cube cmake --workflow --preset=linux-debug
 ```
+
+
+Games using Lithic3D
+--------------------
+
+* [Minefield](https://freeholdapps.com/minefield)
