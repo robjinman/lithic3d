@@ -47,7 +47,7 @@ Demo::Demo(Engine& engine)
   auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 0.f });
   m_engine.ecs().system<SysRender3d>().camera().setPosition(camPos);
 
-  auto model = m_engine.modelLoader().loadModelAsync("models/indicator.gltf").wait();
+  auto model = m_engine.modelLoader().loadModelAsync("indicator.gltf").wait();
 
   constructLight();
   m_parent = constructParent(model);
@@ -147,7 +147,7 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterialAsync("textures/fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("fonts.png").wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -200,7 +200,9 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = false,
-    .shaderManifest = "shaders.xml"
+    .paths{},
+    .features{},
+    .drawDistance = 1000.f
   };
 }
 

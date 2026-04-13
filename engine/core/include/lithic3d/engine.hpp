@@ -20,6 +20,7 @@ class ResourceManager;
 class RenderResourceLoader;
 class WorldGrid;
 struct GameConfig;
+struct GameDataPaths;
 
 class Engine
 {
@@ -30,6 +31,7 @@ class Engine
     virtual Tick currentTick() const = 0;
     virtual float measuredTickRate() const = 0;
 
+    virtual const GameDataPaths& dataPaths() const = 0;
     virtual Logger& logger() = 0;
     virtual FileSystem& fileSystem() = 0;
     virtual EventSystem& eventSystem() = 0;

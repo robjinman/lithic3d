@@ -58,7 +58,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = translationMatrix4x4(pos),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -87,7 +88,7 @@ EntityId Demo::constructModel()
   sysSpatial.addEntity(id, spatial);
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("monkey.gltf").wait();
 
   sysRender3d.addEntity(id, std::move(render));
 
@@ -105,14 +106,15 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
     .parent = sysSpatial.root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   sysSpatial.addEntity(id, spatial);
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterialAsync("textures/fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("fonts.png").wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -159,7 +161,9 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = false,
-    .shaderManifest = "shaders.xml"
+    .paths{},
+    .features{},
+    .drawDistance = 1000.f
   };
 }
 

@@ -64,6 +64,9 @@ Demo::Demo(Engine& engine)
   m_player = createPlayer(m_engine.ecs().system<SysRender3d>().camera());
   m_model = loadModel();
 
+  m_player->setPosition(metresToWorldUnits(Vec3f{ 15.f, 0.f, 15.f }));
+  m_player->rotate(0.f, PIf);
+
   constructSkybox();
   constructLight();
   constructGround();
@@ -90,12 +93,12 @@ void Demo::constructSkybox()
   auto material = std::make_unique<Material>();
   material->featureSet.flags.set(MaterialFeatures::HasCubeMap, true);
   material->cubeMap = m_engine.renderResourceLoader().loadCubeMapAsync({
-    "textures/skybox/right.png",
-    "textures/skybox/left.png",
-    "textures/skybox/top.png",
-    "textures/skybox/bottom.png",
-    "textures/skybox/front.png",
-    "textures/skybox/back.png"
+    "skybox/right.png",
+    "skybox/left.png",
+    "skybox/top.png",
+    "skybox/bottom.png",
+    "skybox/front.png",
+    "skybox/back.png"
   });
 
   auto render = std::make_unique<DSkybox>();
@@ -147,7 +150,7 @@ EntityId Demo::constructLight()
 DModelPtr Demo::loadModel()
 {
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("models/monkey.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("monkey.gltf").wait();
 
   return render;
 }
@@ -194,7 +197,7 @@ void Demo::constructModels()
 
 EntityId Demo::constructGround()
 {
-  auto material = m_factory->createMaterialAsync("textures/ground.png").wait();
+  auto material = m_factory->createMaterialAsync("ground.png").wait();
 
   auto id = m_factory->createStaticCuboid(metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material,
     metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f, 0.4);
@@ -372,7 +375,9 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = true,
-    .shaderManifest = "shaders.xml"
+    .paths{},
+    .features{},
+    .drawDistance = 1000.f
   };
 }
 

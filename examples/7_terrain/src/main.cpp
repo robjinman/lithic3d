@@ -33,10 +33,7 @@ class Demo : public Game
 
   private:
     Engine& m_engine;
-    WorldLoaderPtr m_worldLoader;
-    WorldGridPtr m_worldGrid;
     FactoryPtr m_factory;
-    EntityFactoryPtr m_entityFactory;
     EntityId m_sun;
     EntityId m_light;
     EntityId m_caption;
@@ -55,20 +52,6 @@ class Demo : public Game
 Demo::Demo(Engine& engine)
   : m_engine(engine)
 {
-  m_entityFactory = createEntityFactory(m_engine.ecs(), m_engine.modelLoader(),
-    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem(),
-    m_engine.logger());
-
-  m_worldLoader = createWorldLoader(m_engine.ecs(), m_engine.fileSystem(), *m_entityFactory,
-    m_engine.modelLoader(), m_engine.renderResourceLoader(), m_engine.resourceManager(),
-    m_engine.logger());
-
-  WorldTraversalOptions options{
-    .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
-  };
-
-  m_worldGrid = createWorldGrid(options, *m_worldLoader, m_engine.ecs(), m_engine.logger());
-
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
@@ -167,12 +150,12 @@ void Demo::constructSkybox()
   auto material = std::make_unique<Material>();
   material->featureSet.flags.set(MaterialFeatures::HasCubeMap, true);
   material->cubeMap = m_engine.renderResourceLoader().loadCubeMapAsync({
-    "textures/skybox/right.png",
-    "textures/skybox/left.png",
-    "textures/skybox/top.png",
-    "textures/skybox/bottom.png",
-    "textures/skybox/front.png",
-    "textures/skybox/back.png"
+    "skybox/right.png",
+    "skybox/left.png",
+    "skybox/top.png",
+    "skybox/bottom.png",
+    "skybox/front.png",
+    "skybox/back.png"
   });
 
   auto render = std::make_unique<DSkybox>();
@@ -214,7 +197,7 @@ EntityId Demo::constructCaption()
     }
   };
   material->textures = {
-    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait()
+    m_engine.renderResourceLoader().loadTextureAsync("fonts.png").wait()
   };
 
   DText render{
@@ -295,7 +278,7 @@ bool Demo::update()
   processKeyboardInput();
   processMouseInput();
   m_engine.update(m_inputState);
-  m_worldGrid->update(camera.getPosition());
+  m_engine.worldGrid().update(camera.getPosition());
 
   return true;
 }
@@ -364,7 +347,11 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = true,
-    .shaderManifest = "shaders.xml"
+    .paths{},
+    .features{
+      .terrain = true
+    },
+    .drawDistance = 1000.f
   };
 }
 

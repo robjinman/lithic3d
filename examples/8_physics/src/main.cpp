@@ -126,7 +126,8 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = true
           }
-        }
+        },
+        .aggregates{}
       },
       Scenario{
         .boxes = {
@@ -146,7 +147,8 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           }
-        }
+        },
+        .aggregates{}
       },
       Scenario{
         .boxes = {
@@ -174,7 +176,8 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           }
-        }
+        },
+        .aggregates{}
       },
       Scenario{
         .boxes = {
@@ -226,7 +229,8 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = false
           },
-        }
+        },
+        .aggregates{}
       }
     };
     size_t m_currentScenario = 1;
@@ -286,7 +290,7 @@ void Demo::constructScenario(size_t i)
   assert(m_boxes.empty());
   assert(m_aggregates.empty());
 
-  auto material = m_factory->createMaterialAsync("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("bricks.png");
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
 
   for (auto& obj : m_scenarios[i].boxes) {
@@ -406,7 +410,7 @@ void Demo::constructTerrain()
   };
 
   auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
-    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.fileSystem(),
+    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.dataPaths(),
     m_engine.logger());
 
   const char* xmlTerrain =
@@ -426,7 +430,7 @@ void Demo::constructTerrain()
 void Demo::constructGround()
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto material = m_factory->createMaterialAsync("textures/grass.png");
+  auto material = m_factory->createMaterialAsync("grass.png");
   auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
   auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
   auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f); // TODO: Use static
@@ -443,7 +447,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = createTransform(pos, { -degreesToRadians(45.f), 0.f, 0.f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -466,7 +471,8 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.2f, 0.85f }, { 0.025f, 0.05f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -478,7 +484,7 @@ EntityId Demo::constructCaption()
     }
   };
   material->textures = {
-    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait()
+    m_engine.renderResourceLoader().loadTextureAsync("fonts.png").wait()
   };
 
   DText render{
@@ -599,8 +605,9 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = false,
-    .shaderManifest = "shaders.xml",
-    .drawDistance = 1000
+    .paths{},
+    .features{},
+    .drawDistance = 1000.f
   };
 }
 

@@ -30,8 +30,9 @@ namespace
 class EngineImpl : public Engine
 {
   public:
-    EngineImpl(const GameConfig& config, ResourceManagerPtr resourceManager, render::RendererPtr renderer,
-      AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger);
+    EngineImpl(const GameConfig& config, ResourceManagerPtr resourceManager,
+      render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
+      LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
     void update(const InputState& inputState) override;
@@ -39,6 +40,7 @@ class EngineImpl : public Engine
     Tick currentTick() const override;
     float measuredTickRate() const override;
 
+    const GameDataPaths& dataPaths() const override;
     Logger& logger() override;
     FileSystem& fileSystem() override;
     EventSystem& eventSystem() override;
@@ -53,6 +55,7 @@ class EngineImpl : public Engine
     ~EngineImpl() override;
 
   private:
+    GameDataPaths m_paths;
     LoggerPtr m_logger;
     ResourceManagerPtr m_resourceManager;
     render::RendererPtr m_renderer;
@@ -77,7 +80,8 @@ class EngineImpl : public Engine
 EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceManager,
   render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
   LoggerPtr logger)
-  : m_logger(std::move(logger))
+  : m_paths(config.paths)
+  , m_logger(std::move(logger))
   , m_resourceManager(std::move(resourceManager))
   , m_renderer(std::move(renderer))
   , m_audioSystem(std::move(audioSystem))
@@ -180,6 +184,11 @@ void EngineImpl::onWindowResize(uint32_t w, uint32_t h)
 {
   m_renderer->onResize();
   m_eventSystem->raiseEvent(EWindowResize{w, h});
+}
+
+const GameDataPaths& EngineImpl::dataPaths() const
+{
+  return m_paths;
 }
 
 Logger& EngineImpl::logger()
