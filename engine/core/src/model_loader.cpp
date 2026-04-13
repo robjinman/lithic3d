@@ -1,10 +1,10 @@
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/gltf.hpp"
-#include "lithic3d/file_system.hpp"
 #include "lithic3d/utils.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/thread.hpp"
 #include <set>
 
@@ -343,7 +343,7 @@ class ModelLoaderImpl : public ModelLoader
 {
   public:
     ModelLoaderImpl(RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-      const FileSystem& fileSystem, Logger& logger);
+      const GameDataPaths& paths, Logger& logger);
 
     ResourceHandle loadModelAsync(const std::filesystem::path& path) override;
     ResourceHandle loadModelAsync(ModelPtr model) override;
@@ -356,7 +356,7 @@ class ModelLoaderImpl : public ModelLoader
     Logger& m_logger;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
-    const FileSystem& m_fileSystem;
+    const GameDataPaths& m_paths;
 
     mutable std::mutex m_mutex;
     std::unordered_map<ResourceId, ModelPtr> m_models;
@@ -367,11 +367,11 @@ class ModelLoaderImpl : public ModelLoader
 };
 
 ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
-  ResourceManager& resourceManager, const FileSystem& fileSystem, Logger& logger)
+  ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger)
   : m_logger(logger)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
-  , m_fileSystem(fileSystem)
+  , m_paths(paths)
 {
 }
 
@@ -393,17 +393,15 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
     material->featureSet.flags.set(MaterialFeatures::HasTransparency);
   }
 
-  std::filesystem::path texturesPath = "textures";
-
   if (!desc.baseColourTexture.empty()) {
     material->textures = {
-      m_renderResourceLoader.loadTextureAsync(texturesPath / desc.baseColourTexture)
+      m_renderResourceLoader.loadTextureAsync(desc.baseColourTexture)
     };
   }
 
   if (!desc.normalMap.empty()) {
     material->normalMaps = {
-      m_renderResourceLoader.loadNormalMapAsync(texturesPath / desc.normalMap)
+      m_renderResourceLoader.loadNormalMapAsync(desc.normalMap)
     };
   }
 
@@ -573,12 +571,12 @@ void extractAnimations(const std::vector<std::vector<char>>& dataBuffers,
 ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
 {
   return m_resourceManager.loadResource([this, filePath](ResourceId id) {
-    auto modelDesc = gltf::extractModel(m_fileSystem.readAppDataFile(filePath));
+    auto modelDesc = gltf::extractModel(m_paths.modelsDir->readFile(filePath));
 
     std::vector<std::vector<char>> dataBuffers;
     for (const auto& buffer : modelDesc.buffers) {
       auto binPath = std::filesystem::path{filePath}.parent_path() / buffer;
-      dataBuffers.push_back(m_fileSystem.readAppDataFile(binPath));
+      dataBuffers.push_back(m_paths.modelsDir->readFile(binPath));
     }
 
     bool hasAnimations = modelDesc.armature.animations.size() > 0;
@@ -618,10 +616,9 @@ ModelLoaderImpl::~ModelLoaderImpl()
 } // namespace
 
 ModelLoaderPtr createModelLoader(RenderResourceLoader& renderResourceLoader,
-  ResourceManager& resourceManager, const FileSystem& fileSystem, Logger& logger)
+  ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger)
 {
-  return std::make_unique<ModelLoaderImpl>(renderResourceLoader, resourceManager, fileSystem,
-    logger);
+  return std::make_unique<ModelLoaderImpl>(renderResourceLoader, resourceManager, paths, logger);
 }
 
 } // namespace lithic3d

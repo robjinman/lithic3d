@@ -1,5 +1,5 @@
 #include "lithic3d/entity_factory.hpp"
-#include "lithic3d/file_system.hpp"
+#include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/xml.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/render_resource_loader.hpp"
@@ -37,7 +37,7 @@ class EntityFactoryImpl : public EntityFactory
   public:
     EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
       RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-      const FileSystem& fileSystem, Logger& logger);
+      const GameDataPaths& paths, Logger& logger);
 
     ResourceHandle loadPrefabAsync(const std::string& name) override;
     EntityId constructEntity(const std::string& type, const Mat4x4f& transform) const override;
@@ -49,7 +49,7 @@ class EntityFactoryImpl : public EntityFactory
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
-    const FileSystem& m_fileSystem;
+    const GameDataPaths& m_paths;
 
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, Prefab> m_prefabs;
@@ -61,13 +61,13 @@ class EntityFactoryImpl : public EntityFactory
 
 EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
   RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-  const FileSystem& fileSystem, Logger& logger)
+  const GameDataPaths& paths, Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
   , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
-  , m_fileSystem(fileSystem)
+  , m_paths(paths)
 {}
 
 Aabb EntityFactoryImpl::constructAabb(const XmlNode& aabbXml) const
@@ -92,13 +92,11 @@ DSpatial EntityFactoryImpl::constructDSpatial(const XmlNode& spatialXml) const
 
 DModelPtr EntityFactoryImpl::constructDModel(const XmlNode& modelXml) const
 {
-  const fs::path modelsPath = "models";
-
   auto model = std::make_unique<DModel>();
   model->isInstanced = modelXml.attribute("is-instanced") == "true";
 
   auto modelFile = modelXml.attribute("file");
-  model->model = m_modelLoader.loadModelAsync(modelsPath / modelFile);
+  model->model = m_modelLoader.loadModelAsync(modelFile);
 
   return model;
 }
@@ -106,8 +104,7 @@ DModelPtr EntityFactoryImpl::constructDModel(const XmlNode& modelXml) const
 ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
 {
   return m_resourceManager.loadResource([this, name](ResourceId) {
-    const fs::path prefabsPath = "prefabs";
-    auto data = m_fileSystem.readAppDataFile(prefabsPath / STR(name << ".xml"));
+    auto data = m_paths.prefabsDir->readFile(STR(name << ".xml"));
     auto entityXml = parseXml(data);
 
     ASSERT(entityXml->name() == "entity", "Expected <entity> element");
@@ -193,10 +190,10 @@ bool EntityFactoryImpl::hasPrefab(const std::string& name) const
 
 EntityFactoryPtr createEntityFactory(Ecs& ecs, ModelLoader& modelLoader,
   RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-  const FileSystem& fileSystem, Logger& logger)
+  const GameDataPaths& paths, Logger& logger)
 {
   return std::make_unique<EntityFactoryImpl>(ecs, modelLoader, renderResourceLoader,
-    resourceManager, fileSystem, logger);
+    resourceManager, paths, logger);
 }
 
 } // namespace lithic3d

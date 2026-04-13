@@ -37,12 +37,12 @@ class WorldLoader
 using WorldLoaderPtr = std::unique_ptr<WorldLoader>;
 
 class Ecs;
-class FileSystem;
+struct GameDataPaths;
 class EntityFactory;
 class ModelLoader;
 class RenderResourceLoader;
 
-WorldLoaderPtr createWorldLoader(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+WorldLoaderPtr createWorldLoader(Ecs& ecs, const GameDataPaths& paths, EntityFactory& entityFactory,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
   ResourceManager& resourceManager, Logger& logger);
 

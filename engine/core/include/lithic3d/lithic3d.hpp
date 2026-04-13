@@ -49,6 +49,7 @@
 #include "render_resource_loader.hpp"
 #include "logger.hpp"
 #include "renderer.hpp"
+#include "game_data_paths.hpp"
 #include "file_system.hpp"
 #include "factory.hpp"
 #include "sys_animation_2d.hpp"

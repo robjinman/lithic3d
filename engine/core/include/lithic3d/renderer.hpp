@@ -153,13 +153,13 @@ inline std::ostream& operator<<(std::ostream& stream, render::RenderPass renderP
   return stream;
 }
 
-class FileSystem;
 class Logger;
 class ResourceManager;
+struct GameDataPaths;
 
 // TODO: Move inside render namespace?
 render::RendererPtr createRenderer(WindowDelegatePtr window, ResourceManager& resourceManager,
-  const FileSystem& fileSystem, Logger& logger, const render::ScreenMargins& margins);
+  const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins);
 
 } // namespace lithic3d
 

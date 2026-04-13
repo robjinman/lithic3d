@@ -10,11 +10,11 @@ namespace render
 namespace
 {
 
-void loadShader(const FileSystem& fileSystem, ShaderType type, const ShaderProgramSpec& spec,
+void loadShader(DirectoryPtr directory, ShaderType type, const ShaderProgramSpec& spec,
   ShaderByteCode& code)
 {
-  auto path = STR("shaders/" << static_cast<int>(type) << "_" << spec.toString() << ".spv");
-  auto bytes = fileSystem.readAppDataFile(path);
+  auto path = STR(static_cast<int>(type) << "_" << spec.toString() << ".spv");
+  auto bytes = directory->readFile(path);
   code.resize(bytes.size() / sizeof(uint32_t));
   memcpy(code.data(), bytes.data(), bytes.size());
 }
@@ -43,12 +43,12 @@ std::string fileNameForShader(ShaderType type, const ShaderProgramSpec& spec)
   return STR(static_cast<int>(type) << "_" << spec.toString() << ".spv");
 }
 
-ShaderProgram loadShaderProgram(const FileSystem& fileSystem, const ShaderProgramSpec& spec)
+ShaderProgram loadShaderProgram(DirectoryPtr directory, const ShaderProgramSpec& spec)
 {
   ShaderProgram program;
 
-  loadShader(fileSystem, ShaderType::Vertex, spec, program.vertexShaderCode);
-  loadShader(fileSystem, ShaderType::Fragment, spec, program.fragmentShaderCode);
+  loadShader(directory, ShaderType::Vertex, spec, program.vertexShaderCode);
+  loadShader(directory, ShaderType::Fragment, spec, program.fragmentShaderCode);
 
   return program;
 }

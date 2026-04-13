@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lithic3d/file_system.hpp"
 #include <memory>
 #include <string>
 
@@ -17,9 +18,8 @@ class Drm
 
 using DrmPtr = std::unique_ptr<Drm>;
 
-class FileSystem;
 class Logger;
 
-DrmPtr createDrm(const std::string& productName, FileSystem& fileSystem, Logger& logger);
+DrmPtr createDrm(const std::string& productName, DirectoryPtr userDataDir, Logger& logger);
 
 } // namespace lithic3d

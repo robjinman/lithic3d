@@ -1,7 +1,7 @@
 #include "lithic3d/engine.hpp"
 #include "lithic3d/renderer.hpp"
 #include "lithic3d/audio_system.hpp"
-#include "lithic3d/file_system.hpp"
+#include "lithic3d/game.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/ecs.hpp"
 #include "lithic3d/events.hpp"
@@ -16,6 +16,9 @@
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/resource_manager.hpp"
 #include "lithic3d/render_resource_loader.hpp"
+#include "lithic3d/world_grid.hpp"
+#include "lithic3d/world_loader.hpp"
+#include "lithic3d/entity_factory.hpp"
 #include "lithic3d/time.hpp"
 #include "lithic3d/trace.hpp"
 
@@ -27,7 +30,7 @@ namespace
 class EngineImpl : public Engine
 {
   public:
-    EngineImpl(float drawDistance, ResourceManagerPtr resourceManager, render::RendererPtr renderer,
+    EngineImpl(const GameConfig& config, ResourceManagerPtr resourceManager, render::RendererPtr renderer,
       AudioSystemPtr audioSystem, FileSystemPtr fileSystem, LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
@@ -45,6 +48,7 @@ class EngineImpl : public Engine
     ModelLoader& modelLoader() override;
     ResourceManager& resourceManager() override;
     RenderResourceLoader& renderResourceLoader() override;
+    WorldGrid& worldGrid() override;
 
     ~EngineImpl() override;
 
@@ -57,6 +61,9 @@ class EngineImpl : public Engine
     RenderResourceLoaderPtr m_renderResourceLoader;
     ModelLoaderPtr m_modelLoader;
     EventSystemPtr m_eventSystem;
+    EntityFactoryPtr m_entityFactory;
+    WorldLoaderPtr m_worldLoader;
+    WorldGridPtr m_worldGrid;
     EcsPtr m_ecs;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
     Tick m_currentTick = 0;
@@ -67,7 +74,7 @@ class EngineImpl : public Engine
     void handleEvent(const Event& event);
 };
 
-EngineImpl::EngineImpl(float drawDistance, ResourceManagerPtr resourceManager,
+EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceManager,
   render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
   LoggerPtr logger)
   : m_logger(std::move(logger))
@@ -76,20 +83,35 @@ EngineImpl::EngineImpl(float drawDistance, ResourceManagerPtr resourceManager,
   , m_audioSystem(std::move(audioSystem))
   , m_fileSystem(std::move(fileSystem))
 {
-  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, *m_fileSystem,
-    *m_renderer, *m_logger);
+  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, config.paths, *m_renderer,
+    *m_logger);
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
   m_renderer->start();
 
-  m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, *m_fileSystem,
+  m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, config.paths,
     *m_logger);
+
+  m_entityFactory = createEntityFactory(*m_ecs, *m_modelLoader, *m_renderResourceLoader,
+    *m_resourceManager, config.paths, *m_logger);
+
+  if (config.features.terrain) {
+    m_worldLoader = createWorldLoader(*m_ecs, config.paths, *m_entityFactory, *m_modelLoader,
+      *m_renderResourceLoader, *m_resourceManager, *m_logger);
+
+    // TODO
+    WorldTraversalOptions options{
+      .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
+    };
+
+    m_worldGrid = createWorldGrid(options, *m_worldLoader, *m_ecs, *m_logger);
+  }
 
   auto sysCollision = createSysCollision(*m_ecs, *m_eventSystem, *m_logger);
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
-  auto sysRender3d = createSysRender3d(drawDistance, *m_ecs, *m_modelLoader, *m_renderer,
+  auto sysRender3d = createSysRender3d(config.drawDistance, *m_ecs, *m_modelLoader, *m_renderer,
     *m_logger);
   auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem, *m_logger);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
@@ -205,6 +227,12 @@ RenderResourceLoader& EngineImpl::renderResourceLoader()
   return *m_renderResourceLoader;
 }
 
+WorldGrid& EngineImpl::worldGrid()
+{
+  ASSERT(m_worldGrid, "Terrain feature must be enabled to access world grid");
+  return *m_worldGrid;
+}
+
 EngineImpl::~EngineImpl()
 {
   DBG_TRACE(*m_logger);
@@ -214,11 +242,11 @@ EngineImpl::~EngineImpl()
 
 } // namespace
 
-EnginePtr createEngine(float drawDistance, ResourceManagerPtr resourceManager,
+EnginePtr createEngine(const GameConfig& config, ResourceManagerPtr resourceManager,
   render::RendererPtr renderer, AudioSystemPtr audioSystem, FileSystemPtr fileSystem,
   LoggerPtr logger)
 {
-  return std::make_unique<EngineImpl>(drawDistance, std::move(resourceManager), std::move(renderer),
+  return std::make_unique<EngineImpl>(config, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
 }
 

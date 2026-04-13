@@ -54,7 +54,7 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructCube()
 {
-  auto material = m_factory->createMaterialAsync("textures/bricks.png");
+  auto material = m_factory->createMaterialAsync("bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
   return m_factory->createStaticCuboid(size, material.wait(), texSize, 0.2f, 0.4f);
@@ -68,7 +68,8 @@ EntityId Demo::constructLight()
   DSpatial spatial{
     .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -91,7 +92,8 @@ EntityId Demo::constructCaption()
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
     .parent = m_engine.ecs().system<SysSpatial>().root(),
-    .enabled = true
+    .enabled = true,
+    .aabb{}
   };
 
   m_engine.ecs().system<SysSpatial>().addEntity(id, spatial);
@@ -103,7 +105,7 @@ EntityId Demo::constructCaption()
     }
   };
   material->textures = {
-    m_engine.renderResourceLoader().loadTextureAsync("textures/fonts.png").wait()
+    m_engine.renderResourceLoader().loadTextureAsync("fonts.png").wait()
   };
 
   DText render{
@@ -155,7 +157,9 @@ GameConfig getGameConfig()
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .captureMouse = false,
-    .shaderManifest = "shaders.xml"
+    .paths{},
+    .features{},
+    .drawDistance = 1000.f
   };
 }
 

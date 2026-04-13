@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lithic3d/window_delegate.hpp"
+#include "../window_delegate.hpp"
 #include <vulkan/vulkan.h>
 #include <vector>
 

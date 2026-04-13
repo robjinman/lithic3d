@@ -1,7 +1,7 @@
 #include "lithic3d/terrain_builder.hpp"
 #include "lithic3d/renderables.hpp"
 #include "lithic3d/logger.hpp"
-#include "lithic3d/file_system.hpp"
+#include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/units.hpp"
 #include "lithic3d/xml.hpp"
@@ -65,7 +65,7 @@ class TerrainBuilderImpl : public TerrainBuilder
   public:
     TerrainBuilderImpl(const TerrainConfig& config, Ecs& ecs, ModelLoader& modelLoader,
       RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-      FileSystem& fileSystem, Logger& logger);
+      const GameDataPaths& paths, Logger& logger);
 
     ResourceHandle loadTerrainRegionAsync(uint32_t x, uint32_t y, XmlNodePtr terrainXml) override;
     std::vector<EntityId> createEntities(ResourceId regionId) override;
@@ -77,7 +77,7 @@ class TerrainBuilderImpl : public TerrainBuilder
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
-    FileSystem& m_fileSystem;
+    const GameDataPaths& m_paths;
     std::map<ResourceId, TerrainRegion> m_regions;
 
     MeshPtr constructLandMesh(const Texture& heightMap) const;
@@ -91,15 +91,14 @@ class TerrainBuilderImpl : public TerrainBuilder
 
 TerrainBuilderImpl::TerrainBuilderImpl(const TerrainConfig& config, Ecs& ecs,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
-  ResourceManager& resourceManager,
-  FileSystem& fileSystem, Logger& logger)
+  ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger)
   : m_config(config)
   , m_logger(logger)
   , m_ecs(ecs)
   , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
-  , m_fileSystem(fileSystem)
+  , m_paths(paths)
 {
 }
 
@@ -338,7 +337,7 @@ MeshPtr TerrainBuilderImpl::constructWaterMesh(const Vec2f& cellSize, float leve
 ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellPath,
   const XmlNode& terrainXml, HeightMap& heightMap) const
 {
-  auto heightMapTextureData = m_fileSystem.readAppDataFile(cellPath / "height_map.png");
+  auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / "height_map.png");
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
 
   auto mesh = constructLandMesh(*heightMapTexture);
@@ -356,10 +355,11 @@ ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellP
 
   auto material = std::make_unique<render::Material>();
   material->featureSet = materialFeatures;
-  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png");
+  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png",
+    m_paths.worldsDir);
 
   for (auto& textureXml : splatMapXml) {
-    auto filePath = fs::path{"textures"} / textureXml.attribute("file");
+    fs::path filePath = textureXml.attribute("file");
 
     ResourceHandle texture;
     if (!m_renderResourceLoader.hasTexture(filePath)) {
@@ -408,7 +408,7 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
   XmlNodePtr terrainXml)
 {
   auto loader = [this, x, y, terrainXml = std::move(terrainXml)](ResourceId id) mutable {
-    const auto cellPath = fs::path{"worlds"} / m_config.world / cellName(x, y);
+    const auto cellPath = fs::path{m_config.world} / cellName(x, y);
 
     Vec2f cellSize = metresToWorldUnits(Vec2f{ m_config.cellWidth, m_config.cellHeight });
     float waterLevel = metresToWorldUnits(m_config.waterLevel);
@@ -434,10 +434,10 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
 
 TerrainBuilderPtr createTerrainBuilder(const TerrainConfig& config, Ecs& ecs,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
-  ResourceManager& resourceManager, FileSystem& fileSystem, Logger& logger)
+  ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger)
 {
   return std::make_unique<TerrainBuilderImpl>(config, ecs, modelLoader, renderResourceLoader,
-    resourceManager, fileSystem, logger);
+    resourceManager, paths, logger);
 }
 
 } // namespace lithic3d

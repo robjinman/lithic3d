@@ -13,7 +13,7 @@
 #include "lithic3d/trace.hpp"
 #include "lithic3d/platform.hpp"
 #include "lithic3d/strings.hpp"
-#include "lithic3d/file_system.hpp"
+#include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/work_queue.hpp"
 #include <array>
 #include <vector>
@@ -168,7 +168,7 @@ class RendererImpl : public Renderer
 {
   public:
     RendererImpl(WindowDelegatePtr window, ResourceManager& resourceManager,
-      const FileSystem& fileSystem, Logger& logger, const ScreenMargins& margins);
+      const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins);
 
     void start() override;
     bool isStarted() const override;
@@ -291,7 +291,7 @@ class RendererImpl : public Renderer
       const std::optional<std::vector<Mat4x4f>>& jointTransforms);
 
     ResourceManager& m_resourceManager;
-    const FileSystem& m_fileSystem;
+    const GameDataPaths& m_paths;
     ScreenMargins m_margins;
     std::unique_ptr<VulkanWindowDelegate> m_window;
     Logger& m_logger;
@@ -344,9 +344,9 @@ class RendererImpl : public Renderer
 };
 
 RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceManager,
-  const FileSystem& fileSystem, Logger& logger, const ScreenMargins& margins)
+  const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins)
   : m_resourceManager(resourceManager)
-  , m_fileSystem(fileSystem)
+  , m_paths(paths)
   , m_margins(margins)
   , m_logger(logger)
 {
@@ -440,7 +440,7 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
 
     auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
       if (!m_pipelines.contains(key)) {
-        auto shader = loadShaderProgram(m_fileSystem, key);
+        auto shader = loadShaderProgram(m_paths.shadersDir, key);
 
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
           m_swapchainImageFormat, depthFormat,
@@ -2217,9 +2217,9 @@ void RendererImpl::dbg_printMemUsageInfo(std::ostream& stream) const
 } // namespace render
 
 render::RendererPtr createRenderer(WindowDelegatePtr window, ResourceManager& resourceManager,
-  const FileSystem& fileSystem, Logger& logger, const render::ScreenMargins& margins)
+  const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins)
 {
-  return std::make_unique<render::RendererImpl>(std::move(window), resourceManager, fileSystem,
+  return std::make_unique<render::RendererImpl>(std::move(window), resourceManager, paths,
     logger, margins);
 }
 

@@ -2,11 +2,15 @@
 
 #include "input.hpp"
 #include "math.hpp"
-#include <memory>
-#include <filesystem>
+#include "game_data_paths.hpp"
 
 namespace lithic3d
 {
+
+struct GameFeatures
+{
+  bool terrain = false;
+};
 
 struct GameConfig
 {
@@ -18,7 +22,8 @@ struct GameConfig
   uint32_t fullscreenResolutionW = 0;
   uint32_t fullscreenResolutionH = 0;
   bool captureMouse = false;
-  std::filesystem::path shaderManifest;
+  GameDataPaths paths{};
+  GameFeatures features{};
   float drawDistance = 100.f; // In metres
 };
 

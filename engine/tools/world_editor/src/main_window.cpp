@@ -6,6 +6,11 @@
 namespace
 {
 
+enum MenuItems
+{
+  MNU_OPEN = wxID_HIGHEST + 1
+};
+
 class MainWindow : public wxFrame
 {
   public:
@@ -16,6 +21,7 @@ class MainWindow : public wxFrame
     void constructLeftPanel();
     void constructRightPanel();
 
+    void onOpen(wxCommandEvent& e);
     void onExit(wxCommandEvent& e);
     void onAbout(wxCommandEvent& e);
     void onClose(wxCloseEvent& e);
@@ -30,6 +36,7 @@ class MainWindow : public wxFrame
 MainWindow::MainWindow(const wxString& title)
   : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition)
 {
+  Bind(wxEVT_MENU, &MainWindow::onOpen, this, MNU_OPEN);
   Bind(wxEVT_MENU, &MainWindow::onExit, this, wxID_EXIT);
   Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
   Bind(wxEVT_CLOSE_WINDOW, &MainWindow::onClose, this);
@@ -57,6 +64,17 @@ MainWindow::MainWindow(const wxString& title)
   Maximize();
 }
 
+void MainWindow::onOpen(wxCommandEvent&)
+{
+  auto dialog = new wxDirDialog{this, "Open directory"};
+
+  if (dialog->ShowModal() != wxID_OK) {
+    return;
+  }
+
+  m_canvas->startEngine(dialog->GetPath().ToStdString());
+}
+
 void MainWindow::onClose(wxCloseEvent& e)
 {
   e.Skip();
@@ -65,6 +83,8 @@ void MainWindow::onClose(wxCloseEvent& e)
 void MainWindow::constructMenu()
 {
   wxMenu* mnuFile = new wxMenu;
+  auto itmOpen = new wxMenuItem(mnuFile, MNU_OPEN, "Open");
+  mnuFile->Append(itmOpen);
   mnuFile->Append(wxID_EXIT);
 
   wxMenu* mnuHelp = new wxMenu;

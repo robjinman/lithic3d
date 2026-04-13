@@ -136,6 +136,34 @@ void Application::onWindowResize(GLFWwindow*, int w, int h)
   }
 }
 
+void fillDefaultPaths(const FileSystem& fileSystem, GameDataPaths& paths)
+{
+  if (!paths.modelsDir) {
+    paths.modelsDir = fileSystem.appDataDirectory()->subdirectory("models");
+  }
+  if (!paths.prefabsDir) {
+    paths.prefabsDir = fileSystem.appDataDirectory()->subdirectory("prefabs");
+  }
+  if (!paths.shaderManifest.directory) {
+    paths.shaderManifest = {
+      .directory = fileSystem.appDataDirectory(),
+      .subpath = "shaders.xml"
+    };
+  }
+  if (!paths.shadersDir) {
+    paths.shadersDir = fileSystem.appDataDirectory()->subdirectory("shaders");
+  }
+  if (!paths.soundsDir) {
+    paths.soundsDir = fileSystem.appDataDirectory()->subdirectory("sounds");
+  }
+  if (!paths.texturesDir) {
+    paths.texturesDir = fileSystem.appDataDirectory()->subdirectory("textures");
+  }
+  if (!paths.worldsDir) {
+    paths.worldsDir = fileSystem.appDataDirectory()->subdirectory("worlds");
+  }
+}
+
 Application::Application()
 {
   glfwInit();
@@ -160,16 +188,17 @@ Application::Application()
 
   auto platformPaths = createPlatformPaths(m_config.appShortName, m_config.vendorShortName);
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
+  fillDefaultPaths(*fileSystem, m_config.paths);
   auto windowDelegate = createWindowDelegate(*m_window);
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
-  auto audioSystem = createAudioSystem(*fileSystem, *logger);
+  auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
-    {});
+  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, m_config.paths,
+    *logger, {});
 
   logger->info("Compiling shaders...");
 
-  auto manifest = fileSystem->readAppDataFile(m_config.shaderManifest);
+  auto manifest = m_config.paths.shaderManifest.read();
   auto specs = parseShaderManifest(manifest, *logger);
   for (auto& spec : specs) {
     renderer->compileShader(spec);
@@ -177,7 +206,7 @@ Application::Application()
 
   logger->info("Finished compiling shaders");
 
-  m_engine = createEngine(m_config.drawDistance, std::move(resourceManager), std::move(renderer),
+  m_engine = createEngine(m_config, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
 
   glfwSetMouseButtonCallback(m_window, onMouseClick);

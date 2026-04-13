@@ -1,6 +1,7 @@
 #pragma once
 
 #include "strings.hpp"
+#include "file_system.hpp"
 #include <memory>
 
 namespace lithic3d
@@ -40,9 +41,8 @@ class AudioSystem
 
 using AudioSystemPtr = std::unique_ptr<AudioSystem>;
 
-class FileSystem;
 class Logger;
 
-AudioSystemPtr createAudioSystem(FileSystem& fileSystem, Logger& logger);
+AudioSystemPtr createAudioSystem(DirectoryPtr directory, Logger& logger);
 
 } // namespace lithic3d

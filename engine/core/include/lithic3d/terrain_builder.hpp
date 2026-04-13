@@ -37,12 +37,12 @@ class TerrainBuilder
 using TerrainBuilderPtr = std::unique_ptr<TerrainBuilder>;
 
 class Ecs;
-class FileSystem;
 class ModelLoader;
 class RenderResourceLoader;
+struct GameDataPaths;
 
 TerrainBuilderPtr createTerrainBuilder(const TerrainConfig& config, Ecs& ecs,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
-  ResourceManager& resourceManager, FileSystem& fileSystem, Logger& logger);
+  ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger);
 
 } // namespace lithic3d

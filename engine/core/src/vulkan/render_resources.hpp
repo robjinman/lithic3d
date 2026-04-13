@@ -8,7 +8,6 @@
 namespace lithic3d
 {
 
-class FileSystem;
 class Logger;
 class WorkQueue;
 

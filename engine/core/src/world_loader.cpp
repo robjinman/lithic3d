@@ -1,6 +1,6 @@
 #include "lithic3d/world_loader.hpp"
 #include "lithic3d/xml.hpp"
-#include "lithic3d/file_system.hpp"
+#include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/entity_factory.hpp"
 #include "lithic3d/resource_manager.hpp"
 #include "lithic3d/terrain_builder.hpp"
@@ -68,7 +68,7 @@ fs::path cellSlicePath(uint32_t x, uint32_t y, uint32_t sliceIdx)
 class WorldLoaderImpl : public WorldLoader
 {
   public:
-    WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+    WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFactory& entityFactory,
       ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
       ResourceManager& resourceManager, Logger& logger);
 
@@ -78,7 +78,7 @@ class WorldLoaderImpl : public WorldLoader
 
   private:
     Logger& m_logger;
-    FileSystem& m_fileSystem;
+    const GameDataPaths& m_paths;
     EntityFactory& m_entityFactory;
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
@@ -93,19 +93,19 @@ class WorldLoaderImpl : public WorldLoader
     TerrainConfig loadTerrainConfig(const XmlNode& node);
 };
 
-WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFactory& entityFactory,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
   ResourceManager& resourceManager, Logger& logger)
   : m_logger(logger)
-  , m_fileSystem(fileSystem)
+  , m_paths(paths)
   , m_entityFactory(entityFactory)
   , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
 {
-  auto worldFilePath = fs::path{"worlds"} / m_worldName / "world.xml";
+  auto worldFilePath = fs::path{m_worldName} / "world.xml";
 
-  auto xmlData = m_fileSystem.readAppDataFile(worldFilePath);
+  auto xmlData = m_paths.worldsDir->readFile(worldFilePath);
   auto worldXml = parseXml(xmlData);
 
   loadWorldInfo(*worldXml);
@@ -120,7 +120,7 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, FileSystem& fileSystem, EntityFactory
   };
 
   m_terrainBuilder = createTerrainBuilder(terrainConfig, ecs, modelLoader, m_renderResourceLoader,
-    m_resourceManager, m_fileSystem, m_logger);
+    m_resourceManager, m_paths, m_logger);
 }
 
 std::vector<EntityId> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
@@ -154,10 +154,9 @@ const WorldInfo& WorldLoaderImpl::worldInfo() const
 ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx)
 { 
   auto handle = m_resourceManager.loadResource([this, x, y, sliceIdx](ResourceId id) {
-    const auto worldsPath = fs::path{"worlds"};
-    const auto cellSliceFilePath = worldsPath / m_worldName / cellSlicePath(x, y, sliceIdx);
+    const auto cellSliceFilePath = fs::path{m_worldName} / cellSlicePath(x, y, sliceIdx);
 
-    auto cellSliceXmlFileData = m_fileSystem.readAppDataFile(cellSliceFilePath);
+    auto cellSliceXmlFileData = m_paths.worldsDir->readFile(cellSliceFilePath);
     auto cellSliceXml = parseXml(cellSliceXmlFileData);
 
     ASSERT(cellSliceXml->name() == "cell-slice", "Expected <cell-slice> element");
@@ -216,11 +215,11 @@ void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
 
 } // namespace
 
-WorldLoaderPtr createWorldLoader(Ecs& ecs, FileSystem& fileSystem, EntityFactory& entityFactory,
+WorldLoaderPtr createWorldLoader(Ecs& ecs, const GameDataPaths& paths, EntityFactory& entityFactory,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
   ResourceManager& resourceManager, Logger& logger)
 {
-  return std::make_unique<WorldLoaderImpl>(ecs, fileSystem, entityFactory, modelLoader,
+  return std::make_unique<WorldLoaderImpl>(ecs, paths, entityFactory, modelLoader,
     renderResourceLoader, resourceManager, logger);
 }
 

@@ -88,11 +88,11 @@ class ModelLoader
 
 using ModelLoaderPtr = std::unique_ptr<ModelLoader>;
 
-class FileSystem;
 class RenderResourceLoader;
+struct GameDataPaths;
 class Ecs;
 
 ModelLoaderPtr createModelLoader(RenderResourceLoader& renderResourceLoader,
-  ResourceManager& resourceManager, const FileSystem& fileSystem, Logger& logger);
+  ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger);
 
 } // namespace lithic3d

@@ -1,5 +1,5 @@
 #include "lithic3d/render_resource_loader.hpp"
-#include "lithic3d/file_system.hpp"
+#include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
@@ -22,10 +22,10 @@ namespace
 class RenderResourceLoaderImpl : public RenderResourceLoader
 {
   public:
-    RenderResourceLoaderImpl(ResourceManager& resourceManager, FileSystem& fileSystem,
+    RenderResourceLoaderImpl(ResourceManager& resourceManager, const GameDataPaths& paths,
       render::Renderer& renderer, Logger& logger);
 
-    ResourceHandle loadTextureAsync(const fs::path& path) override;
+    ResourceHandle loadTextureAsync(const fs::path& path, DirectoryPtr directory) override;
     ResourceHandle loadNormalMapAsync(const fs::path& path) override;
     ResourceHandle loadCubeMapAsync(const std::array<fs::path, 6>& paths) override;
     MaterialHandle loadMaterialAsync(render::MaterialPtr material) override;
@@ -42,7 +42,7 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
   private:
     Logger& m_logger;
     ResourceManager& m_resourceManager;
-    FileSystem& m_fileSystem;
+    const GameDataPaths& m_paths;
     render::Renderer& m_renderer;
     std::unordered_map<std::string, ResourceId> m_materials;
     std::unordered_map<std::filesystem::path, ResourceId> m_textures;
@@ -50,10 +50,10 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
 };
 
 RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceManager,
-  FileSystem& fileSystem, render::Renderer& renderer, Logger& logger)
+  const GameDataPaths& paths, render::Renderer& renderer, Logger& logger)
   : m_logger(logger)
   , m_resourceManager(resourceManager)
-  , m_fileSystem(fileSystem)
+  , m_paths(paths)
   , m_renderer(renderer)
 {}
 
@@ -87,14 +87,15 @@ ResourceHandle RenderResourceLoaderImpl::getTextureHandle(const std::filesystem:
   return m_resourceManager.getHandle(i->second);
 }
 
-ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path)
+ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path,
+  DirectoryPtr directory)
 {
   DBG_TRACE(m_logger);
 
-  return m_resourceManager.loadResource([this, path](ResourceId id) {
+  return m_resourceManager.loadResource([this, path, directory](ResourceId id) {
     DBG_TRACE(m_logger);
 
-    auto data = m_fileSystem.readAppDataFile(path);
+    auto data = (directory ? directory : m_paths.texturesDir)->readFile(path);
     auto texture = render::loadRgbaTexture(data);
     m_renderer.addTexture(id, std::move(texture));
 
@@ -124,7 +125,7 @@ ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const fs::path& path
   return m_resourceManager.loadResource([this, path](ResourceId id) {
     DBG_TRACE(m_logger);
 
-    auto data = m_fileSystem.readAppDataFile(path);
+    auto data = m_paths.texturesDir->readFile(path);
     auto texture = render::loadRgbaTexture(data);
     m_renderer.addNormalMap(id, std::move(texture));
 
@@ -148,7 +149,7 @@ ResourceHandle RenderResourceLoaderImpl::loadCubeMapAsync(
     std::array<render::TexturePtr, 6> textures;
 
     for (size_t i = 0; i < 6; ++i) {
-      auto data = m_fileSystem.readAppDataFile(paths[i]);
+      auto data = m_paths.texturesDir->readFile(paths[i]);
       textures[i] = render::loadRgbaTexture(data);
     }
 
@@ -222,9 +223,9 @@ RenderResourceLoaderImpl::~RenderResourceLoaderImpl()
 } // namespace
 
 RenderResourceLoaderPtr createRenderResourceLoader(ResourceManager& resourceManager,
-  FileSystem& fileSystem, render::Renderer& renderer, Logger& logger)
+  const GameDataPaths& paths, render::Renderer& renderer, Logger& logger)
 {
-  return std::make_unique<RenderResourceLoaderImpl>(resourceManager, fileSystem, renderer, logger);
+  return std::make_unique<RenderResourceLoaderImpl>(resourceManager, paths, renderer, logger);
 }
 
 } // lithic3d

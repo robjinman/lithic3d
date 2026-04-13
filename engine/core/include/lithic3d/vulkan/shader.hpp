@@ -1,6 +1,7 @@
 #pragma once
 
-#include "lithic3d/renderer.hpp"
+#include "../renderer.hpp"
+#include "../file_system.hpp"
 
 namespace lithic3d
 {
@@ -21,7 +22,7 @@ struct ShaderProgram
   ShaderByteCode fragmentShaderCode;
 };
 
-ShaderProgram loadShaderProgram(const FileSystem& fileSystem, const ShaderProgramSpec& spec);
+ShaderProgram loadShaderProgram(DirectoryPtr directory, const ShaderProgramSpec& spec);
 std::string fileNameForShader(ShaderType type, const ShaderProgramSpec& spec);
 
 } // namespace render

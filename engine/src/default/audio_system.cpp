@@ -35,7 +35,7 @@ ALenum chooseFormat(ALuint channels)
 class AudioSystemImpl : public AudioSystem
 {
   public:
-    AudioSystemImpl(FileSystem& fileSystem, Logger& logger);
+    AudioSystemImpl(DirectoryPtr directory, Logger& logger);
 
     void addSound(HashedString name, const std::string& path) override;
     void playSound(HashedString name) override;
@@ -51,7 +51,7 @@ class AudioSystemImpl : public AudioSystem
 
   private:
     Logger& m_logger;
-    FileSystem& m_fileSystem;
+    DirectoryPtr m_directory;
     ALCdevice* m_device;
     ALCcontext* m_context;
     std::array<ALuint, NUM_SOURCES> m_sources;
@@ -64,9 +64,9 @@ class AudioSystemImpl : public AudioSystem
     ALuint getFreeSource() const;
 };
 
-AudioSystemImpl::AudioSystemImpl(FileSystem& fileSystem, Logger& logger)
+AudioSystemImpl::AudioSystemImpl(DirectoryPtr directory, Logger& logger)
   : m_logger(logger)
-  , m_fileSystem(fileSystem)
+  , m_directory(directory)
 {
   m_device = alcOpenDevice(nullptr);
   if (!m_device) {
@@ -107,7 +107,7 @@ ALuint AudioSystemImpl::getFreeSource() const
 
 void AudioSystemImpl::addSound(HashedString name, const std::string& path)
 {
-  auto data = m_fileSystem.readAppDataFile(path);
+  auto data = m_directory->readFile(path);
 
   drwav wav;
   if (!drwav_init_memory(&wav, data.data(), data.size(), nullptr)) {
@@ -182,7 +182,7 @@ void AudioSystemImpl::addMusic(const std::string& path)
     m_musicBuffer = 0;
   }
 
-  auto data = m_fileSystem.readAppDataFile(path);
+  auto data = m_directory->readFile(path);
 
   int channels = 0;
   int rate = 0;
@@ -244,9 +244,9 @@ AudioSystemImpl::~AudioSystemImpl()
 
 } // namespace
 
-AudioSystemPtr createAudioSystem(FileSystem& fileSystem, Logger& logger)
+AudioSystemPtr createAudioSystem(DirectoryPtr directory, Logger& logger)
 {
-  return std::make_unique<AudioSystemImpl>(fileSystem, logger);
+  return std::make_unique<AudioSystemImpl>(directory, logger);
 }
 
 } // namespace lithic3d

@@ -18,6 +18,8 @@ struct InputState;
 class ModelLoader;
 class ResourceManager;
 class RenderResourceLoader;
+class WorldGrid;
+struct GameConfig;
 
 class Engine
 {
@@ -37,13 +39,14 @@ class Engine
     virtual ModelLoader& modelLoader() = 0;
     virtual ResourceManager& resourceManager() = 0;
     virtual RenderResourceLoader& renderResourceLoader() = 0;
+    virtual WorldGrid& worldGrid() = 0;
 
     virtual ~Engine() = default;
 };
 
 using EnginePtr = std::unique_ptr<Engine>;
 
-EnginePtr createEngine(float drawDistance, std::unique_ptr<ResourceManager> resourceManager,
+EnginePtr createEngine(const GameConfig& config, std::unique_ptr<ResourceManager> resourceManager,
   std::unique_ptr<render::Renderer> renderer, std::unique_ptr<AudioSystem> audioSystem,
   std::unique_ptr<FileSystem> fileSystem, std::unique_ptr<Logger> logger);
 

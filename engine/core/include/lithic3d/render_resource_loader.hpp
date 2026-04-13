@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer.hpp"
-#include <filesystem>
+#include "file_system.hpp"
 
 namespace lithic3d
 {
@@ -9,7 +9,8 @@ namespace lithic3d
 class RenderResourceLoader
 {
   public:
-    virtual ResourceHandle loadTextureAsync(const std::filesystem::path& path) = 0;
+    virtual ResourceHandle loadTextureAsync(const std::filesystem::path& path,
+      DirectoryPtr directory = nullptr) = 0;
     virtual ResourceHandle loadNormalMapAsync(const std::filesystem::path& path) = 0;
     virtual ResourceHandle loadCubeMapAsync(const std::array<std::filesystem::path, 6>& path) = 0;
     virtual render::MaterialHandle loadMaterialAsync(render::MaterialPtr material) = 0;
@@ -26,7 +27,9 @@ class RenderResourceLoader
 
 using RenderResourceLoaderPtr = std::unique_ptr<RenderResourceLoader>;
 
+struct GameDataPaths;
+
 RenderResourceLoaderPtr createRenderResourceLoader(ResourceManager& resourceManager,
-  FileSystem& fileSystem, render::Renderer& renderer, Logger& logger);
+  const GameDataPaths& paths, render::Renderer& renderer, Logger& logger);
 
 } // namespace lithic3d

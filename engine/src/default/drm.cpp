@@ -46,14 +46,14 @@ std::string sha256(const std::string& input)
 class DrmImpl : public Drm
 {
   public:
-    DrmImpl(const std::string& productName, FileSystem& fileSystem, Logger& logger);
+    DrmImpl(const std::string& productName, DirectoryPtr userDataDir, Logger& logger);
 
     bool isActivated() const override;
     bool activate(const std::string& key) override;
 
   private:
     std::string m_productName;
-    FileSystem& m_fileSystem;
+    DirectoryPtr m_userDataDir;
     Logger& m_logger;
 
     void writeActivationFile();
@@ -66,16 +66,16 @@ class DrmImpl : public Drm
 #endif
 };
 
-DrmImpl::DrmImpl(const std::string& productName, FileSystem& fileSystem, Logger& logger)
+DrmImpl::DrmImpl(const std::string& productName, DirectoryPtr userDataDir, Logger& logger)
   : m_productName(productName)
-  , m_fileSystem(fileSystem)
+  , m_userDataDir(userDataDir)
   , m_logger(logger)
 {
 }
 
 bool DrmImpl::isActivated() const
 {
-  if (!m_fileSystem.userDataFileExists(activationFile)) {
+  if (!m_userDataDir->fileExists(activationFile)) {
     return false;
   }
 
@@ -88,7 +88,7 @@ bool DrmImpl::isActivated() const
   ss << systemId;
 
   auto expected = sha256(ss.str());
-  auto actual = m_fileSystem.readUserDataFile(activationFile);
+  auto actual = m_userDataDir->readFile(activationFile);
 
   if (expected.size() != actual.size()) {
     return false;
@@ -143,7 +143,7 @@ void DrmImpl::writeActivationFile()
 
   auto hash = sha256(ss.str());
 
-  m_fileSystem.writeUserDataFile(activationFile, hash.c_str(), hash.size());
+  m_userDataDir->writeFile(activationFile, hash.c_str(), hash.size());
 }
 
 #ifdef PLATFORM_WINDOWS
@@ -252,9 +252,9 @@ std::string DrmImpl::getSystemId() const
 
 } // namespace
 
-DrmPtr createDrm(const std::string& productName, FileSystem& fileSystem, Logger& logger)
+DrmPtr createDrm(const std::string& productName, DirectoryPtr userDataDir, Logger& logger)
 {
-  return std::make_unique<DrmImpl>(productName, fileSystem, logger);
+  return std::make_unique<DrmImpl>(productName, userDataDir, logger);
 }
 
 } // namespace lithic3d
