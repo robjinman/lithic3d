@@ -46,8 +46,7 @@ const std::vector<const char*> ValidationLayers = {
 };
 
 const std::vector<const char*> DeviceExtensions = {
-  VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-  VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+  VK_KHR_SWAPCHAIN_EXTENSION_NAME
 #ifdef PLATFORM_OSX
   "VK_KHR_portability_subset",
 #endif
@@ -1401,6 +1400,9 @@ void RendererImpl::checkValidationLayerSupport() const
 
 bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
 {
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(device, &props);
+
   bool extensionsSupported = checkDeviceExtensionSupport(device);
 
   if (!extensionsSupported) {
@@ -1447,8 +1449,8 @@ void RendererImpl::createLogicalDevice()
   //indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
   //indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
 
-  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeatures{};
-  dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+  VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
+  dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
   dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
   dynamicRenderingFeatures.pNext = nullptr;//&indexingFeatures;
 
@@ -1628,7 +1630,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
     .imageView = m_resources->getShadowMap().vkImageView(1 + cascade),  // First view is the array
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,    // view used for sampling
     .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = nullptr,
+    .resolveImageView = NULL,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -1648,7 +1650,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
     .layerCount = 1,
     .viewMask = 0,
     .colorAttachmentCount = 0,
-    .pColorAttachments = nullptr,
+    .pColorAttachments = NULL,
     .pDepthAttachment = &depthAttachment,
     .pStencilAttachment = nullptr
   };
@@ -1724,7 +1726,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .imageView = m_swapchainImageViews[imageIndex],
     .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = nullptr,
+    .resolveImageView = NULL,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .loadOp = shouldClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -1739,7 +1741,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .imageView = m_depthImage->vkImageView(0),
     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = nullptr,
+    .resolveImageView = NULL,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -1833,7 +1835,7 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
     .imageView = m_swapchainImageViews[imageIndex],
     .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = nullptr,
+    .resolveImageView = NULL,
     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .loadOp = shouldClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -2045,8 +2047,10 @@ void RendererImpl::pickPhysicalDevice()
 
     DBG_LOG(m_logger, STR("Device: " << props.deviceName));
     DBG_LOG(m_logger, STR("Type: " << props.deviceType));
+    DBG_LOG(m_logger, STR("  Vulkan version: "
+      << VK_API_VERSION_MAJOR(props.apiVersion) << "." << VK_API_VERSION_MINOR(props.apiVersion)));
 
-    DBG_LOG(m_logger, "Physical device properties");
+    DBG_LOG(m_logger, "Physical device limits");
     DBG_LOG(m_logger, STR("  maxComputeWorkGroupSize: "
       << props.limits.maxComputeWorkGroupSize[0] << ", "
       << props.limits.maxComputeWorkGroupSize[1] << ", "
@@ -2100,7 +2104,7 @@ void RendererImpl::createInstance()
     .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
     .pEngineName = "Lithic3D",
     .engineVersion = VK_MAKE_VERSION(getVersionMajor(), getVersionMinor(), 0),
-    .apiVersion = VK_API_VERSION_1_2
+    .apiVersion = VK_API_VERSION_1_3
   };
 
   VkInstanceCreateInfo createInfo{};

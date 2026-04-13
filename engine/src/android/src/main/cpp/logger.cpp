@@ -8,7 +8,7 @@ namespace lithic3d
 namespace
 {
 
-const char* LOG_TAG = "eggplant";
+const char* LOG_TAG = "lithic3d";
 
 class AndroidLogger : public Logger
 {

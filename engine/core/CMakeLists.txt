@@ -34,10 +34,20 @@ if(PLATFORM_ANDROID)
   set(VCPKG_INSTALLED_DIR "${REPO_ROOT}/build/android/vcpkg_installed")
   set(CMAKE_SYSTEM_NAME "android")
   set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "$ENV{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake")
-  set(VCPKG_TARGET_TRIPLET "arm64-android") # TODO
   set(VCPKG_CMAKE_SYSTEM_NAME "Android")
   set(ENV{VULKAN_SDK} "$ENV{ANDROID_NDK_HOME}/sysroot/usr")
-  set(ANDROID_ABI "arm64-v8a")  # TODO
+
+  if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(VCPKG_TARGET_TRIPLET "arm64-android")
+  elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+    set(VCPKG_TARGET_TRIPLET "arm-neon-android")
+  elseif(ANDROID_ABI STREQUAL "x86")
+    set(VCPKG_TARGET_TRIPLET "x86-android")
+  elseif(ANDROID_ABI STREQUAL "x86_64")
+    set(VCPKG_TARGET_TRIPLET "x64-android")
+  else()
+    message(FATAL_ERROR "Unsupported ANDROID_ABI: ${ANDROID_ABI}")
+  endif()
 endif()
 
 # Must come AFTER setting VCPKG_... variables

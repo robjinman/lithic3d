@@ -601,7 +601,7 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     .pColorBlendState = &m_colourBlendStateInfo,
     .pDynamicState = m_dynamicScissor ? &dynamicState : nullptr,
     .layout = m_layout,
-    .renderPass = nullptr,
+    .renderPass = NULL,
     .subpass = 0,
     .basePipelineHandle = VK_NULL_HANDLE,
     .basePipelineIndex = -1

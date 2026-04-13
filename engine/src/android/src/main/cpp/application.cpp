@@ -435,23 +435,28 @@ void android_main(android_app* state)
     return;
   }
 
-  auto application = lithic3d::createApplication(*state, std::move(logger));
-  handler.setApplication(application.get());
+  try {
+    auto application = lithic3d::createApplication(*state, std::move(logger));
+    handler.setApplication(application.get());
 
-  lithic3d::FrameRateLimiter frameRateLimiter{lithic3d::TICKS_PER_SECOND};
+    lithic3d::FrameRateLimiter frameRateLimiter{lithic3d::TICKS_PER_SECOND};
 
-  while (!state->destroyRequested) {
-    android_poll_source* source = nullptr;
-    ALooper_pollOnce(0, nullptr, nullptr, reinterpret_cast<void**>(&source));
+    while (!state->destroyRequested) {
+      android_poll_source* source = nullptr;
+      ALooper_pollOnce(0, nullptr, nullptr, reinterpret_cast<void**>(&source));
 
-    if (source != nullptr) {
-      source->process(state, source);
+      if (source != nullptr) {
+        source->process(state, source);
+      }
+
+      if (!application->update()) {
+        ANativeActivity_finish(state->activity);
+      }
+
+      frameRateLimiter.wait();
     }
-
-    if (!application->update()) {
-      ANativeActivity_finish(state->activity);
-    }
-
-    frameRateLimiter.wait();
+  }
+  catch (const lithic3d::Exception& ex) {
+    __android_log_print(ANDROID_LOG_ERROR, "lithic3d", "%s", ex.what());
   }
 }

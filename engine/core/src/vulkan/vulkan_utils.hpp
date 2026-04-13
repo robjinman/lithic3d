@@ -6,8 +6,8 @@
 namespace lithic3d
 {
 
-extern PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingFn;
-extern PFN_vkCmdEndRenderingKHR vkCmdEndRenderingFn;
+extern PFN_vkCmdBeginRendering vkCmdBeginRenderingFn;
+extern PFN_vkCmdEndRendering vkCmdEndRenderingFn;
 
 void loadVulkanExtensionFunctions(VkInstance instance);
 
