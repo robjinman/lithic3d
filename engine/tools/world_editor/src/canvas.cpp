@@ -35,27 +35,22 @@ class CanvasImpl : public Canvas
     wxPoint getCursorPos() const;
 
     void onResize(wxSizeEvent& e);
-    void onKeyPress(wxKeyEvent& e);
+    void onKeyDown(wxKeyEvent& e);
+    void onKeyUp(wxKeyEvent& e);
     void onLeftMouseBtnDown(wxMouseEvent& e);
     void onLeftMouseBtnUp(wxMouseEvent& e);
     void onMouseMove(wxMouseEvent& e);
     void onTick(wxTimerEvent& e);
     void onPaint(wxPaintEvent& e);
 
-    // TODO: Remove
-    //FactoryPtr m_factory;
-    //EntityId m_cube = NULL_ENTITY_ID;
-
-    //EntityId constructCube();
     EntityId constructLight();
-    //void rotateCube();
+    void processKeyboardInput();
 
     GameConfig m_config;
     EnginePtr m_engine;
     bool m_disabled = false;
     wxTimer* m_timer = nullptr;
-    bool m_mouseDown = false;
-    wxRect m_selectionRect;
+    InputState m_inputState;
 };
 
 CanvasImpl::CanvasImpl(wxWindow* parent)
@@ -63,7 +58,8 @@ CanvasImpl::CanvasImpl(wxWindow* parent)
 {
   Bind(wxEVT_PAINT, &CanvasImpl::onPaint, this);
   Bind(wxEVT_SIZE, &CanvasImpl::onResize, this);
-  Bind(wxEVT_KEY_DOWN, &CanvasImpl::onKeyPress, this);
+  Bind(wxEVT_KEY_DOWN, &CanvasImpl::onKeyDown, this);
+  Bind(wxEVT_KEY_UP, &CanvasImpl::onKeyUp, this);
   Bind(wxEVT_LEFT_DOWN, &CanvasImpl::onLeftMouseBtnDown, this);
   Bind(wxEVT_LEFT_UP, &CanvasImpl::onLeftMouseBtnUp, this);
   Bind(wxEVT_MOTION, &CanvasImpl::onMouseMove, this);
@@ -130,12 +126,6 @@ void CanvasImpl::startEngine(const std::filesystem::path& projectPath)
   //m_cube = constructCube();
 }
 
-//EntityId CanvasImpl::constructCube()
-//{
-//  auto material = m_factory->createMaterialAsync("textures/bricks.png").wait();
-//  return m_factory->createStaticCuboid({ 1.f, 1.f, 1.f }, material, { 1.f, 1.f }, 0.2f, 0.4f);
-//}
-
 EntityId CanvasImpl::constructLight()
 {
   auto id = m_engine->ecs().idGen().getNewEntityId();
@@ -159,20 +149,98 @@ EntityId CanvasImpl::constructLight()
   return id;
 }
 
-//void CanvasImpl::rotateCube()
-//{
-//  float a = (2 * PIf / 360.f) * (m_engine->currentTick() % 360);
-//  float b = (2 * PIf / 720.f) * (m_engine->currentTick() % 720);
+KeyboardKey mapToLithic3dKey(int code)
+{
+  if (code >= 'A' && code <= 'Z') {
+    return static_cast<KeyboardKey>(code);
+  }
+  if (code >= '0' && code <= '9') {
+    return static_cast<KeyboardKey>(code);
+  }
+  switch (code) {
+    case WXK_SPACE: return KeyboardKey::Space;
+    case WXK_ESCAPE: return KeyboardKey::Escape;
+    case WXK_RETURN:
+    case WXK_NUMPAD_ENTER: return KeyboardKey::Enter;
+    case WXK_BACK: return KeyboardKey::Backspace;
+    case WXK_F1: return KeyboardKey::F1;
+    case WXK_F2: return KeyboardKey::F2;
+    case WXK_F3: return KeyboardKey::F3;
+    case WXK_F4: return KeyboardKey::F4;
+    case WXK_F5: return KeyboardKey::F5;
+    case WXK_F6: return KeyboardKey::F6;
+    case WXK_F7: return KeyboardKey::F7;
+    case WXK_F8: return KeyboardKey::F8;
+    case WXK_F9: return KeyboardKey::F9;
+    case WXK_F10: return KeyboardKey::F10;
+    case WXK_F11: return KeyboardKey::F11;
+    case WXK_F12: return KeyboardKey::F12;
+    case WXK_RIGHT: return KeyboardKey::Right;
+    case WXK_LEFT: return KeyboardKey::Left;
+    case WXK_DOWN: return KeyboardKey::Down;
+    case WXK_UP: return KeyboardKey::Up;
+    default: return KeyboardKey::Unknown;
+  }
+}
 
-//  m_engine->ecs().system<SysSpatial>().setLocalTransform(m_cube,
-//    createTransform(Vec3f{ 0.f, 0.f, -5.f }, { b, a, 0.f }));
-//}
+void CanvasImpl::onKeyDown(wxKeyEvent& e)
+{
+  e.Skip();
+
+  auto key = mapToLithic3dKey(e.GetKeyCode());
+  m_inputState.keysPressed.insert(key);
+}
+
+void CanvasImpl::onKeyUp(wxKeyEvent& e)
+{
+  e.Skip();
+
+  auto key = mapToLithic3dKey(e.GetKeyCode());
+  m_inputState.keysPressed.erase(key);
+}
+
+void CanvasImpl::processKeyboardInput()
+{
+  auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+
+  float metresPerSecond = 6.f;
+  float speed = metresToWorldUnits(metresPerSecond) / TICKS_PER_SECOND;
+  const auto forward = camera.getDirection();
+  const auto right = forward.cross(Vec3f{0, 1, 0});
+  Vec3f direction;
+
+  if (m_inputState.keysPressed.contains(KeyboardKey::W)) {
+    direction += forward;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::S)) {
+    direction -= forward;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::D)) {
+    direction += right;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::A)) {
+    direction -= right;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::Q)) {
+    direction += { 0, -1, 0 };
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::E)) {
+    direction += { 0, 1, 0 };
+  }
+
+  if (direction != Vec3f{}) {
+    direction = direction.normalise();
+    auto delta = direction * speed;
+
+    camera.translate(delta);
+  }
+}
 
 void CanvasImpl::onTick(wxTimerEvent& e)
 {
   if (m_engine) {
-    //rotateCube();
-    m_engine->update({});
+    processKeyboardInput();
+    m_engine->update(m_inputState);
     m_engine->worldGrid().update(m_engine->ecs().system<SysRender3d>().camera().getPosition());
   }
 }
@@ -180,8 +248,6 @@ void CanvasImpl::onTick(wxTimerEvent& e)
 void CanvasImpl::onResize(wxSizeEvent& e)
 {
   e.Skip();
-
-  // TODO: On OSX, resize metal layer
 
   if (m_engine != nullptr) {
     m_engine->onWindowResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
@@ -204,54 +270,38 @@ void CanvasImpl::onLeftMouseBtnDown(wxMouseEvent& e)
 
   SetFocus();
 
-  m_mouseDown = true;
-  m_selectionRect = wxRect(e.GetPosition(), wxSize(0, 0));
+  m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
 }
 
 void CanvasImpl::onLeftMouseBtnUp(wxMouseEvent& e)
 {
   e.Skip();
 
-  m_mouseDown = false;
-
-  auto selectionSizeAboveThreshold = [](wxSize sz) {
-    return sz.x * sz.x + sz.y * sz.y >= 64;
-  };
-
-  if (selectionSizeAboveThreshold(m_selectionRect.GetSize())) {
-    int x0 = m_selectionRect.x;
-    int y0 = m_selectionRect.y;
-    int x1 = x0 + m_selectionRect.width;
-    int y1 = y0 + m_selectionRect.height;
-
-    // TODO
-  }
+  m_inputState.mouseButtonsPressed.erase(MouseButton::Left);
 }
 
 void CanvasImpl::onMouseMove(wxMouseEvent& e)
 {
   e.Skip();
 
-  if (m_mouseDown) {
-    wxPoint p = wxGetMousePosition() - GetScreenPosition();
-    wxPoint sz_p = p - m_selectionRect.GetTopLeft();
-    wxSize sz(sz_p.x, sz_p.y);
-
-    wxSize winSz = GetClientSize();
-    float aspect = static_cast<float>(winSz.x) / static_cast<float>(winSz.y);
-    sz.y = sz.x / aspect;
-
-    m_selectionRect.SetSize(sz);
+  if (!m_engine) {
+    return;
   }
-}
 
-void CanvasImpl::onKeyPress(wxKeyEvent& e)
-{
-  e.Skip();
+  float x = static_cast<float>(e.GetX()) / GetClientSize().GetWidth();
+  float y = static_cast<float>(e.GetY()) / GetClientSize().GetHeight();
 
-  auto key = e.GetKeyCode();
+  if (e.Dragging() && m_inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
+    float speed = 3.f;
+    float dx = x - m_inputState.mouseX;
+    float dy = y - m_inputState.mouseY;
 
-  // TODO
+    auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+    camera.rotate(-dy * speed, dx * speed);
+  }
+
+  m_inputState.mouseX = x;
+  m_inputState.mouseY = y;
 }
 
 void CanvasImpl::disable()
@@ -269,7 +319,10 @@ void CanvasImpl::enable()
 CanvasImpl::~CanvasImpl()
 {
   m_timer->Stop();
-  m_engine->resourceManager().deactivate();
+
+  if (m_engine) {
+    m_engine->resourceManager().deactivate();
+  }
 }
 
 } // namespace
