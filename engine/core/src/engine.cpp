@@ -87,21 +87,21 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   , m_audioSystem(std::move(audioSystem))
   , m_fileSystem(std::move(fileSystem))
 {
-  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, config.paths, *m_renderer,
+  m_renderResourceLoader = createRenderResourceLoader(*m_resourceManager, m_paths, *m_renderer,
     *m_logger);
   m_eventSystem = createEventSystem(*m_logger);
   m_ecs = createEcs(*m_logger);
 
   m_renderer->start();
 
-  m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, config.paths,
+  m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, m_paths,
     *m_logger);
 
   m_entityFactory = createEntityFactory(*m_ecs, *m_modelLoader, *m_renderResourceLoader,
-    *m_resourceManager, config.paths, *m_logger);
+    *m_resourceManager, m_paths, *m_logger);
 
   if (config.features.terrain) {
-    m_worldLoader = createWorldLoader(*m_ecs, config.paths, *m_entityFactory, *m_modelLoader,
+    m_worldLoader = createWorldLoader(*m_ecs, m_paths, *m_entityFactory, *m_modelLoader,
       *m_renderResourceLoader, *m_resourceManager, *m_logger);
 
     // TODO
