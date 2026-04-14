@@ -55,19 +55,20 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto platformPaths = createPlatformPaths(bundlePath, appSupportPath);
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
-  auto audioSystem = createAudioSystem(*fileSystem, *logger);
+  fillDefaultPaths(*fileSystem, config.paths);
+  auto audioSystem = createAudioSystem(config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
 
   render::ScreenMargins margins{
     .left = 50,
     .bottom = 50
   };
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
+  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, config.paths, *logger,
     margins);
 
   logger->info("Compiling shaders...");
 
-  auto manifest = fileSystem->readAppDataFile(config.shaderManifest);
+  auto manifest = config.paths.shaderManifest.read();
   auto specs = parseShaderManifest(manifest, *logger);
   for (auto& spec : specs) {
     renderer->compileShader(spec);
@@ -75,7 +76,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
 
   logger->info("Finished compiling shaders");
 
-  m_engine = createEngine(1000.f, std::move(resourceManager), std::move(renderer),
+  m_engine = createEngine(config, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
 
   m_game = createGame(*m_engine);
