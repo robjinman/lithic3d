@@ -124,18 +124,19 @@ using ApplicationPtr = std::unique_ptr<Application>;
 Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem,
   LoggerPtr logger)
 {
-  auto audioSystem = createAudioSystem(*fileSystem, *logger);
+  auto config = getGameConfig();
+  fillDefaultPaths(*fileSystem, config.paths);
+
+  auto audioSystem = createAudioSystem(config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, *fileSystem, *logger,
+  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, config.paths, *logger,
     {});
 
   m_screenSize = renderer->getScreenSize();
 
   logger->info("Compiling shaders...");
 
-  auto config = getGameConfig();
-
-  auto manifest = fileSystem->readAppDataFile(config.shaderManifest);
+  auto manifest = config.paths.shaderManifest.read();
   auto specs = parseShaderManifest(manifest, *logger);
   for (auto& spec : specs) {
     renderer->compileShader(spec);
@@ -143,7 +144,7 @@ Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSys
 
   logger->info("Finished compiling shaders");
   
-  m_engine = createEngine(1000.f, std::move(resourceManager), std::move(renderer),
+  m_engine = createEngine(config, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
 
   m_game = createGame(*m_engine);

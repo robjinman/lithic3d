@@ -10,6 +10,24 @@ namespace lithic3d
 namespace
 {
 
+std::vector<char> readAssetFile(AAssetManager& assetManager, const fs::path& path)
+{
+  AAsset* asset = AAssetManager_open(&assetManager, path.c_str(), AASSET_MODE_BUFFER);
+  ASSERT(asset != nullptr, "Error opening asset '" << path << "'");
+
+  size_t assetLength = AAsset_getLength(asset);
+  std::vector<char> data(assetLength);
+
+  size_t read = 0;
+  int result = 0;
+  do {
+    result = AAsset_read(asset, data.data() + read, assetLength - read);
+    read += result;
+  } while (result > 0);
+
+  return data;
+}
+
 class AndroidIteratorImpl : public Directory::IteratorImpl
 {
   public:
@@ -71,31 +89,71 @@ AndroidIteratorImpl::~AndroidIteratorImpl()
 class AndroidDirectoryImpl : public Directory
 {
   public:
-    AndroidDirectoryImpl(AAssetManager& assetManager, const fs::path& path);
+    AndroidDirectoryImpl(AAssetManager& assetManager, const fs::path& path, bool assetDir);
 
     Directory::Iterator begin() const override;
     Directory::Iterator end() const override;
 
+    std::shared_ptr<Directory> subdirectory(const fs::path& path) const override;
+    std::vector<char> readFile(const fs::path& path) const override;
+    void writeFile(const fs::path& path, const char* data, size_t size) override;
+    bool fileExists(const fs::path& path) const override;
+
   private:
     AAssetManager& m_assetManager;
     fs::path m_path;
+    bool m_isAssetDir;
 };
 
-AndroidDirectoryImpl::AndroidDirectoryImpl(AAssetManager& assetManager, const fs::path& path)
+AndroidDirectoryImpl::AndroidDirectoryImpl(AAssetManager& assetManager, const fs::path& path,
+  bool assetDir)
   : m_assetManager(assetManager)
   , m_path(path)
+  , m_isAssetDir(assetDir)
 {
 }
 
 Directory::Iterator AndroidDirectoryImpl::begin() const
 {
+  ASSERT(m_isAssetDir, "Directory iteration only supported on asset directories");
+
   auto assetDir = AAssetManager_openDir(&m_assetManager, m_path.c_str());
   return Directory::Iterator{std::make_unique<AndroidIteratorImpl>(m_path, assetDir)};
 }
 
 Directory::Iterator AndroidDirectoryImpl::end() const
 {
+  ASSERT(m_isAssetDir, "Directory iteration only supported on asset directories");
+
   return Directory::Iterator{std::make_unique<AndroidIteratorImpl>(m_path, nullptr)};
+}
+
+DirectoryPtr AndroidDirectoryImpl::subdirectory(const fs::path& path) const
+{
+  return std::make_shared<AndroidDirectoryImpl>(m_assetManager, m_path / path, m_isAssetDir);
+}
+
+std::vector<char> AndroidDirectoryImpl::readFile(const fs::path& path) const
+{
+  if (m_isAssetDir) {
+    return readAssetFile(m_assetManager, m_path / path);
+  }
+  else {
+    return readBinaryFile(m_path / path);
+  }
+}
+
+void AndroidDirectoryImpl::writeFile(const fs::path& path, const char* data, size_t size)
+{
+  ASSERT(!m_isAssetDir, "Cannot write to app data files");
+
+  writeBinaryFile(m_path / path, data, size);
+}
+
+bool AndroidDirectoryImpl::fileExists(const fs::path& path) const
+{
+  ASSERT(!m_isAssetDir, "Not implemented for user data files");
+  return fs::exists(m_path / path);
 }
 
 class AndroidFileSystem : public FileSystem
@@ -103,13 +161,9 @@ class AndroidFileSystem : public FileSystem
   public:
     AndroidFileSystem(const fs::path& userDataPath, AAssetManager& assetManager);
 
-    std::vector<char> readAppDataFile(const fs::path& path) const override;
-    DirectoryPtr appDataDirectory(const fs::path& path) const override;
-
-    bool userDataFileExists(const fs::path& path) const override;
-    std::vector<char> readUserDataFile(const fs::path& path) const override;
-    void writeUserDataFile(const fs::path& path, const char* data,
-      size_t size) override;
+    DirectoryPtr appDataDirectory() const override;
+    DirectoryPtr userDataDirectory() const override;
+    DirectoryPtr directory(const fs::path& path) const override;
 
   private:
     fs::path m_userDataPath;
@@ -122,42 +176,19 @@ AndroidFileSystem::AndroidFileSystem(const fs::path& userDataPath, AAssetManager
 {
 }
 
-std::vector<char> AndroidFileSystem::readAppDataFile(const fs::path& path) const
+DirectoryPtr AndroidFileSystem::appDataDirectory() const
 {
-  AAsset* asset = AAssetManager_open(&m_assetManager, path.c_str(), AASSET_MODE_BUFFER);
-  ASSERT(asset != nullptr, "Error opening asset '" << path << "'");
-
-  size_t assetLength = AAsset_getLength(asset);
-  std::vector<char> data(assetLength);
-
-  size_t read = 0;
-  int result = 0;
-  do {
-    result = AAsset_read(asset, data.data() + read, assetLength - read);
-    read += result;
-  } while (result > 0);
-
-  return data;
+  return std::make_unique<AndroidDirectoryImpl>(m_assetManager, "", true);
 }
 
-DirectoryPtr AndroidFileSystem::appDataDirectory(const fs::path& path) const
+DirectoryPtr AndroidFileSystem::userDataDirectory() const
 {
-  return std::make_unique<AndroidDirectoryImpl>(m_assetManager, path);
+  return std::make_unique<AndroidDirectoryImpl>(m_assetManager, m_userDataPath, false);
 }
 
-bool AndroidFileSystem::userDataFileExists(const std::filesystem::path& path) const
+DirectoryPtr AndroidFileSystem::directory(const fs::path&) const
 {
-  return std::filesystem::exists(m_userDataPath / path);
-}
-
-std::vector<char> AndroidFileSystem::readUserDataFile(const fs::path& path) const
-{
-  return readBinaryFile((m_userDataPath / path).string());
-}
-
-void AndroidFileSystem::writeUserDataFile(const fs::path& path, const char* data, size_t size)
-{
-  writeBinaryFile(m_userDataPath / path, data, size);
+  EXCEPTION("Not implemented");
 }
 
 } // namespace

@@ -16,4 +16,6 @@ struct GameDataPaths
   FilePath shaderManifest{};            // Defaults to APP_DATA_DIR/shaders.xml
 };
 
+void fillDefaultPaths(const FileSystem& fileSystem, GameDataPaths& paths);
+
 } // namespace lithic3d

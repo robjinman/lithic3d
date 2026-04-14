@@ -194,7 +194,7 @@ To build one of the example projects such as 1_cube on linux
 ```
 
 
-Games using Lithic3D
---------------------
+Games made with Lithic3D
+------------------------
 
 * [Minefield](https://freeholdapps.com/minefield)
