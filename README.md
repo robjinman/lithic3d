@@ -140,7 +140,7 @@ Build icon set for OSX
     brew install imagemagick
 
     cd ./engine/platform/osx
-    ./build_icon_set ./path/to/icon.png ./destination/directory
+    ./build_icon_set.sh ./path/to/icon.png ./destination/directory
 ```
 
 You should put the icon set in $LITHIC3D_PROJECT/icons/osx.

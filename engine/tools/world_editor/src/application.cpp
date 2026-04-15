@@ -5,23 +5,6 @@
 
 wxFrame* createMainWindow(const wxString& title);
 
-namespace
-{
-
-void doWithLogging(std::function<void()> fn)
-{
-  try {
-    fn();
-  }
-  catch (const std::runtime_error& e) {
-    std::cerr << "A fatal exception occurred: " << std::endl;
-    std::cerr << e.what() << std::endl;
-    exit(1);
-  }
-}
-
-} // namespace
-
 class Application : public wxApp
 {
   public:
@@ -40,9 +23,14 @@ bool Application::OnInit()
 
 void Application::HandleEvent(wxEvtHandler* handler, wxEventFunction func, wxEvent& event) const
 {
-  doWithLogging([this, handler, &func, &event]() {
+  try {
     wxApp::HandleEvent(handler, func, event);
-  });
+  }
+  catch (const std::runtime_error& e) {
+    std::cerr << "A fatal exception occurred: " << std::endl;
+    std::cerr << e.what() << std::endl;
+    exit(1);
+  }
 }
 
 #ifdef PLATFORM_LINUX

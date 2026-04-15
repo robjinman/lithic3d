@@ -1,5 +1,13 @@
-#include "canvas.hpp"
 #include <lithic3d/lithic3d.hpp>
+#include "canvas.hpp"
+
+namespace fs = std::filesystem;
+
+#ifdef PLATFORM_OSX
+void osxResizeMetalLayer(WXWidget window, int width, int height);
+#endif
+
+lithic3d::WindowDelegatePtr createWindowDelegate(WXWidget window);
 
 namespace lithic3d
 {
@@ -11,11 +19,6 @@ FileSystemPtr createDefaultFileSystem(PlatformPathsPtr platformPaths);
 
 using namespace lithic3d;
 
-WindowDelegatePtr createWindowDelegate(WXWidget window);
-#ifdef PLATFORM_OSX
-void osxResizeMetalLayer(WXWidget window, int width, int height);
-#endif
-
 namespace
 {
 
@@ -24,10 +27,10 @@ class CanvasImpl : public Canvas
   public:
     explicit CanvasImpl(wxWindow* parent);
 
-    void startEngine(const std::filesystem::path& projectPath) override;
-
     void enable() override;
     void disable() override;
+    void startEngine(const fs::path& projectRoot) override;
+    Engine& engine() const override;
 
     ~CanvasImpl() override;
 
@@ -43,13 +46,13 @@ class CanvasImpl : public Canvas
     void onTick(wxTimerEvent& e);
     void onPaint(wxPaintEvent& e);
 
-    EntityId constructLight();
     void processKeyboardInput();
 
-    GameConfig m_config;
-    EnginePtr m_engine;
+    fs::path m_projectRoot;
     bool m_disabled = false;
     wxTimer* m_timer = nullptr;
+    GameConfig m_config;
+    EnginePtr m_engine;
     InputState m_inputState;
 };
 
@@ -64,36 +67,31 @@ CanvasImpl::CanvasImpl(wxWindow* parent)
   Bind(wxEVT_LEFT_UP, &CanvasImpl::onLeftMouseBtnUp, this);
   Bind(wxEVT_MOTION, &CanvasImpl::onMouseMove, this);
   Bind(wxEVT_TIMER, &CanvasImpl::onTick, this);
-
-  m_timer = new wxTimer(this);
-  m_timer->Start(1000.0 / TICKS_PER_SECOND);
 }
 
-void CanvasImpl::onPaint(wxPaintEvent& e)
+void CanvasImpl::startEngine(const fs::path& projectRoot)
 {
-}
+  m_projectRoot = projectRoot;
 
-void CanvasImpl::startEngine(const std::filesystem::path& projectPath)
-{
   auto platformPaths = createPlatformPaths("lithic3d_world_editor", "freeholdapps");
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
 
   m_config.paths = GameDataPaths{
-    .shadersDir = fileSystem->directory(projectPath / "data/shaders"),
-    .texturesDir = fileSystem->directory(projectPath / "data/textures"),
-    .soundsDir = fileSystem->directory(projectPath / "data/sounds"),
-    .prefabsDir = fileSystem->directory(projectPath / "data/prefabs"),
-    .modelsDir = fileSystem->directory(projectPath / "data/models"),
-    .worldsDir = fileSystem->directory(projectPath / "data/worlds"),
+    .shadersDir = fileSystem->directory(m_projectRoot / "data/shaders"),
+    .texturesDir = fileSystem->directory(m_projectRoot / "data/textures"),
+    .soundsDir = fileSystem->directory(m_projectRoot / "data/sounds"),
+    .prefabsDir = fileSystem->directory(m_projectRoot / "data/prefabs"),
+    .modelsDir = fileSystem->directory(m_projectRoot / "data/models"),
+    .worldsDir = fileSystem->directory(m_projectRoot / "data/worlds"),
     .shaderManifest = FilePath{
-      .directory = fileSystem->directory(projectPath),
+      .directory = fileSystem->directory(m_projectRoot),
       .subpath = "data/shaders.xml"
     }
   };
   m_config.features = {
     .terrain = true
   };
-  m_config.drawDistance = 100.f; // In metres
+  m_config.drawDistance = 1000.f; // In metres
 
   auto windowDelegate = createWindowDelegate(GetHandle());
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
@@ -115,38 +113,24 @@ void CanvasImpl::startEngine(const std::filesystem::path& projectPath)
   m_engine = createEngine(m_config, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
 
-  Vec3f initialPos{ 11305.0, 30.0, 9199.0 };
-  m_engine->ecs().system<SysRender3d>().camera().setPosition(metresToWorldUnits(initialPos));
+  Vec3f initialPos = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
+  m_engine->ecs().system<SysRender3d>().camera().setPosition(initialPos);
 
-  // TODO
-  //m_factory = createFactory(m_engine->ecs(), m_engine->modelLoader(),
-  //  m_engine->renderResourceLoader());
+  m_engine->worldGrid().update(initialPos);
+  m_engine->worldGrid().wait();
 
-  constructLight();
-  //m_cube = constructCube();
+  m_timer = new wxTimer(this);
+  m_timer->Start(1000.0 / TICKS_PER_SECOND);
 }
 
-EntityId CanvasImpl::constructLight()
+Engine& CanvasImpl::engine() const
 {
-  auto id = m_engine->ecs().idGen().getNewEntityId();
-  m_engine->ecs().componentStore().allocate<DSpatial, DDirectionalLight>(id);
+  ASSERT(m_engine, "Engine not started");
+  return *m_engine;
+}
 
-  DSpatial spatial{
-    .transform = {},
-    .parent = m_engine->ecs().system<SysSpatial>().root(),
-    .enabled = true
-  };
-
-  m_engine->ecs().system<SysSpatial>().addEntity(id, spatial);
-
-  auto light = std::make_unique<DDirectionalLight>();
-  light->colour = { 1.f, 0.9f, 0.9f };
-  light->ambient = 0.4f;
-  light->specular = 0.9f;
-
-  m_engine->ecs().system<SysRender3d>().addEntity(id, std::move(light));
-
-  return id;
+void CanvasImpl::onPaint(wxPaintEvent&)
+{
 }
 
 KeyboardKey mapToLithic3dKey(int code)
@@ -236,22 +220,24 @@ void CanvasImpl::processKeyboardInput()
   }
 }
 
-void CanvasImpl::onTick(wxTimerEvent& e)
+void CanvasImpl::onTick(wxTimerEvent&)
 {
-  if (m_engine) {
-    processKeyboardInput();
-    m_engine->update(m_inputState);
-    m_engine->worldGrid().update(m_engine->ecs().system<SysRender3d>().camera().getPosition());
-  }
+  ASSERT(m_engine, "Engine not started");
+
+  processKeyboardInput();
+  m_engine->update(m_inputState);
+  m_engine->worldGrid().update(m_engine->ecs().system<SysRender3d>().camera().getPosition());
 }
 
 void CanvasImpl::onResize(wxSizeEvent& e)
 {
   e.Skip();
 
-  if (m_engine != nullptr) {
-    m_engine->onWindowResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
+  if (!m_engine) {
+    return;
   }
+
+  m_engine->onWindowResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
 
 #ifdef PLATFORM_OSX
   osxResizeMetalLayer(GetHandle(), e.GetSize().GetWidth(), e.GetSize().GetHeight());
@@ -318,10 +304,11 @@ void CanvasImpl::enable()
 
 CanvasImpl::~CanvasImpl()
 {
-  m_timer->Stop();
-
   if (m_engine) {
     m_engine->resourceManager().deactivate();
+  }
+  if (m_timer) {
+    m_timer->Stop();
   }
 }
 
