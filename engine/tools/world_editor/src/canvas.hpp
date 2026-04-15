@@ -12,7 +12,7 @@ class Canvas : public wxPanel
 
     virtual void enable() = 0;
     virtual void disable() = 0;
-    virtual void startEngine(const std::filesystem::path& projectRoot) = 0;
+    virtual void initialise(const std::filesystem::path& projectRoot) = 0;
     virtual lithic3d::Engine& engine() const = 0;
 
     virtual ~Canvas() = default;

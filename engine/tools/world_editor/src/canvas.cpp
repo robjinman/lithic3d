@@ -29,7 +29,7 @@ class CanvasImpl : public Canvas
 
     void enable() override;
     void disable() override;
-    void startEngine(const fs::path& projectRoot) override;
+    void initialise(const fs::path& projectRoot) override;
     Engine& engine() const override;
 
     ~CanvasImpl() override;
@@ -47,6 +47,9 @@ class CanvasImpl : public Canvas
     void onPaint(wxPaintEvent& e);
 
     void processKeyboardInput();
+    void startEngine();
+    void constructCursor();
+    void positionCursor();
 
     fs::path m_projectRoot;
     bool m_disabled = false;
@@ -54,6 +57,7 @@ class CanvasImpl : public Canvas
     GameConfig m_config;
     EnginePtr m_engine;
     InputState m_inputState;
+    EntityId m_cursorId = NULL_ENTITY_ID;
 };
 
 CanvasImpl::CanvasImpl(wxWindow* parent)
@@ -69,10 +73,68 @@ CanvasImpl::CanvasImpl(wxWindow* parent)
   Bind(wxEVT_TIMER, &CanvasImpl::onTick, this);
 }
 
-void CanvasImpl::startEngine(const fs::path& projectRoot)
+void CanvasImpl::initialise(const fs::path& projectRoot)
 {
   m_projectRoot = projectRoot;
 
+  startEngine();
+
+  m_timer = new wxTimer(this);
+  m_timer->Start(1000.0 / TICKS_PER_SECOND);
+
+  constructCursor();
+}
+
+void CanvasImpl::constructCursor()
+{
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+
+  m_cursorId = m_engine->ecs().idGen().getNewEntityId();
+  m_engine->ecs().componentStore().allocate<DSpatial, DModel>(m_cursorId);
+
+  Vec3f size{ 0.25f, 0.25f, 0.25f };
+
+  DSpatial spatial{};
+  spatial.parent = sysSpatial.root();
+  spatial.aabb = {
+    .min = -size * 0.5f,
+    .max = size * 0.5f
+  };
+
+  sysSpatial.addEntity(m_cursorId, spatial);
+
+  auto mesh = render::cuboid(size, { 1.f, 1.f });
+  mesh->featureSet = render::MeshFeatureSet{
+    .vertexLayout = {
+      render::BufferUsage::AttrPosition,
+      render::BufferUsage::AttrNormal,
+      render::BufferUsage::AttrTexCoord // TODO: Remove
+    },
+    .flags{}
+  };
+
+  auto material = std::make_unique<render::Material>();
+  material->colour = { 1.f, 0.f, 0.f, 1.f };
+
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
+    std::unique_ptr<Submodel>(new Submodel{
+      .mesh = m_engine->renderResourceLoader().loadMeshAsync(std::move(mesh)).wait(),
+      .material = m_engine->renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
+      .skin = nullptr,
+      .jointTransforms{}
+    })
+  );
+
+  auto render = std::make_unique<DModel>();
+  render->model = m_engine->modelLoader().loadModelAsync(std::move(model)).wait();
+
+  sysRender3d.addEntity(m_cursorId, std::move(render));
+}
+
+void CanvasImpl::startEngine()
+{
   auto platformPaths = createPlatformPaths("lithic3d_world_editor", "freeholdapps");
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
 
@@ -118,9 +180,19 @@ void CanvasImpl::startEngine(const fs::path& projectRoot)
 
   m_engine->worldGrid().update(initialPos);
   m_engine->worldGrid().wait();
+}
 
-  m_timer = new wxTimer(this);
-  m_timer->Start(1000.0 / TICKS_PER_SECOND);
+void CanvasImpl::positionCursor()
+{
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+
+  auto camPos = sysRender3d.camera().getPosition();
+  auto camDir = sysRender3d.camera().getDirection();
+
+  float distance = metresToWorldUnits(3.f);
+
+  sysSpatial.setLocalTransform(m_cursorId, translationMatrix4x4(camPos + camDir * distance));
 }
 
 Engine& CanvasImpl::engine() const
@@ -225,6 +297,7 @@ void CanvasImpl::onTick(wxTimerEvent&)
   ASSERT(m_engine, "Engine not started");
 
   processKeyboardInput();
+  positionCursor();
   m_engine->update(m_inputState);
   m_engine->worldGrid().update(m_engine->ecs().system<SysRender3d>().camera().getPosition());
 }

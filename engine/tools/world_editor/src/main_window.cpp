@@ -86,7 +86,7 @@ void MainWindow::onOpen(wxCommandEvent&)
 
   m_projectRoot = dialog->GetPath().ToStdString();
 
-  m_canvas->startEngine(m_projectRoot);
+  m_canvas->initialise(m_projectRoot);
   constructPrefabsPanel();
   populatePrefabsPanel();
 
