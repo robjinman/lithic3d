@@ -459,5 +459,6 @@ void android_main(android_app* state)
   }
   catch (const lithic3d::Exception& ex) {
     __android_log_print(ANDROID_LOG_ERROR, "lithic3d", "%s", ex.what());
+    throw ex; // Ungraceful exit
   }
 }

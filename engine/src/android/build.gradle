@@ -1,5 +1,14 @@
 plugins {
-    alias(libs.plugins.android.application)
+  alias(libs.plugins.android.application)
+
+  id 'com.google.gms.google-services'
+  id 'com.google.firebase.crashlytics'
+}
+
+dependencies {
+  implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
+  implementation("com.google.firebase:firebase-crashlytics-ndk")
+  implementation("com.google.firebase:firebase-analytics")
 }
 
 def gameShortName = gradle.startParameter.projectProperties['gameShortName']
@@ -13,46 +22,53 @@ def uniqueInt = ((System.currentTimeMillis() / 1000) - 1700000000).intValue()
 layout.buildDirectory.set(file("$rootDir/../../../build/android/gradle_output/${gameShortName}"))
 
 android {
-    namespace gameBundleId
-    compileSdk 35
+  namespace gameBundleId
+  compileSdk 35
 
-    defaultConfig {
-        applicationId gameBundleId
-        minSdk 33
-        targetSdk 35
-        versionCode uniqueInt
-        versionName "${gameVersionMajor}.${gameVersionMinor}"
-    }
+  defaultConfig {
+    applicationId gameBundleId
+    minSdk 33
+    targetSdk 35
+    versionCode uniqueInt
+    versionName "${gameVersionMajor}.${gameVersionMinor}"
+  }
 
-    buildTypes {
-        debug {
-            debuggable true
-            jniDebuggable true
-            ndk.debugSymbolLevel = "FULL"
-            externalNativeBuild {
-                cmake {
-                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DGAME_PROJECT_DIRECTORY=${gameProjectDir}"
-                    targets "app"
-                }
-            }
-        }
-        release {
-            externalNativeBuild {
-                cmake {
-                    arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DGAME_PROJECT_DIRECTORY=${gameProjectDir}"
-                    targets "app"
-                }
-            }
-        }
-    }
-
-    externalNativeBuild {
+  buildTypes {
+    debug {
+      debuggable true
+      jniDebuggable true
+      ndk.debugSymbolLevel = "FULL"
+      externalNativeBuild {
         cmake {
-            buildStagingDirectory "$rootDir/../../../build/android/cxx"
-            path file('../../core/CMakeLists.txt')
-            version '3.22.1'
+          arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Debug", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DGAME_PROJECT_DIRECTORY=${gameProjectDir}"
+          targets "app"
         }
+      }
     }
+    release {
+      firebaseCrashlytics {
+        // Enable processing and uploading of native symbols to Firebase servers.
+        // By default, this is disabled to improve build speeds.
+        // This flag must be enabled to see properly-symbolicated native
+        // stack traces in the Crashlytics dashboard.
+        nativeSymbolUploadEnabled true
+      }
+      externalNativeBuild {
+        cmake {
+          arguments "-DANDROID_STL=c++_static", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DGAME_PROJECT_DIRECTORY=${gameProjectDir}"
+          targets "app"
+        }
+      }
+    }
+  }
 
-    assetPacks = [":data"]
+  externalNativeBuild {
+    cmake {
+      buildStagingDirectory "$rootDir/../../../build/android/cxx"
+      path file('../../core/CMakeLists.txt')
+      version '3.22.1'
+    }
+  }
+
+  assetPacks = [":data"]
 }

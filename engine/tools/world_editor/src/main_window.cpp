@@ -147,7 +147,7 @@ void MainWindow::constructCursor()
   m_cursorId = m_engine->ecs().idGen().getNewEntityId();
   m_engine->ecs().componentStore().allocate<DSpatial, DModel>(m_cursorId);
 
-  Vec3f size{ 0.25f, 0.25f, 0.25f };
+  Vec3f size{ 0.5f, 0.5f, 0.5f };
 
   DSpatial spatial{};
   spatial.parent = sysSpatial.root();
@@ -169,7 +169,10 @@ void MainWindow::constructCursor()
   };
 
   auto material = std::make_unique<render::Material>();
-  material->colour = { 1.f, 0.f, 0.f, 1.f };
+  material->colour = { 1.f, 0.f, 0.f, 0.5f };
+  material->featureSet = {
+    .flags = bitflag(render::MaterialFeatures::HasTransparency)
+  };
 
   auto model = std::make_unique<Model>();
   model->submodels.push_back(

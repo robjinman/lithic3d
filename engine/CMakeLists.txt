@@ -34,12 +34,14 @@ if(PLATFORM_ANDROID)
   )
 
   set(GRADLE_COMMAND "${PROJECT_SOURCE_DIR}/platform/android/gradlew"
-    "--info" "bundle${CMAKE_BUILD_TYPE}"
+    "--info"
+    "bundle${CMAKE_BUILD_TYPE}"
     "-PgameShortName=${GAME_SHORT_NAME}"
     "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}"
     "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
     "-PgameVersionMajor=${GAME_VERSION_MAJOR}"
-    "-PgameVersionMinor=${GAME_VERSION_MINOR}")
+    "-PgameVersionMinor=${GAME_VERSION_MINOR}"
+    "uploadCrashlyticsSymbolFile${CMAKE_BUILD_TYPE}")
 
   add_custom_target(android_bundle ALL
     COMMAND ${GRADLE_COMMAND}
