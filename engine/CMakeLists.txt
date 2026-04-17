@@ -23,6 +23,13 @@ if(DEFINED IOS_SIMULATOR)
 endif()
 
 if(PLATFORM_ANDROID)
+  file(REMOVE "${PROJECT_SOURCE_DIR}/src/android/src/release/google-services.json")
+
+  if(DEFINED GAME_FIREBASE_CONFIG AND NOT GAME_FIREBASE_CONFIG STREQUAL "")
+    file(COPY "${GAME_PROJECT_DIRECTORY}/${GAME_FIREBASE_CONFIG}"
+      DESTINATION "${PROJECT_SOURCE_DIR}/src/android/src/release/")
+  endif()
+
   add_custom_target(
     link_data_to_assets ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${GAME_PROJECT_DIRECTORY}/data "${PROJECT_SOURCE_DIR}/platform/android/data/src/main/assets"
@@ -40,8 +47,13 @@ if(PLATFORM_ANDROID)
     "-PgameBundleId=${GAME_BUNDLE_IDENTIFIER}"
     "-PgameProjectDir=${GAME_PROJECT_DIRECTORY}"
     "-PgameVersionMajor=${GAME_VERSION_MAJOR}"
-    "-PgameVersionMinor=${GAME_VERSION_MINOR}"
-    "uploadCrashlyticsSymbolFile${CMAKE_BUILD_TYPE}")
+    "-PgameVersionMinor=${GAME_VERSION_MINOR}")
+  if(DEFINED GAME_FIREBASE_CONFIG AND NOT GAME_FIREBASE_CONFIG STREQUAL "" AND CMAKE_BUILD_TYPE STREQUAL Release)
+    list(APPEND GRADLE_COMMAND
+      "-PgameUseFirebase=true"
+      "uploadCrashlyticsSymbolFile${CMAKE_BUILD_TYPE}"
+    )
+  endif()
 
   add_custom_target(android_bundle ALL
     COMMAND ${GRADLE_COMMAND}

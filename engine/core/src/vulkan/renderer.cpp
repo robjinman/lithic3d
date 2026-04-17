@@ -262,7 +262,7 @@ class RendererImpl : public Renderer
     VkExtent2D chooseSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
     void createSwapChain();
     void createSwapChain(VkExtent2D extent);
-    void recreateSwapChain();
+    void recreateSwapChain(bool recreateSurface);
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
@@ -848,9 +848,11 @@ void RendererImpl::renderLoop()
       VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX,
         m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
 
-      if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR) {
-        m_logger.info("acqImgResult == VK_ERROR_OUT_OF_DATE_KHR");
-        recreateSwapChain();
+      if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR/* || acqImgResult == VK_ERROR_SURFACE_LOST_KHR ||
+        acqImgResult == VK_SUBOPTIMAL_KHR*/) {
+
+        m_logger.info("Recreating swap chain");
+        recreateSwapChain(false);
         return;
       }
       else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
@@ -1059,10 +1061,12 @@ void RendererImpl::finishFrame()
 
   VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
-    || m_framebufferResized) {
+    || presentResult == VK_ERROR_SURFACE_LOST_KHR || m_framebufferResized) {
+
+    m_logger.info("Recreating swap chain");
+    recreateSwapChain(true); // TODO
 
     m_framebufferResized = false;
-    recreateSwapChain();
   }
   else if (presentResult != VK_SUCCESS) {
     EXCEPTION("Failed to present swap chain image");
@@ -1235,7 +1239,7 @@ void RendererImpl::cleanupSwapChain()
   vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 }
 
-void RendererImpl::recreateSwapChain()
+void RendererImpl::recreateSwapChain(bool recreateSurface)
 {
   DBG_TRACE(m_logger);
 
@@ -1251,6 +1255,10 @@ void RendererImpl::recreateSwapChain()
   };
 
   cleanupSwapChain();
+  if (recreateSurface) {
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+    m_surface = m_window->createSurface(m_instance);
+  }
   createSwapChain(extent);
   createImageViews();
   createDepthResources();

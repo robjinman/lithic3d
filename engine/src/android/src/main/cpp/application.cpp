@@ -111,6 +111,8 @@ class Application
     void onMouseButtonUp();
     void hideMobileControls();
 
+    ~Application();
+
   private:
     EnginePtr m_engine;
     GamePtr m_game;
@@ -237,6 +239,13 @@ void Application::onMouseButtonUp()
   m_game->onMouseButtonUp();
 }
 
+Application::~Application()
+{
+  m_engine->resourceManager().deactivate();
+  m_game.reset();
+  m_engine.reset();
+}
+
 ApplicationPtr createApplication(android_app& state, LoggerPtr logger)
 {
   ASSERT(state.window != nullptr, "Window is NULL");
@@ -279,6 +288,9 @@ void EventHandler::setApplication(Application* app)
 void EventHandler::onCommandEvent(int32_t command)
 {
   if (command == APP_CMD_INIT_WINDOW) {
+    if (m_app) {
+      m_app->onConfigChange();
+    }
     m_windowInitialised = true;
     return;
   }

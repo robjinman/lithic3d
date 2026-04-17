@@ -39,6 +39,8 @@ class ApplicationImpl : public Application
     void onRightStickMove(float x, float y) override;
     void hideMobileControls() override;
 
+    ~ApplicationImpl();
+
   private:
     EnginePtr m_engine;
     GamePtr m_game;
@@ -157,6 +159,13 @@ void ApplicationImpl::onTouchEnd(float x, float y)
 {
   m_game->onMouseMove({ x, y }, {});
   m_game->onMouseButtonUp();
+}
+
+ApplicationImpl::~ApplicationImpl()
+{
+  m_engine->resourceManager().deactivate();
+  m_game.reset();
+  m_engine.reset();
 }
 
 }

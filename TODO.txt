@@ -3,3 +3,4 @@
   - Remove need to specify every feature flag (can be false by default)
 * Split terrain cells into chunks
 * Devise a way for the application to declare its own library dependencies
+* Consider use of Vulkan Profiles
