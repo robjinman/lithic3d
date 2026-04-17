@@ -60,6 +60,7 @@ class Renderer
     virtual bool isStarted() const = 0;
     virtual double frameRate() const = 0;
     virtual void onResize() = 0;
+    virtual void reset() = 0;
     virtual Vec2i getScreenSize() const = 0;
     // Screen size after subtracting margins
     virtual Vec2i getViewportSize() const = 0;

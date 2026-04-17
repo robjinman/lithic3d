@@ -18,7 +18,7 @@ namespace lithic3d
 {
 
 LoggerPtr createAndroidLogger();
-WindowDelegatePtr createWindowDelegate(ANativeWindow& window);
+WindowDelegatePtr createWindowDelegate(android_app& state);
 FileSystemPtr createAndroidFileSystem(const std::filesystem::path& userDataPath,
   AAssetManager& assetManager);
 
@@ -173,8 +173,7 @@ void Application::hideMobileControls()
 
 void Application::onConfigChange()
 {
-  auto screenSize = m_engine->renderer().getScreenSize();
-  m_engine->onWindowResize(screenSize[0], screenSize[1]);
+  m_engine->renderer().reset();
 }
 
 void Application::onLeftStickMove(float x, float y)
@@ -250,7 +249,7 @@ ApplicationPtr createApplication(android_app& state, LoggerPtr logger)
 {
   ASSERT(state.window != nullptr, "Window is NULL");
 
-  auto windowDelegate = createWindowDelegate(*state.window);
+  auto windowDelegate = createWindowDelegate(state);
   FileSystemPtr fileSystem = createAndroidFileSystem(state.activity->internalDataPath,
     *state.activity->assetManager);
   return std::make_unique<Application>(std::move(windowDelegate), std::move(fileSystem),
@@ -287,6 +286,8 @@ void EventHandler::setApplication(Application* app)
 
 void EventHandler::onCommandEvent(int32_t command)
 {
+  __android_log_print(ANDROID_LOG_INFO, "lithic3d", "Received command event: %d", command);
+
   if (command == APP_CMD_INIT_WINDOW) {
     if (m_app) {
       m_app->onConfigChange();

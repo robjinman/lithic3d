@@ -173,6 +173,7 @@ class RendererImpl : public Renderer
     void start() override;
     bool isStarted() const override;
     void onResize() override;
+    void reset() override;
     double frameRate() const override;
     Vec2i getScreenSize() const override;
     Vec2i getViewportSize() const override;
@@ -322,6 +323,7 @@ class RendererImpl : public Renderer
 
     size_t m_currentFrame = 0;
     std::atomic<int> m_framebufferResized = 0;
+    std::atomic<bool> m_requireReset = 0;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -495,6 +497,13 @@ void RendererImpl::onResize()
   DBG_TRACE(m_logger);
 
   ++m_framebufferResized;
+}
+
+void RendererImpl::reset()
+{
+  DBG_TRACE(m_logger);
+
+  m_requireReset = true;
 }
 
 Vec2i RendererImpl::getScreenSize() const
@@ -848,14 +857,15 @@ void RendererImpl::renderLoop()
       VkResult acqImgResult = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX,
         m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_imageIndex);
 
-      if (acqImgResult == VK_ERROR_OUT_OF_DATE_KHR/* || acqImgResult == VK_ERROR_SURFACE_LOST_KHR ||
-        acqImgResult == VK_SUBOPTIMAL_KHR*/) {
+      if (m_requireReset || acqImgResult == VK_ERROR_OUT_OF_DATE_KHR
+        || acqImgResult == VK_ERROR_SURFACE_LOST_KHR || acqImgResult == VK_SUBOPTIMAL_KHR) {
 
-        m_logger.info("Recreating swap chain");
-        recreateSwapChain(false);
-        return;
+        m_logger.info(STR("Recreating swap chain due to acquire image result " << acqImgResult));
+        recreateSwapChain(m_requireReset || acqImgResult == VK_ERROR_SURFACE_LOST_KHR);
+        m_requireReset = false;
+        continue;
       }
-      else if (acqImgResult != VK_SUCCESS && acqImgResult != VK_SUBOPTIMAL_KHR) {
+      else if (acqImgResult != VK_SUCCESS) {
         EXCEPTION("Error obtaining image from swap chain");
       }
 
@@ -1060,13 +1070,15 @@ void RendererImpl::finishFrame()
   };
 
   VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
-  if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
-    || presentResult == VK_ERROR_SURFACE_LOST_KHR || m_framebufferResized > 0) {
+  if (m_requireReset || presentResult == VK_ERROR_OUT_OF_DATE_KHR
+    || presentResult == VK_SUBOPTIMAL_KHR || presentResult == VK_ERROR_SURFACE_LOST_KHR
+    || m_framebufferResized > 0) {
 
-    m_logger.info("Recreating swap chain");
-    recreateSwapChain(true); // TODO
+    m_logger.info(STR("Recreating swap chain due to present result " << presentResult));
+    recreateSwapChain(m_requireReset || presentResult == VK_ERROR_SURFACE_LOST_KHR);
 
-    --m_framebufferResized;
+    m_framebufferResized = std::max(0, m_framebufferResized - 1);
+    m_requireReset = false;
   }
   else if (presentResult != VK_SUCCESS) {
     EXCEPTION("Failed to present swap chain image");
