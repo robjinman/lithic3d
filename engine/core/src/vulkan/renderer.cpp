@@ -321,7 +321,7 @@ class RendererImpl : public Renderer
     VkCommandPool m_commandPool;
 
     size_t m_currentFrame = 0;
-    std::atomic<bool> m_framebufferResized = false;
+    std::atomic<int> m_framebufferResized = 0;
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
@@ -494,7 +494,7 @@ void RendererImpl::onResize()
 {
   DBG_TRACE(m_logger);
 
-  m_framebufferResized = true;
+  ++m_framebufferResized;
 }
 
 Vec2i RendererImpl::getScreenSize() const
@@ -1061,12 +1061,12 @@ void RendererImpl::finishFrame()
 
   VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
   if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR
-    || presentResult == VK_ERROR_SURFACE_LOST_KHR || m_framebufferResized) {
+    || presentResult == VK_ERROR_SURFACE_LOST_KHR || m_framebufferResized > 0) {
 
     m_logger.info("Recreating swap chain");
     recreateSwapChain(true); // TODO
 
-    m_framebufferResized = false;
+    --m_framebufferResized;
   }
   else if (presentResult != VK_SUCCESS) {
     EXCEPTION("Failed to present swap chain image");
