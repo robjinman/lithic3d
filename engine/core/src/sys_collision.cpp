@@ -704,7 +704,6 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
       bool aIsInactive = collDynamicComps1.empty() || collDynamicComps1[i].idle;
 
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)) {
-
         size_t innerIdx = 0;
         for (auto& group2 : groups) {
           auto flagsComps2 = group2.components<CSpatialFlags>();
@@ -1237,7 +1236,8 @@ Vec3f closestPoint(const std::array<Vec3f, 3>& triangle, const Vec3f& P)
   float ACdotAC = AC.dot(AC);
 
   Vec2f st;
-  assert(solve({ ABdotAB, ABdotAC, -APdotAB }, { ABdotAC, ACdotAC, -APdotAC }, st));
+  bool result = solve({ ABdotAB, ABdotAC, -APdotAB }, { ABdotAC, ACdotAC, -APdotAC }, st);
+  assert(result);
 
   // Barycentric coordinates
   float beta = st[0];
@@ -1320,8 +1320,10 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
     }
 
     auto Q = closestPoint(triangle, P);
+
     auto PQ = Q - P;
     float sqDistance = PQ.squareMagnitude();
+
     if (sqDistance < radius * radius) {
       float penetration = radius - sqrtf(sqDistance);
       if (penetration > maxPenetration) {
