@@ -73,6 +73,7 @@ class MainWindow : public wxFrame
     GameConfig m_config;
     EnginePtr m_engine;
     InputState m_inputState;
+    WindowDelegatePtr m_windowDelegate;
     EntityId m_cursorId = NULL_ENTITY_ID;
 };
 
@@ -212,11 +213,11 @@ void MainWindow::startEngine()
   };
   m_config.drawDistance = 1000.f; // In metres
 
-  auto windowDelegate = createWindowDelegate(m_canvas->GetHandle());
+  m_windowDelegate = createWindowDelegate(m_canvas->GetHandle());
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, m_config.paths,
+  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, m_config.paths,
     *logger, {});
 
   logger->info("Compiling shaders...");

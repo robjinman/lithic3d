@@ -90,6 +90,7 @@ class Application
     ControlMode m_controlMode;
     Vec2f m_lastMousePos;
     GLFWgamepadstate m_gamepadState;
+    WindowDelegatePtr m_windowDelegate;
 
     void enterInputCapture();
     void exitInputCapture();
@@ -161,11 +162,11 @@ Application::Application()
   auto platformPaths = createPlatformPaths(m_config.appShortName, m_config.vendorShortName);
   auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
   fillDefaultPaths(*fileSystem, m_config.paths);
-  auto windowDelegate = createWindowDelegate(*m_window);
+  m_windowDelegate = createWindowDelegate(*m_window);
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, m_config.paths,
+  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, m_config.paths,
     *logger, {});
 
   logger->info("Compiling shaders...");

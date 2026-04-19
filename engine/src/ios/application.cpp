@@ -42,6 +42,7 @@ class ApplicationImpl : public Application
     ~ApplicationImpl();
 
   private:
+    WindowDelegatePtr m_windowDelegate;
     EnginePtr m_engine;
     GamePtr m_game;
     Vec2i m_screenSize;
@@ -51,6 +52,7 @@ class ApplicationImpl : public Application
 
 ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportPath,
   WindowDelegatePtr windowDelegate)
+  : m_windowDelegate(std::move(windowDelegate))
 {
   auto config = getGameConfig();
 
@@ -65,7 +67,7 @@ ApplicationImpl::ApplicationImpl(const char* bundlePath, const char* appSupportP
     .left = 50,
     .bottom = 50
   };
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, config.paths, *logger,
+  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, config.paths, *logger,
     margins);
 
   logger->info("Compiling shaders...");
