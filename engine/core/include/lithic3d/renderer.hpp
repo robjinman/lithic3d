@@ -10,13 +10,15 @@ namespace render
 
 enum class RenderPass
 {
-  Shadow0 = 0,
+  Shadow0 = 0,  // TODO: Use just single shadow pass?
   Shadow1,
   Shadow2,
   Main,
   Ssr,
   Overlay
 };
+
+const size_t NUM_RENDER_PASSES = static_cast<size_t>(RenderPass::Overlay) + 1;
 
 constexpr RenderPass shadowPass(uint32_t cascade)
 {

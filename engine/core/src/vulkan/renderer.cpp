@@ -164,6 +164,12 @@ struct FrameState
   uint32_t currentScissor = 0;
 };
 
+struct Subpass
+{
+  VkRenderPass renderPass = VK_NULL_HANDLE;
+  uint32_t subpass = 0;
+};
+
 class RendererImpl : public Renderer
 {
   public:
@@ -267,13 +273,18 @@ class RendererImpl : public Renderer
     void cleanupSwapChain();
     void createImageViews();
     void createCommandPool();
+    void createFramebuffers();
+    void createRenderPasses();
+    void createShadowRenderPass();
+    void createMainRenderPass();
+    void createOverlayRenderPass();
     VkCommandPool createResourceThreadCommandPool();
     void createDepthResources();
     void createCommandBuffers();
-    void doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t cascade);
-    void doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
-    void doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
-    void doSsrRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex, bool shouldClear);
+    void doShadowPass(VkCommandBuffer commandBuffer, uint32_t cascade);
+    void doMainPass(VkCommandBuffer commandBuffer);
+    void doOverlayPass(VkCommandBuffer commandBuffer);
+    void doSsrPass(VkCommandBuffer commandBuffer);
     void updateLightingUbo();
     void updateLightTransformsUbo();
     void updateCameraTransformsUbo(RenderPass renderPass);
@@ -310,14 +321,17 @@ class RendererImpl : public Renderer
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
+    std::array<Subpass, NUM_RENDER_PASSES> m_renderPasses{};
     GpuBufferManagerPtr m_bufferManager;
     float m_viewportRotation = 0;
     // Equals swapchain extent (with width/height swapped if rotated) with margins subtracted
     Vec2i m_viewDimensions;
     std::vector<VkImageView> m_swapchainImageViews;
     std::vector<VkImage> m_swapchainImages;
+    std::vector<VkFramebuffer> m_swapchainFramebuffers;
+    std::vector<VkFramebuffer> m_shadowMapFramebuffers;
     GpuImagePtr m_depthImage;
-    std::vector<VkCommandBuffer> m_commandBuffers;
+    std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_commandBuffers;
     uint32_t m_imageIndex;
     VkCommandPool m_commandPool;
 
@@ -380,6 +394,7 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceMa
   createSwapChain();
   m_thread.run<void>([this]() {
     createImageViews();
+    createRenderPasses();
     createCommandPool();
   }).get();
   // Do we really need to be on the resource thread?
@@ -397,6 +412,7 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceMa
   m_thread.run<void>([this]() {
     m_resources->initialise();
     createDepthResources();
+    createFramebuffers();
     createCommandBuffers();
     createSyncObjects();
   }).get();
@@ -444,8 +460,9 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
       if (!m_pipelines.contains(key)) {
         auto shader = loadShaderProgram(m_paths.shadersDir, key);
 
-        auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device, extent,
-          m_swapchainImageFormat, depthFormat,
+        auto subpass = m_renderPasses[static_cast<size_t>(key.renderPass)];
+        auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device,
+          subpass.renderPass, subpass.subpass, extent, m_swapchainImageFormat, depthFormat,
           m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
@@ -887,32 +904,51 @@ void RendererImpl::renderLoop()
         "Failed to begin recording command buffer");
 
       auto& frameState = m_frameStates.getReadable();
-      bool shouldClear = true;
+
       if (frameState.renderPasses.contains(RenderPass::Shadow0)) {
         updateLightTransformsUbo();
-        doShadowRenderPass(commandBuffer, 0);
+        doShadowPass(commandBuffer, 0);
       }
       if (frameState.renderPasses.contains(RenderPass::Shadow1)) {
-        doShadowRenderPass(commandBuffer, 1);
+        doShadowPass(commandBuffer, 1);
       }
       if (frameState.renderPasses.contains(RenderPass::Shadow2)) {
-        doShadowRenderPass(commandBuffer, 2);
+        doShadowPass(commandBuffer, 2);
       }
       if (frameState.renderPasses.contains(RenderPass::Main)) {
         updateCameraTransformsUbo(RenderPass::Main);
         updateLightingUbo();
-        doMainRenderPass(commandBuffer, m_imageIndex, shouldClear);
-        shouldClear = false;
+        doMainPass(commandBuffer);
       }
       if (frameState.renderPasses.contains(RenderPass::Ssr)) {
-        doSsrRenderPass(commandBuffer, m_imageIndex, shouldClear);
-        shouldClear = false;
+        doSsrPass(commandBuffer);
       }
       if (frameState.renderPasses.contains(RenderPass::Overlay)) {
         updateCameraTransformsUbo(RenderPass::Overlay);
-        doOverlayRenderPass(commandBuffer, m_imageIndex, shouldClear);
-        shouldClear = false;
+        doOverlayPass(commandBuffer);
       }
+
+      VkImageMemoryBarrier barrier{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .pNext = nullptr,
+        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = 0,
+        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = m_swapchainImages[m_imageIndex],
+        .subresourceRange = VkImageSubresourceRange{
+          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+          .baseMipLevel = 0,
+          .levelCount = 1,
+          .baseArrayLayer = 0,
+          .layerCount = 1
+        }
+      };
+
+      vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
       VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 
@@ -1152,6 +1188,306 @@ VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
   return availableFormats[0];
 }
 
+void RendererImpl::createFramebuffers()
+{
+  DBG_TRACE(m_logger);
+
+  m_swapchainFramebuffers.resize(m_swapchainImageViews.size());
+
+  for (size_t i = 0; i < m_swapchainImageViews.size(); ++i) {
+    std::array<VkImageView, 2> attachments = {
+      m_swapchainImageViews[i],
+      m_depthImage->vkImageView(0)
+    };
+
+    VkFramebufferCreateInfo framebufferInfo{
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+       // Also compatible with overlay render pass
+      .renderPass = m_renderPasses[static_cast<int>(RenderPass::Main)].renderPass,
+      .attachmentCount = static_cast<uint32_t>(attachments.size()),
+      .pAttachments = attachments.data(),
+      .width = m_swapchainExtent.width,
+      .height = m_swapchainExtent.height,
+      .layers = 1
+    };
+
+    VK_CHECK(vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swapchainFramebuffers[i]),
+      "Failed to create framebuffer");
+  }
+
+  m_shadowMapFramebuffers.resize(NUM_SHADOW_MAPS);
+
+  for (size_t cascade = 0; cascade < NUM_SHADOW_MAPS; ++cascade) {
+    auto attachment = m_resources->getShadowMap().vkImageView(1 + cascade);
+
+    VkFramebufferCreateInfo framebufferInfo{
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .renderPass = m_renderPasses[static_cast<int>(RenderPass::Shadow0)].renderPass,
+      .attachmentCount = 1,
+      .pAttachments = &attachment,
+      .width = SHADOW_MAP_W,
+      .height = SHADOW_MAP_H,
+      .layers = 1
+    };
+
+    VK_CHECK(vkCreateFramebuffer(m_device, &framebufferInfo, nullptr,
+      &m_shadowMapFramebuffers[cascade]), "Failed to create framebuffer");
+  }
+}
+
+void RendererImpl::createRenderPasses()
+{
+  DBG_TRACE(m_logger);
+
+  createShadowRenderPass();
+  createMainRenderPass();
+  createOverlayRenderPass();
+}
+
+void RendererImpl::createShadowRenderPass()
+{
+  DBG_TRACE(m_logger);
+
+  auto depthFormat = findDepthFormat(m_physicalDevice);
+
+  VkAttachmentDescription shadowMapAttachment{
+    .flags = 0,
+    .format = depthFormat,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentReference shadowMapAttachmentRef{
+    .attachment = 0,
+    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  VkSubpassDescription subpass{
+    .flags = 0,
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .inputAttachmentCount = 0,
+    .pInputAttachments = nullptr,
+    .colorAttachmentCount = 0,
+    .pColorAttachments = nullptr,
+    .pResolveAttachments = nullptr,
+    .pDepthStencilAttachment = &shadowMapAttachmentRef,
+    .preserveAttachmentCount = 0,
+    .pPreserveAttachments = nullptr,
+  };
+
+  VkRenderPassCreateInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .attachmentCount = 1,
+    .pAttachments = &shadowMapAttachment,
+    .subpassCount = 1,
+    .pSubpasses = &subpass,
+    .dependencyCount = 0,
+    .pDependencies = nullptr
+  };
+
+  VkRenderPass renderPass;
+
+  VK_CHECK(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &renderPass),
+    "Failed to create render pass");
+
+  // We're just using 1 subpass, so these are identical
+
+  m_renderPasses[static_cast<int>(RenderPass::Shadow0)] = {
+    .renderPass = renderPass,
+    .subpass = 0
+  };
+  m_renderPasses[static_cast<int>(RenderPass::Shadow1)] = {
+    .renderPass = renderPass,
+    .subpass = 0
+  };
+  m_renderPasses[static_cast<int>(RenderPass::Shadow2)] = {
+    .renderPass = renderPass,
+    .subpass = 0
+  };
+}
+
+void RendererImpl::createMainRenderPass()
+{
+  DBG_TRACE(m_logger);
+
+  const uint32_t colourAttachmentRefNum = 0;
+  const uint32_t depthAttachmentRefNum = 1;
+
+  auto depthFormat = findDepthFormat(m_physicalDevice);
+
+  VkAttachmentDescription colourAttachment{
+    .flags = 0,
+    .format = m_swapchainImageFormat,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentReference colourAttachmentRef{
+    .attachment = colourAttachmentRefNum,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentDescription depthAttachment{
+    .flags = 0,
+    .format = depthFormat,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentReference depthAttachmentRef{
+    .attachment = depthAttachmentRefNum,
+    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  std::array<VkAttachmentDescription, 2> attachments = {
+    colourAttachment,
+    depthAttachment
+  };
+
+  VkSubpassDescription subpass{
+    .flags = 0,
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .inputAttachmentCount = 0,
+    .pInputAttachments = nullptr,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &colourAttachmentRef,
+    .pResolveAttachments = nullptr,
+    .pDepthStencilAttachment = &depthAttachmentRef,
+    .preserveAttachmentCount = 0,
+    .pPreserveAttachments = nullptr,
+  };
+
+  VkRenderPassCreateInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .attachmentCount = static_cast<uint32_t>(attachments.size()),
+    .pAttachments = attachments.data(),
+    .subpassCount = 1,
+    .pSubpasses = &subpass,
+    .dependencyCount = 0,
+    .pDependencies = nullptr
+  };
+
+  VkRenderPass renderPass;
+
+  VK_CHECK(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &renderPass),
+    "Failed to create render pass");
+
+  m_renderPasses[static_cast<int>(RenderPass::Main)] = {
+    .renderPass = renderPass,
+    .subpass = 0
+  };
+}
+
+void RendererImpl::createOverlayRenderPass()
+{
+  DBG_TRACE(m_logger);
+
+  // TODO: Can we remove attachments without breaking compatibility with frame buffers?
+  // Can we render overlays in the main pass?
+
+  const uint32_t colourAttachmentRefNum = 0;
+  const uint32_t depthAttachmentRefNum = 1;
+
+  auto depthFormat = findDepthFormat(m_physicalDevice);
+
+  VkAttachmentDescription colourAttachment{
+    .flags = 0,
+    .format = m_swapchainImageFormat,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentReference colourAttachmentRef{
+    .attachment = colourAttachmentRefNum,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentDescription depthAttachment{
+    .flags = 0,
+    .format = depthFormat,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentReference depthAttachmentRef{
+    .attachment = depthAttachmentRefNum,
+    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  std::array<VkAttachmentDescription, 2> attachments = {
+    colourAttachment,
+    depthAttachment
+  };
+
+  VkSubpassDescription subpass{
+    .flags = 0,
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .inputAttachmentCount = 0,
+    .pInputAttachments = nullptr,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &colourAttachmentRef,
+    .pResolveAttachments = nullptr,
+    .pDepthStencilAttachment = &depthAttachmentRef,
+    .preserveAttachmentCount = 0,
+    .pPreserveAttachments = nullptr,
+  };
+
+  VkRenderPassCreateInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .attachmentCount = static_cast<uint32_t>(attachments.size()),
+    .pAttachments = attachments.data(),
+    .subpassCount = 1,
+    .pSubpasses = &subpass,
+    .dependencyCount = 0,
+    .pDependencies = nullptr
+  };
+
+  VkRenderPass renderPass;
+
+  VK_CHECK(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &renderPass),
+    "Failed to create render pass");
+
+  m_renderPasses[static_cast<int>(RenderPass::Overlay)] = {
+    .renderPass = renderPass,
+    .subpass = 0
+  };
+}
+
 void RendererImpl::createSwapChain()
 {
   DBG_TRACE(m_logger);
@@ -1245,6 +1581,12 @@ void RendererImpl::cleanupSwapChain()
 {
   DBG_TRACE(m_logger);
 
+  for (auto framebuffer : m_swapchainFramebuffers) {
+    vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+  }
+  for (auto framebuffer : m_shadowMapFramebuffers) {
+    vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+  }
   for (auto imageView : m_swapchainImageViews) {
     vkDestroyImageView(m_device, imageView, nullptr);
   }
@@ -1274,6 +1616,7 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
   createSwapChain(extent);
   createImageViews();
   createDepthResources();
+  createFramebuffers();
 
   for (auto& i : m_pipelines) {
     if (i.first.renderPass == RenderPass::Main || i.first.renderPass == RenderPass::Overlay) {
@@ -1465,18 +1808,9 @@ void RendererImpl::createLogicalDevice()
     queueCreateInfos.push_back(queueCreateInfo);
   }
 
-  //VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{};
-  //indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-  //indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-
-  VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-  dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
-  dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
-  dynamicRenderingFeatures.pNext = nullptr;//&indexingFeatures;
-
   VkPhysicalDeviceFeatures2 deviceFeatures2{};
   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-  deviceFeatures2.pNext = &dynamicRenderingFeatures;
+  deviceFeatures2.pNext = nullptr;
   deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};
@@ -1618,7 +1952,7 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
   }
 }
 
-void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t cascade)
+void RendererImpl::doShadowPass(VkCommandBuffer commandBuffer, uint32_t cascade)
 {
   DBG_TRACE(m_logger);
 
@@ -1644,38 +1978,26 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
   vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier1);
 
-  VkRenderingAttachmentInfo depthAttachment{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+  VkClearValue clearValues{};
+  clearValues.depthStencil = { 1.0f, 0 };
+
+  VkRenderPassBeginInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .pNext = nullptr,
-    .imageView = m_resources->getShadowMap().vkImageView(1 + cascade),  // First view is the array
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,    // view used for sampling
-    .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = NULL,
-    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-    .clearValue = VkClearValue{
-      .depthStencil = VkClearDepthStencilValue{
-        .depth = 1.f,
-        .stencil = 0
+    .renderPass = m_renderPasses[static_cast<int>(RenderPass::Shadow0)].renderPass,
+    .framebuffer = m_shadowMapFramebuffers[cascade],
+    .renderArea = VkRect2D{
+      .offset = { 0, 0 },
+      .extent = {
+        .width = SHADOW_MAP_W,
+        .height = SHADOW_MAP_H
       }
-    }
+    },
+    .clearValueCount = 1,
+    .pClearValues = &clearValues
   };
 
-  VkRenderingInfo renderingInfo{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .renderArea = VkRect2D{VkOffset2D{}, VkExtent2D{ SHADOW_MAP_W, SHADOW_MAP_H }},
-    .layerCount = 1,
-    .viewMask = 0,
-    .colorAttachmentCount = 0,
-    .pColorAttachments = NULL,
-    .pDepthAttachment = &depthAttachment,
-    .pStencilAttachment = nullptr
-  };
-
-  vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
+  vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   auto& frameState = m_frameStates.getReadable();
   MAP_GET(iState, frameState.renderPasses, shadowPass(cascade));
@@ -1685,7 +2007,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
   recordCommandBuffer(shadowPass(cascade), renderGraph, frameState.scissors, commandBuffer,
     cascade);
 
-  vkCmdEndRenderingFn(commandBuffer);
+  vkCmdEndRenderPass(commandBuffer);
 
   VkImageMemoryBarrier barrier2{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1710,8 +2032,7 @@ void RendererImpl::doShadowRenderPass(VkCommandBuffer commandBuffer, uint32_t ca
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 }
 
-void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
-  bool shouldClear)
+void RendererImpl::doMainPass(VkCommandBuffer commandBuffer)
 {
   DBG_TRACE(m_logger);
 
@@ -1727,7 +2048,7 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
     .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = m_swapchainImages[imageIndex],
+    .image = m_swapchainImages[m_imageIndex],
     .subresourceRange = VkImageSubresourceRange{
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
       .baseMipLevel = 0,
@@ -1740,53 +2061,28 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
   vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier1);
 
-  VkRenderingAttachmentInfo colourAttachment{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+  std::array<VkClearValue, 2> clearValues{};
+  // Colour attachment
+  clearValues[0].color = VkClearColorValue{
+    .float32 = { colour[0], colour[1], colour[2],colour[3]
+  }};
+  // Depth attachment
+  clearValues[1].depthStencil = { 1.0f, 0 };
+
+  VkRenderPassBeginInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .pNext = nullptr,
-    .imageView = m_swapchainImageViews[imageIndex],
-    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = NULL,
-    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .loadOp = shouldClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-    .clearValue = VkClearValue{
-      .color = VkClearColorValue{ .float32 = { colour[0], colour[1], colour[2], colour[3] }}
-    }
+    .renderPass = m_renderPasses[static_cast<int>(RenderPass::Main)].renderPass,
+    .framebuffer = m_swapchainFramebuffers[m_imageIndex],
+    .renderArea = VkRect2D{
+      .offset = { 0, 0 },
+      .extent = m_swapchainExtent
+    },
+    .clearValueCount = clearValues.size(),
+    .pClearValues = clearValues.data()
   };
 
-  VkRenderingAttachmentInfo depthAttachment{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .pNext = nullptr,
-    .imageView = m_depthImage->vkImageView(0),
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = NULL,
-    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-    .clearValue = VkClearValue{
-      .depthStencil = VkClearDepthStencilValue{
-        .depth = 1.f,
-        .stencil = 0
-      }
-    }
-  };
-
-  VkRenderingInfo renderingInfo{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .renderArea = VkRect2D{VkOffset2D{}, m_swapchainExtent},
-    .layerCount = 1,
-    .viewMask = 0,
-    .colorAttachmentCount = 1,
-    .pColorAttachments = &colourAttachment,
-    .pDepthAttachment = &depthAttachment,
-    .pStencilAttachment = nullptr
-  };
-
-  vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
+  vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   MAP_GET(iState, frameState.renderPasses, RenderPass::Main);
   auto& renderPassState = iState->second;
@@ -1794,90 +2090,38 @@ void RendererImpl::doMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imag
 
   recordCommandBuffer(RenderPass::Main, renderGraph, frameState.scissors, commandBuffer, 0);
 
-  vkCmdEndRenderingFn(commandBuffer);
-
-  VkImageMemoryBarrier barrier2{
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .pNext = nullptr,
-    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    .dstAccessMask = 0,
-    .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = m_swapchainImages[imageIndex],
-    .subresourceRange = VkImageSubresourceRange{
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseMipLevel = 0,
-      .levelCount = 1,
-      .baseArrayLayer = 0,
-      .layerCount = 1
-    }
-  };
-
-  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
+  vkCmdEndRenderPass(commandBuffer);
 }
 
-void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex,
-  bool shouldClear)
+void RendererImpl::doOverlayPass(VkCommandBuffer commandBuffer)
 {
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
   auto& colour = frameState.clearColour;
 
-  VkImageMemoryBarrier barrier1{
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+  std::array<VkClearValue, 2> clearValues{};
+  // Colour attachment
+  clearValues[0].color = VkClearColorValue{
+    .float32 = { colour[0], colour[1], colour[2], colour[3]
+  }};
+  // Depth attachment
+  clearValues[1].depthStencil = { 1.0f, 0 };
+
+  VkRenderPassBeginInfo renderPassInfo{
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .pNext = nullptr,
-    .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = m_swapchainImages[imageIndex],
-    .subresourceRange = VkImageSubresourceRange{
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseMipLevel = 0,
-      .levelCount = 1,
-      .baseArrayLayer = 0,
-      .layerCount = 1
-    }
+    .renderPass = m_renderPasses[static_cast<int>(RenderPass::Overlay)].renderPass,
+    .framebuffer = m_swapchainFramebuffers[m_imageIndex],
+    .renderArea = VkRect2D{
+      .offset = { 0, 0 },
+      .extent = m_swapchainExtent
+    },
+    .clearValueCount = clearValues.size(),
+    .pClearValues = clearValues.data()
   };
 
-  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier1);
-
-  VkRenderingAttachmentInfo colourAttachment{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .pNext = nullptr,
-    .imageView = m_swapchainImageViews[imageIndex],
-    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .resolveMode = VK_RESOLVE_MODE_NONE,
-    .resolveImageView = NULL,
-    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .loadOp = shouldClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
-    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-    .clearValue = VkClearValue{
-      .color = VkClearColorValue{ .float32 = { colour[0], colour[1], colour[2], colour[3] }}
-    }
-  };
-
-  VkRenderingInfo renderingInfo{
-    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .renderArea = VkRect2D{VkOffset2D{}, m_swapchainExtent},
-    .layerCount = 1,
-    .viewMask = 0,
-    .colorAttachmentCount = 1,
-    .pColorAttachments = &colourAttachment,
-    .pDepthAttachment = nullptr,
-    .pStencilAttachment = nullptr
-  };
-
-  vkCmdBeginRenderingFn(commandBuffer, &renderingInfo);
+  vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   MAP_GET(iState, frameState.renderPasses, RenderPass::Overlay);
   auto& renderPassState = iState->second;
@@ -1885,33 +2129,10 @@ void RendererImpl::doOverlayRenderPass(VkCommandBuffer commandBuffer, uint32_t i
 
   recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.scissors, commandBuffer, 0);
 
-  vkCmdEndRenderingFn(commandBuffer);
-
-  VkImageMemoryBarrier barrier2{
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .pNext = nullptr,
-    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    .dstAccessMask = 0,
-    .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .image = m_swapchainImages[imageIndex],
-    .subresourceRange = VkImageSubresourceRange{
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseMipLevel = 0,
-      .levelCount = 1,
-      .baseArrayLayer = 0,
-      .layerCount = 1
-    }
-  };
-
-  vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
+  vkCmdEndRenderPass(commandBuffer);
 }
 
-void RendererImpl::doSsrRenderPass(VkCommandBuffer /*commandBuffer*/, uint32_t /*imageIndex*/,
-  bool /*shouldClear*/)
+void RendererImpl::doSsrPass(VkCommandBuffer /*commandBuffer*/)
 {
   DBG_TRACE(m_logger);
 
@@ -1921,8 +2142,6 @@ void RendererImpl::doSsrRenderPass(VkCommandBuffer /*commandBuffer*/, uint32_t /
 void RendererImpl::createCommandBuffers()
 {
   DBG_TRACE(m_logger);
-
-  m_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
   VkCommandBufferAllocateInfo allocInfo{
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -2124,7 +2343,7 @@ void RendererImpl::createInstance()
     .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
     .pEngineName = "Lithic3D",
     .engineVersion = VK_MAKE_VERSION(getVersionMajor(), getVersionMinor(), 0),
-    .apiVersion = VK_API_VERSION_1_3
+    .apiVersion = VK_API_VERSION_1_1
   };
 
   VkInstanceCreateInfo createInfo{};
@@ -2150,8 +2369,6 @@ void RendererImpl::createInstance()
   createInfo.ppEnabledExtensionNames = extensions.data();
 
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
-
-  loadVulkanExtensionFunctions(m_instance);
 }
 
 VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() const
@@ -2217,6 +2434,13 @@ RendererImpl::~RendererImpl()
   }
   vkDestroyCommandPool(m_device, m_commandPool, nullptr);
   m_pipelines.clear();
+  VkRenderPass prevRp = VK_NULL_HANDLE;
+  for (auto& renderPass : m_renderPasses) {
+    if (renderPass.renderPass != VK_NULL_HANDLE && renderPass.renderPass != prevRp) {
+      vkDestroyRenderPass(m_device, renderPass.renderPass, nullptr);
+      prevRp = renderPass.renderPass;
+    }
+  }
   cleanupSwapChain();
   m_depthImage.reset();
   m_bufferManager.reset();

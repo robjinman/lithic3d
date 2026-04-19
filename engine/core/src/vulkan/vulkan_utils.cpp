@@ -5,23 +5,6 @@
 namespace lithic3d
 {
 
-PFN_vkCmdBeginRendering vkCmdBeginRenderingFn;
-PFN_vkCmdEndRendering vkCmdEndRenderingFn;
-
-void loadVulkanExtensionFunctions(VkInstance instance)
-{
-  auto getFn = [&](const char* name) {
-    auto ptr = vkGetInstanceProcAddr(instance, name);
-    ASSERT(ptr != nullptr, STR("Error loading function " << name));
-    return ptr;
-  };
-
-  vkCmdBeginRenderingFn =
-    reinterpret_cast<PFN_vkCmdBeginRendering>(getFn("vkCmdBeginRendering"));
-  vkCmdEndRenderingFn =
-    reinterpret_cast<PFN_vkCmdEndRendering>(getFn("vkCmdEndRendering"));
-}
-
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
   VkMemoryPropertyFlags properties)
 {

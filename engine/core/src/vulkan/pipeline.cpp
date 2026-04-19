@@ -277,8 +277,8 @@ class PipelineImpl : public Pipeline
   public:
     PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
-      VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
-      const ScreenMargins& margins);
+      VkRenderPass renderPass, uint32_t subpass, VkExtent2D swapchainExtent,
+      VkFormat swapchainImageFormat, VkFormat depthFormat, const ScreenMargins& margins);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
@@ -292,6 +292,8 @@ class PipelineImpl : public Pipeline
     const RenderResources& m_renderResources;
     ShaderProgramSpec m_spec;
     VkDevice m_device;
+    VkRenderPass m_renderPass;
+    uint32_t m_subpass;
     VkFormat m_swapchainImageFormat;
     ScreenMargins m_margins;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
@@ -315,7 +317,6 @@ class PipelineImpl : public Pipeline
     VkPipelineColorBlendAttachmentState m_colourBlendAttachmentState;
     VkPipelineColorBlendStateCreateInfo m_colourBlendStateInfo;
     VkPipelineDepthStencilStateCreateInfo m_depthStencilStateInfo;
-    VkPipelineRenderingCreateInfo m_renderingCreateInfo;
     bool m_dynamicScissor = false;
 
     void constructPipeline(VkExtent2D swapchainExtent);
@@ -323,13 +324,15 @@ class PipelineImpl : public Pipeline
 };
 
 PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
-  const RenderResources& renderResources, Logger& logger, VkDevice device,
-  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
+  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
   const ScreenMargins& margins)
   : m_logger(logger)
   , m_renderResources(renderResources)
   , m_spec(spec)
   , m_device(device)
+  , m_renderPass(renderPass)
+  , m_subpass(subpass)
   , m_swapchainImageFormat(swapchainImageFormat)
   , m_margins(margins)
 {
@@ -498,48 +501,6 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .pPushConstantRanges = m_pushConstantRanges.size() == 0 ? nullptr : m_pushConstantRanges.data()
   };
 
-  switch (m_spec.renderPass) {
-    case RenderPass::Overlay:
-      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .pNext = nullptr,
-        .viewMask = 0,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &m_swapchainImageFormat,
-        .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
-        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
-      };
-      break;
-    case RenderPass::Main:
-      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .pNext = nullptr,
-        .viewMask = 0,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &m_swapchainImageFormat,
-        .depthAttachmentFormat = depthFormat,
-        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
-      };
-      break;
-    case RenderPass::Shadow0:
-    case RenderPass::Shadow1:
-    case RenderPass::Shadow2:
-      m_renderingCreateInfo = VkPipelineRenderingCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-        .pNext = nullptr,
-        .viewMask = 0,
-        .colorAttachmentCount = 0,
-        .pColorAttachmentFormats = nullptr,
-        .depthAttachmentFormat = depthFormat,
-        .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
-      };
-      break;
-    case RenderPass::Ssr:
-      // TODO
-      EXCEPTION("Not implemented");
-      break;
-  }
-
   m_dynamicScissor = spec.renderPass == RenderPass::Main || spec.renderPass == RenderPass::Overlay;
 
   constructPipeline(swapchainExtent);
@@ -587,7 +548,7 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
 
   VkGraphicsPipelineCreateInfo pipelineInfo{
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    .pNext = &m_renderingCreateInfo,
+    .pNext = nullptr,
     .flags = 0,
     .stageCount = 2,
     .pStages = shaderStages,
@@ -601,8 +562,8 @@ void PipelineImpl::constructPipeline(VkExtent2D swapchainExtent)
     .pColorBlendState = &m_colourBlendStateInfo,
     .pDynamicState = m_dynamicScissor ? &dynamicState : nullptr,
     .layout = m_layout,
-    .renderPass = NULL,
-    .subpass = 0,
+    .renderPass = m_renderPass,
+    .subpass = m_subpass,
     .basePipelineHandle = VK_NULL_HANDLE,
     .basePipelineIndex = -1
   };
@@ -781,12 +742,12 @@ PipelineImpl::~PipelineImpl()
 } // namespace
 
 PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shaderProgram,
-  const RenderResources& renderResources, Logger& logger, VkDevice device,
-  VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
+  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
   const ScreenMargins& margins)
 {
   return std::make_unique<PipelineImpl>(spec, shaderProgram, renderResources, logger, device,
-    swapchainExtent, swapchainImageFormat, depthFormat, margins);
+    renderPass, subpass, swapchainExtent, swapchainImageFormat, depthFormat, margins);
 }
 
 } // namespace render

@@ -6,11 +6,6 @@
 namespace lithic3d
 {
 
-extern PFN_vkCmdBeginRendering vkCmdBeginRenderingFn;
-extern PFN_vkCmdEndRendering vkCmdEndRenderingFn;
-
-void loadVulkanExtensionFunctions(VkInstance instance);
-
 #define VK_CHECK(fnCall, msg) \
   { \
     VkResult MAC_code = fnCall; \

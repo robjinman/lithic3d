@@ -338,7 +338,7 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Submodel colour?
 
   for (EntityId id : entities) {
-    auto entry = m_models.find(id);
+    auto entry = m_models.find(id); // TODO: Insanely inefficient!
     if (entry == m_models.end()) {
       continue;
     }
