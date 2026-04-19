@@ -1,3 +1,4 @@
+#include "android_vulkan_window_delegate.hpp"
 #include <lithic3d/logger.hpp>
 #include <lithic3d/game.hpp>
 #include <lithic3d/engine.hpp>
@@ -18,7 +19,6 @@ namespace lithic3d
 {
 
 LoggerPtr createAndroidLogger();
-WindowDelegatePtr createWindowDelegate(android_app& state);
 FileSystemPtr createAndroidFileSystem(const std::filesystem::path& userDataPath,
   AAssetManager& assetManager);
 
@@ -96,10 +96,13 @@ KeyboardKey keyCode(int32_t key)
 class Application
 {
   public:
-    Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem, LoggerPtr logger);
+    Application(AndroidVulkanWindowDelegatePtr windowDelegate, FileSystemPtr fileSystem,
+      LoggerPtr logger);
 
     bool update();
     void onConfigChange();
+    void onWindowInitialised();
+    void onWindowTerminated();
     void onLeftStickMove(float x, float y);
     void onRightStickMove(float x, float y);
     void onKeyDown(KeyboardKey key);
@@ -114,6 +117,7 @@ class Application
     ~Application();
 
   private:
+    AndroidVulkanWindowDelegatePtr m_windowDelegate;
     EnginePtr m_engine;
     GamePtr m_game;
     Vec2f m_leftStickDelta;
@@ -123,16 +127,17 @@ class Application
 
 using ApplicationPtr = std::unique_ptr<Application>;
 
-Application::Application(WindowDelegatePtr windowDelegate, FileSystemPtr fileSystem,
+Application::Application(AndroidVulkanWindowDelegatePtr windowDelegate, FileSystemPtr fileSystem,
   LoggerPtr logger)
+  : m_windowDelegate(std::move(windowDelegate))
 {
   auto config = getGameConfig();
   fillDefaultPaths(*fileSystem, config.paths);
 
   auto audioSystem = createAudioSystem(config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(std::move(windowDelegate), *resourceManager, config.paths, *logger,
-    {});
+  m_windowDelegate->onWindowInit();
+  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, config.paths, *logger, {});
 
   m_screenSize = renderer->getScreenSize();
 
@@ -174,6 +179,16 @@ void Application::hideMobileControls()
 void Application::onConfigChange()
 {
   m_engine->renderer().reset();
+}
+
+void Application::onWindowInitialised()
+{
+  m_windowDelegate->onWindowInit();
+}
+
+void Application::onWindowTerminated()
+{
+  m_windowDelegate->onWindowTerm();
 }
 
 void Application::onLeftStickMove(float x, float y)
@@ -290,6 +305,7 @@ void EventHandler::onCommandEvent(int32_t command)
 
   if (command == APP_CMD_INIT_WINDOW) {
     if (m_app) {
+      m_app->onWindowInitialised();
       m_app->onConfigChange();
     }
     m_windowInitialised = true;
@@ -298,9 +314,14 @@ void EventHandler::onCommandEvent(int32_t command)
 
   if (m_app) {
     switch (command) {
-      case APP_CMD_CONFIG_CHANGED:
+      case APP_CMD_CONFIG_CHANGED: {
         m_app->onConfigChange();
         break;
+      }
+      case APP_CMD_TERM_WINDOW: {
+        m_app->onWindowTerminated();
+        break;
+      }
       default: break;
     }
   }

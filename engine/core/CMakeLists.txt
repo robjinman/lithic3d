@@ -160,7 +160,7 @@ elseif(PLATFORM_ANDROID)
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/application.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/file_system.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/vulkan_window_delegate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/android_vulkan_window_delegate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/stb_vorbis.cpp"
   )

@@ -173,7 +173,7 @@ struct Subpass
 class RendererImpl : public Renderer
 {
   public:
-    RendererImpl(WindowDelegatePtr window, ResourceManager& resourceManager,
+    RendererImpl(WindowDelegate& window, ResourceManager& resourceManager,
       const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins);
 
     void start() override;
@@ -305,7 +305,7 @@ class RendererImpl : public Renderer
     ResourceManager& m_resourceManager;
     const GameDataPaths& m_paths;
     ScreenMargins m_margins;
-    std::unique_ptr<VulkanWindowDelegate> m_window;
+    VulkanWindowDelegate& m_window;
     Logger& m_logger;
     WorkQueue m_workQueue;
     VkInstance m_instance;
@@ -359,18 +359,15 @@ class RendererImpl : public Renderer
     std::string m_error;
 };
 
-RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceManager,
+RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceManager,
   const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins)
   : m_resourceManager(resourceManager)
   , m_paths(paths)
   , m_margins(margins)
+  , m_window(dynamic_cast<VulkanWindowDelegate&>(window))
   , m_logger(logger)
 {
   DBG_TRACE(m_logger);
-
-  m_window =
-    std::unique_ptr<VulkanWindowDelegate>(dynamic_cast<VulkanWindowDelegate*>(window.release()));
-  ASSERT(m_window != nullptr, "Failed to cast m_window to VulkanWindowDelegate");
 
   m_logger.info(STR("Lithic3D " << getVersionString()));
 
@@ -386,7 +383,7 @@ RendererImpl::RendererImpl(WindowDelegatePtr window, ResourceManager& resourceMa
     setupDebugMessenger();
 #endif
   }).get();
-  m_surface = m_window->createSurface(m_instance);
+  m_surface = m_window.createSurface(m_instance);
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
@@ -1129,7 +1126,7 @@ VkExtent2D RendererImpl::chooseSwapChainExtent(
   if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width = 0;
     int height = 0;
-    m_window->getFrameBufferSize(width, height);
+    m_window.getFrameBufferSize(width, height);
 
     VkExtent2D extent = {
       static_cast<uint32_t>(width),
@@ -1599,7 +1596,7 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
 
   int width = 0;
   int height = 0;
-  m_window->getFrameBufferSize(width, height);
+  m_window.getFrameBufferSize(width, height);
 
   VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 
@@ -1611,7 +1608,7 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
   cleanupSwapChain();
   if (recreateSurface) {
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-    m_surface = m_window->createSurface(m_instance);
+    m_surface = m_window.createSurface(m_instance);
   }
   createSwapChain(extent);
   createImageViews();
@@ -1709,7 +1706,7 @@ std::vector<const char*> RendererImpl::getRequiredExtensions() const
 #if defined(PLATFORM_OSX)
   extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
-  auto windowExtensions = m_window->getRequiredExtensions();
+  auto windowExtensions = m_window.getRequiredExtensions();
   extensions.insert(extensions.end(), windowExtensions.begin(), windowExtensions.end());
 
 #ifdef USE_VALIDATION_LAYERS
@@ -2460,10 +2457,10 @@ void RendererImpl::dbg_printMemUsageInfo(std::ostream& stream) const
 } // namespace
 } // namespace render
 
-render::RendererPtr createRenderer(WindowDelegatePtr window, ResourceManager& resourceManager,
+render::RendererPtr createRenderer(WindowDelegate& window, ResourceManager& resourceManager,
   const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins)
 {
-  return std::make_unique<render::RendererImpl>(std::move(window), resourceManager, paths,
+  return std::make_unique<render::RendererImpl>(window, resourceManager, paths,
     logger, margins);
 }
 
