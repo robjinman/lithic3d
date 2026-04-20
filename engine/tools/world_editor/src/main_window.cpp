@@ -1,3 +1,4 @@
+#include "prefabs_panel.hpp"
 #include <sstream>
 #include <wx/wx.h>
 #include <wx/splitter.h>
@@ -42,7 +43,6 @@ class MainWindow : public wxFrame
     void constructLeftPanel();
     void constructRightPanel();
     void constructPrefabsPanel();
-    void populatePrefabsPanel();
     EntityId constructLight();
     void startEngine();
     void constructCursor();
@@ -66,7 +66,7 @@ class MainWindow : public wxFrame
     wxBoxSizer* m_vbox = nullptr;
     wxPanel* m_leftPanel = nullptr;
     wxNotebook* m_rightPanel = nullptr;
-    wxPanel* m_prefabsPanel = nullptr;
+    PrefabsPanelPtr m_prefabsPanel = nullptr;
     wxPanel* m_canvas = nullptr;
     fs::path m_projectRoot;
     wxTimer* m_timer = nullptr;
@@ -126,7 +126,7 @@ void MainWindow::onOpen(wxCommandEvent&)
   constructCursor();
 
   constructPrefabsPanel();
-  populatePrefabsPanel();
+  m_prefabsPanel->populate();
 
   constructLight();
 
@@ -463,34 +463,14 @@ void MainWindow::constructPrefabsPanel()
 {
   assert(m_rightPanel);
 
-  m_prefabsPanel = new wxPanel(m_rightPanel);
-  m_rightPanel->AddPage(m_prefabsPanel, "Prefabs");
-  auto vbox = new wxBoxSizer(wxVERTICAL);
-  m_prefabsPanel->SetSizer(vbox);
+  m_prefabsPanel = createPrefabsPanel(m_rightPanel, m_projectRoot);
+  m_rightPanel->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
 }
 
 void MainWindow::constructRightPanel()
 {
   assert(m_splitter);
   m_rightPanel = new wxNotebook(m_splitter, wxID_ANY);
-}
-
-void MainWindow::populatePrefabsPanel()
-{
-  assert(m_prefabsPanel);
-
-  fs::directory_iterator it{m_projectRoot / "data/prefabs"};
-  auto listBox = new wxListBox{m_prefabsPanel, wxID_ANY};
-  m_prefabsPanel->GetSizer()->Add(listBox, 1, wxEXPAND | wxALL);
-
-  size_t i = 0;
-  auto end = fs::end(it);
-  for (; it != end; ++it) {
-    if (it->is_regular_file()) {
-      auto xmlPrefab = parseXml(readBinaryFile(it->path()));
-      listBox->Insert(xmlPrefab->attribute("name"), i++);
-    }
-  }
 }
 
 void MainWindow::onExit(wxCommandEvent&)
