@@ -224,10 +224,12 @@ SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& rende
 void SysRender2dImpl::processEvent(const Event& event)
 {
   if (event.name == g_strWindowResize) {
-    //auto viewport = m_renderer.getViewportSize();
-    //float aspect = static_cast<float>(viewport[0]) / viewport[1];
     auto& e = dynamic_cast<const EWindowResize&>(event);
-    float aspect = static_cast<float>(e.width) / e.height;
+    auto& margins = m_renderer.getMargins();
+    uint32_t hMargins = margins.left + margins.right;
+    uint32_t vMargins = margins.top + margins.bottom;
+    auto viewportSize = Vec2u{ e.width - hMargins, e.height - vMargins };
+    float aspect = static_cast<float>(viewportSize[0]) / viewportSize[1];
     float rotation = m_renderer.getViewportRotation();
     m_camera->updateParameters(aspect, rotation);
   }

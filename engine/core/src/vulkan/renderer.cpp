@@ -522,6 +522,8 @@ void RendererImpl::reset()
 
 Vec2i RendererImpl::getScreenSize() const
 {
+  // TODO: Needs mutex
+
   return {
     static_cast<int>(m_swapchainExtent.width),
     static_cast<int>(m_swapchainExtent.height)
@@ -530,6 +532,8 @@ Vec2i RendererImpl::getScreenSize() const
 
 Vec2i RendererImpl::getViewportSize() const
 {
+  // TODO: Needs mutex
+
   return m_viewDimensions;
 }
 
@@ -1594,11 +1598,11 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
 {
   DBG_TRACE(m_logger);
 
+  VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
+
   int width = 0;
   int height = 0;
   m_window.getFrameBufferSize(width, height);
-
-  VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 
   VkExtent2D extent{
     .width = static_cast<uint32_t>(width),
