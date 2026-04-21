@@ -19,6 +19,7 @@ class ModelLoader;
 class ResourceManager;
 class RenderResourceLoader;
 class WorldGrid;
+class EntityFactory;
 struct GameConfig;
 struct GameDataPaths;
 
@@ -42,6 +43,7 @@ class Engine
     virtual ResourceManager& resourceManager() = 0;
     virtual RenderResourceLoader& renderResourceLoader() = 0;
     virtual WorldGrid& worldGrid() = 0;
+    virtual EntityFactory& entityFactory() = 0;
 
     virtual ~Engine() = default;
 };

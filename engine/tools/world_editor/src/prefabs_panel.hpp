@@ -2,7 +2,6 @@
 
 #include <wx/wx.h>
 #include <memory>
-#include <filesystem>
 
 class PrefabsPanel
 {
@@ -15,4 +14,6 @@ class PrefabsPanel
 
 using PrefabsPanelPtr = std::unique_ptr<PrefabsPanel>;
 
-PrefabsPanelPtr createPrefabsPanel(wxWindow* parent, const std::filesystem::path& projectRoot);
+class WorldEditor;
+
+PrefabsPanelPtr createPrefabsPanel(wxWindow* parent, WorldEditor& worldEditor);

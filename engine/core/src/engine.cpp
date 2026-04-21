@@ -51,6 +51,7 @@ class EngineImpl : public Engine
     ResourceManager& resourceManager() override;
     RenderResourceLoader& renderResourceLoader() override;
     WorldGrid& worldGrid() override;
+    EntityFactory& entityFactory() override;
 
     ~EngineImpl() override;
 
@@ -240,6 +241,11 @@ WorldGrid& EngineImpl::worldGrid()
 {
   ASSERT(m_worldGrid, "Terrain feature must be enabled to access world grid");
   return *m_worldGrid;
+}
+
+EntityFactory& EngineImpl::entityFactory()
+{
+  return *m_entityFactory;
 }
 
 EngineImpl::~EngineImpl()
