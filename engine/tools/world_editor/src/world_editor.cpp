@@ -22,8 +22,16 @@ class WorldEditorImpl : public WorldEditor
     WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate);
 
     std::vector<std::string> listPrefabs() const override;
-    void instantiatePrefabAtCursor(const std::string& name) override;
+    void setActivePrefab(const std::string& name) override;
+    void instantiateActivePrefab() override;
+    void cancelActivePrefab() override;
+
+    void setCursorDistance(float metres) override;
+    void setCursorRotation(const Vec3f& ori) override;
+    void setCursorScale(float scale) override;
+
     void update() override;
+
     void onKeyDown(lithic3d::KeyboardKey key) override;
     void onKeyUp(lithic3d::KeyboardKey key) override;
     void onMouseLeftBtnDown() override;
@@ -48,6 +56,10 @@ class WorldEditorImpl : public WorldEditor
     EntityId m_cursorId = NULL_ENTITY_ID;
     std::map<std::string, ResourceHandle> m_prefabs;
     EntityId m_activeEntity = NULL_ENTITY_ID;
+    Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
+    Vec3f m_activeRotation;
+    float m_activeTranslation = metresToWorldUnits(10.f);
+    std::vector<EntityId> m_instances;
 };
 
 WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate)
@@ -75,8 +87,12 @@ std::vector<std::string> WorldEditorImpl::listPrefabs() const
   return prefabNames;
 }
 
-void WorldEditorImpl::instantiatePrefabAtCursor(const std::string& name)
+void WorldEditorImpl::setActivePrefab(const std::string& name)
 {
+  if (m_activeEntity != NULL_ENTITY_ID) {
+    cancelActivePrefab();
+  }
+
   auto& factory = m_engine->entityFactory();
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
 
@@ -94,26 +110,59 @@ void WorldEditorImpl::instantiatePrefabAtCursor(const std::string& name)
   m_activeEntity = factory.constructEntity(name, transform);
 }
 
+void WorldEditorImpl::instantiateActivePrefab()
+{
+  m_instances.push_back(m_activeEntity);
+  m_activeEntity = NULL_ENTITY_ID;
+}
+
+void WorldEditorImpl::cancelActivePrefab()
+{
+  if (m_activeEntity != NULL_ENTITY_ID) {
+    m_engine->ecs().removeEntity(m_activeEntity);
+  }
+  m_activeEntity = NULL_ENTITY_ID;
+}
+
+void WorldEditorImpl::setCursorDistance(float metres)
+{
+  m_activeTranslation = metresToWorldUnits(metres);
+}
+
+void WorldEditorImpl::setCursorRotation(const Vec3f& ori)
+{
+  m_activeRotation = ori;
+}
+
+void WorldEditorImpl::setCursorScale(float scale)
+{
+  m_activeScale = Vec3f{ scale, scale, scale } * WORLD_UNITS_PER_METRE;
+}
+
 void WorldEditorImpl::constructCursor()
 {
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
 
+  Vec3f postScaleSize{ 1.f, 1.f, 1.f };
+  Vec3f preScaleSize = postScaleSize / m_activeScale;
+
   m_cursorId = m_engine->ecs().idGen().getNewEntityId();
   m_engine->ecs().componentStore().allocate<DSpatial, DModel>(m_cursorId);
 
-  Vec3f size{ 0.5f, 0.5f, 0.5f };
-
-  DSpatial spatial{};
-  spatial.parent = sysSpatial.root();
-  spatial.aabb = {
-    .min = -size * 0.5f,
-    .max = size * 0.5f
+  DSpatial spatial{
+    .transform = identityMatrix<4>(),
+    .parent = sysSpatial.root(),
+    .enabled = true,
+    .aabb = {
+      .min = -preScaleSize * 0.5f,
+      .max = preScaleSize * 0.5f
+    }
   };
 
   sysSpatial.addEntity(m_cursorId, spatial);
 
-  auto mesh = render::cuboid(size, { 1.f, 1.f });
+  auto mesh = render::cuboid(preScaleSize, { 1.f, 1.f });
   mesh->featureSet = render::MeshFeatureSet{
     .vertexLayout = {
       render::BufferUsage::AttrPosition,
@@ -198,11 +247,12 @@ void WorldEditorImpl::positionCursor()
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
 
-  auto camPos = sysRender3d.camera().getPosition();
-  auto camDir = sysRender3d.camera().getDirection();
+  auto& camera = sysRender3d.camera();
+  auto camPos = camera.getPosition();
+  auto camDir = camera.getDirection();
 
-  float distance = metresToWorldUnits(3.f);
-  auto transform = translationMatrix4x4(camPos + camDir * distance);
+  auto transform = createTransform(camPos + camDir * m_activeTranslation, m_activeRotation,
+    m_activeScale);
 
   sysSpatial.setLocalTransform(m_cursorId, transform);
 

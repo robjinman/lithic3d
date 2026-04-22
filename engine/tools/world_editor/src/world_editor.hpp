@@ -10,7 +10,13 @@ class WorldEditor
 {
   public:
     virtual std::vector<std::string> listPrefabs() const = 0;
-    virtual void instantiatePrefabAtCursor(const std::string& name) = 0;
+    virtual void setActivePrefab(const std::string& name) = 0;
+    virtual void instantiateActivePrefab() = 0;
+    virtual void cancelActivePrefab() = 0;
+
+    virtual void setCursorDistance(float metres) = 0;
+    virtual void setCursorRotation(const lithic3d::Vec3f& ori) = 0;
+    virtual void setCursorScale(float scale) = 0;
 
     virtual void update() = 0;
 
