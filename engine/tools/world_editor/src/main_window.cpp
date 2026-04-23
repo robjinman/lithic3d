@@ -1,5 +1,6 @@
 #include "world_editor.hpp"
 #include "prefabs_panel.hpp"
+#include "transform_panel.hpp"
 #include <sstream>
 #include <wx/wx.h>
 #include <wx/splitter.h>
@@ -35,7 +36,7 @@ class MainWindow : public wxFrame
     void constructMenu();
     void constructLeftPanel();
     void constructRightPanel();
-    void constructPrefabsPanel();
+    void populateRightPanel();
 
     void onOpen(wxCommandEvent& e);
     void onExit(wxCommandEvent& e);
@@ -53,8 +54,11 @@ class MainWindow : public wxFrame
     wxSplitterWindow* m_splitter = nullptr;
     wxBoxSizer* m_vbox = nullptr;
     wxPanel* m_leftPanel = nullptr;
-    wxNotebook* m_rightPanel = nullptr;
+    wxPanel* m_rightSidePanel = nullptr;
+    wxNotebook* m_rightSidePanelTopWindow = nullptr;
+    wxNotebook* m_rightSidePanelBottomWindow = nullptr;
     PrefabsPanelPtr m_prefabsPanel = nullptr;
+    TransformPanelPtr m_transformPanel = nullptr;
     wxPanel* m_canvas = nullptr;
     wxTimer* m_timer = nullptr;
     WindowDelegatePtr m_windowDelegate;
@@ -84,7 +88,7 @@ MainWindow::MainWindow(const wxString& title)
   constructLeftPanel();
   constructRightPanel();
 
-  m_splitter->SplitVertically(m_leftPanel, m_rightPanel, 10000);
+  m_splitter->SplitVertically(m_leftPanel, m_rightSidePanel, 10000);
 
   CreateStatusBar();
   SetStatusText(wxEmptyString);
@@ -106,7 +110,7 @@ void MainWindow::onOpen(wxCommandEvent&)
   m_timer = new wxTimer(this);
   m_timer->Start(1000.0 / TICKS_PER_SECOND);
 
-  constructPrefabsPanel();
+  populateRightPanel();
   m_prefabsPanel->populate();
 
   m_canvas->Bind(wxEVT_SIZE, &MainWindow::onCanvasResize, this);
@@ -240,23 +244,34 @@ void MainWindow::constructLeftPanel()
   m_leftPanel = new wxPanel(m_splitter, wxID_ANY);
   auto vbox = new wxBoxSizer(wxVERTICAL);
   m_canvas = new wxPanel(m_leftPanel);
-  vbox->Add(m_canvas, 1, wxEXPAND | wxALL, 5);
+  vbox->Add(m_canvas, 1, wxEXPAND, 5);
   m_leftPanel->SetSizer(vbox);
   m_leftPanel->SetCanFocus(true);
 }
 
-void MainWindow::constructPrefabsPanel()
-{
-  assert(m_rightPanel);
-
-  m_prefabsPanel = createPrefabsPanel(m_rightPanel, *m_worldEditor);
-  m_rightPanel->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
-}
-
 void MainWindow::constructRightPanel()
 {
-  assert(m_splitter);
-  m_rightPanel = new wxNotebook(m_splitter, wxID_ANY);
+  m_rightSidePanel = new wxPanel(m_splitter);
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+  m_rightSidePanel->SetSizer(vbox);
+
+  m_rightSidePanelTopWindow = new wxNotebook(m_rightSidePanel, wxID_ANY);
+  m_rightSidePanelBottomWindow = new wxNotebook(m_rightSidePanel, wxID_ANY);
+
+  vbox->Add(m_rightSidePanelTopWindow, 1, wxEXPAND);
+  vbox->Add(m_rightSidePanelBottomWindow, 1, wxEXPAND);
+}
+
+void MainWindow::populateRightPanel()
+{
+  assert(m_rightSidePanelTopWindow);
+  assert(m_rightSidePanelBottomWindow);
+
+  m_prefabsPanel = createPrefabsPanel(m_rightSidePanelTopWindow, *m_worldEditor);
+  m_transformPanel = createTransformPanel(m_rightSidePanelBottomWindow, *m_worldEditor);
+
+  m_rightSidePanelTopWindow->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
+  m_rightSidePanelBottomWindow->AddPage(m_transformPanel->getWxPtr(), "Transform");
 }
 
 void MainWindow::onExit(wxCommandEvent&)

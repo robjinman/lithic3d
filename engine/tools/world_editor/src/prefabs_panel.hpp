@@ -1,7 +1,9 @@
 #pragma once
 
-#include <wx/wx.h>
 #include <memory>
+
+class wxPanel;
+class wxWindow;
 
 class PrefabsPanel
 {
