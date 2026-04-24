@@ -16,6 +16,11 @@ using namespace lithic3d;
 namespace
 {
 
+struct WorldState
+{
+  std::map<Vec3i, std::vector<EntityId>> entities;
+};
+
 class WorldEditorImpl : public WorldEditor
 {
   public:
@@ -47,6 +52,7 @@ class WorldEditorImpl : public WorldEditor
     void constructCursor();
     void positionCursor();
     void processKeyboardInput();
+    Vec2i cellFromPosition(const Vec3f& pos) const;
 
     fs::path m_projectRoot;
     WindowDelegate& m_windowDelegate;
@@ -59,7 +65,7 @@ class WorldEditorImpl : public WorldEditor
     Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
     Vec3f m_activeRotation;
     float m_activeTranslation = metresToWorldUnits(10.f);
-    std::vector<EntityId> m_instances;
+    WorldState m_state;
 };
 
 WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate)
@@ -69,6 +75,19 @@ WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& wi
   createEngine();
   constructLight();
   constructCursor();
+}
+
+Vec2i WorldEditorImpl::cellFromPosition(const Vec3f& pos) const
+{
+  ASSERT(m_engine, "Engine not instantiated");
+
+  float cellW = m_engine->worldLoader().worldInfo().cellWidth;
+  float cellH = m_engine->worldLoader().worldInfo().cellHeight;
+
+  return {
+    static_cast<int>(pos[0] / cellW),
+    static_cast<int>(pos[2] / cellH)
+  };
 }
 
 std::vector<std::string> WorldEditorImpl::listPrefabs() const
@@ -112,7 +131,13 @@ void WorldEditorImpl::setActivePrefab(const std::string& name)
 
 void WorldEditorImpl::instantiateActivePrefab()
 {
-  m_instances.push_back(m_activeEntity);
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+  auto pos = getTranslation(sysSpatial.getGlobalTransform(m_cursorId));
+  auto cell = cellFromPosition(pos);
+
+  int sliceIdx = 1; // TODO
+  m_state.entities[{ cell[0], cell[1], sliceIdx }].push_back(m_activeEntity);
+
   m_activeEntity = NULL_ENTITY_ID;
 }
 
@@ -219,8 +244,7 @@ void WorldEditorImpl::createEngine()
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(m_windowDelegate, *resourceManager, m_config.paths,
-    *logger, {});
+  auto renderer = createRenderer(m_windowDelegate, *resourceManager, m_config.paths, *logger, {});
 
   logger->info("Compiling shaders...");
 
@@ -238,8 +262,11 @@ void WorldEditorImpl::createEngine()
   Vec3f initialPos = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
   m_engine->ecs().system<SysRender3d>().camera().setPosition(initialPos);
 
-  m_engine->worldGrid().update(initialPos);
-  m_engine->worldGrid().wait();
+  auto cell = cellFromPosition(initialPos);
+  for (int i = 0; i < 6; ++i) {
+    auto slice = m_engine->worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
+    m_state.entities[{ cell[0], cell[1], i }] = m_engine->worldLoader().createEntities(slice.id());
+  }
 }
 
 void WorldEditorImpl::positionCursor()
@@ -369,7 +396,6 @@ void WorldEditorImpl::update()
   processKeyboardInput();
   positionCursor();
   m_engine->update(m_inputState);
-  m_engine->worldGrid().update(m_engine->ecs().system<SysRender3d>().camera().getPosition());
 }
 
 WorldEditorImpl::~WorldEditorImpl()

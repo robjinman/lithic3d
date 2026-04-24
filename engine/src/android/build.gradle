@@ -30,7 +30,7 @@ android {
 
   defaultConfig {
     applicationId gameBundleId
-    minSdk 31
+    minSdk 33
     targetSdk 35
     versionCode uniqueInt
     versionName "${gameVersionMajor}.${gameVersionMinor}"
