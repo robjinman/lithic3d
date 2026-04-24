@@ -50,6 +50,7 @@ class EngineImpl : public Engine
     ModelLoader& modelLoader() override;
     ResourceManager& resourceManager() override;
     RenderResourceLoader& renderResourceLoader() override;
+    WorldLoader& worldLoader() override;
     WorldGrid& worldGrid() override;
     EntityFactory& entityFactory() override;
 
@@ -235,6 +236,12 @@ ResourceManager& EngineImpl::resourceManager()
 RenderResourceLoader& EngineImpl::renderResourceLoader()
 {
   return *m_renderResourceLoader;
+}
+
+WorldLoader& EngineImpl::worldLoader()
+{
+  ASSERT(m_worldLoader, "Terrain feature must be enabled to access world loader");
+  return *m_worldLoader;
 }
 
 WorldGrid& EngineImpl::worldGrid()

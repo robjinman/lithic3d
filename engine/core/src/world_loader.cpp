@@ -40,7 +40,7 @@ Mat4x4f constructTransform(const XmlNode& transformXml)
 
   return createTransform(metresToWorldUnits(pos), ori, scale);
 }
-  
+
 struct CellSlice
 {
   uint32_t x = 0;
@@ -90,7 +90,6 @@ class WorldLoaderImpl : public WorldLoader
     std::vector<ResourceId> m_pendingSlices;
 
     void loadWorldInfo(const XmlNode& node);
-    TerrainConfig loadTerrainConfig(const XmlNode& node);
 };
 
 WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFactory& entityFactory,
