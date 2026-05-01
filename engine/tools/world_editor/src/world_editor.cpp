@@ -16,10 +16,16 @@ using namespace lithic3d;
 namespace
 {
 
+struct SliceState
+{
+  ResourceHandle handle;
+  std::vector<Entity> entities;
+  bool dirty = false;
+};
+
 struct WorldState
 {
-  std::map<Vec3i, ResourceHandle> slices;
-  std::map<Vec3i, std::vector<EntityId>> entities;
+  std::map<Vec3i, SliceState> slices;
 };
 
 class WorldEditorImpl : public WorldEditor
@@ -45,6 +51,8 @@ class WorldEditorImpl : public WorldEditor
     void onMouseMove(float x, float y) override;
     void onCanvasResize(uint32_t w, uint32_t h) override;
 
+    void saveChanges() override;
+
     ~WorldEditorImpl() override;
 
   private:
@@ -54,6 +62,9 @@ class WorldEditorImpl : public WorldEditor
     void positionCursor();
     void processKeyboardInput();
     Vec2i cellFromPosition(const Vec3f& pos) const;
+    void saveChangesToSlice(const Vec3f& index, const SliceState& slice);
+    void saveChangesToSlice(const fs::path& cellDirName, const std::string& sliceFileName,
+      const SliceState& slice);
 
     fs::path m_projectRoot;
     WindowDelegate& m_windowDelegate;
@@ -62,10 +73,14 @@ class WorldEditorImpl : public WorldEditor
     InputState m_inputState;
     EntityId m_cursorId = NULL_ENTITY_ID;
     std::map<std::string, ResourceHandle> m_prefabs;
+  
+    // TODO: Bundle these into struct?
     EntityId m_activeEntity = NULL_ENTITY_ID;
+    std::string m_activeEntityType;
     Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
     Vec3f m_activeRotation;
     float m_activeTranslation = metresToWorldUnits(10.f);
+  
     WorldState m_state;
 };
 
@@ -128,6 +143,7 @@ void WorldEditorImpl::setActivePrefab(const std::string& name)
 
   Mat4x4f transform = sysSpatial.getGlobalTransform(m_cursorId);
   m_activeEntity = factory.constructEntity(name, transform);
+  m_activeEntityType = name;
 }
 
 void WorldEditorImpl::instantiateActivePrefab()
@@ -137,9 +153,67 @@ void WorldEditorImpl::instantiateActivePrefab()
   auto cell = cellFromPosition(pos);
 
   int sliceIdx = 1; // TODO
-  m_state.entities[{ cell[0], cell[1], sliceIdx }].push_back(m_activeEntity);
+  auto& slice = m_state.slices[{ cell[0], cell[1], sliceIdx }];
+  assert(slice.handle.id() != NULL_RESOURCE_ID);
+  slice.entities.push_back({
+    .id = m_activeEntity,
+    .type = m_activeEntityType
+  });
+  slice.dirty = true;
 
   m_activeEntity = NULL_ENTITY_ID;
+}
+
+void WorldEditorImpl::saveChanges()
+{
+  for (auto& [ index, slice ] : m_state.slices) {
+    if (slice.dirty) {
+      saveChangesToSlice(index, slice);
+      slice.dirty = false;
+    }
+  }
+}
+
+void WorldEditorImpl::saveChangesToSlice(const fs::path& cellDirName,
+  const std::string& sliceFileName, const SliceState& slice)
+{
+  auto cellDir = m_config.paths.worldsDir->subdirectory(fs::path{"world"} / cellDirName);
+
+  ASSERT(cellDir->fileExists(sliceFileName), "File " << sliceFileName << " doesn't exist");
+
+  auto xmlCellSlice = createXmlNode("cell-slice");
+  auto xmlEntities = createXmlNode("entities");
+  for (auto& entity : slice.entities) {
+    auto xmlEntity = createXmlNode("entity");
+
+    xmlEntity->setAttribute("type", entity.type);
+
+    auto xmlTransform = createXmlNode("transform");
+    // TODO
+
+    xmlEntity->addChild(std::move(xmlTransform));
+    xmlEntities->addChild(std::move(xmlEntity));
+  }
+  xmlCellSlice->addChild(std::move(xmlEntities));
+
+  std::stringstream stream;
+  xmlCellSlice->write(stream);
+
+  auto xmlString = stream.str();
+  cellDir->writeFile(sliceFileName, xmlString.data(), xmlString.size());
+}
+
+void WorldEditorImpl::saveChangesToSlice(const Vec3f& index, const SliceState& slice)
+{
+  std::stringstream ss;
+  ss << std::setw(3) << std::setfill('0') << index[0]
+    << std::setw(3) << std::setfill('0') << index[1];
+  auto cellDirName = ss.str();
+  ss.str("");
+  ss << std::setw(3) << std::setfill('0') << index[2] << ".xml";
+  auto sliceFileName = ss.str();
+
+  saveChangesToSlice(cellDirName, sliceFileName, slice);
 }
 
 void WorldEditorImpl::cancelActivePrefab()
@@ -266,8 +340,11 @@ void WorldEditorImpl::createEngine()
   auto cell = cellFromPosition(initialPos);
   for (int i = 0; i < 6; ++i) {
     auto slice = m_engine->worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
-    m_state.slices[{ cell[0], cell[1], i }] = slice;
-    m_state.entities[{ cell[0], cell[1], i }] = m_engine->worldLoader().createEntities(slice.id());
+    m_state.slices[{ cell[0], cell[1], i }] = {
+      .handle = slice,
+      .entities = m_engine->worldLoader().createEntities(slice.id()),
+      .dirty = false
+    };
   }
 }
 

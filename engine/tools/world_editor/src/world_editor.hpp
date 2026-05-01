@@ -27,6 +27,8 @@ class WorldEditor
     virtual void onMouseMove(float x, float y) = 0;
     virtual void onCanvasResize(uint32_t w, uint32_t h) = 0;
 
+    virtual void saveChanges() = 0;
+
     virtual ~WorldEditor() = default;
 };
 

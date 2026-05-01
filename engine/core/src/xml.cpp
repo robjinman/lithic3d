@@ -54,30 +54,42 @@ namespace
 class XmlNodeImpl : public XmlNode
 {
   public:
-    XmlNodeImpl(const XmlNodeImpl& cpy);
-    XmlNodeImpl(const XMLElement& node);
+    explicit XmlNodeImpl(const std::string& name);
+    explicit XmlNodeImpl(const XmlNodeImpl& cpy);
+    explicit XmlNodeImpl(const XMLElement& node);
 
     XmlNodePtr clone() const override;
     const std::string& name() const override;
-    const std::string& contents() const override;
+    const std::string& value() const override;
     Iterator child(const std::string& name) const override;
     std::string attribute(const std::string& name) const override;
     Iterator begin() const override;
     Iterator end() const override;
 
+    void addChild(XmlNodePtr node) override;
+    void setValue(const std::string& value) override;
+    void setAttribute(const std::string& name, const std::string& value) override;
+    void write(std::ostream& stream) const override;
+
   private:
     std::string m_name;
-    std::string m_contents;
+    std::string m_value;
     std::map<std::string, std::string> m_attributes;
     std::vector<std::unique_ptr<XmlNode>> m_children;
+
+    void write(std::ostream& stream, size_t level) const;
 };
+
+XmlNodeImpl::XmlNodeImpl(const std::string& name)
+  : m_name(name)
+{}
 
 XmlNodeImpl::XmlNodeImpl(const XMLElement& node)
 {
   m_name = node.Name();
-  auto contents = node.GetText();
-  if (contents != nullptr) {
-    m_contents = contents;
+  auto value = node.GetText();
+  if (value != nullptr) {
+    m_value = value;
   }
 
   for (auto attr = node.FirstAttribute(); attr != nullptr; attr = attr->Next()) {
@@ -94,7 +106,7 @@ XmlNodeImpl::XmlNodeImpl(const XMLElement& node)
 
 XmlNodeImpl::XmlNodeImpl(const XmlNodeImpl& cpy)
   : m_name(cpy.m_name)
-  , m_contents(cpy.m_contents)
+  , m_value(cpy.m_value)
   , m_attributes(cpy.m_attributes)
 {
   for (auto& child : cpy.m_children) {
@@ -112,9 +124,9 @@ const std::string& XmlNodeImpl::name() const
   return m_name;
 }
 
-const std::string& XmlNodeImpl::contents() const
+const std::string& XmlNodeImpl::value() const
 {
-  return m_contents;
+  return m_value;
 }
 
 XmlNode::Iterator XmlNodeImpl::child(const std::string& name) const
@@ -144,7 +156,57 @@ XmlNode::Iterator XmlNodeImpl::end() const
   return Iterator(m_children.end());
 }
 
+void XmlNodeImpl::addChild(XmlNodePtr node)
+{
+  m_children.push_back(std::move(node));
+}
+
+void XmlNodeImpl::setValue(const std::string& value)
+{
+  m_value = value;
+}
+
+void XmlNodeImpl::setAttribute(const std::string& name, const std::string& value)
+{
+  m_attributes[name] = value;
+}
+
+void XmlNodeImpl::write(std::ostream& stream, size_t level) const
+{
+  auto tabSpaces = [&stream](size_t n) {
+    stream << std::string(n, ' ');
+  };
+
+  tabSpaces(level);
+  stream << "<" << m_name;
+  for (auto& [name, value] : m_attributes) {
+    stream << " " << name << "=\"" << value << "\"";
+  }
+  stream << ">\n";
+
+  tabSpaces(level + 1);
+  stream << m_value << "\n";
+
+  for (auto& child : m_children) {
+    auto& ref = dynamic_cast<const XmlNodeImpl&>(*child);
+    ref.write(stream, level + 1);
+  }
+
+  tabSpaces(level);
+  stream << "</" << m_name << ">\n";
+}
+
+void XmlNodeImpl::write(std::ostream& stream) const
+{
+  write(stream, 0);
+}
+
 } // namespace
+
+XmlNodePtr createXmlNode(const std::string& name)
+{
+  return std::make_unique<XmlNodeImpl>();
+}
 
 XmlNodePtr parseXml(std::string_view data)
 {
