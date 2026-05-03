@@ -25,7 +25,6 @@ class PrefabsPanelImpl : public PrefabsPanel
     WorldEditor& m_worldEditor;
     wxPanel* m_basePanel = nullptr;
     wxListBox* m_listBox = nullptr;
-    wxPanel* m_instancePanel = nullptr;
 };
 
 PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, WorldEditor& worldEditor)

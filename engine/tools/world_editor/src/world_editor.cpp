@@ -34,6 +34,7 @@ class WorldEditorImpl : public WorldEditor
     WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate);
 
     std::vector<std::string> listPrefabs() const override;
+    std::vector<Entity> getEntities() const override;
     void setActivePrefab(const std::string& name) override;
     void instantiateActivePrefab() override;
     void cancelActivePrefab() override;
@@ -44,8 +45,8 @@ class WorldEditorImpl : public WorldEditor
 
     void update() override;
 
-    void onKeyDown(lithic3d::KeyboardKey key) override;
-    void onKeyUp(lithic3d::KeyboardKey key) override;
+    void onKeyDown(KeyboardKey key) override;
+    void onKeyUp(KeyboardKey key) override;
     void onMouseLeftBtnDown() override;
     void onMouseLeftBtnUp() override;
     void onMouseMove(float x, float y) override;
@@ -120,6 +121,18 @@ std::vector<std::string> WorldEditorImpl::listPrefabs() const
   }
 
   return prefabNames;
+}
+
+std::vector<Entity> WorldEditorImpl::getEntities() const
+{
+  std::vector<Entity> entities;
+
+  for (auto i : m_state.slices) {
+    auto& slice = i.second;
+    entities.insert(entities.end(), slice.entities.begin(), slice.entities.end());
+  }
+
+  return entities;
 }
 
 void WorldEditorImpl::setActivePrefab(const std::string& name)
@@ -451,12 +464,12 @@ void WorldEditorImpl::processKeyboardInput()
   }
 }
 
-void WorldEditorImpl::onKeyDown(lithic3d::KeyboardKey key)
+void WorldEditorImpl::onKeyDown(KeyboardKey key)
 {
   m_inputState.keysPressed.insert(key);
 }
 
-void WorldEditorImpl::onKeyUp(lithic3d::KeyboardKey key)
+void WorldEditorImpl::onKeyUp(KeyboardKey key)
 {
   m_inputState.keysPressed.erase(key);
 }

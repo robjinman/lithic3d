@@ -1,5 +1,6 @@
 #include "world_editor.hpp"
 #include "prefabs_panel.hpp"
+#include "scene_panel.hpp"
 #include "transform_panel.hpp"
 #include <sstream>
 #include <wx/wx.h>
@@ -60,6 +61,7 @@ class MainWindow : public wxFrame
     wxNotebook* m_rightSidePanelTopWindow = nullptr;
     wxNotebook* m_rightSidePanelBottomWindow = nullptr;
     PrefabsPanelPtr m_prefabsPanel = nullptr;
+    ScenePanelPtr m_scenePanel = nullptr;
     TransformPanelPtr m_transformPanel = nullptr;
     wxPanel* m_canvas = nullptr;
     wxTimer* m_timer = nullptr;
@@ -111,6 +113,7 @@ void MainWindow::onOpen(wxCommandEvent&)
 
   populateRightPanel();
   m_prefabsPanel->populate();
+  m_scenePanel->populate(m_worldEditor->getEntities());
 
   m_canvas->Bind(wxEVT_SIZE, &MainWindow::onCanvasResize, this);
   m_canvas->Bind(wxEVT_KEY_DOWN, &MainWindow::onCanvasKeyDown, this);
@@ -279,9 +282,11 @@ void MainWindow::populateRightPanel()
   assert(m_rightSidePanelBottomWindow);
 
   m_prefabsPanel = createPrefabsPanel(m_rightSidePanelTopWindow, *m_worldEditor);
+  m_scenePanel = createScenePanel(m_rightSidePanelTopWindow, *m_worldEditor);
   m_transformPanel = createTransformPanel(m_rightSidePanelBottomWindow, *m_worldEditor);
 
   m_rightSidePanelTopWindow->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
+  m_rightSidePanelTopWindow->AddPage(m_scenePanel->getWxPtr(), "Scene");
   m_rightSidePanelBottomWindow->AddPage(m_transformPanel->getWxPtr(), "Transform");
 }
 
