@@ -77,6 +77,14 @@ Linux host with the same prerequisites as above, plus
 
 Make sure environment variables ANDROID_HOME and ANDROID_NDK_HOME are set.
 
+#### Raspberry Pi 5
+
+Install the arm64 toolchain. On a linux host, run
+
+```
+    sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+```
+
 ### Build
 
 To build, just run the relevant workflow from the project root, specifying your project location in the environment variable LITHIC3D_PROJECT.

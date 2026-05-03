@@ -158,6 +158,37 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "pi5-default",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/pi5/debug",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/engine/platform/default/vcpkg",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/pi5/vcpkg_installed",
+        "VCPKG_TARGET_TRIPLET": "arm64-linux",
+        "VCPKG_CMAKE_SYSTEM_NAME": "Linux",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/pi5_toolchain.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CROSS_COMPILE": "TRUE"
+      }
+    },
+    {
+      "name": "pi5-debug",
+      "inherits": "pi5-default",
+      "binaryDir": "${sourceDir}/build/pi5/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "pi5-release",
+      "inherits": "pi5-default",
+      "binaryDir": "${sourceDir}/build/pi5/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
@@ -208,6 +239,16 @@
       "name": "windows-release",
       "configurePreset": "windows-release",
       "configuration": "Release"
+    },
+    {
+      "name": "pi5-debug",
+      "configurePreset": "pi5-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "pi5-release",
+      "configurePreset": "pi5-release",
+      "configuration": "Release"
     }
   ],
   "packagePresets": [
@@ -219,6 +260,11 @@
     {
       "name": "windows-zip",
       "configurePreset": "windows-release",
+      "generators": ["ZIP"]
+    },
+    {
+      "name": "pi5-zip",
+      "configurePreset": "pi5-release",
       "generators": ["ZIP"]
     }
   ],
@@ -392,6 +438,38 @@
         {
           "type": "package",
           "name": "windows-zip"
+        }
+      ]
+    },
+    {
+      "description": "Raspberry Pi 5 debug build",
+      "name": "pi5-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "pi5-debug"
+        },
+        {
+          "type": "build",
+          "name": "pi5-debug"
+        }
+      ]
+    },
+    {
+      "description": "Raspberry Pi 5 release build",
+      "name": "pi5-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "pi5-release"
+        },
+        {
+          "type": "build",
+          "name": "pi5-release"
+        },
+        {
+          "type": "package",
+          "name": "pi5-zip"
         }
       ]
     }
