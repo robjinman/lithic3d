@@ -2,19 +2,6 @@ cmake_minimum_required(VERSION 3.22)
 
 project("Lithic3D")
 
-# TODO: Move this
-if(ANDROID_BUILD)
-  set(PLATFORM_ANDROID 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(PLATFORM_LINUX 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-  set(PLATFORM_WINDOWS 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(PLATFORM_OSX 1)
-elseif(CMAKE_SYSTEM_NAME MATCHES "iOS")
-  set(PLATFORM_IOS 1)
-endif()
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -68,20 +55,31 @@ else()
   set(EXE_TARGET "${GAME_SHORT_NAME}")
 
   if(PLATFORM_LINUX)
-    find_package(glfw3 REQUIRED)
-    add_executable(${EXE_TARGET}
-      "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
+    set(SRCS
       "${PROJECT_SOURCE_DIR}/src/default/audio_system.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/stb_vorbis.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/file_system.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/product_activation.cpp"
       "${PROJECT_SOURCE_DIR}/src/default/drm.cpp"
-      "${PROJECT_SOURCE_DIR}/src/default/vulkan_window_delegate.cpp"
       "${PROJECT_SOURCE_DIR}/src/linux/platform_paths.cpp"
     )
-    target_link_libraries(${EXE_TARGET} PRIVATE
-      glfw
-    )
+
+    if(DIRECT_TO_DISPLAY)
+      list(APPEND SRCS
+        "${PROJECT_SOURCE_DIR}/src/pi5/application.cpp"
+        "${PROJECT_SOURCE_DIR}/src/pi5/vulkan_window_delegate.cpp"
+      )
+      add_executable(${EXE_TARGET} ${SRCS})
+    else()
+      find_package(glfw3 REQUIRED)
+      list(APPEND SRCS
+        "${PROJECT_SOURCE_DIR}/src/default/application.cpp"
+        "${PROJECT_SOURCE_DIR}/src/default/vulkan_window_delegate.cpp"
+      )
+      add_executable(${EXE_TARGET} ${SRCS})
+      target_link_libraries(${EXE_TARGET} PRIVATE glfw)
+    endif()
+
     if (CPU_PROFILE)
       target_link_libraries(${EXE_TARGET} PRIVATE
         -Wl,--no-as-needed -lprofiler -Wl,--as-needed
@@ -284,7 +282,6 @@ else()
       add_subdirectory("test")
     endif()
   endif()
-
 endif()
 
 if(TARGET shader_compiler)

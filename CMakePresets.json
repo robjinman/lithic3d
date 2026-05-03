@@ -9,7 +9,8 @@
         "VCPKG_MANIFEST_DIR": "${sourceDir}/engine/platform/default/vcpkg",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/linux/vcpkg_installed",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PLATFORM_LINUX": "TRUE"
       }
     },
     {
@@ -43,7 +44,7 @@
       "binaryDir": "${sourceDir}/build/android/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ANDROID_BUILD": "TRUE"
+        "PLATFORM_ANDROID": "TRUE"
       }
     },
     {
@@ -74,7 +75,8 @@
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/osx/release/package",
         "CMAKE_MACOSX_RPATH": true,
         "CMAKE_INSTALL_RPATH": "/usr/local/lib",
-        "CMAKE_EXPORT_COMPILE_COMMAND": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMAND": "ON",
+        "PLATFORM_OSX": "TRUE"
       }
     },
     {
@@ -103,7 +105,8 @@
         "CMAKE_SYSTEM_NAME": "iOS",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/ios/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/ios/release/package"
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/ios/release/package",
+        "PLATFORM_IOS": "TRUE"
       }
     },
     {
@@ -140,7 +143,8 @@
         "X_VCPKG_APPLOCAL_DEPS_INSTALL": "ON",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/windows/vcpkg_installed",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PLATFORM_WINDOWS": "TRUE"
       }
     },
     {
@@ -164,14 +168,16 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/pi5/debug",
       "cacheVariables": {
-        "VCPKG_MANIFEST_DIR": "${sourceDir}/engine/platform/default/vcpkg",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/engine/platform/pi5/vcpkg",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/pi5/vcpkg_installed",
         "VCPKG_TARGET_TRIPLET": "arm64-linux",
         "VCPKG_CMAKE_SYSTEM_NAME": "Linux",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/pi5_toolchain.cmake",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CROSS_COMPILE": "TRUE"
+        "CROSS_COMPILE": "TRUE",
+        "PLATFORM_LINUX": "TRUE",
+        "DIRECT_TO_DISPLAY": "TRUE"
       }
     },
     {
