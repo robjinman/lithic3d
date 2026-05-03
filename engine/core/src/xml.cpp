@@ -174,7 +174,8 @@ void XmlNodeImpl::setAttribute(const std::string& name, const std::string& value
 void XmlNodeImpl::write(std::ostream& stream, size_t level) const
 {
   auto tabSpaces = [&stream](size_t n) {
-    stream << std::string(n, ' ');
+    const int tabSize = 2;
+    stream << std::string(n * tabSize, ' ');
   };
 
   tabSpaces(level);
@@ -184,8 +185,10 @@ void XmlNodeImpl::write(std::ostream& stream, size_t level) const
   }
   stream << ">\n";
 
-  tabSpaces(level + 1);
-  stream << m_value << "\n";
+  if (!m_value.empty()) {
+    tabSpaces(level + 1);
+    stream << m_value << "\n";
+  }
 
   for (auto& child : m_children) {
     auto& ref = dynamic_cast<const XmlNodeImpl&>(*child);
@@ -205,7 +208,7 @@ void XmlNodeImpl::write(std::ostream& stream) const
 
 XmlNodePtr createXmlNode(const std::string& name)
 {
-  return std::make_unique<XmlNodeImpl>();
+  return std::make_unique<XmlNodeImpl>(name);
 }
 
 XmlNodePtr parseXml(std::string_view data)

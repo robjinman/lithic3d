@@ -174,9 +174,35 @@ void WorldEditorImpl::saveChanges()
   }
 }
 
+// TODO: Move this
+XmlNodePtr toXml(const Mat4x4f& m)
+{
+  auto xmlTransform = createXmlNode("transform");
+  auto xmlMatrix = createXmlNode("matrix");
+
+  std::stringstream ss;
+
+  for (size_t r = 0; r < 3; ++r) {
+    for (size_t c = 0; c < 4; ++c) {
+      ss << m.at(r, c);
+      if (!(r == 2 && c == 3)) {
+        ss << ",";
+      }
+    }
+  }
+
+  xmlMatrix->setValue(ss.str());
+
+  xmlTransform->addChild(std::move(xmlMatrix));
+
+  return xmlTransform;
+}
+
 void WorldEditorImpl::saveChangesToSlice(const fs::path& cellDirName,
   const std::string& sliceFileName, const SliceState& slice)
 {
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+
   auto cellDir = m_config.paths.worldsDir->subdirectory(fs::path{"world"} / cellDirName);
 
   ASSERT(cellDir->fileExists(sliceFileName), "File " << sliceFileName << " doesn't exist");
@@ -188,10 +214,7 @@ void WorldEditorImpl::saveChangesToSlice(const fs::path& cellDirName,
 
     xmlEntity->setAttribute("type", entity.type);
 
-    auto xmlTransform = createXmlNode("transform");
-    // TODO
-
-    xmlEntity->addChild(std::move(xmlTransform));
+    xmlEntity->addChild(toXml(sysSpatial.getLocalTransform(entity.id)));
     xmlEntities->addChild(std::move(xmlEntity));
   }
   xmlCellSlice->addChild(std::move(xmlEntities));

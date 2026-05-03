@@ -104,7 +104,7 @@ std::vector<T_FLAGS> parseFlags(const XmlNode& flagsXml,
 
   for (auto& flagXml : flagsXml) {
     auto flag = stringToFlag(flagXml.name());
-    auto flagValue = flagXml.contents();
+    auto flagValue = flagXml.value();
 
     if (flagValue == "*") {
       wildcards.push_back(flag);
@@ -213,7 +213,7 @@ std::vector<VertexLayout> parseVertexLayout(const XmlNode& vertexLayoutXml)
   for (auto& attributeXml : vertexLayoutXml) {
     auto attrName = attributeXml.name();
     auto attr = parseAttributeName(attrName);
-    auto value = attributeXml.contents();
+    auto value = attributeXml.value();
 
     if (value == "*") {
       wildcards.push_back(attr);
@@ -305,13 +305,13 @@ std::vector<RenderPass> parseRenderPassesXml(const XmlNode& renderPassesXml)
 
   for (auto& renderPassXml : renderPassesXml) {
     ASSERT(renderPassXml.name() == "render-pass", "Expected <render-pass> element");
-    if (renderPassXml.contents() == "overlay") {
+    if (renderPassXml.value() == "overlay") {
       renderPasses.push_back(RenderPass::Overlay);
     }
-    else if (renderPassXml.contents() == "main") {
+    else if (renderPassXml.value() == "main") {
       renderPasses.push_back(RenderPass::Main);
     }
-    else if (renderPassXml.contents() == "shadow") {
+    else if (renderPassXml.value() == "shadow") {
       renderPasses.push_back(RenderPass::Shadow0);  // Just use the first one
     }
   }

@@ -22,7 +22,8 @@ namespace
 
 enum MenuItems
 {
-  MNU_OPEN = wxID_HIGHEST + 1
+  MNU_OPEN = wxID_HIGHEST + 1,
+  MNU_SAVE
 };
 
 class MainWindow : public wxFrame
@@ -39,6 +40,7 @@ class MainWindow : public wxFrame
     void populateRightPanel();
 
     void onOpen(wxCommandEvent& e);
+    void onSave(wxCommandEvent& e);
     void onExit(wxCommandEvent& e);
     void onAbout(wxCommandEvent& e);
     void onClose(wxCloseEvent& e);
@@ -68,9 +70,6 @@ class MainWindow : public wxFrame
 MainWindow::MainWindow(const wxString& title)
   : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition)
 {
-  Bind(wxEVT_MENU, &MainWindow::onOpen, this, MNU_OPEN);
-  Bind(wxEVT_MENU, &MainWindow::onExit, this, wxID_EXIT);
-  Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
   Bind(wxEVT_CLOSE_WINDOW, &MainWindow::onClose, this);
 
   constructMenu();
@@ -121,6 +120,11 @@ void MainWindow::onOpen(wxCommandEvent&)
   m_canvas->Bind(wxEVT_MOTION, &MainWindow::onCanvasMouseMove, this);
 
   Bind(wxEVT_TIMER, &MainWindow::onTick, this);
+}
+
+void MainWindow::onSave(wxCommandEvent&)
+{
+  m_worldEditor->saveChanges();
 }
 
 void MainWindow::onClose(wxCloseEvent& e)
@@ -225,6 +229,8 @@ void MainWindow::constructMenu()
   wxMenu* mnuFile = new wxMenu;
   auto itmOpen = new wxMenuItem(mnuFile, MNU_OPEN, "Open");
   mnuFile->Append(itmOpen);
+  auto itmSave = new wxMenuItem(mnuFile, MNU_SAVE, "Save");
+  mnuFile->Append(itmSave);
   mnuFile->Append(wxID_EXIT);
 
   wxMenu* mnuHelp = new wxMenu;
@@ -235,6 +241,11 @@ void MainWindow::constructMenu()
   menuBar->Append(mnuHelp, wxGetTranslation("&Help"));
 
   SetMenuBar(menuBar);
+
+  Bind(wxEVT_MENU, &MainWindow::onOpen, this, MNU_OPEN);
+  Bind(wxEVT_MENU, &MainWindow::onSave, this, MNU_SAVE);
+  Bind(wxEVT_MENU, &MainWindow::onExit, this, wxID_EXIT);
+  Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
 }
 
 void MainWindow::constructLeftPanel()

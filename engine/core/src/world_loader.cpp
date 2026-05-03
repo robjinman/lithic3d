@@ -28,17 +28,43 @@ Vec3f constructVec3f(const XmlNode& node)
 
 Mat4x4f constructTransform(const XmlNode& transformXml)
 {
-  auto pos = constructVec3f(*transformXml.child("pos"));
-  auto ori = constructVec3f(*transformXml.child("ori"));
+  auto iMatrix = transformXml.child("matrix");
+  if (iMatrix != transformXml.end()) {
+    auto& matrixXml = *iMatrix;
+    std::stringstream ss(matrixXml.value());
 
-  Vec3f scale{ 1.f, 1.f, 1.f };
+    Mat4x4f m = identityMatrix<4>();
 
-  auto i = transformXml.child("scale");
-  if (i != transformXml.end()) {
-    scale = constructVec3f(*i);
+    size_t i = 0;
+    while (ss.good()) {
+      if (i > 12) {
+        break;
+      }
+
+      std::string strFloat;
+      std::getline(ss, strFloat, ',');
+      size_t r = i / 4;
+      size_t c = i % 4;
+
+      m.set(r, c, std::stof(strFloat));
+      ++i;
+    }
+
+    return m;
   }
+  else {
+    auto pos = constructVec3f(*transformXml.child("pos"));
+    auto ori = constructVec3f(*transformXml.child("ori"));
 
-  return createTransform(metresToWorldUnits(pos), ori, scale);
+    Vec3f scale{ 1.f, 1.f, 1.f };
+
+    auto i = transformXml.child("scale");
+    if (i != transformXml.end()) {
+      scale = constructVec3f(*i);
+    }
+
+    return createTransform(metresToWorldUnits(pos), ori, scale);
+  }
 }
 
 struct CellSlice
@@ -74,7 +100,7 @@ class WorldLoaderImpl : public WorldLoader
 
     const WorldInfo& worldInfo() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
-    std::vector<EntityId> createEntities(ResourceId cellSliceId) override;
+    std::vector<Entity> createEntities(ResourceId cellSliceId) override;
 
   private:
     Logger& m_logger;
@@ -122,14 +148,17 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
     m_resourceManager, m_paths, m_logger);
 }
 
-std::vector<EntityId> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
+std::vector<Entity> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
   auto& cellSlice = m_cellSlices.at(cellSliceId);
-  std::vector<EntityId> entities;
+  std::vector<Entity> entities;
 
   if (cellSlice.terrain) {
     assert(cellSlice.terrain.ready());
-    entities = m_terrainBuilder->createEntities(cellSlice.terrain.id());
+    auto terrainIds = m_terrainBuilder->createEntities(cellSlice.terrain.id());
+    for (auto id : terrainIds) {
+      entities.push_back({ id, "terrain" });
+    }
   }
 
   for (auto& entityXml : cellSlice.pendingEntities) {
@@ -137,7 +166,7 @@ std::vector<EntityId> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
     auto transform = constructTransform(*entityXml->child("transform"));
 
     auto id = m_entityFactory.constructEntity(type, transform);
-    entities.push_back(id);
+    entities.push_back({ id, type });
   }
 
   cellSlice.pendingEntities.clear();

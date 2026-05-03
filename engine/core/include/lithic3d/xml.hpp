@@ -8,6 +8,9 @@
 namespace lithic3d
 {
 
+class XmlNode;
+using XmlNodePtr = std::unique_ptr<XmlNode>;
+
 class XmlNode
 {
   public:
@@ -42,8 +45,6 @@ class XmlNode
 
     virtual ~XmlNode() {}
 };
-
-using XmlNodePtr = std::unique_ptr<XmlNode>;
 
 XmlNodePtr createXmlNode(const std::string& name);
 
