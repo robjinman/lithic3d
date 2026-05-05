@@ -383,7 +383,7 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
     setupDebugMessenger();
 #endif
   }).get();
-  m_surface = m_window.createSurface(m_instance);
+  m_surface = m_window.createSurface(m_physicalDevice, m_instance);
   m_thread.run<void>([this]() {
     pickPhysicalDevice();
     createLogicalDevice();
@@ -1612,7 +1612,7 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
   cleanupSwapChain();
   if (recreateSurface) {
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-    m_surface = m_window.createSurface(m_instance);
+    m_surface = m_window.createSurface(m_physicalDevice, m_instance);
   }
   createSwapChain(extent);
   createImageViews();

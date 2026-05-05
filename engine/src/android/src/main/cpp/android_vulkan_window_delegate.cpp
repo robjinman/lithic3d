@@ -20,7 +20,7 @@ const std::vector<const char*>& AndroidVulkanWindowDelegate::getRequiredExtensio
   return m_extensions;
 }
 
-VkSurfaceKHR AndroidVulkanWindowDelegate::createSurface(VkInstance instance)
+VkSurfaceKHR AndroidVulkanWindowDelegate::createSurface(VkPhysicalDevice, VkInstance instance)
 {
   ASSERT(m_goodWindow, "Can't create surface until window is initialised");
 

@@ -21,19 +21,61 @@ class Application
     ~Application();
 
   private:
+    GameConfig m_config;
+    WindowDelegatePtr m_windowDelegate;
+    EnginePtr m_engine;
+    GamePtr m_game;
 
+    void cleanUp();
 };
 
 Application::Application()
 {
+  m_config = getGameConfig();
+
+  auto platformPaths = createPlatformPaths(m_config.appShortName, m_config.vendorShortName);
+  auto fileSystem = createDefaultFileSystem(std::move(platformPaths));
+  fillDefaultPaths(*fileSystem, m_config.paths);
+  m_windowDelegate = createWindowDelegate();
+  auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
+  auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
+  auto resourceManager = createResourceManager(*logger);
+  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, m_config.paths,
+    *logger, {});
+
+  logger->info("Compiling shaders...");
+
+  auto manifest = m_config.paths.shaderManifest.read();
+  auto specs = parseShaderManifest(manifest, *logger);
+  for (auto& spec : specs) {
+    renderer->compileShader(spec);
+  }
+
+  logger->info("Finished compiling shaders");
+
+  m_engine = createEngine(m_config, std::move(resourceManager), std::move(renderer),
+    std::move(audioSystem), std::move(fileSystem), std::move(logger));
+
+  try {
+    m_game = createGame(*m_engine);
+  }
+  catch (...) {
+    cleanUp();
+    throw;
+  }
 }
 
 void Application::run()
 {
 }
 
+void Application::cleanUp()
+{
+}
+
 Application::~Application()
 {
+  cleanUp();
 }
 
 } // namespace
