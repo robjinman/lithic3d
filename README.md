@@ -51,6 +51,12 @@ To start a new project, copy and modify one of the examples.
 * vcpkg
 * Vulkan SDK
 
+Alteratively, use the supplied build environment, which will mount lithic3d at /lithic3d and your game project at /game.
+
+```
+    ./start_linux_env.sh relative_project_path
+```
+
 #### OS X and iOS
 
 * XCode
@@ -109,6 +115,15 @@ You can also run the configure/build steps separately
 ```
 
 See below for additional platform-specific instructions.
+
+#### Linux
+
+If you used the supplied build environment, be aware that the symlink to your game's data directory will point to a location inside the container, so you'll need to remake it, e.g. on the host, run
+
+```
+    rm lithic3d/build/linux/debug/engine/GAME/data
+    ln -s GAME_DIR/data lithic3d/build/linux/debug/engine/GAME/data
+```
 
 #### Android
 

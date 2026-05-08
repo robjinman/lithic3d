@@ -9,6 +9,7 @@
 #include <cstring>
 #include <array>
 #include <cassert>
+#include <cstdint>
 
 namespace lithic3d
 {

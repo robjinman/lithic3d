@@ -77,7 +77,9 @@ else()
         "${PROJECT_SOURCE_DIR}/src/default/vulkan_window_delegate.cpp"
       )
       add_executable(${EXE_TARGET} ${SRCS})
-      target_link_libraries(${EXE_TARGET} PRIVATE glfw)
+      target_link_libraries(${EXE_TARGET} PRIVATE
+        glfw
+      )
     endif()
 
     if (CPU_PROFILE)

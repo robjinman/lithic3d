@@ -15,7 +15,7 @@ class VulkanWindowDelegateImpl : public lithic3d::VulkanWindowDelegate
     VulkanWindowDelegateImpl(WXWidget window);
 
     const std::vector<const char*>& getRequiredExtensions() const override;
-    VkSurfaceKHR createSurface(VkInstance instance) override;
+    VkSurfaceKHR createSurface(VkPhysicalDevice physicalDevice, VkInstance instance) override;
     void getFrameBufferSize(int& width, int& height) const override;
 
   private:
@@ -37,7 +37,7 @@ const std::vector<const char*>& VulkanWindowDelegateImpl::getRequiredExtensions(
   return extensions;
 }
 
-VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkInstance instance)
+VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkPhysicalDevice, VkInstance instance)
 {
   Window xWindow = GDK_WINDOW_XID(m_gdkWindow);
   Display* xDisplay = GDK_WINDOW_XDISPLAY(m_gdkWindow);
