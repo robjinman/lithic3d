@@ -85,11 +85,11 @@ Make sure environment variables ANDROID_HOME and ANDROID_NDK_HOME are set.
 
 #### Raspberry Pi 5
 
-Install the arm64 toolchain. On a linux host, run
+Lithic3D runs on Raspberry Pi 5 running Rasperry Pi OS Lite.
 
-```
-    sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-```
+Obtain an aarch64 version of the Vulkan SDK and place at pi5/vulkan.
+
+Use the `start_pi5_env.sh` script to create and enter the build environment, then build the application as usual.
 
 ### Build
 
@@ -203,6 +203,10 @@ To publish to the App Store
 ```
 
 Then use the Transporter app to perform the upload.
+
+#### Raspberry Pi 5
+
+
 
 
 Example projects

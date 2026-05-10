@@ -16,7 +16,8 @@ class AndroidVulkanWindowDelegate : public VulkanWindowDelegate
     AndroidVulkanWindowDelegate(android_app& state);
 
     const std::vector<const char*>& getRequiredExtensions() const override;
-    VkSurfaceKHR createSurface(VkPhysicalDevice physicalDevice, VkInstance instance) override;
+    bool needsPhysicalDeviceForSurfaceCreation() const override;
+    VkSurfaceKHR createSurface(VkInstance instance, VkPhysicalDevice physicalDevice) override;
     void getFrameBufferSize(int& width, int& height) const override;
 
     void onWindowInit();

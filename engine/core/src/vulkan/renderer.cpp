@@ -31,7 +31,7 @@
 #endif
 
 #if !defined(NDEBUG) && !defined(PLATFORM_IOS)
-#define USE_VALIDATION_LAYERS 1
+//#define USE_VALIDATION_LAYERS 1
 #endif
 
 namespace lithic3d
@@ -311,7 +311,7 @@ class RendererImpl : public Renderer
     VkInstance m_instance;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceLimits m_deviceLimits;
-    VkSurfaceKHR m_surface;
+    VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_debugMessenger;
     VkDevice m_device;
     QueueFamilyIndices m_queueFamilyIndices;
@@ -383,9 +383,19 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
     setupDebugMessenger();
 #endif
   }).get();
-  m_surface = m_window.createSurface(m_physicalDevice, m_instance);
+  if (m_window.needsPhysicalDeviceForSurfaceCreation()) {
+    m_thread.run<void>([this]() {
+      pickPhysicalDevice();
+    }).get();
+    m_surface = m_window.createSurface(m_instance, m_physicalDevice);
+  }
+  else {
+    m_surface = m_window.createSurface(m_instance, m_physicalDevice);
+    m_thread.run<void>([this]() {
+      pickPhysicalDevice();
+    }).get();
+  }
   m_thread.run<void>([this]() {
-    pickPhysicalDevice();
     createLogicalDevice();
   }).get();
   createSwapChain();
@@ -1502,8 +1512,7 @@ void RendererImpl::createSwapChain(VkExtent2D extent)
 {
   DBG_TRACE(m_logger);
 
-  m_logger.info(STR("Creating swapchain with extent "
-    << extent.width << ", " << extent.height));
+  m_logger.info(STR("Creating swapchain with extent " << extent.width << ", " << extent.height));
 
   auto swapchainSupport = querySwapChainSupport(m_physicalDevice);
   auto surfaceFormat = chooseSwapChainSurfaceFormat(swapchainSupport.formats);
@@ -1612,7 +1621,7 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
   cleanupSwapChain();
   if (recreateSurface) {
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-    m_surface = m_window.createSurface(m_physicalDevice, m_instance);
+    m_surface = m_window.createSurface(m_instance, m_physicalDevice);
   }
   createSwapChain(extent);
   createImageViews();
@@ -1628,12 +1637,14 @@ void RendererImpl::recreateSwapChain(bool recreateSurface)
 
 SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice device) const
 {
+  assert(m_surface != VK_NULL_HANDLE);
+
   SwapChainSupportDetails details;
 
   VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surface, &details.capabilities),
     "Failed to retrieve physical device surface capabilities");
 
-  uint32_t formatCount;
+  uint32_t formatCount = 0;
   VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surface, &formatCount, nullptr),
     "Failed to retrieve physical device surface formats");
 
@@ -1641,7 +1652,7 @@ SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice dev
   VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surface, &formatCount,
     details.formats.data()), "Failed to retrieve physical device surface formats");
 
-  uint32_t presentModeCount;
+  uint32_t presentModeCount = 0;
   VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surface, &presentModeCount, nullptr),
     "Failed to retrieve physical device surface present modes");
 
@@ -1654,6 +1665,8 @@ SwapChainSupportDetails RendererImpl::querySwapChainSupport(VkPhysicalDevice dev
 
 QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) const
 {
+  assert(m_surface != VK_NULL_HANDLE);
+
   // TODO: Look for dedicated transfer queue
 
   QueueFamilyIndices indices;
@@ -1670,6 +1683,10 @@ QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) cons
     if (!indices.graphicsFamily.has_value()) {
       if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
         indices.graphicsFamily = i;
+
+        // TODO
+        indices.presentFamily = i;
+        break;
       }
     }
 
@@ -1764,6 +1781,12 @@ void RendererImpl::checkValidationLayerSupport() const
 
 bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
 {
+  // On some platforms (e.g. Raspberry Pi 5), we create the physical device before the surface,
+  // so m_surface is unset at this point
+  if (m_surface == VK_NULL_HANDLE) {
+    return true;
+  }
+
   VkPhysicalDeviceProperties props;
   vkGetPhysicalDeviceProperties(device, &props);
 
@@ -1778,7 +1801,7 @@ bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
 
   auto swapchainSupport = querySwapChainSupport(device);
   bool swapchainAdequate = !swapchainSupport.formats.empty() &&
-                           !swapchainSupport.presentModes.empty();
+                      !swapchainSupport.presentModes.empty();
 
   VkPhysicalDeviceFeatures supportedFeatures;
   vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
@@ -1790,11 +1813,12 @@ void RendererImpl::createLogicalDevice()
 {
   DBG_TRACE(m_logger);
 
-  auto indices = findQueueFamilies(m_physicalDevice);
+  m_queueFamilyIndices = findQueueFamilies(m_physicalDevice);
+
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
-    indices.graphicsFamily.value(),
-    indices.presentFamily.value()
+    m_queueFamilyIndices.graphicsFamily.value(),
+    m_queueFamilyIndices.presentFamily.value()
   };
 
   for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -2325,8 +2349,6 @@ void RendererImpl::pickPhysicalDevice()
   m_deviceLimits = props.limits;
 
   m_physicalDevice = devices[index];
-
-  m_queueFamilyIndices = findQueueFamilies(m_physicalDevice);
 }
 
 void RendererImpl::createInstance()

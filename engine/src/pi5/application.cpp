@@ -67,6 +67,15 @@ Application::Application()
 
 void Application::run()
 {
+  FrameRateLimiter frameRateLimiter{TICKS_PER_SECOND};
+
+  while(true) { // TODO
+    if (!m_game->update()) {
+      break;
+    }
+
+    frameRateLimiter.wait();
+  }
 }
 
 void Application::cleanUp()

@@ -14,7 +14,8 @@ class IosWindowDelegateImpl : public VulkanWindowDelegate
     IosWindowDelegateImpl(CAMetalLayer* metalLayer);
 
     const std::vector<const char*>& getRequiredExtensions() const override;
-    VkSurfaceKHR createSurface(VkPhysicalDevice physicalDevice, VkInstance instance) override;
+    bool needsPhysicalDeviceForSurfaceCreation() const override;
+    VkSurfaceKHR createSurface(VkInstance instance, VkPhysicalDevice physicalDevice) override;
     void getFrameBufferSize(int& width, int& height) const override;
 
   private:
@@ -34,7 +35,12 @@ const std::vector<const char*>& IosWindowDelegateImpl::getRequiredExtensions() c
   return m_extensions;
 }
 
-VkSurfaceKHR IosWindowDelegateImpl::createSurface(VkPhysicalDevice, VkInstance instance)
+bool IosWindowDelegateImpl::needsPhysicalDeviceForSurfaceCreation() const
+{
+  return false;
+}
+
+VkSurfaceKHR IosWindowDelegateImpl::createSurface(VkInstance instance, VkPhysicalDevice)
 {
   VkSurfaceKHR surface{};
 

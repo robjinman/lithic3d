@@ -168,16 +168,19 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/pi5/debug",
       "cacheVariables": {
+        "CMAKE_C_COMPILER": "aarch64-linux-gnu-gcc-14",
+        "CMAKE_CXX_COMPILER": "aarch64-linux-gnu-g++-14",
         "VCPKG_MANIFEST_DIR": "${sourceDir}/engine/platform/pi5/vcpkg",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/pi5/vcpkg_installed",
-        "VCPKG_TARGET_TRIPLET": "arm64-linux",
-        "VCPKG_CMAKE_SYSTEM_NAME": "Linux",
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/pi5_toolchain.cmake",
+        "VCPKG_TARGET_TRIPLET": "pi5",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/engine/platform/pi5/toolchain.cmake",
         "CMAKE_BUILD_TYPE": "Debug",
         "CROSS_COMPILE": "TRUE",
         "PLATFORM_LINUX": "TRUE",
-        "DIRECT_TO_DISPLAY": "TRUE"
+        "DIRECT_TO_DISPLAY": "TRUE",
+        "Vulkan_INCLUDE_DIR": "$env{VULKAN_SDK}/include",
+        "Vulkan_LIBRARY": "$env{VULKAN_SDK}/lib/libvulkan.so"
       }
     },
     {

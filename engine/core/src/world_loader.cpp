@@ -9,6 +9,7 @@
 #include "lithic3d/units.hpp"
 #include <map>
 #include <cassert>
+#include <mutex>
 
 namespace fs = std::filesystem;
 
@@ -112,6 +113,7 @@ class WorldLoaderImpl : public WorldLoader
     TerrainBuilderPtr m_terrainBuilder;
     std::string m_worldName = "world"; // TODO
     WorldInfo m_worldInfo;
+    mutable std::mutex m_mutex;
     std::map<ResourceId, CellSlice> m_cellSlices;
     std::vector<ResourceId> m_pendingSlices;
 
@@ -150,6 +152,8 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
 
 std::vector<Entity> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
+  std::scoped_lock lock{m_mutex};
+
   auto& cellSlice = m_cellSlices.at(cellSliceId);
   std::vector<Entity> entities;
 
@@ -182,6 +186,7 @@ const WorldInfo& WorldLoaderImpl::worldInfo() const
 ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx)
 { 
   auto handle = m_resourceManager.loadResource([this, x, y, sliceIdx](ResourceId id) {
+    std::scoped_lock lock{m_mutex};
     const auto cellSliceFilePath = fs::path{m_worldName} / cellSlicePath(x, y, sliceIdx);
 
     auto cellSliceXmlFileData = m_paths.worldsDir->readFile(cellSliceFilePath);
@@ -209,6 +214,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {
+        std::scoped_lock lock{m_mutex};
         m_cellSlices.erase(id);
       }
     };
