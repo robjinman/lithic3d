@@ -12,11 +12,13 @@ class VulkanWindowDelegateImpl : public VulkanWindowDelegate
     VulkanWindowDelegateImpl();
 
     const std::vector<const char*>& getRequiredExtensions() const override;
-    VkSurfaceKHR createSurface(VkPhysicalDevice physicalDevice, VkInstance instance) override;
+    bool needsPhysicalDeviceForSurfaceCreation() const override;
+    VkSurfaceKHR createSurface(VkInstance instance, VkPhysicalDevice physicalDevice) override;
     void getFrameBufferSize(int& width, int& height) const override;
 
   private:
     std::vector<const char*> m_extensions = {
+      VK_KHR_SURFACE_EXTENSION_NAME,
       VK_KHR_DISPLAY_EXTENSION_NAME
     };
     uint32_t m_width = 1920;  // TODO
@@ -30,6 +32,11 @@ VulkanWindowDelegateImpl::VulkanWindowDelegateImpl()
 const std::vector<const char*>& VulkanWindowDelegateImpl::getRequiredExtensions() const
 {
   return m_extensions;
+}
+
+bool VulkanWindowDelegateImpl::needsPhysicalDeviceForSurfaceCreation() const
+{
+  return true;
 }
 
 bool findSuitableDisplayMode(VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height,
@@ -83,8 +90,8 @@ bool findSuitablePlaneIndex(VkPhysicalDevice physicalDevice,
   return false;
 }
 
-VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkPhysicalDevice physicalDevice,
-  VkInstance instance)
+VkSurfaceKHR VulkanWindowDelegateImpl::createSurface(VkInstance instance,
+  VkPhysicalDevice physicalDevice)
 {
   VkDisplayKHR display = VK_NULL_HANDLE;
   VkDisplayModeKHR displayMode = VK_NULL_HANDLE;
