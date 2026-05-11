@@ -39,6 +39,14 @@
       }
     },
     {
+      "name": "linux-d2d-debug",
+      "inherits": "linux-debug",
+      "binaryDir": "${sourceDir}/build/linux/debug_d2d",
+      "cacheVariables": {
+        "DIRECT_TO_DISPLAY": "TRUE"
+      }
+    },
+    {
       "name": "android-default",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/android/debug",
@@ -214,6 +222,10 @@
       "configurePreset": "linux-cpuprof"
     },
     {
+      "name": "linux-d2d-debug",
+      "configurePreset": "linux-d2d-debug"
+    },
+    {
       "name": "android-debug",
       "configurePreset": "android-debug"
     },
@@ -321,6 +333,20 @@
         {
           "type": "build",
           "name": "linux-cpuprof"
+        }
+      ]
+    },
+    {
+      "description": "Linux direct-to-display debug build",
+      "name": "linux-d2d-debug",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "linux-d2d-debug"
+        },
+        {
+          "type": "build",
+          "name": "linux-d2d-debug"
         }
       ]
     },

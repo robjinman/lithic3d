@@ -9,7 +9,10 @@ fi
 project_path="$1"
 
 if ! docker image inspect lithic3d_linux > /dev/null 2>&1; then
-  docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -f docker/linux.dockerfile . -t lithic3d_linux
+  docker build \
+    --build-arg UID=$(id -u) \
+    --build-arg GID=$(id -g) \
+    -f docker/linux.dockerfile . -t lithic3d_linux
 fi
 
 docker run -it -u $(id -u):$(id -g) \
