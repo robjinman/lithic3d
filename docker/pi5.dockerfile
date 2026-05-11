@@ -7,8 +7,6 @@ ARG GID=1000
 RUN groupadd -g $GID -o builduser
 RUN useradd -m -u $UID -g $GID -o -s /bin/bash builduser
 
-ADD ./pi5/vulkan/1.4.341.1 /vulkan
-
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -28,10 +26,10 @@ USER builduser
 RUN git clone https://github.com/microsoft/vcpkg.git
 RUN cd vcpkg && git checkout 5fa0f075 && ./bootstrap-vcpkg.sh
 
-USER root
-RUN mkdir /opt/vulkan
-RUN chown -R builduser:builduser /opt/vulkan
+ADD ./pi5/vulkan/1.4.341.1 /vulkan
+ADD ./pi5/sysroot /sysroot
 
+USER root
 RUN cat <<'EOF' > /etc/bash.bashrc
 export VCPKG_ROOT=/home/builduser/vcpkg
 export PATH=$PATH:$VCPKG_ROOT
@@ -40,4 +38,4 @@ source /vulkan/setup-env.sh
 EOF
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  pkg-config autoconf libtool
+  pkg-config autoconf libtool libevdev-dev

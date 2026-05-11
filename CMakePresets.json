@@ -176,8 +176,6 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build/pi5/debug",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "aarch64-linux-gnu-gcc-14",
-        "CMAKE_CXX_COMPILER": "aarch64-linux-gnu-g++-14",
         "VCPKG_MANIFEST_DIR": "${sourceDir}/engine/platform/pi5/vcpkg",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/pi5/vcpkg_installed",

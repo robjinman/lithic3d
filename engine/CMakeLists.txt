@@ -70,6 +70,9 @@ else()
         "${PROJECT_SOURCE_DIR}/src/pi5/vulkan_window_delegate.cpp"
       )
       add_executable(${EXE_TARGET} ${SRCS})
+      target_link_libraries(${EXE_TARGET} PRIVATE
+        evdev
+      )
     else()
       find_package(glfw3 REQUIRED)
       list(APPEND SRCS
