@@ -100,11 +100,15 @@ class Application
     EnginePtr m_engine;
     GamePtr m_game;
     std::vector<InputDevice> m_devices;
-    Vec2f m_lastMousePos = { 0.5f * SCREEN_W, 0.5f * SCREEN_H };
+    Vec2f m_prevMousePos = { 0.5f * SCREEN_W, 0.5f * SCREEN_H };
+    Vec2f m_mouseDelta;
+    Vec2f m_currentLeftStickPos;
+    Vec2f m_currentRightStickPos;
 
     void enumerateInputDevices();
     void pollEvents();
     void handleEvent(const input_event& event);
+    void applyInputDeltas();
     void cleanUp();
 };
 
@@ -182,33 +186,29 @@ void Application::handleEvent(const input_event& event)
       break;
     }
     case EV_REL: {
-      Vec2f delta;
-
       if (event.code == REL_X) {
-        delta[0] = static_cast<float>(event.value) / SCREEN_W;
+        m_mouseDelta[0] += event.value;
       }
       if (event.code == REL_Y) {
-        delta[1] = static_cast<float>(event.value) / SCREEN_H;
+        m_mouseDelta[1] += event.value;
       }
-
-      m_game->onMouseMove(m_lastMousePos + delta, delta);
-      m_lastMousePos += delta;
-
       break;
     }
     case EV_ABS: {
+      const float scaleFactor = 1.f / 32000;
+
       switch (event.code) {
         case ABS_X:
-          m_game->onLeftStickMove({ static_cast<float>(event.value), 0 });
+          m_currentLeftStickPos[0] = scaleFactor * event.value;
           break;
         case ABS_Y:
-          m_game->onLeftStickMove({ 0, static_cast<float>(event.value) });
+          m_currentLeftStickPos[1] = scaleFactor * event.value;
           break;
         case ABS_RX:
-          m_game->onRightStickMove({ static_cast<float>(event.value), 0 });
+          m_currentRightStickPos[0] = scaleFactor * event.value;
           break;
         case ABS_RY:
-          m_game->onRightStickMove({ 0, static_cast<float>(event.value) });
+          m_currentRightStickPos[1] = scaleFactor * event.value;
           break;
         default: break;
       }
@@ -216,6 +216,22 @@ void Application::handleEvent(const input_event& event)
     }
     default: break;
   }
+}
+
+void Application::applyInputDeltas()
+{
+  if (m_mouseDelta != Vec2f{ 0, 0 }) {
+    Vec2f delta{ m_mouseDelta[0] / SCREEN_W, m_mouseDelta[1] / SCREEN_H };
+    auto pos = m_prevMousePos + delta;
+
+    m_game->onMouseMove(pos, delta);
+    m_prevMousePos = pos;
+  }
+
+  m_mouseDelta = {};
+
+  m_game->onLeftStickMove(m_currentLeftStickPos);
+  m_game->onRightStickMove(m_currentRightStickPos);
 }
 
 void Application::pollEvents()
@@ -230,10 +246,10 @@ void Application::pollEvents()
     while (libevdev_next_event(device.device, LIBEVDEV_READ_FLAG_NORMAL, &event)
       == LIBEVDEV_READ_STATUS_SUCCESS) {
 
-      // TODO: Accumulate deltas and call handlers on game class only once per frame
-
       handleEvent(event);
     }
+
+    applyInputDeltas();
   }
 }
 

@@ -262,9 +262,6 @@ void Application::onKeyboardInput(int code, int action)
       case KeyboardKey::Escape:
         exitInputCapture();
         break;
-      case KeyboardKey::F:
-        m_engine->logger().info(STR("Renderer frame rate: " << m_engine->renderer().frameRate()));
-        break;
 #ifdef __APPLE__
       case KeyboardKey::F12:
 #else
