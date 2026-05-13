@@ -15,8 +15,8 @@ file(GLOB CPP_SOURCES
   # TODO: Move to core
   "${CMAKE_CURRENT_SOURCE_DIR}/../../src/default/file_system.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/../../src/default/audio_system.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../src/default/stb_vorbis.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/../../src/linux/platform_paths.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/stb_vorbis/stb_vorbis.cpp"
 )
 
 if(PLATFORM_LINUX)

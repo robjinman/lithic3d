@@ -150,7 +150,7 @@ elseif(PLATFORM_ANDROID)
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/logger.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/android/src/main/cpp/android_vulkan_window_delegate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/audio_system.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/default/stb_vorbis.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/stb_vorbis/stb_vorbis.cpp"
   )
   # game will depend on core
   target_link_libraries(app PUBLIC
@@ -211,6 +211,7 @@ target_include_directories(${ENGINE_LIB_TARGET}
     "${Stb_INCLUDE_DIR}"
   PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party"
 )
 
 target_link_libraries(${ENGINE_LIB_TARGET} PUBLIC

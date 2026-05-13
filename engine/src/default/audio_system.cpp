@@ -1,6 +1,6 @@
-#include "stb_vorbis.hpp"
 #define DR_WAV_IMPLEMENTATION
-#include "dr_wav.h"
+#include <dr_wav/dr_wav.h>
+#include <stb_vorbis/stb_vorbis.hpp>
 #include <lithic3d/audio_system.hpp>
 #include <lithic3d/exception.hpp>
 #include <lithic3d/file_system.hpp>

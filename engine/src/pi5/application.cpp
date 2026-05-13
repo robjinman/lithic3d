@@ -248,8 +248,6 @@ void Application::pollEvents()
 
       handleEvent(event);
     }
-
-    applyInputDeltas();
   }
 }
 
@@ -259,6 +257,7 @@ void Application::run()
 
   while (true) {
     pollEvents();
+    applyInputDeltas();
 
     if (!m_game->update()) {
       break;
