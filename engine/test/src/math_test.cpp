@@ -293,3 +293,30 @@ TEST_F(MathTest, mat4x4f_inverse)
   EXPECT_NEAR(I.at(3, 2), 0.f, epsilon);
   EXPECT_NEAR(I.at(3, 3), 1.f, epsilon);
 }
+
+TEST_F(MathTest, decomposeRotationScale)
+{
+  Mat3x3f R = rotationMatrix3x3({ 10.f, 20.f, 30.f });
+  Vec3f s{ 7.f, 2.f, 4.f };
+  Mat3x3f S = scaleMatrix3x3(s);
+
+  Mat3x3f M = R * S;
+
+  Mat3x3f R_;
+  Vec3f s_;
+  decomposeRotationScale(M, R_, s_);
+
+  float epsilon = 0.001f;
+  EXPECT_NEAR(R.at(0, 0), R_.at(0, 0), epsilon);
+  EXPECT_NEAR(R.at(1, 0), R_.at(1, 0), epsilon);
+  EXPECT_NEAR(R.at(2, 0), R_.at(2, 0), epsilon);
+  EXPECT_NEAR(R.at(0, 1), R_.at(0, 1), epsilon);
+  EXPECT_NEAR(R.at(1, 1), R_.at(1, 1), epsilon);
+  EXPECT_NEAR(R.at(2, 1), R_.at(2, 1), epsilon);
+  EXPECT_NEAR(R.at(0, 2), R_.at(0, 2), epsilon);
+  EXPECT_NEAR(R.at(1, 2), R_.at(1, 2), epsilon);
+  EXPECT_NEAR(R.at(2, 2), R_.at(2, 2), epsilon);
+  EXPECT_NEAR(s[0], s_[0], epsilon);
+  EXPECT_NEAR(s[1], s_[1], epsilon);
+  EXPECT_NEAR(s[2], s_[2], epsilon);
+}

@@ -40,8 +40,13 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor)
 
 void ScenePanelImpl::onInstanceSelection(wxEvent&)
 {
-  auto selected = m_listBox->GetStringSelection().ToStdString();
-  // TODO
+  auto index = m_listBox->GetSelection();
+  if (index == wxNOT_FOUND) {
+    return;
+  }
+
+  auto id = *reinterpret_cast<EntityId*>(m_listBox->GetClientData(index));
+  m_worldEditor.selectEntity(id);
 }
 
 wxPanel* ScenePanelImpl::getWxPtr()
@@ -52,7 +57,8 @@ wxPanel* ScenePanelImpl::getWxPtr()
 void ScenePanelImpl::populate(const std::vector<Entity>& entities)
 {
   for (size_t i = 0; i < entities.size(); ++i) {
-     m_listBox->Insert(STR("[" << entities[i].id << "] " << entities[i].type), i);
+    auto id = entities[i].id;
+    m_listBox->Insert(STR("[" << id << "] " << entities[i].type), i, new EntityId{id});
   }
 }
 

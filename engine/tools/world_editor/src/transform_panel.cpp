@@ -1,6 +1,7 @@
 #include "transform_panel.hpp"
 #include "world_editor.hpp"
 #include <lithic3d/utils.hpp>
+#include <lithic3d/units.hpp>
 #include <wx/wx.h>
 #include <wx/spinctrl.h>
 #include <wx/gbsizer.h>
@@ -21,9 +22,13 @@ class TransformPanelImpl : public TransformPanel
     void onDistanceChange(wxEvent& e);
     void onScaleChange(wxEvent& e);
     void onRotationChange(wxEvent& e);
+    void onCursorMove();
 
-    wxPanel* m_panel;
+    wxPanel* m_panel = nullptr;
     WorldEditor& m_worldEditor;
+    wxSpinCtrlDouble* m_spnDistance = nullptr;
+    wxSpinCtrlDouble* m_spnScale = nullptr;
+    wxSlider* m_sldEulerY = nullptr;
 };
 
 TransformPanelImpl::TransformPanelImpl(wxWindow* parent, WorldEditor& worldEditor)
@@ -36,38 +41,51 @@ TransformPanelImpl::TransformPanelImpl(wxWindow* parent, WorldEditor& worldEdito
 
   wxStaticText* lblDistance = new wxStaticText(m_panel, wxID_ANY, "Distance (metres)");
 
-  wxSpinCtrlDouble* spnDistance = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+  m_spnDistance = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
     wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1.0, 100.0, 10.0, 0.1);
 
   wxStaticText* lblScale = new wxStaticText(m_panel, wxID_ANY, "Scale");
 
-  wxSpinCtrlDouble* spnScale = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+  m_spnScale = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
     wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
 
   wxStaticText* lblRotation = new wxStaticText(m_panel, wxID_ANY, "Rotation");
 
-  wxSlider* sldRotation = new wxSlider(m_panel, wxID_ANY, 0, -180, 180, wxDefaultPosition,
+  m_sldEulerY = new wxSlider(m_panel, wxID_ANY, 0, -180, 180, wxDefaultPosition,
     wxDefaultSize, wxSL_LABELS);
 
   grid->Add(lblDistance, wxGBPosition(0, 0));
-  grid->Add(spnDistance, wxGBPosition(0, 1), wxDefaultSpan, wxEXPAND);
+  grid->Add(m_spnDistance, wxGBPosition(0, 1), wxDefaultSpan, wxEXPAND);
 
   grid->Add(lblScale, wxGBPosition(1, 0));
-  grid->Add(spnScale, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND);
+  grid->Add(m_spnScale, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND);
 
   grid->Add(lblRotation, wxGBPosition(2, 0));
-  grid->Add(sldRotation, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND);
+  grid->Add(m_sldEulerY, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND);
 
   grid->AddGrowableCol(1, 1);
 
-  spnDistance->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onDistanceChange(e); });
-  spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
-  sldRotation->Bind(wxEVT_SLIDER, [this](wxEvent& e) { onRotationChange(e); });
+  m_spnDistance->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onDistanceChange(e); });
+  m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
+  m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent& e) { onRotationChange(e); });
+
+  m_worldEditor.listen(WorldEditor::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
 wxPanel* TransformPanelImpl::getWxPtr()
 {
   return m_panel;
+}
+
+void TransformPanelImpl::onCursorMove()
+{
+  m_spnDistance->SetValue(worldUnitsToMetres(m_worldEditor.getCursorDistance()));
+  m_spnScale->SetValue(m_worldEditor.getCursorScale()[0] / WORLD_UNITS_PER_METRE);  // TODO
+
+  float radiansY = m_worldEditor.getCursorRotation()[1];
+  int degreesY = static_cast<int>(radiansToDegrees(radiansY) + 0.5f);
+  assert(inRange(degreesY, -180, 180));
+  m_sldEulerY->SetValue(degreesY);
 }
 
 void TransformPanelImpl::onDistanceChange(wxEvent& e)
@@ -79,7 +97,8 @@ void TransformPanelImpl::onDistanceChange(wxEvent& e)
 void TransformPanelImpl::onScaleChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
-  m_worldEditor.setCursorScale(event.GetValue());
+  Vec3f scale = Vec3f{ 1.f, 1.f, 1.f } * event.GetValue();
+  m_worldEditor.setCursorScale(scale * WORLD_UNITS_PER_METRE);
 }
 
 void TransformPanelImpl::onRotationChange(wxEvent& e)

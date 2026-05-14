@@ -492,6 +492,15 @@ Matrix<float, M, M> scaleMatrix(float scale, bool homogeneous)
   return m;
 };
 
+inline Mat3x3f scaleMatrix3x3(const Vec3f& scale)
+{
+  return Mat3x3f{
+    scale[0], 0.f, 0.f,
+    0.f, scale[1], 0.f,
+    0.f, 0.f, scale[2]
+  };
+}
+
 inline Mat4x4f scaleMatrix4x4(const Vec3f& scale)
 {
   return Mat4x4f{
@@ -566,9 +575,8 @@ inline Mat4x4f translationMatrix4x4(const Vec3f& pos)
   return m;
 }
 
-inline Mat4x4f rotationMatrix4x4(const Vec3f& ori)
+inline Mat4x4f rotationMatrix4x4(const Mat3x3f& rot)
 {
-  auto rot = rotationMatrix3x3(ori);
   Mat4x4f m = identityMatrix<4>();
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 3; ++c) {
@@ -576,6 +584,11 @@ inline Mat4x4f rotationMatrix4x4(const Vec3f& ori)
     }
   }
   return m;
+}
+
+inline Mat4x4f rotationMatrix4x4(const Vec3f& ori)
+{
+  return rotationMatrix4x4(rotationMatrix3x3(ori));
 }
 
 inline Mat4x4f rotationMatrix4x4(const Vec4f& quaternion)
@@ -638,6 +651,34 @@ inline Mat4x4f fromVerticalToVectorTransform(const Vec3f& vec)
     v[1], w[1], u[1], 0,
     v[2], w[2], u[2], 0,
     0, 0, 0, 1
+  };
+}
+
+inline void decomposeRotationScale(const Mat3x3f& m, Mat3x3f& rot, Vec3f& scale)
+{
+  Vec3f i{ 1.f, 0.f, 0.f };
+  Vec3f j{ 0.f, 1.f, 0.f };
+  Vec3f k{ 0.f, 0.f, 1.f };
+
+  float x = (m * i).magnitude();
+  float y = (m * j).magnitude();
+  float z = (m * k).magnitude();
+
+  scale = { x, y, z };
+
+  rot = {
+    m.at(0, 0) / x, m.at(0, 1) / y, m.at(0, 2) / z,
+    m.at(1, 0) / x, m.at(1, 1) / y, m.at(1, 2) / z,
+    m.at(2, 0) / x, m.at(2, 1) / y, m.at(2, 2) / z
+  };
+}
+
+inline Vec3f eulerAnglesFromMatrix(const Mat3x3f& R)
+{
+  return {
+    atan2f(R.at(2, 1), R.at(2, 2)),
+    asinf(-R.at(2, 0)),
+    atan2f(R.at(1, 0), R.at(0, 0))
   };
 }
 

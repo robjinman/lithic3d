@@ -28,6 +28,13 @@ struct WorldState
   std::map<Vec3i, SliceState> slices;
 };
 
+enum class State
+{
+  None,
+  PrefabSelected,
+  EntitySelected
+};
+
 class WorldEditorImpl : public WorldEditor
 {
   public:
@@ -39,9 +46,15 @@ class WorldEditorImpl : public WorldEditor
     void instantiateActivePrefab() override;
     void cancelActivePrefab() override;
 
+    void selectEntity(EntityId id) override;
+
+    float getCursorDistance() const override;
+    lithic3d::Vec3f getCursorRotation() override;
+    const lithic3d::Vec3f& getCursorScale() const override;
+
     void setCursorDistance(float metres) override;
     void setCursorRotation(const Vec3f& ori) override;
-    void setCursorScale(float scale) override;
+    void setCursorScale(const Vec3f& scale) override;
 
     void update() override;
 
@@ -51,6 +64,8 @@ class WorldEditorImpl : public WorldEditor
     void onMouseLeftBtnUp() override;
     void onMouseMove(float x, float y) override;
     void onCanvasResize(uint32_t w, uint32_t h) override;
+
+    void listen(Event event, const Callback& callback) override;
 
     void saveChanges() override;
 
@@ -66,23 +81,27 @@ class WorldEditorImpl : public WorldEditor
     void saveChangesToSlice(const Vec3f& index, const SliceState& slice);
     void saveChangesToSlice(const fs::path& cellDirName, const std::string& sliceFileName,
       const SliceState& slice);
+    void setCursorTransform(const Mat4x4f& m);
+    void setCursorRotation(const Mat3x3f& rot);
 
     fs::path m_projectRoot;
     WindowDelegate& m_windowDelegate;
     EnginePtr m_engine;
     GameConfig m_config;
     InputState m_inputState;
+    State m_state = State::None;
     EntityId m_cursorId = NULL_ENTITY_ID;
     std::map<std::string, ResourceHandle> m_prefabs;
+    std::map<Event, std::vector<Callback>> m_eventHandlers;
   
     // TODO: Bundle these into struct?
     EntityId m_activeEntity = NULL_ENTITY_ID;
     std::string m_activeEntityType;
     Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
-    Vec3f m_activeRotation;
+    Mat3x3f m_activeRotation = identityMatrix<3>();
     float m_activeTranslation = metresToWorldUnits(10.f);
   
-    WorldState m_state;
+    WorldState m_worldState;
 };
 
 WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate)
@@ -92,6 +111,26 @@ WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& wi
   createEngine();
   constructLight();
   constructCursor();
+}
+
+void WorldEditorImpl::listen(Event event, const Callback& callback)
+{
+  m_eventHandlers[event].push_back(callback);
+}
+
+float WorldEditorImpl::getCursorDistance() const
+{
+  return m_activeTranslation;
+}
+
+Vec3f WorldEditorImpl::getCursorRotation()
+{
+  return eulerAnglesFromMatrix(m_activeRotation);
+}
+
+const Vec3f& WorldEditorImpl::getCursorScale() const
+{
+  return m_activeScale;
 }
 
 Vec2i WorldEditorImpl::cellFromPosition(const Vec3f& pos) const
@@ -127,7 +166,7 @@ std::vector<Entity> WorldEditorImpl::getEntities() const
 {
   std::vector<Entity> entities;
 
-  for (auto i : m_state.slices) {
+  for (auto i : m_worldState.slices) {
     auto& slice = i.second;
     entities.insert(entities.end(), slice.entities.begin(), slice.entities.end());
   }
@@ -137,9 +176,19 @@ std::vector<Entity> WorldEditorImpl::getEntities() const
 
 void WorldEditorImpl::setActivePrefab(const std::string& name)
 {
-  if (m_activeEntity != NULL_ENTITY_ID) {
-    cancelActivePrefab();
+  switch (m_state) {
+    case State::EntitySelected: {
+      m_activeEntity = NULL_ENTITY_ID;
+      break;
+    }
+    case State::PrefabSelected: {
+      cancelActivePrefab();
+      break;
+    }
+    case State::None: break;
   }
+
+  m_state = State::PrefabSelected;
 
   auto& factory = m_engine->entityFactory();
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
@@ -161,12 +210,15 @@ void WorldEditorImpl::setActivePrefab(const std::string& name)
 
 void WorldEditorImpl::instantiateActivePrefab()
 {
+  ASSERT(m_state == State::EntitySelected, "Bad state transition");
+  m_state = State::None;
+
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
   auto pos = getTranslation(sysSpatial.getGlobalTransform(m_cursorId));
   auto cell = cellFromPosition(pos);
 
   int sliceIdx = 1; // TODO
-  auto& slice = m_state.slices[{ cell[0], cell[1], sliceIdx }];
+  auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
   assert(slice.handle.id() != NULL_RESOURCE_ID);
   slice.entities.push_back({
     .id = m_activeEntity,
@@ -177,9 +229,52 @@ void WorldEditorImpl::instantiateActivePrefab()
   m_activeEntity = NULL_ENTITY_ID;
 }
 
+void WorldEditorImpl::selectEntity(EntityId id)
+{
+  switch (m_state) {
+    case State::EntitySelected: {
+      m_activeEntity = NULL_ENTITY_ID;
+      break;
+    }
+    case State::PrefabSelected: {
+      cancelActivePrefab();
+      break;
+    }
+    case State::None: break;
+  }
+
+  m_state = State::EntitySelected;
+
+  auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+  auto& camDir = camera.getDirection();
+  auto& entityTransform = m_engine->ecs().system<SysSpatial>().getGlobalTransform(id);
+  Vec3f entityPos = getTranslation(entityTransform);
+
+  camera.setPosition(entityPos - camDir * m_activeTranslation);
+
+  setCursorTransform(entityTransform);
+
+  for (auto& cb : m_eventHandlers[Event::CursorMove]) {
+    cb();
+  }
+
+  m_activeEntity = id;
+}
+
+void WorldEditorImpl::setCursorTransform(const Mat4x4f& m)
+{
+  auto rotationScale = getRotation3x3(m);
+  Mat3x3f rotation;
+  Vec3f scale;
+  decomposeRotationScale(rotationScale, rotation, scale);
+
+  m_activeRotation = rotation;
+  m_activeScale = scale;
+}
+
 void WorldEditorImpl::saveChanges()
 {
-  for (auto& [ index, slice ] : m_state.slices) {
+  for (auto& [ index, slice ] : m_worldState.slices) {
     if (slice.dirty) {
       saveChangesToSlice(index, slice);
       slice.dirty = false;
@@ -254,6 +349,9 @@ void WorldEditorImpl::saveChangesToSlice(const Vec3f& index, const SliceState& s
 
 void WorldEditorImpl::cancelActivePrefab()
 {
+  ASSERT(m_state == State::PrefabSelected, "Bad state transition");
+  m_state = State::None;
+
   if (m_activeEntity != NULL_ENTITY_ID) {
     m_engine->ecs().removeEntity(m_activeEntity);
   }
@@ -267,12 +365,17 @@ void WorldEditorImpl::setCursorDistance(float metres)
 
 void WorldEditorImpl::setCursorRotation(const Vec3f& ori)
 {
-  m_activeRotation = ori;
+  setCursorRotation(rotationMatrix3x3(ori));
 }
 
-void WorldEditorImpl::setCursorScale(float scale)
+void WorldEditorImpl::setCursorRotation(const Mat3x3f& rot)
 {
-  m_activeScale = Vec3f{ scale, scale, scale } * WORLD_UNITS_PER_METRE;
+  m_activeRotation = rot;
+}
+
+void WorldEditorImpl::setCursorScale(const Vec3f& scale)
+{
+  m_activeScale = scale;
 }
 
 void WorldEditorImpl::constructCursor()
@@ -280,7 +383,7 @@ void WorldEditorImpl::constructCursor()
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
 
-  Vec3f postScaleSize{ 1.f, 1.f, 1.f };
+  Vec3f postScaleSize = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
   Vec3f preScaleSize = postScaleSize / m_activeScale;
 
   m_cursorId = m_engine->ecs().idGen().getNewEntityId();
@@ -376,7 +479,7 @@ void WorldEditorImpl::createEngine()
   auto cell = cellFromPosition(initialPos);
   for (int i = 0; i < 6; ++i) {
     auto slice = m_engine->worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
-    m_state.slices[{ cell[0], cell[1], i }] = {
+    m_worldState.slices[{ cell[0], cell[1], i }] = {
       .handle = slice,
       .entities = m_engine->worldLoader().createEntities(slice.id()),
       .dirty = false
@@ -393,13 +496,20 @@ void WorldEditorImpl::positionCursor()
   auto camPos = camera.getPosition();
   auto camDir = camera.getDirection();
 
-  auto transform = createTransform(camPos + camDir * m_activeTranslation, m_activeRotation,
-    m_activeScale);
+  Vec3f translation = camPos + camDir * m_activeTranslation;
+
+  auto transform = translationMatrix4x4(translation) * rotationMatrix4x4(m_activeRotation) *
+    scaleMatrix4x4(m_activeScale);
 
   sysSpatial.setLocalTransform(m_cursorId, transform);
 
   if (m_activeEntity != NULL_ENTITY_ID) {
     sysSpatial.setLocalTransform(m_activeEntity, transform);
+
+    if (m_state == State::EntitySelected) {
+      auto cell = cellFromPosition(translation);
+      m_worldState.slices.at({ cell[0], cell[1], 1 }).dirty = true;  // TODO: Slice index
+    }
   }
 }
 
