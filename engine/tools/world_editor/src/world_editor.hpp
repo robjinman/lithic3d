@@ -26,6 +26,8 @@ class WorldEditor
     virtual void cancelActivePrefab() = 0;
 
     virtual void selectEntity(lithic3d::EntityId id) = 0;
+    virtual void applyTransform() = 0;
+    virtual void cancelTransform() = 0;
 
     virtual float getCursorDistance() const = 0;
     virtual lithic3d::Vec3f getCursorRotation() = 0;

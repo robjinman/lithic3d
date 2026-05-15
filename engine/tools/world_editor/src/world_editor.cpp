@@ -47,6 +47,8 @@ class WorldEditorImpl : public WorldEditor
     void cancelActivePrefab() override;
 
     void selectEntity(EntityId id) override;
+    void applyTransform() override;
+    void cancelTransform() override;
 
     float getCursorDistance() const override;
     lithic3d::Vec3f getCursorRotation() override;
@@ -210,7 +212,7 @@ void WorldEditorImpl::setActivePrefab(const std::string& name)
 
 void WorldEditorImpl::instantiateActivePrefab()
 {
-  ASSERT(m_state == State::EntitySelected, "Bad state transition");
+  ASSERT(m_state == State::PrefabSelected, "Bad state transition");
   m_state = State::None;
 
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
@@ -259,6 +261,16 @@ void WorldEditorImpl::selectEntity(EntityId id)
   }
 
   m_activeEntity = id;
+}
+
+void WorldEditorImpl::applyTransform()
+{
+
+}
+
+void WorldEditorImpl::cancelTransform()
+{
+
 }
 
 void WorldEditorImpl::setCursorTransform(const Mat4x4f& m)

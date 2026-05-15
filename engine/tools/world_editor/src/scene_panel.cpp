@@ -19,6 +19,8 @@ class ScenePanelImpl : public ScenePanel
 
   private:
     void onInstanceSelection(wxEvent& e);
+    void onCancelClick();
+    void onApplyClick();
 
     WorldEditor& m_worldEditor;
     wxPanel* m_basePanel = nullptr;
@@ -35,6 +37,18 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor)
   m_listBox = new wxListBox{m_basePanel, wxID_ANY};
   vbox->Add(m_listBox, 1, wxEXPAND | wxALL);
 
+  wxButton* btnCancel = new wxButton(m_basePanel, wxID_ANY, "Cancel");
+  wxButton* btnApply = new wxButton(m_basePanel, wxID_ANY, "Apply");
+
+  auto hbox = new wxBoxSizer(wxHORIZONTAL);
+  hbox->Add(btnCancel);
+  hbox->Add(btnApply);
+
+  vbox->Add(hbox);
+
+  btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
+  btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
+
   m_listBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent& e) { onInstanceSelection(e); });
 }
 
@@ -47,6 +61,16 @@ void ScenePanelImpl::onInstanceSelection(wxEvent&)
 
   auto id = *reinterpret_cast<EntityId*>(m_listBox->GetClientData(index));
   m_worldEditor.selectEntity(id);
+}
+
+void ScenePanelImpl::onCancelClick()
+{
+  m_worldEditor.cancelTransform();
+}
+
+void ScenePanelImpl::onApplyClick()
+{
+  m_worldEditor.applyTransform();
 }
 
 wxPanel* ScenePanelImpl::getWxPtr()
