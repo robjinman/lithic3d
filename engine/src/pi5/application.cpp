@@ -16,6 +16,19 @@ namespace
 const int SCREEN_W = 1920;
 const int SCREEN_H = 1080;
 
+GamepadButton eventCodeToButton(int code)
+{
+  switch (code) {
+    case BTN_NORTH: return GamepadButton::X;
+    case BTN_EAST: return GamepadButton::B;
+    case BTN_SOUTH: return GamepadButton::A;
+    case BTN_WEST: return GamepadButton::Y;
+    // TODO
+    // ...
+    default: return GamepadButton::Unknown;
+  }
+}
+
 KeyboardKey eventCodeToKey(int code)
 {
   switch (code) {
@@ -178,10 +191,28 @@ void Application::handleEvent(const input_event& event)
   switch (event.type) {
     case EV_KEY: {
       if (event.value == 1) {
-        m_game->onKeyDown(eventCodeToKey(event.code));
+        auto key = eventCodeToKey(event.code);
+        if (key != KeyboardKey::Unknown) {
+          m_game->onKeyDown(key);
+        }
+        else {
+          auto btn = eventCodeToButton(event.code);
+          if (btn != GamepadButton::Unknown) {
+            m_game->onButtonDown(btn);
+          }
+        }
       }
       else if (event.value == 0) {
-        m_game->onKeyUp(eventCodeToKey(event.code));
+        auto key = eventCodeToKey(event.code);
+        if (key != KeyboardKey::Unknown) {
+          m_game->onKeyUp(key);
+        }
+        else {
+          auto btn = eventCodeToButton(event.code);
+          if (btn != GamepadButton::Unknown) {
+            m_game->onButtonUp(btn);
+          }
+        }
       }
       break;
     }
@@ -210,6 +241,38 @@ void Application::handleEvent(const input_event& event)
         case ABS_RY:
           m_currentRightStickPos[1] = scaleFactor * event.value;
           break;
+        case ABS_HAT0X: {
+          switch (event.value) {
+            case 0:
+              m_game->onButtonUp(GamepadButton::Left);
+              m_game->onButtonUp(GamepadButton::Right);
+              break;
+            case -1:
+              m_game->onButtonDown(GamepadButton::Left);
+              break;
+            case 1:
+              m_game->onButtonDown(GamepadButton::Right);
+              break;
+            default: break;
+          }
+          break;
+        }
+        case ABS_HAT0Y: {
+          switch (event.value) {
+            case 0:
+              m_game->onButtonUp(GamepadButton::Up);
+              m_game->onButtonUp(GamepadButton::Down);
+              break;
+            case -1:
+              m_game->onButtonDown(GamepadButton::Up);
+              break;
+            case 1:
+              m_game->onButtonDown(GamepadButton::Down);
+              break;
+            default: break;
+          }
+          break;
+        }
         default: break;
       }
       break;
