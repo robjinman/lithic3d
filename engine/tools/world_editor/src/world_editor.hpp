@@ -14,7 +14,8 @@ class WorldEditor
   public:
     enum class Event
     {
-      CursorMove
+      CursorMove,
+      AddOrRemoveEntity
     };
 
     using Callback = std::function<void()>;
@@ -25,7 +26,7 @@ class WorldEditor
     virtual void instantiateActivePrefab() = 0;
     virtual void cancelActivePrefab() = 0;
 
-    virtual void selectEntity(lithic3d::EntityId id) = 0;
+    virtual void selectEntity(lithic3d::EntityId id, const std::string& type) = 0;
     virtual void applyTransform() = 0;
     virtual void cancelTransform() = 0;
 

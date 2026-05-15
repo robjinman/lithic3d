@@ -25,6 +25,8 @@ class ScenePanelImpl : public ScenePanel
     WorldEditor& m_worldEditor;
     wxPanel* m_basePanel = nullptr;
     wxListBox* m_listBox = nullptr;
+
+    void onAddOrRemoveEntity();
 };
 
 ScenePanelImpl::ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor)
@@ -50,6 +52,13 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor)
   btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
 
   m_listBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent& e) { onInstanceSelection(e); });
+
+  m_worldEditor.listen(WorldEditor::Event::AddOrRemoveEntity, [this]() { onAddOrRemoveEntity(); });
+}
+
+void ScenePanelImpl::onAddOrRemoveEntity()
+{
+  populate(m_worldEditor.getEntities());
 }
 
 void ScenePanelImpl::onInstanceSelection(wxEvent&)
@@ -59,8 +68,8 @@ void ScenePanelImpl::onInstanceSelection(wxEvent&)
     return;
   }
 
-  auto id = *reinterpret_cast<EntityId*>(m_listBox->GetClientData(index));
-  m_worldEditor.selectEntity(id);
+  Entity entity = *reinterpret_cast<Entity*>(m_listBox->GetClientData(index));
+  m_worldEditor.selectEntity(entity.id, entity.type);
 }
 
 void ScenePanelImpl::onCancelClick()
@@ -80,9 +89,11 @@ wxPanel* ScenePanelImpl::getWxPtr()
 
 void ScenePanelImpl::populate(const std::vector<Entity>& entities)
 {
+  m_listBox->Clear();
+
   for (size_t i = 0; i < entities.size(); ++i) {
-    auto id = entities[i].id;
-    m_listBox->Insert(STR("[" << id << "] " << entities[i].type), i, new EntityId{id});
+    m_listBox->Insert(STR("[" << entities[i].id << "] " << entities[i].type), i,
+      new Entity{entities[i]});
   }
 }
 

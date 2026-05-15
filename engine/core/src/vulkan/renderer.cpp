@@ -723,8 +723,12 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
   node->jointTransforms = jointTransforms;
   node->scissorId = frameState.currentScissor;
 
+  MaterialFeatureSet matFeaturesCpy = materialFeatures;
+  if (colour[3] < 1.f) {
+    matFeaturesCpy.flags.set(MaterialFeatures::HasTransparency);
+  }
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
-    materialFeatures);
+    matFeaturesCpy);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));

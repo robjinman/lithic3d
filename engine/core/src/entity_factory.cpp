@@ -40,7 +40,10 @@ class EntityFactoryImpl : public EntityFactory
       const GameDataPaths& paths, Logger& logger);
 
     ResourceHandle loadPrefabAsync(const std::string& name) override;
+    bool hasEntityType(const std::string& type) const override;
     EntityId constructEntity(const std::string& type, const Mat4x4f& transform) const override;
+    EntityId constructGhostEntity(const std::string& type, const Mat4x4f& transform,
+      const Vec4f& colour) override;
     bool hasPrefab(const std::string& name) const override;
 
   private:
@@ -150,6 +153,11 @@ std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab)
   return specs;
 }
 
+bool EntityFactoryImpl::hasEntityType(const std::string& type) const
+{
+  return m_prefabs.contains(type);
+}
+
 EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x4f& transform) const
 {
   std::scoped_lock lock{m_mutex};
@@ -175,6 +183,35 @@ EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x
   }
 
   // ...
+
+  return id;
+}
+
+EntityId EntityFactoryImpl::constructGhostEntity(const std::string& type, const Mat4x4f& transform,
+  const Vec4f& colour)
+{
+  std::scoped_lock lock{m_mutex};
+
+  auto& prefab = m_prefabs.at(type);
+
+  auto id = m_ecs.idGen().getNewEntityId();
+
+  m_logger.debug(STR("Constructing ghost entity " << id << " of type " << type));
+
+  auto specs = getComponentSpecs(prefab);
+  m_ecs.componentStore().allocateEntity(id, specs);
+
+  if (prefab.spatial.has_value()) {
+    auto spatial = prefab.spatial.value();
+    spatial.transform = transform;
+    m_ecs.system<SysSpatial>().addEntity(id, spatial);
+  }
+
+  if (prefab.model.has_value()) {
+    auto model = std::make_unique<DModel>(*prefab.model.value());
+    model->colour = colour;
+    m_ecs.system<SysRender3d>().addEntity(id, std::move(model));
+  }
 
   return id;
 }

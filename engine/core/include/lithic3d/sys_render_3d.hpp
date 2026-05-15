@@ -15,6 +15,7 @@ struct DModel
 
   ResourceHandle model;
   bool isInstanced = false;
+  Vec4f colour = { 1.f, 1.f, 1.f, 1.f };
 };
 
 using DModelPtr = std::unique_ptr<DModel>;
@@ -77,6 +78,8 @@ class SysRender3d : public System
     virtual void addEntity(EntityId id, DPointLightPtr light) = 0;
     virtual void addEntity(EntityId id, DDirectionalLightPtr light) = 0;
     virtual void addEntity(EntityId id, DSkyboxPtr skybox) = 0;
+
+    virtual void setEntityColour(EntityId id, const Vec4f& colour) = 0;
 
     // TODO: Implement scissors?
 

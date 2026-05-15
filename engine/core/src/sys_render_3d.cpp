@@ -119,6 +119,8 @@ class SysRender3dImpl : public SysRender3d
     void update(Tick tick, const InputState& inputState) override;
     void processEvent(const Event& event) override;
 
+    void setEntityColour(EntityId id, const Vec4f& colour) override;
+
     void playAnimation(EntityId entityId, const std::string& name) override;
 
     ~SysRender3dImpl() override;
@@ -301,6 +303,12 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
   m_skybox = { id, std::move(skybox) };
 }
 
+void SysRender3dImpl::setEntityColour(EntityId id, const Vec4f& colour)
+{
+  MAP_GET(it, m_models, id);
+  it->second->colour = colour;
+}
+
 void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name)
 {
   m_animationStates[entityId] = AnimationState{
@@ -335,8 +343,6 @@ void SysRender3dImpl::drawSkybox()
 void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   const std::function<bool(const Submodel&)>& filter)
 {
-  const Vec4f white{ 1.f, 1.f, 1.f, 1.f }; // TODO: Submodel colour?
-
   for (EntityId id : entities) {
     auto entry = m_models.find(id); // TODO: Insanely inefficient!
     if (entry == m_models.end()) {
@@ -356,14 +362,14 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
         else {
           if (submodel->jointTransformsDirty) {
             m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
-              submodel->material.resource.id(), submodel->material.features, white,
+              submodel->material.resource.id(), submodel->material.features, modelData.colour,
               globalTransform/* * submodel->mesh.transform*/, submodel->jointTransforms);
 
             submodel->jointTransformsDirty = false;
           }
           else {
             m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
-              submodel->material.resource.id(), submodel->material.features, white,
+              submodel->material.resource.id(), submodel->material.features, modelData.colour,
               globalTransform /* * submodel->mesh.transform*/);
           }
         }

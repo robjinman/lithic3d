@@ -16,6 +16,9 @@ using namespace lithic3d;
 namespace
 {
 
+const Vec4f GhostEntityColour = { 0.5f, 1.f, 0.5f, 0.5f };
+const Vec4f SelectedEntityColour = { 3.f, 2.f, 2.f, 1.f };
+
 struct SliceState
 {
   ResourceHandle handle;
@@ -46,7 +49,7 @@ class WorldEditorImpl : public WorldEditor
     void instantiateActivePrefab() override;
     void cancelActivePrefab() override;
 
-    void selectEntity(EntityId id) override;
+    void selectEntity(EntityId id, const std::string& type) override;
     void applyTransform() override;
     void cancelTransform() override;
 
@@ -85,6 +88,7 @@ class WorldEditorImpl : public WorldEditor
       const SliceState& slice);
     void setCursorTransform(const Mat4x4f& m);
     void setCursorRotation(const Mat3x3f& rot);
+    void raiseEvent(Event event);
 
     fs::path m_projectRoot;
     WindowDelegate& m_windowDelegate;
@@ -97,8 +101,9 @@ class WorldEditorImpl : public WorldEditor
     std::map<Event, std::vector<Callback>> m_eventHandlers;
   
     // TODO: Bundle these into struct?
-    EntityId m_activeEntity = NULL_ENTITY_ID;
-    std::string m_activeEntityType;
+    EntityId m_cursorEntity = NULL_ENTITY_ID;
+    std::string m_cursorEntityType;
+    EntityId m_selectedEntity = NULL_ENTITY_ID;
     Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
     Mat3x3f m_activeRotation = identityMatrix<3>();
     float m_activeTranslation = metresToWorldUnits(10.f);
@@ -113,6 +118,13 @@ WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& wi
   createEngine();
   constructLight();
   constructCursor();
+}
+
+void WorldEditorImpl::raiseEvent(Event event)
+{
+  for (auto& cb : m_eventHandlers[event]) {
+    cb();
+  }
 }
 
 void WorldEditorImpl::listen(Event event, const Callback& callback)
@@ -178,9 +190,18 @@ std::vector<Entity> WorldEditorImpl::getEntities() const
 
 void WorldEditorImpl::setActivePrefab(const std::string& name)
 {
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+
   switch (m_state) {
     case State::EntitySelected: {
-      m_activeEntity = NULL_ENTITY_ID;
+      if (m_selectedEntity != NULL_ENTITY_ID) {
+        sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
+        m_selectedEntity = NULL_ENTITY_ID;
+      }
+      if (m_cursorEntity != NULL_ENTITY_ID) {
+        m_engine->ecs().removeEntity(m_cursorEntity);
+        m_cursorEntity = NULL_ENTITY_ID;
+      }
       break;
     }
     case State::PrefabSelected: {
@@ -205,37 +226,52 @@ void WorldEditorImpl::setActivePrefab(const std::string& name)
     handle = i->second;
   }
 
-  Mat4x4f transform = sysSpatial.getGlobalTransform(m_cursorId);
-  m_activeEntity = factory.constructEntity(name, transform);
-  m_activeEntityType = name;
+  auto& transform = sysSpatial.getGlobalTransform(m_cursorId);
+  m_cursorEntity = factory.constructGhostEntity(name, transform, GhostEntityColour);
+  m_cursorEntityType = name;
 }
 
 void WorldEditorImpl::instantiateActivePrefab()
 {
   ASSERT(m_state == State::PrefabSelected, "Bad state transition");
-  m_state = State::None;
+  cancelActivePrefab();
 
+  auto& factory = m_engine->entityFactory();
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
-  auto pos = getTranslation(sysSpatial.getGlobalTransform(m_cursorId));
+  auto& transform = sysSpatial.getGlobalTransform(m_cursorId);
+  auto pos = getTranslation(transform);
   auto cell = cellFromPosition(pos);
 
   int sliceIdx = 1; // TODO
   auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
   assert(slice.handle.id() != NULL_RESOURCE_ID);
   slice.entities.push_back({
-    .id = m_activeEntity,
-    .type = m_activeEntityType
+    .id = factory.constructEntity(m_cursorEntityType, transform),
+    .type = m_cursorEntityType
   });
   slice.dirty = true;
 
-  m_activeEntity = NULL_ENTITY_ID;
+  raiseEvent(Event::AddOrRemoveEntity);
 }
 
-void WorldEditorImpl::selectEntity(EntityId id)
+void WorldEditorImpl::selectEntity(EntityId id, const std::string& type)
 {
+  auto& factory = m_engine->entityFactory();
+  if (!factory.hasEntityType(type)) {
+    return;
+  }
+
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+
   switch (m_state) {
     case State::EntitySelected: {
-      m_activeEntity = NULL_ENTITY_ID;
+      if (m_cursorEntity != NULL_ENTITY_ID) {
+        m_engine->ecs().removeEntity(m_cursorEntity);
+        m_cursorEntity = NULL_ENTITY_ID;
+      }
+      if (m_selectedEntity != NULL_ENTITY_ID) {
+        sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
+      }
       break;
     }
     case State::PrefabSelected: {
@@ -247,7 +283,7 @@ void WorldEditorImpl::selectEntity(EntityId id)
 
   m_state = State::EntitySelected;
 
-  auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+  auto& camera = sysRender3d.camera();
   auto& camDir = camera.getDirection();
   auto& entityTransform = m_engine->ecs().system<SysSpatial>().getGlobalTransform(id);
   Vec3f entityPos = getTranslation(entityTransform);
@@ -256,21 +292,57 @@ void WorldEditorImpl::selectEntity(EntityId id)
 
   setCursorTransform(entityTransform);
 
-  for (auto& cb : m_eventHandlers[Event::CursorMove]) {
-    cb();
-  }
+  m_selectedEntity = id;
 
-  m_activeEntity = id;
+  sysRender3d.setEntityColour(m_selectedEntity, SelectedEntityColour);
+
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+
+  auto& transform = sysSpatial.getGlobalTransform(m_cursorId);
+  m_cursorEntity = factory.constructGhostEntity(type, transform, GhostEntityColour);
+  m_cursorEntityType = type;
+
+  raiseEvent(Event::CursorMove);
 }
 
 void WorldEditorImpl::applyTransform()
 {
+  if (m_state != State::EntitySelected) {
+    return;
+  }
 
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+
+  // TODO: Entity hierarchies?
+  auto& transform = sysSpatial.getGlobalTransform(m_cursorEntity);
+  sysSpatial.setLocalTransform(m_selectedEntity, transform);
+
+  Vec3f pos = getTranslation(transform);
+  auto cell = cellFromPosition(pos);
+
+  int sliceIdx = 1; // TODO
+  auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
+  slice.dirty = true;
 }
 
 void WorldEditorImpl::cancelTransform()
 {
+  if (m_state != State::EntitySelected) {
+    return;
+  }
 
+  m_state = State::None;
+
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+
+  if (m_selectedEntity != NULL_ENTITY_ID) {
+    sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
+    m_selectedEntity = NULL_ENTITY_ID;
+  }
+  if (m_cursorEntity != NULL_ENTITY_ID) {
+    m_engine->ecs().removeEntity(m_cursorEntity);
+    m_cursorEntity = NULL_ENTITY_ID;
+  }
 }
 
 void WorldEditorImpl::setCursorTransform(const Mat4x4f& m)
@@ -364,10 +436,10 @@ void WorldEditorImpl::cancelActivePrefab()
   ASSERT(m_state == State::PrefabSelected, "Bad state transition");
   m_state = State::None;
 
-  if (m_activeEntity != NULL_ENTITY_ID) {
-    m_engine->ecs().removeEntity(m_activeEntity);
+  if (m_cursorEntity != NULL_ENTITY_ID) {
+    m_engine->ecs().removeEntity(m_cursorEntity);
   }
-  m_activeEntity = NULL_ENTITY_ID;
+  m_cursorEntity = NULL_ENTITY_ID;
 }
 
 void WorldEditorImpl::setCursorDistance(float metres)
@@ -515,13 +587,8 @@ void WorldEditorImpl::positionCursor()
 
   sysSpatial.setLocalTransform(m_cursorId, transform);
 
-  if (m_activeEntity != NULL_ENTITY_ID) {
-    sysSpatial.setLocalTransform(m_activeEntity, transform);
-
-    if (m_state == State::EntitySelected) {
-      auto cell = cellFromPosition(translation);
-      m_worldState.slices.at({ cell[0], cell[1], 1 }).dirty = true;  // TODO: Slice index
-    }
+  if (m_cursorEntity != NULL_ENTITY_ID) {
+    sysSpatial.setLocalTransform(m_cursorEntity, transform);
   }
 }
 
