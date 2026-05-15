@@ -29,7 +29,7 @@ class TerrainBuilder
       XmlNodePtr terrainXml) = 0;
 
     // Call only once handle returned by loadTerrainRegionAsync is ready
-    virtual std::vector<EntityId> createEntities(ResourceId regionId) = 0;
+    virtual std::vector<EntityId> createEntities(EntityId parentId, ResourceId regionId) = 0;
 
     virtual ~TerrainBuilder() = default;
 };

@@ -68,7 +68,7 @@ class TerrainBuilderImpl : public TerrainBuilder
       const GameDataPaths& paths, Logger& logger);
 
     ResourceHandle loadTerrainRegionAsync(uint32_t x, uint32_t y, XmlNodePtr terrainXml) override;
-    std::vector<EntityId> createEntities(ResourceId regionId) override;
+    std::vector<EntityId> createEntities(EntityId parentId, ResourceId regionId) override;
 
   private:
     TerrainConfig m_config;
@@ -85,8 +85,8 @@ class TerrainBuilderImpl : public TerrainBuilder
       HeightMap& heightMap) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize, float level) const;
     ResourceHandle constructWaterModelAsync(const Vec2f& cellSize, float waterLevel) const;
-    EntityId createLandEntity(ResourceId regionId);
-    EntityId createWaterEntity(ResourceId regionId);
+    EntityId createLandEntity(EntityId parentId, ResourceId regionId);
+    EntityId createWaterEntity(EntityId parentId, ResourceId regionId);
 };
 
 TerrainBuilderImpl::TerrainBuilderImpl(const TerrainConfig& config, Ecs& ecs,
@@ -102,7 +102,7 @@ TerrainBuilderImpl::TerrainBuilderImpl(const TerrainConfig& config, Ecs& ecs,
 {
 }
 
-EntityId TerrainBuilderImpl::createWaterEntity(ResourceId regionId)
+EntityId TerrainBuilderImpl::createWaterEntity(EntityId parentId, ResourceId regionId)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -119,7 +119,7 @@ EntityId TerrainBuilderImpl::createWaterEntity(ResourceId regionId)
 
   DSpatial spatial{
     .transform = translationMatrix4x4(region.position),
-    .parent = sysSpatial.root(),
+    .parent = parentId,
     .enabled = true,
     .aabb = Aabb{
       .min = { 0.f, waterLevel, 0.f },
@@ -137,7 +137,7 @@ EntityId TerrainBuilderImpl::createWaterEntity(ResourceId regionId)
   return id;
 }
 
-EntityId TerrainBuilderImpl::createLandEntity(ResourceId regionId)
+EntityId TerrainBuilderImpl::createLandEntity(EntityId parentId, ResourceId regionId)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -156,7 +156,7 @@ EntityId TerrainBuilderImpl::createLandEntity(ResourceId regionId)
 
   DSpatial spatial{
     .transform = translationMatrix4x4(region.position),
-    .parent = sysSpatial.root(),
+    .parent = parentId,
     .enabled = true,
     .aabb = Aabb{
       .min = { 0.f, minHeight, 0.f },
@@ -182,11 +182,11 @@ EntityId TerrainBuilderImpl::createLandEntity(ResourceId regionId)
   return id;
 }
 
-std::vector<EntityId> TerrainBuilderImpl::createEntities(ResourceId regionId)
+std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, ResourceId regionId)
 {
   return {
-    createLandEntity(regionId),
-    createWaterEntity(regionId)
+    createLandEntity(parentId, regionId),
+    createWaterEntity(parentId, regionId)
   };
 }
 

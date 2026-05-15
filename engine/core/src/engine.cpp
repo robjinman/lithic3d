@@ -99,21 +99,6 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   m_modelLoader = createModelLoader(*m_renderResourceLoader, *m_resourceManager, m_paths,
     *m_logger);
 
-  m_entityFactory = createEntityFactory(*m_ecs, *m_modelLoader, *m_renderResourceLoader,
-    *m_resourceManager, m_paths, *m_logger);
-
-  if (config.features.terrain) {
-    m_worldLoader = createWorldLoader(*m_ecs, m_paths, *m_entityFactory, *m_modelLoader,
-      *m_renderResourceLoader, *m_resourceManager, *m_logger);
-
-    // TODO
-    WorldTraversalOptions options{
-      .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
-    };
-
-    m_worldGrid = createWorldGrid(options, *m_worldLoader, *m_ecs, *m_logger);
-  }
-
   auto sysCollision = createSysCollision(*m_ecs, *m_eventSystem, *m_logger);
   auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
@@ -131,6 +116,21 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   m_ecs->addSystem(Systems::Animation2d, std::move(sysAnimation2d));
   m_ecs->addSystem(Systems::Behaviour, std::move(sysBehaviour));
   m_ecs->addSystem(Systems::Ui, std::move(sysUi));
+
+  m_entityFactory = createEntityFactory(*m_ecs, *m_modelLoader, *m_renderResourceLoader,
+    *m_resourceManager, m_paths, *m_logger);
+
+  if (config.features.terrain) {
+    m_worldLoader = createWorldLoader(*m_ecs, m_paths, *m_entityFactory, *m_modelLoader,
+      *m_renderResourceLoader, *m_resourceManager, *m_logger);
+
+    // TODO
+    WorldTraversalOptions options{
+      .sliceLoadDistances = { 1, 1, 1, 1, 1, 1 }
+    };
+
+    m_worldGrid = createWorldGrid(options, *m_worldLoader, *m_ecs, *m_logger);
+  }
 
   m_eventSystem->listen([this](const Event& event) { handleEvent(event); });
 }

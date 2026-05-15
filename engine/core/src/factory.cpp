@@ -28,9 +28,9 @@ class FactoryImpl : public Factory
     // TODO: Use metres, not world units
 
     MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) override;
-    EntityId createStaticCuboid(const Vec3f& size, MaterialHandle material,
+    EntityId createStaticCuboid(EntityId parentId, const Vec3f& size, MaterialHandle material,
       const Vec2f& textureSize, float restitution, float friction) override;
-    EntityId createDynamicCuboid(const Vec3f& size, MaterialHandle material,
+    EntityId createDynamicCuboid(EntityId parentId, const Vec3f& size, MaterialHandle material,
       const Vec2f& textureSize, float inverseMass, float restitution, float friction) override;
 
   private:
@@ -38,8 +38,8 @@ class FactoryImpl : public Factory
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
 
-    void createCuboidCommonComponents(EntityId id, const Vec3f& size, const Vec2f& textureSize,
-      MaterialHandle material);
+    void createCuboidCommonComponents(EntityId id, EntityId parentId, const Vec3f& size,
+      const Vec2f& textureSize, MaterialHandle material);
 };
 
 FactoryImpl::FactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
@@ -62,14 +62,14 @@ MaterialHandle FactoryImpl::createMaterialAsync(const std::filesystem::path& tex
   return m_renderResourceLoader.loadMaterialAsync(std::move(material));
 }
 
-void FactoryImpl::createCuboidCommonComponents(EntityId id, const Vec3f& size,
+void FactoryImpl::createCuboidCommonComponents(EntityId id, EntityId parentId, const Vec3f& size,
   const Vec2f& textureSize, MaterialHandle material)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
 
   DSpatial spatial{};
-  spatial.parent = sysSpatial.root();
+  spatial.parent = parentId;
   spatial.aabb = {
     .min = -size * 0.5f,
     .max = size * 0.5f
@@ -103,15 +103,15 @@ void FactoryImpl::createCuboidCommonComponents(EntityId id, const Vec3f& size,
   sysRender3d.addEntity(id, std::move(render));
 }
 
-EntityId FactoryImpl::createStaticCuboid(const Vec3f& size, MaterialHandle material,
-  const Vec2f& textureSize, float restitution, float friction)
+EntityId FactoryImpl::createStaticCuboid(EntityId parentId, const Vec3f& size,
+  MaterialHandle material, const Vec2f& textureSize, float restitution, float friction)
 {
   auto id = m_ecs.idGen().getNewEntityId();
   m_ecs.componentStore().allocate<DSpatial, DModel, DStaticBox>(id);
 
   auto& sysCollision = m_ecs.system<SysCollision>();
 
-  createCuboidCommonComponents(id, size, textureSize, material);
+  createCuboidCommonComponents(id, parentId, size, textureSize, material);
 
   DStaticBox collision{
     .restitution = restitution,
@@ -127,15 +127,16 @@ EntityId FactoryImpl::createStaticCuboid(const Vec3f& size, MaterialHandle mater
   return id;
 }
 
-EntityId FactoryImpl::createDynamicCuboid(const Vec3f& size, MaterialHandle material,
-  const Vec2f& textureSize, float inverseMass, float restitution, float friction)
+EntityId FactoryImpl::createDynamicCuboid(EntityId parentId, const Vec3f& size,
+  MaterialHandle material, const Vec2f& textureSize, float inverseMass, float restitution,
+  float friction)
 {
   auto id = m_ecs.idGen().getNewEntityId();
   m_ecs.componentStore().allocate<DSpatial, DModel, DDynamicBox>(id);
 
   auto& sysCollision = m_ecs.system<SysCollision>();
 
-  createCuboidCommonComponents(id, size, textureSize, material);
+  createCuboidCommonComponents(id, parentId, size, textureSize, material);
 
   DDynamicBox collision{
     .inverseMass = inverseMass,

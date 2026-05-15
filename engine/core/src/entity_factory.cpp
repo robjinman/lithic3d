@@ -41,9 +41,10 @@ class EntityFactoryImpl : public EntityFactory
 
     ResourceHandle loadPrefabAsync(const std::string& name) override;
     bool hasEntityType(const std::string& type) const override;
-    EntityId constructEntity(const std::string& type, const Mat4x4f& transform) const override;
-    EntityId constructGhostEntity(const std::string& type, const Mat4x4f& transform,
-      const Vec4f& colour) override;
+    EntityId constructEntity(EntityId parentId, const std::string& type,
+      const Mat4x4f& transform) const override;
+    EntityId constructGhostEntity(EntityId parentId, const std::string& type,
+      const Mat4x4f& transform, const Vec4f& colour) override;
     bool hasPrefab(const std::string& name) const override;
 
   private:
@@ -158,7 +159,8 @@ bool EntityFactoryImpl::hasEntityType(const std::string& type) const
   return m_prefabs.contains(type);
 }
 
-EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x4f& transform) const
+EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const std::string& type,
+  const Mat4x4f& transform) const
 {
   std::scoped_lock lock{m_mutex};
 
@@ -187,8 +189,8 @@ EntityId EntityFactoryImpl::constructEntity(const std::string& type, const Mat4x
   return id;
 }
 
-EntityId EntityFactoryImpl::constructGhostEntity(const std::string& type, const Mat4x4f& transform,
-  const Vec4f& colour)
+EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, const std::string& type,
+  const Mat4x4f& transform, const Vec4f& colour)
 {
   std::scoped_lock lock{m_mutex};
 

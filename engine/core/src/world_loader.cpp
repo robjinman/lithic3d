@@ -7,6 +7,8 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/strings.hpp"
 #include "lithic3d/units.hpp"
+#include "lithic3d/ecs.hpp"
+#include "lithic3d/sys_spatial.hpp"
 #include <map>
 #include <cassert>
 #include <mutex>
@@ -100,12 +102,15 @@ class WorldLoaderImpl : public WorldLoader
       ResourceManager& resourceManager, Logger& logger);
 
     const WorldInfo& worldInfo() const override;
+    EntityId root() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
     std::vector<Entity> createEntities(ResourceId cellSliceId) override;
 
   private:
     Logger& m_logger;
     const GameDataPaths& m_paths;
+    Ecs& m_ecs;
+    EntityId m_root = NULL_ENTITY_ID;
     EntityFactory& m_entityFactory;
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
@@ -118,6 +123,7 @@ class WorldLoaderImpl : public WorldLoader
     std::vector<ResourceId> m_pendingSlices;
 
     void loadWorldInfo(const XmlNode& node);
+    void constructRoot();
 };
 
 WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFactory& entityFactory,
@@ -125,11 +131,14 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
   ResourceManager& resourceManager, Logger& logger)
   : m_logger(logger)
   , m_paths(paths)
+  , m_ecs(ecs)
   , m_entityFactory(entityFactory)
   , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
 {
+  constructRoot();
+
   auto worldFilePath = fs::path{m_worldName} / "world.xml";
 
   auto xmlData = m_paths.worldsDir->readFile(worldFilePath);
@@ -146,8 +155,28 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
     .waterLevel = worldUnitsToMetres(m_worldInfo.waterLevel)
   };
 
-  m_terrainBuilder = createTerrainBuilder(terrainConfig, ecs, modelLoader, m_renderResourceLoader,
+  m_terrainBuilder = createTerrainBuilder(terrainConfig, m_ecs, modelLoader, m_renderResourceLoader,
     m_resourceManager, m_paths, m_logger);
+}
+
+void WorldLoaderImpl::constructRoot()
+{
+  m_root = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial>(m_root);
+
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+
+  sysSpatial.addEntity(m_root, DSpatial{
+    .transform = identityMatrix<4>(),
+    .parent = sysSpatial.root(),
+    .enabled = true,
+    .aabb{}
+  });
+}
+
+EntityId WorldLoaderImpl::root() const
+{
+  return m_root;
 }
 
 std::vector<Entity> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
@@ -159,7 +188,7 @@ std::vector<Entity> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 
   if (cellSlice.terrain) {
     assert(cellSlice.terrain.ready());
-    auto terrainIds = m_terrainBuilder->createEntities(cellSlice.terrain.id());
+    auto terrainIds = m_terrainBuilder->createEntities(m_root, cellSlice.terrain.id());
     for (auto id : terrainIds) {
       entities.push_back({ id, "terrain" });
     }
@@ -169,7 +198,7 @@ std::vector<Entity> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
     auto type = entityXml->attribute("type");
     auto transform = constructTransform(*entityXml->child("transform"));
 
-    auto id = m_entityFactory.constructEntity(type, transform);
+    auto id = m_entityFactory.constructEntity(m_root, type, transform);
     entities.push_back({ id, type });
   }
 

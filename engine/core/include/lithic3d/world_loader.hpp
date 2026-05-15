@@ -32,6 +32,8 @@ class WorldLoader
 
     virtual ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) = 0;
 
+    virtual EntityId root() const = 0;
+
     // Call only once handle returned by loadCellSliceAsync is ready
     virtual std::vector<Entity> createEntities(ResourceId cellSliceId) = 0;
 

@@ -184,6 +184,8 @@ class WorldGridImpl : public WorldGrid
 
     void update(const Vec3f& cameraPos) override;
     void wait() override;
+    void unloadAll() override;
+    EntityId root() const override;
 
   private:
     Logger& m_logger;
@@ -203,6 +205,22 @@ WorldGridImpl::WorldGridImpl(const WorldTraversalOptions& options, WorldLoader& 
   , m_worldLoader(worldLoader)
   , m_ecs(ecs)
 {
+}
+
+EntityId WorldGridImpl::root() const
+{
+  return m_worldLoader.root();
+}
+
+void WorldGridImpl::unloadAll()
+{
+  for (auto& slice : m_slices) {
+    slice.second.unload();
+    slice.second.update();
+  }
+
+  m_slices.clear();
+  m_lastGridPos = NULL_POS;
 }
 
 void WorldGridImpl::wait()

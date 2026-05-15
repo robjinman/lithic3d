@@ -227,7 +227,8 @@ void WorldEditorImpl::setActivePrefab(const std::string& name)
   }
 
   auto& transform = sysSpatial.getGlobalTransform(m_cursorId);
-  m_cursorEntity = factory.constructGhostEntity(name, transform, GhostEntityColour);
+  m_cursorEntity = factory.constructGhostEntity(m_engine->worldGrid().root(), name, transform,
+    GhostEntityColour);
   m_cursorEntityType = name;
 }
 
@@ -246,7 +247,7 @@ void WorldEditorImpl::instantiateActivePrefab()
   auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
   assert(slice.handle.id() != NULL_RESOURCE_ID);
   slice.entities.push_back({
-    .id = factory.constructEntity(m_cursorEntityType, transform),
+    .id = factory.constructEntity(m_engine->worldGrid().root(), m_cursorEntityType, transform),
     .type = m_cursorEntityType
   });
   slice.dirty = true;
@@ -299,7 +300,8 @@ void WorldEditorImpl::selectEntity(EntityId id, const std::string& type)
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
 
   auto& transform = sysSpatial.getGlobalTransform(m_cursorId);
-  m_cursorEntity = factory.constructGhostEntity(type, transform, GhostEntityColour);
+  m_cursorEntity = factory.constructGhostEntity(m_engine->worldGrid().root(), type, transform,
+    GhostEntityColour);
   m_cursorEntityType = type;
 
   raiseEvent(Event::CursorMove);
@@ -475,7 +477,7 @@ void WorldEditorImpl::constructCursor()
 
   DSpatial spatial{
     .transform = identityMatrix<4>(),
-    .parent = sysSpatial.root(),
+    .parent = m_engine->worldGrid().root(),
     .enabled = true,
     .aabb = {
       .min = -preScaleSize * 0.5f,
