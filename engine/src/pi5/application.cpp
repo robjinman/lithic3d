@@ -42,6 +42,16 @@ KeyboardKey eventCodeToKey(int code)
     case KEY_NUMERIC_7: return KeyboardKey::Num7;
     case KEY_NUMERIC_8: return KeyboardKey::Num8;
     case KEY_NUMERIC_9: return KeyboardKey::Num9;
+    case KEY_0: return KeyboardKey::Num0;
+    case KEY_1: return KeyboardKey::Num1;
+    case KEY_2: return KeyboardKey::Num2;
+    case KEY_3: return KeyboardKey::Num3;
+    case KEY_4: return KeyboardKey::Num4;
+    case KEY_5: return KeyboardKey::Num5;
+    case KEY_6: return KeyboardKey::Num6;
+    case KEY_7: return KeyboardKey::Num7;
+    case KEY_8: return KeyboardKey::Num8;
+    case KEY_9: return KeyboardKey::Num9;
     case KEY_A: return KeyboardKey::A;
     case KEY_B: return KeyboardKey::B;
     case KEY_C: return KeyboardKey::C;
