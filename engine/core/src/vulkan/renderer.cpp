@@ -183,6 +183,7 @@ class RendererImpl : public Renderer
     double frameRate() const override;
     Vec2i getScreenSize() const override;
     Vec2i getViewportSize() const override;
+    float getAspectRatio() const override;
     float getViewportRotation() const override;
     const ScreenMargins& getMargins() const override;
     void checkError() const override;
@@ -545,6 +546,12 @@ Vec2i RendererImpl::getViewportSize() const
   // TODO: Needs mutex
 
   return m_viewDimensions;
+}
+
+float RendererImpl::getAspectRatio() const
+{
+  auto size = getViewportSize();
+  return static_cast<float>(size[0]) / size[1];
 }
 
 const ScreenMargins& RendererImpl::getMargins() const

@@ -66,6 +66,7 @@ class Renderer
     virtual Vec2i getScreenSize() const = 0;
     // Screen size after subtracting margins
     virtual Vec2i getViewportSize() const = 0;
+    virtual float getAspectRatio() const = 0;
     // Viewport rotation in radians. On some mobile devices, the viewport is rotated 90 or 270
     // degrees. This rotation needs to be baked into the projection matrix.
     virtual float getViewportRotation() const = 0;
