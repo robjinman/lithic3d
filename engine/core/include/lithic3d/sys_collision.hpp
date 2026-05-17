@@ -205,6 +205,12 @@ struct DCapsule
   Capsule capsule;
 };
 
+struct Intersection
+{
+  EntityId entityId = NULL_ENTITY_ID;
+  float distance = 0.f;
+};
+
 class SysCollision : public System
 {
   public:
@@ -220,6 +226,9 @@ class SysCollision : public System
     virtual void addEntity(EntityId id, const DPolyhedron& data) = 0;
     virtual void addEntity(EntityId id, const DCapsule& data) = 0;
     virtual void addEntity(EntityId id, const DAggregate& data) = 0;
+
+    virtual std::vector<Intersection> getIntersecting(const Vec3f& rayStart,
+      const Vec3f& rayEnd) const = 0;
 
     static const SystemId id = Systems::Collision;
 };

@@ -4,6 +4,7 @@
 #include "lithic3d/component_store.hpp"
 #include "lithic3d/events.hpp"
 #include "lithic3d/trace.hpp"
+#include "lithic3d/xml.hpp"
 #include <map>
 
 namespace lithic3d
@@ -17,6 +18,7 @@ class EcsImpl : public Ecs
     explicit EcsImpl(Logger& logger);
 
     void addSystem(SystemId id, SystemPtr system) override;
+    uint32_t numSystems() const override;
     System& getSystem(SystemId id) override;
     const System& getSystem(SystemId id) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -49,6 +51,11 @@ EcsImpl::EcsImpl(Logger& logger)
 EntityIdAllocator& EcsImpl::idGen()
 {
   return *m_entityIdAllocator;
+}
+
+uint32_t EcsImpl::numSystems() const
+{
+  return m_systems.size();
 }
 
 void EcsImpl::addSystem(SystemId id, SystemPtr system)

@@ -1,6 +1,7 @@
 #include "lithic3d/sys_behaviour.hpp"
 #include "lithic3d/event_system.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/xml.hpp"
 #include <vector>
 #include <map>
 #include <cassert>
@@ -16,6 +17,13 @@ class SysBehaviourImpl : public SysBehaviour
     SysBehaviourImpl(ComponentStore& componentStore)
       : m_componentStore(componentStore) {}
 
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick, const InputState&) override {}
@@ -50,6 +58,38 @@ DBehaviour& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name)
 const DBehaviour& SysBehaviourImpl::getBehaviour(EntityId entityId, HashedString name) const
 {
   return *m_behaviours.at(entityId).at(name);
+}
+
+const std::string& SysBehaviourImpl::name() const
+{
+  static const std::string name = "behaviour";
+  return name;
+}
+
+void SysBehaviourImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysBehaviourImpl::constructComponentData(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysBehaviourImpl::constructComponentDataWithModifications(
+  const ComponentData& base, const XmlNode& changes) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+void SysBehaviourImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 void SysBehaviourImpl::removeEntity(EntityId entityId)

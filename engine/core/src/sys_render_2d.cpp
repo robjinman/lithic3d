@@ -10,6 +10,7 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/trace.hpp"
 #include "lithic3d/events.hpp"
+#include "lithic3d/xml.hpp"
 #include <cassert>
 #include <functional>
 #include <map>
@@ -189,6 +190,13 @@ class SysRender2dImpl : public SysRender2d
     void setColour(EntityId entityId, const Vec4f& colour) override;
     void updateDynamicText(EntityId entityId, const std::string& text) override;
 
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -423,6 +431,38 @@ void SysRender2dImpl::updateDynamicText(EntityId entityId, const std::string& te
   char* buffer = m_componentStore.component<CDynamicText>(entityId).text;
   memset(buffer, '\0', DYNAMIC_TEXT_MAX_LEN);
   memcpy(buffer, text.data(), text.size());
+}
+
+const std::string& SysRender2dImpl::name() const
+{
+  static const std::string name = "render_2d";
+  return name;
+}
+
+void SysRender2dImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysRender2dImpl::constructComponentData(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysRender2dImpl::constructComponentDataWithModifications(const ComponentData& base,
+  const XmlNode& changes) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+void SysRender2dImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 void SysRender2dImpl::removeEntity(EntityId entityId)

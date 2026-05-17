@@ -1,6 +1,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
+#include "lithic3d/xml.hpp"
 
 namespace lithic3d
 {
@@ -314,6 +315,16 @@ class SysCollisionImpl : public SysCollision
     void applyTorque(EntityId id, const Vec3f& torque, float seconds) override;
     void setStationary(EntityId id) override;
 
+    std::vector<Intersection> getIntersecting(const Vec3f& rayStart,
+      const Vec3f& rayEnd) const override;
+
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -347,6 +358,16 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& l
   , m_eventSystem(eventSystem)
   , m_ecs(ecs)
 {
+}
+
+std::vector<Intersection> SysCollisionImpl::getIntersecting(const Vec3f& rayStart,
+  const Vec3f& rayEnd) const
+{
+  std::vector<Intersection> intersections;
+
+  // TODO
+
+  return intersections;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DStaticBox& data)
@@ -552,6 +573,38 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 
     m_aggregates[id].push_back(childId);
   }
+}
+
+const std::string& SysCollisionImpl::name() const
+{
+  static const std::string name = "collision";
+  return name;
+}
+
+void SysCollisionImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
+  const ComponentData& base, const XmlNode& changes) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 void SysCollisionImpl::removeEntity(EntityId id)
@@ -1961,7 +2014,7 @@ void SysCollisionImpl::integrate()
   }
 }
 
-void SysCollisionImpl::update(Tick tick, const InputState& inputState)
+void SysCollisionImpl::update(Tick, const InputState&)
 {
   size_t maxIterations = 4;
   auto pairs = findPossibleCollisions();

@@ -10,6 +10,7 @@
 #include "lithic3d/trace.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/events.hpp"
+#include "lithic3d/xml.hpp"
 #include <map>
 #include <cassert>
 #include <unordered_set>
@@ -99,7 +100,7 @@ struct AnimationState
 class SysRender3dImpl : public SysRender3d
 {
   public:
-    SysRender3dImpl(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+    SysRender3dImpl(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
       Renderer& renderer, Logger& logger);
 
     double frameRate() const override;
@@ -114,6 +115,13 @@ class SysRender3dImpl : public SysRender3d
     void addEntity(EntityId id, DDirectionalLightPtr light) override;
     void addEntity(EntityId id, DSkyboxPtr skybox) override;
 
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -129,7 +137,7 @@ class SysRender3dImpl : public SysRender3d
     Logger& m_logger;
     std::unique_ptr<Camera3d> m_camera;
     const Ecs& m_ecs;
-    const ModelLoader& m_modelLoader;
+    ModelLoader& m_modelLoader;
     Renderer& m_renderer;
     // TODO: Use component store
     std::map<EntityId, DModelPtr> m_models;
@@ -149,9 +157,14 @@ class SysRender3dImpl : public SysRender3d
     void doMainPass();
     void updateAnimations();
     std::array<LightProjection, 3> computeLightProjections(const Vec3f& worldSpaceLightDir) const;
+    ComponentDataPtr constructDModel(const XmlNode& xmlNode) const;
+    ComponentDataPtr constructDSkybox(const XmlNode& xmlNode) const;
+    ComponentDataPtr constructDDirectionalLight(const XmlNode& xmlNode) const;
+    ComponentDataPtr constructDPointLight(const XmlNode& xmlNode) const;
+    ComponentDataPtr constructDParticleEmitter(const XmlNode& xmlNode) const;
 };
 
-SysRender3dImpl::SysRender3dImpl(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+SysRender3dImpl::SysRender3dImpl(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
   Renderer& renderer, Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
@@ -251,6 +264,112 @@ render::Renderer& SysRender3dImpl::renderer()
 double SysRender3dImpl::frameRate() const
 {
   return m_renderer.frameRate();
+}
+
+const std::string& SysRender3dImpl::name() const
+{
+  static const std::string name = "render_3d";
+  return name;
+}
+
+void SysRender3dImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  if (data.typeId() == typeid(DModel).hash_code()) {
+    extractSpecs<DModel>(specs);
+  }
+  else if (data.typeId() == typeid(DSkybox).hash_code()) {
+    extractSpecs<DSkybox>(specs);
+  }
+  else if (data.typeId() == typeid(DDirectionalLight).hash_code()) {
+    extractSpecs<DDirectionalLight>(specs);
+  }
+  else if (data.typeId() == typeid(DPointLight).hash_code()) {
+    extractSpecs<DPointLight>(specs);
+  }
+  else if (data.typeId() == typeid(DParticleEmitter).hash_code()) {
+    extractSpecs<DParticleEmitter>(specs);
+  }
+  // ...
+}
+
+ComponentDataPtr SysRender3dImpl::constructDModel(const XmlNode& xmlModel) const
+{
+  auto modelFile = xmlModel.attribute("file");
+
+  return std::make_unique<ComponentDataWrapper<DModel>>(DModel{
+    .model = m_modelLoader.loadModelAsync(modelFile),
+    .isInstanced = xmlModel.attribute("is-instanced") == "true",
+    .colour = { 1.f, 1.f, 1.f, 1.f } // TODO
+  });
+}
+
+ComponentDataPtr SysRender3dImpl::constructDSkybox(const XmlNode& xmlSkybox) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysRender3dImpl::constructDDirectionalLight(
+  const XmlNode& xmlDirectionalLight) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysRender3dImpl::constructDPointLight(const XmlNode& xmlPointLight) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysRender3dImpl::constructDParticleEmitter(const XmlNode& xmlParticleEmitter) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysRender3dImpl::constructComponentData(const XmlNode& xmlSysRender) const
+{
+  auto& xmlComp = *xmlSysRender.begin();
+  if (xmlComp.name() == "model") {
+    return constructDModel(xmlComp);
+  }
+  else if (xmlComp.name() == "skybox") {
+    return constructDSkybox(xmlComp);
+  }
+  else if (xmlComp.name() == "directional_light") {
+    return constructDDirectionalLight(xmlComp);
+  }
+  else if (xmlComp.name() == "point_light") {
+    return constructDPointLight(xmlComp);
+  }
+  else if (xmlComp.name() == "particle_emitter") {
+    return constructDParticleEmitter(xmlComp);
+  }
+  else {
+    EXCEPTION("Bad component data type for render 3d system");
+  }
+}
+
+ComponentDataPtr SysRender3dImpl::constructComponentDataWithModifications(const ComponentData& base,
+  const XmlNode& changes) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+void SysRender3dImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  if (data.typeId() == typeid(DModel).hash_code()) {
+    auto& render = dynamic_cast<const ComponentDataWrapper<DModel>&>(data).data();
+    addEntity(id, std::make_unique<DModel>(render));
+  }
+  // TODO
+  // ...
+  else {
+    EXCEPTION("Not implemented")
+  }
 }
 
 void SysRender3dImpl::removeEntity(EntityId entityId)
@@ -667,7 +786,7 @@ SysRender3dImpl::~SysRender3dImpl()
 
 } // namespace
 
-SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
   Renderer& renderer, Logger& logger)
 {
   return std::make_unique<SysRender3dImpl>(drawDistance, ecs, modelLoader, renderer, logger);

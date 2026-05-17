@@ -1,12 +1,71 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/graph.hpp"
 #include "lithic3d/logger.hpp"
+#include "lithic3d/xml.hpp"
 #include <unordered_map>
 #include <array>
 #include <cstring>
 
 namespace lithic3d
 {
+
+Vec3f constructVec3f(const XmlNode& node)
+{
+  return {
+    std::stof(node.attribute("x")),
+    std::stof(node.attribute("y")),
+    std::stof(node.attribute("z"))
+  };
+}
+
+Aabb constructAabb(const XmlNode& aabbXml)
+{
+  return Aabb{
+    .min = constructVec3f(*aabbXml.child("min")),
+    .max = constructVec3f(*aabbXml.child("max"))
+  };
+}
+
+Mat4x4f constructTransform(const XmlNode& transformXml)
+{
+  auto iMatrix = transformXml.child("matrix");
+  if (iMatrix != transformXml.end()) {
+    auto& matrixXml = *iMatrix;
+    std::stringstream ss(matrixXml.value());
+
+    Mat4x4f m = identityMatrix<4>();
+
+    size_t i = 0;
+    while (ss.good()) {
+      if (i > 12) {
+        break;
+      }
+
+      std::string strFloat;
+      std::getline(ss, strFloat, ',');
+      size_t r = i / 4;
+      size_t c = i % 4;
+
+      m.set(r, c, std::stof(strFloat));
+      ++i;
+    }
+
+    return m;
+  }
+  else {
+    auto pos = constructVec3f(*transformXml.child("pos"));
+    auto ori = constructVec3f(*transformXml.child("ori"));
+
+    Vec3f scale{ 1.f, 1.f, 1.f };
+
+    auto i = transformXml.child("scale");
+    if (i != transformXml.end()) {
+      scale = constructVec3f(*i);
+    }
+
+    return createTransform(metresToWorldUnits(pos), ori, scale);
+  }
+}
 
 Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m)
 {
@@ -55,6 +114,13 @@ class SysSpatialImpl : public SysSpatial
   public:
     SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger);
 
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -84,6 +150,7 @@ class SysSpatialImpl : public SysSpatial
     GraphPtr<EntityId, NULL_ENTITY_ID> m_sceneGraph;
     LooseOctreePtr m_octree;
 
+    ComponentDataPtr constructDSpatial(const XmlNode& xmlSpatial) const;
     void updateBoundingBox(EntityId entityId, const Mat4x4f& m);
 };
 
@@ -131,6 +198,77 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 
   m_ecs.componentStore().instantiate<CGlobalTransform>(entityId);
   m_ecs.componentStore().instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
+}
+
+const std::string& SysSpatialImpl::name() const
+{
+  static const std::string name = "spatial";
+  return name;
+}
+
+void SysSpatialImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  if (data.typeId() == typeid(DSpatial).hash_code()) {
+    extractSpecs<DSpatial>(specs);
+  }
+  // ...
+}
+
+ComponentDataPtr SysSpatialImpl::constructDSpatial(const XmlNode& xmlSpatial) const
+{
+  auto iTransform = xmlSpatial.child("transform");
+  auto iAabb = xmlSpatial.child("aabb");
+
+  return std::make_unique<ComponentDataWrapper<DSpatial>>(DSpatial{
+    .transform = iTransform == xmlSpatial.end() ?
+      identityMatrix<4>() : constructTransform(*iTransform),
+    .parent = root(),
+    .enabled = true,
+    .aabb = iAabb == xmlSpatial.end() ? Aabb{} : constructAabb(*iAabb)
+  });
+}
+
+ComponentDataPtr SysSpatialImpl::constructComponentData(const XmlNode& xmlSysSpatial) const
+{
+  auto& xmlComp = *xmlSysSpatial.begin();
+  if (xmlComp.name() == "spatial") {
+    return constructDSpatial(xmlComp);
+  }
+  // ...
+}
+
+ComponentDataPtr SysSpatialImpl::constructComponentDataWithModifications(const ComponentData& base,
+  const XmlNode& xmlSysSpatial) const
+{
+  auto& xmlComp = *xmlSysSpatial.begin();
+  if (xmlComp.name() == "spatial") {
+    assert(base.typeId() == typeid(DSpatial).hash_code());
+    auto& baseSpatial = dynamic_cast<const ComponentDataWrapper<DSpatial>&>(base).data();
+
+    auto iTransform = xmlComp.child("transform");
+
+    return std::make_unique<ComponentDataWrapper<DSpatial>>(DSpatial{
+      .transform = iTransform == xmlComp.end() ?
+        baseSpatial.transform : constructTransform(*iTransform),
+      .parent = baseSpatial.parent,   // TODO
+      .enabled = baseSpatial.enabled, // TODO
+      .aabb = baseSpatial.aabb        // TODO
+    });
+  }
+  // ...
+}
+
+void SysSpatialImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  if (data.typeId() == typeid(DSpatial).hash_code()) {
+    auto& spatial = dynamic_cast<const ComponentDataWrapper<DSpatial>&>(data).data();
+    addEntity(id, spatial);
+  }
+  // ...
+  else {
+    EXCEPTION("Wrong component data type for spatial system");
+  }
 }
 
 void SysSpatialImpl::removeEntity(EntityId entityId)

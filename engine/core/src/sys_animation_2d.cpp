@@ -1,6 +1,7 @@
 #include "lithic3d/sys_animation_2d.hpp"
 #include "lithic3d/sys_render_2d.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/xml.hpp"
 #include <chrono>
 #include <map>
 #include <cassert>
@@ -42,6 +43,13 @@ class SysAnimation2dImpl : public SysAnimation2d
   public:
     SysAnimation2dImpl(ComponentStore& componentStore, Logger& logger);
 
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -309,6 +317,38 @@ void SysAnimation2dImpl::addEntity(EntityId entityId, const DAnimation2d& comp)
   }
 
   m_components.insert({ entityId, std::move(data) });
+}
+
+const std::string& SysAnimation2dImpl::name() const
+{
+  static const std::string name = "animation_2d";
+  return name;
+}
+
+void SysAnimation2dImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysAnimation2dImpl::constructComponentData(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysAnimation2dImpl::constructComponentDataWithModifications(
+  const ComponentData& base, const XmlNode& changes) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+void SysAnimation2dImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 void SysAnimation2dImpl::removeEntity(EntityId entityId)

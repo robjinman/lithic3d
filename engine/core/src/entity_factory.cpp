@@ -5,7 +5,6 @@
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_render_3d.hpp"
-#include "lithic3d/sys_collision.hpp"
 #include "lithic3d/logger.hpp"
 
 namespace fs = std::filesystem;
@@ -15,21 +14,9 @@ namespace lithic3d
 namespace
 {
 
-Vec3f constructVec3f(const XmlNode& node)
-{
-  return {
-    std::stof(node.attribute("x")),
-    std::stof(node.attribute("y")),
-    std::stof(node.attribute("z"))
-  };
-}
-
 struct Prefab
 {
-  std::optional<DSpatial> spatial;
-  std::optional<DModelPtr> model;
-  //std::optional<DCollision> collision;
-  // ...
+  std::vector<ComponentDataPtr> components;
 };
 
 class EntityFactoryImpl : public EntityFactory
@@ -43,6 +30,7 @@ class EntityFactoryImpl : public EntityFactory
     bool hasEntityType(const std::string& type) const override;
     EntityId constructEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform) const override;
+    EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity) const override;
     EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) override;
     bool hasPrefab(const std::string& name) const override;
@@ -58,9 +46,7 @@ class EntityFactoryImpl : public EntityFactory
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, Prefab> m_prefabs;
 
-    DSpatial constructDSpatial(const XmlNode& spatialXml) const;
-    DModelPtr constructDModel(const XmlNode& modelXml) const;
-    Aabb constructAabb(const XmlNode& aabbXml) const;
+    std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab) const;
 };
 
 EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
@@ -74,37 +60,6 @@ EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
   , m_paths(paths)
 {}
 
-Aabb EntityFactoryImpl::constructAabb(const XmlNode& aabbXml) const
-{
-  return Aabb{
-    .min = constructVec3f(*aabbXml.child("min")),
-    .max = constructVec3f(*aabbXml.child("max"))
-  };
-}
-
-DSpatial EntityFactoryImpl::constructDSpatial(const XmlNode& spatialXml) const
-{
-  DSpatial spatial;
-  spatial.aabb = constructAabb(*spatialXml.child("aabb"));
-  spatial.enabled = true;
-  spatial.parent = m_ecs.system<SysSpatial>().root(); // TODO
-
-  // TODO: transform?
-
-  return spatial;
-}
-
-DModelPtr EntityFactoryImpl::constructDModel(const XmlNode& modelXml) const
-{
-  auto model = std::make_unique<DModel>();
-  model->isInstanced = modelXml.attribute("is-instanced") == "true";
-
-  auto modelFile = modelXml.attribute("file");
-  model->model = m_modelLoader.loadModelAsync(modelFile);
-
-  return model;
-}
-
 ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
 {
   return m_resourceManager.loadResource([this, name](ResourceId) {
@@ -115,15 +70,13 @@ ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
     ASSERT(entityXml->attribute("name") == name, "Expected entity of type '" << name << "'");
 
     Prefab prefab;
-
-    auto i = entityXml->child("spatial");
-    if (i != entityXml->end()) {
-      prefab.spatial = constructDSpatial(*i);
-    }
-
-    i = entityXml->child("model");
-    if (i != entityXml->end()) {
-      prefab.model = constructDModel(*i);
+    prefab.components.resize(m_ecs.numSystems());
+    for (size_t systemId = 0; systemId < prefab.components.size(); ++systemId) {
+      auto& system = m_ecs.getSystem(systemId);
+      auto i = entityXml->child(system.name());
+      if (i != entityXml->end()) {
+        prefab.components[systemId] = system.constructComponentData(*i);
+      }
     }
 
     {
@@ -140,15 +93,15 @@ ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
   });
 }
 
-std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab)
+std::vector<ComponentSpec> EntityFactoryImpl::getComponentSpecs(const Prefab& prefab) const
 {
   std::vector<ComponentSpec> specs;
 
-  if (prefab.spatial.has_value()) {
-    extractSpecs<DSpatial>(specs);
-  }
-
-  if (prefab.model.has_value()) {
+  for (size_t systemId = 0; systemId < prefab.components.size(); ++systemId) {
+    if (prefab.components[systemId] != nullptr) {
+      auto& system = m_ecs.getSystem(systemId);
+      system.extractComponentSpecs(*prefab.components[systemId], specs);
+    }
   }
 
   return specs;
@@ -157,6 +110,46 @@ std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab)
 bool EntityFactoryImpl::hasEntityType(const std::string& type) const
 {
   return m_prefabs.contains(type);
+}
+
+void setParentIdIfSpatialComponent(ComponentData& c, EntityId parentId)
+{
+  if (c.typeId() == typeid(DSpatial).hash_code()) {
+    auto& spatial = dynamic_cast<ComponentDataWrapper<DSpatial>&>(c).data();
+    spatial.parent = parentId;
+  }
+}
+
+EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xmlEntity) const
+{
+  std::scoped_lock lock{m_mutex};
+
+  auto type = xmlEntity.attribute("type");
+  auto& prefab = m_prefabs.at(type);
+
+  auto id = m_ecs.idGen().getNewEntityId();
+
+  m_logger.debug(STR("Constructing entity " << id << " of type " << type));
+
+  auto specs = getComponentSpecs(prefab);
+  m_ecs.componentStore().allocateEntity(id, specs);
+
+  for (size_t systemId = 0; systemId < prefab.components.size(); ++systemId) {
+    if (prefab.components[systemId] != nullptr) {
+      auto& system = m_ecs.getSystem(systemId);
+      auto i = xmlEntity.child(system.name());
+      if (i != xmlEntity.end()) {
+        auto c = system.constructComponentDataWithModifications(*prefab.components[systemId], *i);
+        setParentIdIfSpatialComponent(*c, parentId);
+        system.addEntity(id, *c);
+      }
+      else {
+        system.addEntity(id, *prefab.components[systemId]);
+      }
+    }
+  }
+
+  return id;
 }
 
 EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const std::string& type,
@@ -173,18 +166,23 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const std::string
   auto specs = getComponentSpecs(prefab);
   m_ecs.componentStore().allocateEntity(id, specs);
 
-  if (prefab.spatial.has_value()) {
-    auto spatial = prefab.spatial.value();
-    spatial.transform = transform;
-    m_ecs.system<SysSpatial>().addEntity(id, spatial);
-  }
+  for (size_t systemId = 0; systemId < prefab.components.size(); ++systemId) {
+    if (prefab.components[systemId] != nullptr) {
+      auto& system = m_ecs.getSystem(systemId);
 
-  if (prefab.model.has_value()) {
-    auto model = std::make_unique<DModel>(*prefab.model.value());
-    m_ecs.system<SysRender3d>().addEntity(id, std::move(model));
+      if (systemId == Systems::Spatial) {
+        auto& data = *prefab.components[systemId];
+        assert(data.typeId() == typeid(DSpatial).hash_code());
+        auto& spatialWrapper = dynamic_cast<ComponentDataWrapper<DSpatial>&>(data);
+        auto spatial = spatialWrapper.data(); // Copy
+        spatial.transform = transform;
+        m_ecs.system<SysSpatial>().addEntity(id, spatial);
+      }
+      else {
+        system.addEntity(id, *prefab.components[systemId]);
+      }
+    }
   }
-
-  // ...
 
   return id;
 }
@@ -203,16 +201,24 @@ EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, const std::s
   auto specs = getComponentSpecs(prefab);
   m_ecs.componentStore().allocateEntity(id, specs);
 
-  if (prefab.spatial.has_value()) {
-    auto spatial = prefab.spatial.value();
+  if (prefab.components[Systems::Spatial] != nullptr) {
+    auto& data = *prefab.components[Systems::Spatial];
+    assert(data.typeId() == typeid(DSpatial).hash_code());
+    auto& spatialWrapper = dynamic_cast<ComponentDataWrapper<DSpatial>&>(data);
+    auto spatial = spatialWrapper.data(); // Copy
+
     spatial.transform = transform;
     m_ecs.system<SysSpatial>().addEntity(id, spatial);
   }
 
-  if (prefab.model.has_value()) {
-    auto model = std::make_unique<DModel>(*prefab.model.value());
-    model->colour = colour;
-    m_ecs.system<SysRender3d>().addEntity(id, std::move(model));
+  if (prefab.components[Systems::Render3d] != nullptr) {
+    auto& data = *prefab.components[Systems::Render3d];
+    assert(data.typeId() == typeid(DModel).hash_code());
+    auto& renderWrapper = dynamic_cast<ComponentDataWrapper<DModel>&>(data);
+    DModelPtr render = std::make_unique<DModel>(renderWrapper.data());
+
+    render->colour = colour;
+    m_ecs.system<SysRender3d>().addEntity(id, std::move(render));
   }
 
   return id;

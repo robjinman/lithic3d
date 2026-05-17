@@ -2,6 +2,7 @@
 #include "lithic3d/input.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/xml.hpp"
 #include <map>
 #include <algorithm>
 
@@ -48,6 +49,13 @@ class SysUiImpl : public SysUi
   public:
     SysUiImpl(Ecs& ecs, Logger& logger);
 
+    const std::string& name() const override;
+    void extractComponentSpecs(const ComponentData& data,
+      std::vector<ComponentSpec>& specs) const override;
+    ComponentDataPtr constructComponentData(const XmlNode& data) const override;
+    ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
+      const XmlNode& changes) const override;
+    void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -120,6 +128,38 @@ void SysUiImpl::addEntity(EntityId id, const DUi& data)
       m_activeGroup = data.group;
     }
   }
+}
+
+const std::string& SysUiImpl::name() const
+{
+  static const std::string name = "ui";
+  return name;
+}
+
+void SysUiImpl::extractComponentSpecs(const ComponentData& data,
+  std::vector<ComponentSpec>& specs) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysUiImpl::constructComponentData(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysUiImpl::constructComponentDataWithModifications(const ComponentData& base,
+  const XmlNode& changes) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+void SysUiImpl::addEntity(EntityId id, const ComponentData& data)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 void SysUiImpl::removeEntity(EntityId id)

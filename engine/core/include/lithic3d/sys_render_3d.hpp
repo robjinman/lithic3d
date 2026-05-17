@@ -74,6 +74,7 @@ class SysRender3d : public System
 
     virtual render::Renderer& renderer() = 0;
 
+    // TODO: Const references instead of pointers?
     virtual void addEntity(EntityId id, DModelPtr model) = 0;
     virtual void addEntity(EntityId id, DPointLightPtr light) = 0;
     virtual void addEntity(EntityId id, DDirectionalLightPtr light) = 0;
@@ -107,7 +108,7 @@ LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
 
 class Logger;
 
-SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, const ModelLoader& modelLoader,
+SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
   render::Renderer& renderer, Logger& logger);
 
 } // namespace lithic3d

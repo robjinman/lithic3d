@@ -407,8 +407,12 @@ void WorldEditorImpl::saveChangesToSlice(const fs::path& cellDirName,
     auto xmlEntity = createXmlNode("entity");
 
     xmlEntity->setAttribute("type", entity.type);
+    auto xmlSysSpatial = createXmlNode("spatial");
+    auto xmlSpatial = createXmlNode("spatial");
 
-    xmlEntity->addChild(toXml(sysSpatial.getLocalTransform(entity.id)));
+    xmlSpatial->addChild(toXml(sysSpatial.getLocalTransform(entity.id)));
+    xmlSysSpatial->addChild(std::move(xmlSpatial));
+    xmlEntity->addChild(std::move(xmlSysSpatial));
     xmlEntities->addChild(std::move(xmlEntity));
   }
   xmlCellSlice->addChild(std::move(xmlEntities));
