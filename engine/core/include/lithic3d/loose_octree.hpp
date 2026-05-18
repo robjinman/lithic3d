@@ -33,6 +33,8 @@ class LooseOctree
     virtual void move(EntityId entityId, const Vec3f& pos, float radius) = 0;
     virtual void remove(EntityId entityId) = 0;
     virtual std::set<EntityId> getIntersecting(const Frustum& volume) const = 0;
+    virtual std::set<EntityId> getIntersecting(const Vec3f& rayStart,
+      const Vec3f& rayEnd) const = 0;
 
     virtual ~LooseOctree() = default;
 

@@ -2,6 +2,7 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/input.hpp"
 #include "lithic3d/xml.hpp"
+#include "lithic3d/xml_utils.hpp"
 
 namespace lithic3d
 {
@@ -337,6 +338,13 @@ class SysCollisionImpl : public SysCollision
     std::unordered_map<EntityId, std::vector<EntityId>> m_aggregates;
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
 
+    ComponentDataPtr constructDDynamicBox(const XmlNode& data) const;
+    ComponentDataPtr constructDStaticBox(const XmlNode& data) const;
+    ComponentDataPtr constructDCapsule(const XmlNode& data) const;
+    ComponentDataPtr constructDPolyhedron(const XmlNode& data) const;
+    ComponentDataPtr constructDAggregate(const XmlNode& data) const;
+    ComponentDataPtr constructDTerrain(const XmlNode& data) const;
+
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
       const Force& torque);
@@ -360,12 +368,73 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& l
 {
 }
 
+bool boxRayIntersect(const Mat4x4f& transform, const CCollisionBox& boxComp, const Vec3f& rayStart,
+  const Vec3f& rayEnd, float& t)
+{
+  auto& box = boxComp.boundingBox;
+
+  auto boxToWorldSpace = transform * box.transform;
+  auto worldToBoxSpace = inverse(boxToWorldSpace);
+
+  auto A = (worldToBoxSpace * Vec4f{rayStart, { 1.f }}).sub<3>();
+  auto B = (worldToBoxSpace * Vec4f{rayEnd, { 1.f }}).sub<3>();
+
+  if (
+    (A[0] < box.min[0] && B[0] < box.min[0]) ||
+    (A[1] < box.min[1] && B[1] < box.min[1]) ||
+    (A[2] < box.min[2] && B[2] < box.min[2]) ||
+    (A[0] > box.max[0] && B[0] > box.max[0]) ||
+    (A[1] > box.max[1] && B[1] > box.max[1]) ||
+    (A[2] > box.max[2] && B[2] > box.max[2])
+  ) {
+    //return false;
+  }
+
+  // TODO: Slab method
+  t = (getTranslation(boxToWorldSpace) - rayEnd).magnitude();
+
+  return true;
+}
+
+bool capsuleRayIntersect(const Mat4x4f& transform, const CCollisionCapsule& capsule,
+  const Vec3f& rayStart, const Vec3f& rayEnd, float& t)
+{
+  // TODO
+  return false;
+}
+
 std::vector<Intersection> SysCollisionImpl::getIntersecting(const Vec3f& rayStart,
   const Vec3f& rayEnd) const
 {
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& componentStore = m_ecs.componentStore();
+  auto aabbIntersections = sysSpatial.getIntersecting(rayStart, rayEnd);
+
   std::vector<Intersection> intersections;
 
-  // TODO
+  for (auto id : aabbIntersections) {
+    float t = 0.f;
+
+    if (componentStore.hasComponentForEntity<CCollisionBox>(id)) {
+      auto& box = componentStore.component<CCollisionBox>(id);
+      auto& globalT = componentStore.component<CGlobalTransform>(id);
+      if (boxRayIntersect(globalT.transform, box, rayStart, rayEnd, t)) {
+        intersections.push_back({ id, t });
+      }
+    }
+    else if (m_ecs.componentStore().hasComponentForEntity<CCollisionCapsule>(id)) {
+      auto& capsule = m_ecs.componentStore().component<CCollisionCapsule>(id);
+      auto& globalT = componentStore.component<CGlobalTransform>(id);
+      if (capsuleRayIntersect(globalT.transform, capsule, rayStart, rayEnd, t)) {
+        intersections.push_back({ id, t });
+      }
+    }
+    // ...
+  }
+
+  std::sort(intersections.begin(), intersections.end(), [](const auto& A, const auto& B) {
+    return A.distance < B.distance;
+  });
 
   return intersections;
 }
@@ -584,14 +653,87 @@ const std::string& SysCollisionImpl::name() const
 void SysCollisionImpl::extractComponentSpecs(const ComponentData& data,
   std::vector<ComponentSpec>& specs) const
 {
+  extractSpecs<DDynamicBox>(data, specs);
+  extractSpecs<DStaticBox>(data, specs);
+  extractSpecs<DCapsule>(data, specs);
+  extractSpecs<DPolyhedron>(data, specs);
+  extractSpecs<DAggregate>(data, specs);
+  extractSpecs<DTerrainChunk>(data, specs);
+  // ...
+}
+
+ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode& data) const
+{
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& data) const
+BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
+{
+  return {
+    .min = constructVec3f(*xmlBoundingBox.child("min")),
+    .max = constructVec3f(*xmlBoundingBox.child("max")),
+    .transform = constructTransform(*xmlBoundingBox.child("transform"))
+  };
+}
+
+ComponentDataPtr SysCollisionImpl::constructDStaticBox(const XmlNode& xmlStaticBox) const
+{
+  float restitution = std::stof(xmlStaticBox.attribute("restitution"));
+  float friction = std::stof(xmlStaticBox.attribute("friction"));
+
+  return std::make_unique<ComponentDataWrapper<DStaticBox>>(DStaticBox{
+    .restitution = restitution,
+    .friction = friction,
+    .boundingBox = constructBoundingBox(*xmlStaticBox.child("bounding_box"))
+  });
+}
+
+ComponentDataPtr SysCollisionImpl::constructDCapsule(const XmlNode& data) const
 {
   // TODO
   EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysCollisionImpl::constructDPolyhedron(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysCollisionImpl::constructDTerrain(const XmlNode& data) const
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& xmlSysCollision) const
+{
+  auto& xmlComp = *xmlSysCollision.begin();
+  if (xmlComp.name() == "dynamic_box") {
+    return constructDDynamicBox(xmlComp);
+  }
+  else if (xmlComp.name() == "static_box") {
+    return constructDStaticBox(xmlComp);
+  }
+  else if (xmlComp.name() == "capsule") {
+    return constructDCapsule(xmlComp);
+  }
+  else if (xmlComp.name() == "polyhedron") {
+    return constructDPolyhedron(xmlComp);
+  }
+  else if (xmlComp.name() == "aggregate") {
+    return constructDAggregate(xmlComp);
+  }
+  else {
+    EXCEPTION("Bad component data type for collision system");
+  }
 }
 
 ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
@@ -603,8 +745,15 @@ ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
 
 void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)
 {
+  if (data.typeId() == typeid(DStaticBox).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(data).data();
+    addEntity(id, collision);
+  }
   // TODO
-  EXCEPTION("Not implemented");
+  // ...
+  else {
+    EXCEPTION("Not implemented")
+  }
 }
 
 void SysCollisionImpl::removeEntity(EntityId id)

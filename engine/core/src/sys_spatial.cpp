@@ -2,70 +2,13 @@
 #include "lithic3d/graph.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/xml.hpp"
+#include "lithic3d/xml_utils.hpp"
 #include <unordered_map>
 #include <array>
 #include <cstring>
 
 namespace lithic3d
 {
-
-Vec3f constructVec3f(const XmlNode& node)
-{
-  return {
-    std::stof(node.attribute("x")),
-    std::stof(node.attribute("y")),
-    std::stof(node.attribute("z"))
-  };
-}
-
-Aabb constructAabb(const XmlNode& aabbXml)
-{
-  return Aabb{
-    .min = constructVec3f(*aabbXml.child("min")),
-    .max = constructVec3f(*aabbXml.child("max"))
-  };
-}
-
-Mat4x4f constructTransform(const XmlNode& transformXml)
-{
-  auto iMatrix = transformXml.child("matrix");
-  if (iMatrix != transformXml.end()) {
-    auto& matrixXml = *iMatrix;
-    std::stringstream ss(matrixXml.value());
-
-    Mat4x4f m = identityMatrix<4>();
-
-    size_t i = 0;
-    while (ss.good()) {
-      if (i > 12) {
-        break;
-      }
-
-      std::string strFloat;
-      std::getline(ss, strFloat, ',');
-      size_t r = i / 4;
-      size_t c = i % 4;
-
-      m.set(r, c, std::stof(strFloat));
-      ++i;
-    }
-
-    return m;
-  }
-  else {
-    auto pos = constructVec3f(*transformXml.child("pos"));
-    auto ori = constructVec3f(*transformXml.child("ori"));
-
-    Vec3f scale{ 1.f, 1.f, 1.f };
-
-    auto i = transformXml.child("scale");
-    if (i != transformXml.end()) {
-      scale = constructVec3f(*i);
-    }
-
-    return createTransform(metresToWorldUnits(pos), ori, scale);
-  }
-}
 
 Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m)
 {
@@ -136,6 +79,7 @@ class SysSpatialImpl : public SysSpatial
     void setLocalTransform(EntityId id, const Mat4x4f& m) override;
 
     EntityIdSet getIntersecting(const Frustum& frustum) const override;
+    EntityIdSet getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const override;
 
     void addEntity(EntityId entityId, const DSpatial& data) override;
     EntityId root() const override;
@@ -180,6 +124,11 @@ EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const
   return m_octree->getIntersecting(frustum);
 }
 
+EntityIdSet SysSpatialImpl::getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const
+{
+  return m_octree->getIntersecting(rayStart, rayEnd);
+}
+
 EntityId SysSpatialImpl::root() const
 {
   return m_sceneGraph->dfs[0];
@@ -209,9 +158,7 @@ const std::string& SysSpatialImpl::name() const
 void SysSpatialImpl::extractComponentSpecs(const ComponentData& data,
   std::vector<ComponentSpec>& specs) const
 {
-  if (data.typeId() == typeid(DSpatial).hash_code()) {
-    extractSpecs<DSpatial>(specs);
-  }
+  extractSpecs<DSpatial>(data, specs);
   // ...
 }
 
@@ -236,6 +183,9 @@ ComponentDataPtr SysSpatialImpl::constructComponentData(const XmlNode& xmlSysSpa
     return constructDSpatial(xmlComp);
   }
   // ...
+  else {
+    EXCEPTION("Bad component data type for spatial system");
+  }
 }
 
 ComponentDataPtr SysSpatialImpl::constructComponentDataWithModifications(const ComponentData& base,
@@ -257,6 +207,9 @@ ComponentDataPtr SysSpatialImpl::constructComponentDataWithModifications(const C
     });
   }
   // ...
+  else {
+    EXCEPTION("Bad component data type for spatial system");
+  }
 }
 
 void SysSpatialImpl::addEntity(EntityId id, const ComponentData& data)
@@ -267,7 +220,7 @@ void SysSpatialImpl::addEntity(EntityId id, const ComponentData& data)
   }
   // ...
   else {
-    EXCEPTION("Wrong component data type for spatial system");
+    EXCEPTION("Bad component data type for spatial system");
   }
 }
 

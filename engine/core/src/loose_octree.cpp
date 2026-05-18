@@ -26,6 +26,7 @@ class LooseOctreeImpl : public LooseOctree
     void move(EntityId entityId, const Vec3f& pos, float radius) override;
     void remove(EntityId entityId) override;
     std::set<EntityId> getIntersecting(const Frustum& volume) const override;
+    std::set<EntityId> getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const override;
 
     const OctreeNode& test_root() const override;
 
@@ -203,6 +204,20 @@ std::set<EntityId> LooseOctreeImpl::getIntersecting(const Frustum& frustum) cons
   std::set<EntityId> entities;
 
   getIntersecting(*m_root, frustum, entities);
+
+  return entities;
+}
+
+std::set<EntityId> LooseOctreeImpl::getIntersecting(const Vec3f& rayStart,
+  const Vec3f& rayEnd) const
+{
+  // TODO: Do this properly
+
+  std::set<EntityId> entities;
+
+  for (auto entry : m_entities) {
+    entities.insert(entry.first);
+  }
 
   return entities;
 }

@@ -122,6 +122,7 @@ class SysSpatial : public System
     virtual void setLocalTransform(EntityId id, const Mat4x4f& m) = 0;
 
     virtual EntityIdSet getIntersecting(const Frustum& frustum) const = 0;
+    virtual EntityIdSet getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const = 0;
 
     virtual ~SysSpatial() = default;
 

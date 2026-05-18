@@ -72,6 +72,14 @@ class System
 
 using SystemPtr = std::unique_ptr<System>;
 
+template<typename T>
+void extractSpecs(const ComponentData& data, std::vector<ComponentSpec>& specs)
+{
+  if (data.typeId() == typeid(T).hash_code()) {
+    extractSpecs<T>(specs);
+  }
+}
+
 class Ecs
 {
   public:

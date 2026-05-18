@@ -16,6 +16,7 @@ namespace Systems
     Behaviour,
     Render3d,
     Render2d,
+    Properties,
     // ...
 
     NUMBER_OF_SYSTEMS

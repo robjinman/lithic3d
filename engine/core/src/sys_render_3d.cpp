@@ -275,21 +275,11 @@ const std::string& SysRender3dImpl::name() const
 void SysRender3dImpl::extractComponentSpecs(const ComponentData& data,
   std::vector<ComponentSpec>& specs) const
 {
-  if (data.typeId() == typeid(DModel).hash_code()) {
-    extractSpecs<DModel>(specs);
-  }
-  else if (data.typeId() == typeid(DSkybox).hash_code()) {
-    extractSpecs<DSkybox>(specs);
-  }
-  else if (data.typeId() == typeid(DDirectionalLight).hash_code()) {
-    extractSpecs<DDirectionalLight>(specs);
-  }
-  else if (data.typeId() == typeid(DPointLight).hash_code()) {
-    extractSpecs<DPointLight>(specs);
-  }
-  else if (data.typeId() == typeid(DParticleEmitter).hash_code()) {
-    extractSpecs<DParticleEmitter>(specs);
-  }
+  extractSpecs<DModel>(data, specs);
+  extractSpecs<DSkybox>(data, specs);
+  extractSpecs<DDirectionalLight>(data, specs);
+  extractSpecs<DPointLight>(data, specs);
+  extractSpecs<DParticleEmitter>(data, specs);
   // ...
 }
 

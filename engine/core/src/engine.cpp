@@ -13,6 +13,7 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/sys_ui.hpp"
+#include "lithic3d/sys_properties.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/resource_manager.hpp"
 #include "lithic3d/render_resource_loader.hpp"
@@ -108,6 +109,7 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());
   auto sysUi = createSysUi(*m_ecs, *m_logger);
+  auto sysProperties = createSysProperties();
 
   m_ecs->addSystem(Systems::Collision, std::move(sysCollision));
   m_ecs->addSystem(Systems::Render2d, std::move(sysRender2d));
@@ -116,6 +118,7 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   m_ecs->addSystem(Systems::Animation2d, std::move(sysAnimation2d));
   m_ecs->addSystem(Systems::Behaviour, std::move(sysBehaviour));
   m_ecs->addSystem(Systems::Ui, std::move(sysUi));
+  m_ecs->addSystem(Systems::Properties, std::move(sysProperties));
 
   m_entityFactory = createEntityFactory(*m_ecs, *m_modelLoader, *m_renderResourceLoader,
     *m_resourceManager, m_paths, *m_logger);
