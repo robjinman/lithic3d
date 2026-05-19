@@ -32,6 +32,10 @@ class ComponentDataWrapper : public ComponentData
       : m_data(data)
     {}
 
+    ComponentDataWrapper(T&& data)
+      : m_data(std::move(data))
+    {}
+
     size_t typeId() const override
     {
       return typeid(T).hash_code();

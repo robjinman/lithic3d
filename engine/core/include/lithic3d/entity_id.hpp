@@ -16,6 +16,8 @@ class EntityIdAllocator
 {
   public:
     virtual EntityId getNewEntityId() = 0;
+    virtual EntityId getNewEntityId(const std::string& name) = 0;
+    virtual EntityId namedEntity(const std::string& name) const = 0;
 
     virtual ~EntityIdAllocator() = default;
 };

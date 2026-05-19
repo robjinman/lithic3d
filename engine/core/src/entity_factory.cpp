@@ -127,7 +127,15 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xm
   auto type = xmlEntity.attribute("type");
   auto& prefab = m_prefabs.at(type);
 
-  auto id = m_ecs.idGen().getNewEntityId();
+  EntityId id = NULL_ENTITY_ID;
+
+  std::string entityName = xmlEntity.attribute("id");
+  if (!entityName.empty()) {
+    id = m_ecs.idGen().getNewEntityId(entityName);
+  }
+  else {
+    id = m_ecs.idGen().getNewEntityId();
+  }
 
   m_logger.debug(STR("Constructing entity " << id << " of type " << type));
 

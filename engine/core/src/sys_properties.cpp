@@ -108,7 +108,7 @@ ComponentDataPtr SysPropertiesImpl::constructComponentDataWithModifications(
   }
   // ...
   else {
-    EXCEPTION("Bad component data type for spatial system");
+    EXCEPTION("Bad component data type for properties system");
   }
 }
 

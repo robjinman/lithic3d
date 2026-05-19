@@ -1,5 +1,6 @@
 #include "lithic3d/entity_id.hpp"
 #include "lithic3d/exception.hpp"
+#include "lithic3d/strings.hpp"
 
 namespace lithic3d
 {
@@ -12,6 +13,8 @@ class EntityIdAllocatorImpl : public EntityIdAllocator
     EntityIdAllocatorImpl(EntityId lastId);
 
     EntityId getNewEntityId() override;
+    EntityId getNewEntityId(const std::string& name) override;
+    EntityId namedEntity(const std::string& name) const override;
 
   private:
     EntityId m_nextId;
@@ -24,6 +27,17 @@ EntityIdAllocatorImpl::EntityIdAllocatorImpl(EntityId lastId)
 EntityId EntityIdAllocatorImpl::getNewEntityId()
 {
   return m_nextId++;
+}
+
+EntityId EntityIdAllocatorImpl::getNewEntityId(const std::string& name)
+{
+  // TODO: Prevent collisions
+  return hashString(name);
+}
+
+EntityId EntityIdAllocatorImpl::namedEntity(const std::string& name) const
+{
+  return hashString(name);
 }
 
 } // namespace
