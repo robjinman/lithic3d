@@ -346,6 +346,7 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
+    .aspectRatio = 64.f / 48.f,
     .captureMouse = true,
     .paths{},
     .features{

@@ -150,7 +150,7 @@ using SysRender2dPtr = std::unique_ptr<SysRender2d>;
 class RenderResourceLoader;
 class Logger;
 
-SysRender2dPtr createSysRender2d(ComponentStore& componentStore, render::Renderer& renderer,
-  RenderResourceLoader& renderResourceLoader, Logger& logger);
+SysRender2dPtr createSysRender2d(float gameAreaAspect, ComponentStore& componentStore,
+  render::Renderer& renderer, RenderResourceLoader& renderResourceLoader, Logger& logger);
 
 } // namespace lithic3d

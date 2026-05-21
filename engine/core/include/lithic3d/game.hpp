@@ -21,6 +21,7 @@ struct GameConfig
   uint32_t windowH = 0;
   uint32_t fullscreenResolutionW = 0;
   uint32_t fullscreenResolutionH = 0;
+  float aspectRatio = 1920.f / 1080.f;
   bool captureMouse = false;
   GameDataPaths paths{};
   GameFeatures features{};

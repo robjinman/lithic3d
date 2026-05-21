@@ -199,8 +199,9 @@ EntityId Demo::constructGround()
 {
   auto material = m_factory->createMaterialAsync("ground.png").wait();
 
-  auto id = m_factory->createStaticCuboid(metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material,
-    metresToWorldUnits(Vec2f{ 5.f, 5.f }), 0.f, 0.4);
+  auto id = m_factory->createStaticCuboid(m_engine.ecs().system<SysSpatial>().root(),
+    metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material, metresToWorldUnits(Vec2f{ 5.f, 5.f }),
+    0.f, 0.4);
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
     translationMatrix4x4(metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));

@@ -290,6 +290,8 @@ void Demo::constructScenario(size_t i)
   assert(m_boxes.empty());
   assert(m_aggregates.empty());
 
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+
   auto material = m_factory->createMaterialAsync("bricks.png");
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
 
@@ -297,15 +299,15 @@ void Demo::constructScenario(size_t i)
     auto size = metresToWorldUnits(obj.dimensions);
     EntityId id = 0;
     if (obj.isStatic) {
-      id = m_factory->createStaticCuboid(size, material, texSize, 0.2f, 0.4f);
+      id = m_factory->createStaticCuboid(sysSpatial.root(), size, material, texSize, 0.2f, 0.4f);
     }
     else {
-      id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.5f);
+      id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
+        0.5f);
     }
     m_boxes.push_back(id);
   }
 
-  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
   auto& sysCollision = m_engine.ecs().system<SysCollision>();
 
@@ -424,7 +426,7 @@ void Demo::constructTerrain()
     "</terrain>";
 
   m_terrain = terrainBuilder->loadTerrainRegionAsync(0, 0, parseXml(xmlTerrain)).wait();
-  terrainBuilder->createEntities(m_terrain.id());
+  terrainBuilder->createEntities(m_engine.ecs().system<SysSpatial>().root(), m_terrain.id());
 }
 
 void Demo::constructGround()
@@ -433,7 +435,8 @@ void Demo::constructGround()
   auto material = m_factory->createMaterialAsync("grass.png");
   auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
   auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
-  auto id = m_factory->createDynamicCuboid(size, material, texSize, 0.f, 0.2f, 0.4f); // TODO: Use static
+  auto id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
+    0.4f); // TODO: Use static
   sysSpatial.setLocalTransform(id, translationMatrix4x4(size * 0.5f));
 }
 
@@ -604,6 +607,7 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
+    .aspectRatio = 64.f / 48.f,
     .captureMouse = false,
     .paths{},
     .features{},

@@ -31,6 +31,7 @@ class Demo : public Game
   private:
     Engine& m_engine;
     FactoryPtr m_factory;
+    EntityId m_rootId;
     EntityId m_light;
     EntityId m_cube;
     EntityId m_caption;
@@ -47,6 +48,8 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
+  m_rootId = m_engine.ecs().system<SysSpatial>().root();
+
   m_light = constructLight();
   m_cube = constructCube();
   m_caption = constructCaption();
@@ -57,7 +60,7 @@ EntityId Demo::constructCube()
   auto material = m_factory->createMaterialAsync("bricks.png");
   auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
   auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
-  return m_factory->createStaticCuboid(size, material.wait(), texSize, 0.2f, 0.4f);
+  return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
 }
 
 EntityId Demo::constructLight()
@@ -67,7 +70,7 @@ EntityId Demo::constructLight()
 
   DSpatial spatial{
     .transform = translationMatrix4x4(metresToWorldUnits(Vec3f{ 5.f, 5.f, 2.f })),
-    .parent = m_engine.ecs().system<SysSpatial>().root(),
+    .parent = m_rootId,
     .enabled = true,
     .aabb{}
   };
@@ -91,7 +94,7 @@ EntityId Demo::constructCaption()
 
   DSpatial spatial{
     .transform = screenSpaceTransform({ 0.15f, 0.2f }, { 0.05f, 0.1f }),
-    .parent = m_engine.ecs().system<SysSpatial>().root(),
+    .parent = m_rootId,
     .enabled = true,
     .aabb{}
   };
@@ -156,6 +159,7 @@ GameConfig getGameConfig()
     .windowH = 480,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
+    .aspectRatio = 64.f / 48.f,
     .captureMouse = false,
     .paths{},
     .features{},

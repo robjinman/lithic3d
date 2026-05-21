@@ -167,7 +167,7 @@ MeshPtr textItemMesh(const std::string& text, size_t length, const Rectf& uvRect
 class SysRender2dImpl : public SysRender2d
 {
   public:
-    SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
+    SysRender2dImpl(float gameAreaAspect, ComponentStore& componentStore, Renderer& renderer,
       RenderResourceLoader& renderResourceLoader, Logger& logger);
 
     double frameRate() const override;
@@ -211,18 +211,20 @@ class SysRender2dImpl : public SysRender2d
     std::unique_ptr<Camera2d> m_camera;
     Renderer& m_renderer;
     RenderResourceLoader& m_renderResourceLoader;
+    float m_gameAreaAspect;
     MeshHandle m_mesh;
     std::unordered_map<EntityId, MeshHandle> m_textItemMeshHandles;
     std::unordered_map<EntityId, MaterialHandle> m_materialHandles;
     std::unordered_map<ScissorId, Recti> m_scissors;
 };
 
-SysRender2dImpl::SysRender2dImpl(ComponentStore& componentStore, Renderer& renderer,
-  RenderResourceLoader& renderResourceLoader, Logger& logger)
+SysRender2dImpl::SysRender2dImpl(float gameAreaAspect, ComponentStore& componentStore,
+  Renderer& renderer, RenderResourceLoader& renderResourceLoader, Logger& logger)
   : m_logger(logger)
   , m_componentStore(componentStore)
   , m_renderer(renderer)
   , m_renderResourceLoader(renderResourceLoader)
+  , m_gameAreaAspect(gameAreaAspect)
 {
   auto viewport = renderer.getViewportSize();
   float aspectRatio = static_cast<float>(viewport[0]) / viewport[1];
@@ -491,8 +493,7 @@ void SysRender2dImpl::update(Tick, const InputState&)
 {
   auto viewport = m_renderer.getViewportSize();
   float screenAspect = static_cast<float>(viewport[0]) / viewport[1];
-  float gameAspect = 630.f / 480.f;  // TODO
-  m_camera->setPosition(Vec3f{ -0.5f * (screenAspect - gameAspect), 0.f, 0.f });
+  m_camera->setPosition(Vec3f{ -0.5f * (screenAspect - m_gameAreaAspect), 0.f, 0.f });
 
   m_renderer.beginPass(render::RenderPass::Overlay, m_camera->getPosition(),
     m_camera->getViewMatrix(), m_camera->getProjectionMatrix());
@@ -587,10 +588,11 @@ SysRender2dImpl::~SysRender2dImpl()
 
 } // namespace
 
-SysRender2dPtr createSysRender2d(ComponentStore& componentStore, Renderer& renderer,
-  RenderResourceLoader& renderResourceLoader, Logger& logger)
+SysRender2dPtr createSysRender2d(float gameAreaAspect, ComponentStore& componentStore,
+  Renderer& renderer, RenderResourceLoader& renderResourceLoader, Logger& logger)
 {
-  return std::make_unique<SysRender2dImpl>(componentStore, renderer, renderResourceLoader, logger);
+  return std::make_unique<SysRender2dImpl>(gameAreaAspect, componentStore, renderer,
+    renderResourceLoader, logger);
 }
 
 } // namespace lithic3d

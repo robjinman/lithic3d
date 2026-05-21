@@ -1,9 +1,13 @@
 <entity name="wall">
   <spatial>
-    <aabb>
-      <min x="-0.5" y="-0.5" z="-0.5"/>
-      <max x="0.5" y="0.5" z="0.5"/>
-    </aabb>
+    <spatial>
+      <aabb>
+        <min x="-0.5" y="-0.5" z="-0.5"/>
+        <max x="0.5" y="0.5" z="0.5"/>
+      </aabb>
+    </spatial>
   </spatial>
-  <model is-instanced="false" file="wall.gltf"/>
+  <render_3d>
+    <model is-instanced="false" file="wall.gltf"/>
+  </render_3d>
 </entity>

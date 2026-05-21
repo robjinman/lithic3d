@@ -101,7 +101,7 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
     *m_logger);
 
   auto sysCollision = createSysCollision(*m_ecs, *m_eventSystem, *m_logger);
-  auto sysRender2d = createSysRender2d(m_ecs->componentStore(), *m_renderer,
+  auto sysRender2d = createSysRender2d(config.aspectRatio, m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
   auto sysRender3d = createSysRender3d(config.drawDistance, *m_ecs, *m_modelLoader, *m_renderer,
     *m_logger);
