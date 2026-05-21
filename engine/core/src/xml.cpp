@@ -183,11 +183,14 @@ void XmlNodeImpl::write(std::ostream& stream, size_t level) const
   for (auto& [name, value] : m_attributes) {
     stream << " " << name << "=\"" << value << "\"";
   }
-  stream << ">\n";
+  stream << ">";
 
   if (!m_value.empty()) {
-    tabSpaces(level + 1);
-    stream << m_value << "\n";
+    stream << m_value;
+  }
+
+  if (m_children.size() > 0) {
+    stream << "\n";
   }
 
   for (auto& child : m_children) {
@@ -195,7 +198,10 @@ void XmlNodeImpl::write(std::ostream& stream, size_t level) const
     ref.write(stream, level + 1);
   }
 
-  tabSpaces(level);
+  if (m_children.size() > 0) {
+    tabSpaces(level);
+  }
+
   stream << "</" << m_name << ">\n";
 }
 
