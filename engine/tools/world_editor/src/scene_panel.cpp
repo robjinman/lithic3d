@@ -14,7 +14,7 @@ class ScenePanelImpl : public ScenePanel
   public:
     ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor);
 
-    void populate(const std::vector<Entity>& entities) override;
+    void populate(const std::vector<EntityIdAndType>& entities) override;
     wxPanel* getWxPtr() override;
 
   private:
@@ -68,7 +68,7 @@ void ScenePanelImpl::onInstanceSelection(wxEvent&)
     return;
   }
 
-  Entity entity = *reinterpret_cast<Entity*>(m_listBox->GetClientData(index));
+  auto& entity = *reinterpret_cast<EntityIdAndType*>(m_listBox->GetClientData(index));
   m_worldEditor.selectEntity(entity.id, entity.type);
 }
 
@@ -87,13 +87,13 @@ wxPanel* ScenePanelImpl::getWxPtr()
   return m_basePanel;
 }
 
-void ScenePanelImpl::populate(const std::vector<Entity>& entities)
+void ScenePanelImpl::populate(const std::vector<EntityIdAndType>& entities)
 {
   m_listBox->Clear();
 
   for (size_t i = 0; i < entities.size(); ++i) {
     m_listBox->Insert(STR("[" << entities[i].id << "] " << entities[i].type), i,
-      new Entity{entities[i]});
+      new EntityIdAndType{entities[i]});
   }
 }
 

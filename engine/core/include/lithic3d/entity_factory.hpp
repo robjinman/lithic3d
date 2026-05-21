@@ -3,11 +3,10 @@
 #include "math.hpp"
 #include "resource_manager.hpp"
 #include "entity_id.hpp"
+#include "xml.hpp"
 
 namespace lithic3d
 {
-
-class XmlNode;
 
 class EntityFactory
 {
@@ -16,7 +15,8 @@ class EntityFactory
     virtual bool hasEntityType(const std::string& type) const = 0;
     virtual EntityId constructEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform) const = 0;
-    virtual EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity) const = 0;
+    virtual EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity,
+      std::vector<XmlNodePtr>& unused) const = 0;
     virtual EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) = 0;
     virtual bool hasPrefab(const std::string& name) const = 0;

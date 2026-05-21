@@ -120,8 +120,8 @@ void CellSlice::stateLoadInitiatedUpdate()
     if (m_handle.ready()) {
       auto entities = m_worldLoader.createEntities(m_handle.id());
 
-      for (auto& [ entityId, type ] : entities) {
-        m_entities.insert(entityId);
+      for (auto& entity : entities) {
+        m_entities.insert(entity.id);
       }
 
       m_state = SliceState::Loaded;
@@ -156,8 +156,8 @@ void CellSlice::statePendingResourceUnloadUpdate()
   if (m_desiredState == SliceState::Loaded) {
     auto entities = m_worldLoader.createEntities(m_handle.id());
 
-    for (auto& [ entityId, type ] : entities) {
-      m_entities.insert(entityId);
+    for (auto& entity : entities) {
+      m_entities.insert(entity.id);
     }
 
     m_state = SliceState::Loaded;

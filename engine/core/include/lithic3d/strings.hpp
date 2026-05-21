@@ -15,6 +15,7 @@ namespace lithic3d
 using HashedString = size_t;
 
 HashedString hashString(const std::string& s);
+bool isHashedString(HashedString hash);
 std::string getHashedString(HashedString hash);
 
 } // namespace lithic3d

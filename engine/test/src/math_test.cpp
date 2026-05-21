@@ -320,3 +320,25 @@ TEST_F(MathTest, decomposeRotationScale)
   EXPECT_NEAR(s[1], s_[1], epsilon);
   EXPECT_NEAR(s[2], s_[2], epsilon);
 }
+
+TEST_F(MathTest, wrap)
+{
+  EXPECT_EQ(10, wrap(10, 10, 20));
+  EXPECT_EQ(20, wrap(20, 10, 20));
+  EXPECT_EQ(11, wrap(11, 10, 20));
+  EXPECT_EQ(20, wrap(9, 10, 20));
+  EXPECT_EQ(19, wrap(8, 10, 20));
+  EXPECT_EQ(10, wrap(21, 10, 20));
+  EXPECT_EQ(11, wrap(22, 10, 20));
+  EXPECT_EQ(12, wrap(23, 10, 20));
+  EXPECT_EQ(13, wrap(24, 10, 20));
+  EXPECT_EQ(14, wrap(25, 10, 20));
+  EXPECT_EQ(15, wrap(26, 10, 20));
+  EXPECT_EQ(16, wrap(27, 10, 20));
+  EXPECT_EQ(17, wrap(28, 10, 20));
+  EXPECT_EQ(18, wrap(29, 10, 20));
+  EXPECT_EQ(19, wrap(30, 10, 20));
+  EXPECT_EQ(20, wrap(31, 10, 20));
+  EXPECT_EQ(10, wrap(32, 10, 20));
+  EXPECT_EQ(1, wrap(-1, 0, 1));
+}

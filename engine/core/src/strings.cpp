@@ -34,6 +34,11 @@ HashedString hashString(const std::string& s)
   return hash;
 }
 
+bool isHashedString(HashedString hash)
+{
+  return getHashTable().contains(hash);
+}
+
 std::string getHashedString(HashedString hash)
 {
   return getHashTable().at(hash);

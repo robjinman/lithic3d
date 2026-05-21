@@ -55,7 +55,10 @@ PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, WorldEditor& worldEditor)
 void PrefabsPanelImpl::onPrefabSelection(wxEvent&)
 {
   auto selected = m_listBox->GetStringSelection().ToStdString();
-  m_worldEditor.setActivePrefab(selected);
+
+  if (!selected.empty()) {
+    m_worldEditor.setActivePrefab(selected);
+  }
 }
 
 void PrefabsPanelImpl::onCancelClick()

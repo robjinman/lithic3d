@@ -7,7 +7,11 @@
 #include <filesystem>
 #include <vector>
 
-namespace lithic3d { struct Entity; }
+struct EntityIdAndType
+{
+  lithic3d::EntityId id;
+  std::string type;
+};
 
 class WorldEditor
 {
@@ -21,7 +25,7 @@ class WorldEditor
     using Callback = std::function<void()>;
 
     virtual std::vector<std::string> listPrefabs() const = 0;
-    virtual std::vector<lithic3d::Entity> getEntities() const = 0;
+    virtual std::vector<EntityIdAndType> getEntities() const = 0;
     virtual void setActivePrefab(const std::string& name) = 0;
     virtual void instantiateActivePrefab() = 0;
     virtual void cancelActivePrefab() = 0;

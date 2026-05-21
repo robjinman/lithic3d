@@ -4,7 +4,6 @@
 #include "lithic3d/component_store.hpp"
 #include "lithic3d/events.hpp"
 #include "lithic3d/trace.hpp"
-#include "lithic3d/xml.hpp"
 #include <map>
 
 namespace lithic3d

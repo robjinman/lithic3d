@@ -325,6 +325,7 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
+    XmlNodePtr componentToXml(EntityId) const override { return nullptr; } // TODO
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -387,7 +388,7 @@ bool boxRayIntersect(const Mat4x4f& transform, const CCollisionBox& boxComp, con
     (A[1] > box.max[1] && B[1] > box.max[1]) ||
     (A[2] > box.max[2] && B[2] > box.max[2])
   ) {
-    //return false;
+    return false;
   }
 
   // TODO: Slab method

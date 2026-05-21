@@ -48,6 +48,25 @@ std::ostream& operator<<(std::ostream& stream, const std::array<T, N>& v)
   return stream;
 }
 
+inline std::string trimWhitespace(const std::string s)
+{
+  if (s.empty()) {
+    return s;
+  }
+
+  auto isWhitespace = [](char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+  };
+
+  size_t i = 0;
+  for (; i < s.size() && isWhitespace(s[i]); ++i) {}
+
+  int j = static_cast<int>(s.size()) - 1;
+  for (; j > 0 && isWhitespace(s[j]); --j) {}
+
+  return s.substr(i, j - i + 1);
+}
+
 std::string getVersionString();
 uint32_t getVersionMajor();
 uint32_t getVersionMinor();

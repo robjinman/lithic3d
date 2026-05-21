@@ -49,6 +49,29 @@ Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m)
   return bounds;
 }
 
+XmlNodePtr toXml(const Mat4x4f& m)
+{
+  auto xmlTransform = createXmlNode("transform");
+  auto xmlMatrix = createXmlNode("matrix");
+
+  std::stringstream ss;
+
+  for (size_t r = 0; r < 3; ++r) {
+    for (size_t c = 0; c < 4; ++c) {
+      ss << m.at(r, c);
+      if (!(r == 2 && c == 3)) {
+        ss << ",";
+      }
+    }
+  }
+
+  xmlMatrix->setValue(ss.str());
+
+  xmlTransform->addChild(std::move(xmlMatrix));
+
+  return xmlTransform;
+}
+
 namespace
 {
 
@@ -63,6 +86,7 @@ class SysSpatialImpl : public SysSpatial
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
+    XmlNodePtr componentToXml(EntityId entityId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -210,6 +234,21 @@ ComponentDataPtr SysSpatialImpl::constructComponentDataWithModifications(const C
   else {
     EXCEPTION("Bad component data type for spatial system");
   }
+}
+
+XmlNodePtr SysSpatialImpl::componentToXml(EntityId entityId) const
+{
+  if (!hasEntity(entityId)) {
+    return nullptr;
+  }
+
+  auto xmlSysSpatial = createXmlNode("spatial");
+  auto xmlSpatial = createXmlNode("spatial");
+
+  xmlSpatial->addChild(toXml(getLocalTransform(entityId)));
+  xmlSysSpatial->addChild(std::move(xmlSpatial));
+
+  return xmlSysSpatial;
 }
 
 void SysSpatialImpl::addEntity(EntityId id, const ComponentData& data)

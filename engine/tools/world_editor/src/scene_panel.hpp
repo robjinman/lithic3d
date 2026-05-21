@@ -5,13 +5,12 @@
 
 class wxPanel;
 class wxWindow;
-
-namespace lithic3d { struct Entity; }
+struct EntityIdAndType;
 
 class ScenePanel
 {
   public:
-    virtual void populate(const std::vector<lithic3d::Entity>& entities) = 0;
+    virtual void populate(const std::vector<EntityIdAndType>& entities) = 0;
     virtual wxPanel* getWxPtr() = 0;
 
     virtual ~ScenePanel() = default;

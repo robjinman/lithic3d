@@ -3,6 +3,7 @@
 #include "math.hpp"
 #include "resource_manager.hpp"
 #include "entity_id.hpp"
+#include "xml.hpp"
 #include <memory>
 
 namespace lithic3d
@@ -19,10 +20,20 @@ struct WorldInfo
   float waterLevel = 0.f;
 };
 
-struct Entity
+struct EntityInfo
 {
+  EntityInfo(EntityId id, const std::string& type, std::vector<XmlNodePtr>&& unused)
+    : id(id)
+    , type(type)
+    , unused(std::move(unused))
+  {}
+
+  EntityInfo(const EntityInfo&) = delete;
+  EntityInfo(EntityInfo&&) = default;
+
   EntityId id;
   std::string type;
+  std::vector<XmlNodePtr> unused;
 };
 
 class WorldLoader
@@ -35,7 +46,7 @@ class WorldLoader
     virtual EntityId root() const = 0;
 
     // Call only once handle returned by loadCellSliceAsync is ready
-    virtual std::vector<Entity> createEntities(ResourceId cellSliceId) = 0;
+    virtual std::vector<EntityInfo> createEntities(ResourceId cellSliceId) = 0;
 
     // To unload a cell slice, delete the entities first, then delete the slice handle
 

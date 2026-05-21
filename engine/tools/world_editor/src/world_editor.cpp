@@ -21,8 +21,32 @@ const Vec4f SelectedEntityColour = { 3.f, 2.f, 2.f, 1.f };
 
 struct SliceState
 {
+  SliceState()
+    : handle{}
+    , entities{}
+    , dirty(false)
+  {}
+
+  SliceState(ResourceHandle handle, std::vector<EntityInfo>&& entities, bool dirty)
+    : handle(handle)
+    , entities(std::move(entities))
+    , dirty(dirty)
+  {}
+
+  SliceState(const SliceState&) = delete;
+  SliceState(SliceState&&) = default;
+
+  SliceState& operator=(SliceState&& rhs)
+  {
+    handle = rhs.handle;
+    entities = std::move(rhs.entities);
+    dirty = rhs.dirty;
+
+    return *this;
+  }
+
   ResourceHandle handle;
-  std::vector<Entity> entities;
+  std::vector<EntityInfo> entities;
   bool dirty = false;
 };
 
@@ -44,7 +68,7 @@ class WorldEditorImpl : public WorldEditor
     WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate);
 
     std::vector<std::string> listPrefabs() const override;
-    std::vector<Entity> getEntities() const override;
+    std::vector<EntityIdAndType> getEntities() const override;
     void setActivePrefab(const std::string& name) override;
     void instantiateActivePrefab() override;
     void cancelActivePrefab() override;
@@ -176,13 +200,16 @@ std::vector<std::string> WorldEditorImpl::listPrefabs() const
   return prefabNames;
 }
 
-std::vector<Entity> WorldEditorImpl::getEntities() const
+std::vector<EntityIdAndType> WorldEditorImpl::getEntities() const
 {
-  std::vector<Entity> entities;
+  std::vector<EntityIdAndType> entities;
 
-  for (auto i : m_worldState.slices) {
+  for (auto& i : m_worldState.slices) {
     auto& slice = i.second;
-    entities.insert(entities.end(), slice.entities.begin(), slice.entities.end());
+
+    for (auto& entity : slice.entities) {
+      entities.push_back({ entity.id, entity.type });
+    }
   }
 
   return entities;
@@ -246,10 +273,9 @@ void WorldEditorImpl::instantiateActivePrefab()
   int sliceIdx = 1; // TODO
   auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
   assert(slice.handle.id() != NULL_RESOURCE_ID);
-  slice.entities.push_back({
-    .id = factory.constructEntity(m_engine->worldGrid().root(), m_cursorEntityType, transform),
-    .type = m_cursorEntityType
-  });
+  slice.entities.push_back(EntityInfo{
+    factory.constructEntity(m_engine->worldGrid().root(), m_cursorEntityType, transform),
+    m_cursorEntityType, {}});
   slice.dirty = true;
 
   raiseEvent(Event::AddOrRemoveEntity);
@@ -368,35 +394,9 @@ void WorldEditorImpl::saveChanges()
   }
 }
 
-// TODO: Move this
-XmlNodePtr toXml(const Mat4x4f& m)
-{
-  auto xmlTransform = createXmlNode("transform");
-  auto xmlMatrix = createXmlNode("matrix");
-
-  std::stringstream ss;
-
-  for (size_t r = 0; r < 3; ++r) {
-    for (size_t c = 0; c < 4; ++c) {
-      ss << m.at(r, c);
-      if (!(r == 2 && c == 3)) {
-        ss << ",";
-      }
-    }
-  }
-
-  xmlMatrix->setValue(ss.str());
-
-  xmlTransform->addChild(std::move(xmlMatrix));
-
-  return xmlTransform;
-}
-
 void WorldEditorImpl::saveChangesToSlice(const fs::path& cellDirName,
   const std::string& sliceFileName, const SliceState& slice)
 {
-  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
-
   auto cellDir = m_config.paths.worldsDir->subdirectory(fs::path{"world"} / cellDirName);
 
   ASSERT(cellDir->fileExists(sliceFileName), "File " << sliceFileName << " doesn't exist");
@@ -405,14 +405,23 @@ void WorldEditorImpl::saveChangesToSlice(const fs::path& cellDirName,
   auto xmlEntities = createXmlNode("entities");
   for (auto& entity : slice.entities) {
     auto xmlEntity = createXmlNode("entity");
-
     xmlEntity->setAttribute("type", entity.type);
-    auto xmlSysSpatial = createXmlNode("spatial");
-    auto xmlSpatial = createXmlNode("spatial");
+    if (isHashedString(entity.id)) {
+      xmlEntity->setAttribute("id", getHashedString(entity.id));
+    }
 
-    xmlSpatial->addChild(toXml(sysSpatial.getLocalTransform(entity.id)));
-    xmlSysSpatial->addChild(std::move(xmlSpatial));
-    xmlEntity->addChild(std::move(xmlSysSpatial));
+    for (SystemId systemId = 0; systemId < m_engine->ecs().numSystems(); ++systemId) {
+      auto& system = m_engine->ecs().getSystem(systemId);
+      auto node = system.componentToXml(entity.id);
+      if (node != nullptr) {
+        xmlEntity->addChild(std::move(node));
+      }
+    }
+
+    for (auto& xmlUnknownSystem : entity.unused) {
+      xmlEntity->addChild(xmlUnknownSystem->clone());
+    }
+
     xmlEntities->addChild(std::move(xmlEntity));
   }
   xmlCellSlice->addChild(std::move(xmlEntities));
@@ -569,11 +578,8 @@ void WorldEditorImpl::createEngine()
   auto cell = cellFromPosition(initialPos);
   for (int i = 0; i < 6; ++i) {
     auto slice = m_engine->worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
-    m_worldState.slices[{ cell[0], cell[1], i }] = {
-      .handle = slice,
-      .entities = m_engine->worldLoader().createEntities(slice.id()),
-      .dirty = false
-    };
+    m_worldState.slices.insert_or_assign({ cell[0], cell[1], i }, SliceState{slice,
+      m_engine->worldLoader().createEntities(slice.id()), false});
   }
 }
 

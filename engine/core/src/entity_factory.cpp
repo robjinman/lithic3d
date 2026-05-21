@@ -1,6 +1,5 @@
 #include "lithic3d/entity_factory.hpp"
 #include "lithic3d/game_data_paths.hpp"
-#include "lithic3d/xml.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/render_resource_loader.hpp"
 #include "lithic3d/sys_spatial.hpp"
@@ -30,7 +29,8 @@ class EntityFactoryImpl : public EntityFactory
     bool hasEntityType(const std::string& type) const override;
     EntityId constructEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform) const override;
-    EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity) const override;
+    EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity,
+      std::vector<XmlNodePtr>& unused) const override;
     EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) override;
     bool hasPrefab(const std::string& name) const override;
@@ -42,10 +42,9 @@ class EntityFactoryImpl : public EntityFactory
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     const GameDataPaths& m_paths;
-
+    std::unordered_map<std::string, SystemId> m_systemNames;
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, Prefab> m_prefabs;
-
     std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab) const;
 };
 
@@ -58,7 +57,11 @@ EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
   , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
   , m_paths(paths)
-{}
+{
+  for (SystemId i = 0; i < m_ecs.numSystems(); ++i) {
+    m_systemNames[m_ecs.getSystem(i).name()] = i;
+  }
+}
 
 ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
 {
@@ -120,7 +123,8 @@ void setParentIdIfSpatialComponent(ComponentData& c, EntityId parentId)
   }
 }
 
-EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xmlEntity) const
+EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xmlEntity,
+  std::vector<XmlNodePtr>& unused) const
 {
   std::scoped_lock lock{m_mutex};
 
@@ -141,6 +145,14 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xm
 
   auto specs = getComponentSpecs(prefab);
   m_ecs.componentStore().allocateEntity(id, specs);
+
+  // First pass looking for unknown system components
+  for (auto& xmlSystem : xmlEntity) {
+    auto i = m_systemNames.find(xmlSystem.name());
+    if (i == m_systemNames.end()) {
+      unused.push_back(xmlSystem.clone());
+    }
+  }
 
   for (size_t systemId = 0; systemId < prefab.components.size(); ++systemId) {
     if (prefab.components[systemId] != nullptr) {

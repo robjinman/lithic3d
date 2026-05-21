@@ -814,7 +814,7 @@ inline int wrap(int value, int min, int max)
 {
   int span = max - min + 1;
   int i = value - min;
-  return i < 0 ? max - (-i % span) : min + i % span;
+  return i < 0 ? max - ((-i - 1) % span) : min + i % span;
 }
 
 } // namespace lithic3d

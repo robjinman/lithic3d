@@ -1,5 +1,6 @@
 #include "lithic3d/sys_properties.hpp"
 #include "lithic3d/xml.hpp"
+#include "lithic3d/utils.hpp"
 
 namespace lithic3d
 {
@@ -17,6 +18,7 @@ class SysPropertiesImpl : public SysProperties
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
+    XmlNodePtr componentToXml(EntityId entityId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -60,17 +62,18 @@ ComponentDataPtr SysPropertiesImpl::constructDProperties(const XmlNode& xmlPrope
   DProperties properties;
 
   for (auto& node : xmlProperties) {
+    auto value = trimWhitespace(node.value());
     if (node.name() == "string") {
-      properties.strings[node.attribute("name")] = node.value();
+      properties.strings[node.attribute("name")] = value;
     }
     else if (node.name() == "int") {
-      properties.ints[node.attribute("name")] = std::stoi(node.value());
+      properties.ints[node.attribute("name")] = std::stoi(value);
     }
     else if (node.name() == "float") {
-      properties.floats[node.attribute("name")] = std::stof(node.value());
+      properties.floats[node.attribute("name")] = std::stof(value);
     }
     else if (node.name() == "bool") {
-      properties.bools[node.attribute("name")] = node.value() == "true";
+      properties.bools[node.attribute("name")] = value == "true";
     }
   }
 
@@ -110,6 +113,44 @@ ComponentDataPtr SysPropertiesImpl::constructComponentDataWithModifications(
   else {
     EXCEPTION("Bad component data type for properties system");
   }
+}
+
+template<typename T>
+void writeToXml(XmlNode& parent, const std::string& typeName,
+  const std::unordered_map<std::string, T>& map)
+{
+  for (auto& entry : map) {
+    auto node = createXmlNode(typeName);
+    node->setAttribute("name", entry.first);
+    if constexpr (std::is_same<T, std::string>::value) {
+      node->setValue(entry.second);
+    }
+    else {
+      node->setValue(std::to_string(entry.second));
+    }
+    parent.addChild(std::move(node));
+  }
+}
+
+XmlNodePtr SysPropertiesImpl::componentToXml(EntityId entityId) const
+{
+  auto i = m_components.find(entityId);
+  if (i == m_components.end()) {
+    return nullptr;
+  }
+  auto& comp = i->second;
+
+  auto xmlSysProperties = createXmlNode("properties");
+  auto xmlProperties = createXmlNode("properties");
+
+  writeToXml(*xmlProperties, "string", comp.strings);
+  writeToXml(*xmlProperties, "int", comp.ints);
+  writeToXml(*xmlProperties, "float", comp.floats);
+  writeToXml(*xmlProperties, "bool", comp.bools);
+
+  xmlSysProperties->addChild(std::move(xmlProperties));
+
+  return xmlSysProperties;
 }
 
 void SysPropertiesImpl::addEntity(EntityId id, const ComponentData& data)

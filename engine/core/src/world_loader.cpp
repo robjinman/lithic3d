@@ -54,7 +54,7 @@ class WorldLoaderImpl : public WorldLoader
     const WorldInfo& worldInfo() const override;
     EntityId root() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
-    std::vector<Entity> createEntities(ResourceId cellSliceId) override;
+    std::vector<EntityInfo> createEntities(ResourceId cellSliceId) override;
 
   private:
     Logger& m_logger;
@@ -130,26 +130,27 @@ EntityId WorldLoaderImpl::root() const
   return m_root;
 }
 
-std::vector<Entity> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
+std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
   //std::scoped_lock lock{m_mutex};
 
   auto& cellSlice = m_cellSlices.at(cellSliceId);
-  std::vector<Entity> entities;
+  std::vector<EntityInfo> entities;
 
   if (cellSlice.terrain) {
     assert(cellSlice.terrain.ready());
     auto terrainIds = m_terrainBuilder->createEntities(m_root, cellSlice.terrain.id());
     for (auto id : terrainIds) {
-      entities.push_back({ id, "terrain" });
+      entities.push_back(EntityInfo{id, "terrain", {}});
     }
   }
 
   for (auto& entityXml : cellSlice.pendingEntities) {
     auto type = entityXml->attribute("type");
 
-    auto id = m_entityFactory.constructEntity(m_root, *entityXml);
-    entities.push_back({ id, type });
+    std::vector<XmlNodePtr> unused;
+    auto id = m_entityFactory.constructEntity(m_root, *entityXml, unused);
+    entities.push_back(EntityInfo{id, type, std::move(unused)});
   }
 
   cellSlice.pendingEntities.clear();

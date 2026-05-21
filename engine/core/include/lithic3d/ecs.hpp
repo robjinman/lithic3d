@@ -3,6 +3,7 @@
 #include "strings.hpp"
 #include "units.hpp"
 #include "component_store.hpp"
+#include "xml.hpp"
 #include <set>
 #include <memory>
 
@@ -12,7 +13,6 @@ namespace lithic3d
 using SystemId = uint32_t;
 
 class Event;
-class XmlNode;
 struct InputState;
 
 class ComponentData
@@ -65,6 +65,7 @@ class System
     virtual ComponentDataPtr constructComponentData(const XmlNode& data) const = 0;
     virtual ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const = 0;
+    virtual XmlNodePtr componentToXml(EntityId entityId) const = 0;
     virtual void addEntity(EntityId id, const ComponentData& data) = 0;
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;
