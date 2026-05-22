@@ -39,6 +39,8 @@ struct DAnimation2d
 class SysAnimation2d : public System
 {
   public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual void addEntity(EntityId entityId, const DAnimation2d& data) = 0;
     virtual Animation2dId addAnimation(Animation2dPtr animation) = 0;
     virtual void replaceAnimation(Animation2dId animationId, Animation2dPtr animation) = 0;

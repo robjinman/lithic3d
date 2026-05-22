@@ -67,6 +67,8 @@ namespace render { class Renderer; }
 class SysRender3d : public System
 {
   public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual double frameRate() const = 0;
 
     virtual Camera3d& camera() = 0;

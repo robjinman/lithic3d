@@ -27,12 +27,9 @@ class EntityFactory
 using EntityFactoryPtr = std::unique_ptr<EntityFactory>;
 
 class Ecs;
-class ModelLoader;
-class RenderResourceLoader;
 struct GameDataPaths;
 
-EntityFactoryPtr createEntityFactory(Ecs& ecs, ModelLoader& modelLoader,
-  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
+EntityFactoryPtr createEntityFactory(Ecs& ecs, ResourceManager& resourceManager,
   const GameDataPaths& paths, Logger& logger);
 
 } // namespace lithic3d

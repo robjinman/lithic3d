@@ -278,7 +278,7 @@ class PipelineImpl : public Pipeline
     PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
       VkRenderPass renderPass, uint32_t subpass, VkExtent2D swapchainExtent,
-      VkFormat swapchainImageFormat, const ScreenMargins& margins);
+      const ScreenMargins& margins);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
@@ -294,7 +294,6 @@ class PipelineImpl : public Pipeline
     VkDevice m_device;
     VkRenderPass m_renderPass;
     uint32_t m_subpass;
-    VkFormat m_swapchainImageFormat;
     ScreenMargins m_margins;
     VkShaderModule m_vertShaderModule = VK_NULL_HANDLE;
     VkShaderModule m_fragShaderModule = VK_NULL_HANDLE;
@@ -325,15 +324,13 @@ class PipelineImpl : public Pipeline
 
 PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat,
-  const ScreenMargins& margins)
+  uint32_t subpass, VkExtent2D swapchainExtent, const ScreenMargins& margins)
   : m_logger(logger)
   , m_renderResources(renderResources)
   , m_spec(spec)
   , m_device(device)
   , m_renderPass(renderPass)
   , m_subpass(subpass)
-  , m_swapchainImageFormat(swapchainImageFormat)
   , m_margins(margins)
 {
   m_vertShaderModule = createShaderModule(m_device, shader.vertexShaderCode);
@@ -743,11 +740,10 @@ PipelineImpl::~PipelineImpl()
 
 PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shaderProgram,
   const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat,
-  const ScreenMargins& margins)
+  uint32_t subpass, VkExtent2D swapchainExtent, const ScreenMargins& margins)
 {
   return std::make_unique<PipelineImpl>(spec, shaderProgram, renderResources, logger, device,
-    renderPass, subpass, swapchainExtent, swapchainImageFormat, margins);
+    renderPass, subpass, swapchainExtent, margins);
 }
 
 } // namespace render

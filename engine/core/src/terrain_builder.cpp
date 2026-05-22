@@ -72,7 +72,7 @@ class TerrainBuilderImpl : public TerrainBuilder
 
   private:
     TerrainConfig m_config;
-    Logger& m_logger;
+    [[maybe_unused]] Logger& m_logger;
     Ecs& m_ecs;
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;

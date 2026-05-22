@@ -19,6 +19,8 @@ struct DProperties
 class SysProperties : public System
 {
   public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual void addEntity(EntityId id, const DProperties& data) = 0;
 
     virtual void setIntProperty(EntityId entityId, const std::string& name, int value) = 0;

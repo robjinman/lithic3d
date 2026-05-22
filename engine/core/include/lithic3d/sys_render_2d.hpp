@@ -120,6 +120,8 @@ namespace render { class Renderer; }
 class SysRender2d : public System
 {
   public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual double frameRate() const = 0;
 
     virtual Camera2d& camera() = 0;

@@ -62,8 +62,6 @@ class WorldLoaderImpl : public WorldLoader
     Ecs& m_ecs;
     EntityId m_root = NULL_ENTITY_ID;
     EntityFactory& m_entityFactory;
-    ModelLoader& m_modelLoader;
-    RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     TerrainBuilderPtr m_terrainBuilder;
     std::string m_worldName = "world"; // TODO
@@ -84,8 +82,6 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
   , m_paths(paths)
   , m_ecs(ecs)
   , m_entityFactory(entityFactory)
-  , m_modelLoader(modelLoader)
-  , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
 {
   constructRoot();
@@ -106,7 +102,7 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
     .waterLevel = worldUnitsToMetres(m_worldInfo.waterLevel)
   };
 
-  m_terrainBuilder = createTerrainBuilder(terrainConfig, m_ecs, modelLoader, m_renderResourceLoader,
+  m_terrainBuilder = createTerrainBuilder(terrainConfig, m_ecs, modelLoader, renderResourceLoader,
     m_resourceManager, m_paths, m_logger);
 }
 

@@ -23,6 +23,8 @@ using DBehaviourPtr = std::unique_ptr<DBehaviour>;
 class SysBehaviour : public System
 {
   public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual void addBehaviour(EntityId entityId, DBehaviourPtr behaviour) = 0;
     virtual DBehaviour& getBehaviour(EntityId entityId, HashedString name) = 0;
     virtual const DBehaviour& getBehaviour(EntityId entityId, HashedString name) const = 0;

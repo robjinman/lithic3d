@@ -318,7 +318,7 @@ class RendererImpl : public Renderer
     QueueFamilyIndices m_queueFamilyIndices;
     VkQueue m_graphicsQueue;
     VkQueue m_presentQueue;
-    VkQueue m_transferQueue; // TODO: Never used?
+    //VkQueue m_transferQueue;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
@@ -468,7 +468,7 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
 
         auto subpass = m_renderPasses[static_cast<size_t>(key.renderPass)];
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device,
-          subpass.renderPass, subpass.subpass, extent, m_swapchainImageFormat,
+          subpass.renderPass, subpass.subpass, extent,
           m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));

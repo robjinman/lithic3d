@@ -83,7 +83,7 @@ void Scheduler::update()
 
 void Scheduler::run(Tick delay, std::function<void()>&& fn)
 {
-  std::scoped_lock{m_mutex};
+  std::scoped_lock lock{m_mutex};
   m_tasks[m_currentTick + delay].push_back(std::move(fn));
 }
 

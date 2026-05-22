@@ -206,7 +206,7 @@ class SysRender2dImpl : public SysRender2d
     ~SysRender2dImpl() override;
 
   private:
-    Logger& m_logger;
+    [[maybe_unused]] Logger& m_logger;
     ComponentStore& m_componentStore;
     std::unique_ptr<Camera2d> m_camera;
     Renderer& m_renderer;

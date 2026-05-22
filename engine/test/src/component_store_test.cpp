@@ -389,7 +389,7 @@ TEST_F(ComponentStoreTest, cannot_modify_const_componentStore)
     auto& compA = group.component<ComponentA>(entityId);
     //compA.a = 123; // Not allowed
 
-    auto compAs = group.components<ComponentA>();
+    //auto compAs = group.components<ComponentA>();
     //compAs[0].a = 123; // Not allowed
 
     auto& compB = group.component<ComponentB>(entityId);

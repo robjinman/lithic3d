@@ -104,7 +104,9 @@ struct DSpatial
 
 class SysSpatial : public System
 {
-  public:  
+  public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual EntityId root() const = 0;
     virtual std::vector<EntityId> getDescendents(EntityId entityId) const = 0;
     virtual void addEntity(EntityId id, const DSpatial& data) = 0;

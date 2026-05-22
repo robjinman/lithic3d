@@ -353,7 +353,7 @@ class ModelLoaderImpl : public ModelLoader
     ~ModelLoaderImpl() override;
 
   private:
-    Logger& m_logger;
+    [[maybe_unused]] Logger& m_logger;
     RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     const GameDataPaths& m_paths;

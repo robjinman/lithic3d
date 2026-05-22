@@ -120,8 +120,7 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   m_ecs->addSystem(Systems::Ui, std::move(sysUi));
   m_ecs->addSystem(Systems::Properties, std::move(sysProperties));
 
-  m_entityFactory = createEntityFactory(*m_ecs, *m_modelLoader, *m_renderResourceLoader,
-    *m_resourceManager, m_paths, *m_logger);
+  m_entityFactory = createEntityFactory(*m_ecs, *m_resourceManager, m_paths, *m_logger);
 
   if (config.features.terrain) {
     m_worldLoader = createWorldLoader(*m_ecs, m_paths, *m_entityFactory, *m_modelLoader,

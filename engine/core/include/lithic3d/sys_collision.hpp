@@ -214,6 +214,8 @@ struct Intersection
 class SysCollision : public System
 {
   public:
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual void setInverseMass(EntityId id, float inverseMass) = 0;
     // TODO: function to apply force at offset
     virtual void applyForce(EntityId id, const Vec3f& force, float seconds) = 0;

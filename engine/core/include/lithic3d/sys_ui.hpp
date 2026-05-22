@@ -15,6 +15,8 @@ class SysUi : public System
   public:
     using GroupId = uint32_t;
 
+    using System::addEntity;  // Silence clang warning -Woverloaded-virtual
+
     virtual void addEntity(EntityId id, const DUi& data) = 0;
     virtual void setActiveGroup(GroupId id, EntityId focusedItem = NULL_ENTITY_ID) = 0;
 

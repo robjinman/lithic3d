@@ -21,9 +21,8 @@ struct Prefab
 class EntityFactoryImpl : public EntityFactory
 {
   public:
-    EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
-      RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
-      const GameDataPaths& paths, Logger& logger);
+    EntityFactoryImpl(Ecs& ecs, ResourceManager& resourceManager, const GameDataPaths& paths,
+      Logger& logger);
 
     ResourceHandle loadPrefabAsync(const std::string& name) override;
     bool hasEntityType(const std::string& type) const override;
@@ -38,8 +37,6 @@ class EntityFactoryImpl : public EntityFactory
   private:
     Logger& m_logger;
     Ecs& m_ecs;
-    ModelLoader& m_modelLoader;
-    RenderResourceLoader& m_renderResourceLoader;
     ResourceManager& m_resourceManager;
     const GameDataPaths& m_paths;
     std::unordered_map<std::string, SystemId> m_systemNames;
@@ -48,13 +45,10 @@ class EntityFactoryImpl : public EntityFactory
     std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab) const;
 };
 
-EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
-  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
+EntityFactoryImpl::EntityFactoryImpl(Ecs& ecs, ResourceManager& resourceManager,
   const GameDataPaths& paths, Logger& logger)
   : m_logger(logger)
   , m_ecs(ecs)
-  , m_modelLoader(modelLoader)
-  , m_renderResourceLoader(renderResourceLoader)
   , m_resourceManager(resourceManager)
   , m_paths(paths)
 {
@@ -254,12 +248,10 @@ bool EntityFactoryImpl::hasPrefab(const std::string& name) const
 
 } // namespace
 
-EntityFactoryPtr createEntityFactory(Ecs& ecs, ModelLoader& modelLoader,
-  RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
+EntityFactoryPtr createEntityFactory(Ecs& ecs, ResourceManager& resourceManager,
   const GameDataPaths& paths, Logger& logger)
 {
-  return std::make_unique<EntityFactoryImpl>(ecs, modelLoader, renderResourceLoader,
-    resourceManager, paths, logger);
+  return std::make_unique<EntityFactoryImpl>(ecs, resourceManager, paths, logger);
 }
 
 } // namespace lithic3d

@@ -128,8 +128,7 @@ using PipelinePtr = std::unique_ptr<Pipeline>;
 
 PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat,
-  const ScreenMargins& margins);
+  uint32_t subpass, VkExtent2D swapchainExtent, const ScreenMargins& margins);
 
 } // namespace render
 } // namespace lithic3d

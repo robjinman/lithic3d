@@ -214,11 +214,9 @@ using DObjectPtr = std::unique_ptr<DObject>;
 class DObjectFactory
 {
   public:
-    DObjectFactory(Delegate& delegate, ResourceManager& resourceManager,
-      AObjectFactory& aObjectFactory)
+    DObjectFactory(Delegate& delegate, ResourceManager& resourceManager)
       : m_delegate(delegate)
       , m_resourceManager(resourceManager)
-      , m_aObjectFactory(aObjectFactory)
     {}
 
     // Demonstrates creation of a resource that is dependent on an already existing resource
@@ -241,7 +239,6 @@ class DObjectFactory
   private:
     Delegate& m_delegate;
     ResourceManager& m_resourceManager;
-    AObjectFactory& m_aObjectFactory;
     std::unordered_map<ResourceId, DObjectPtr> m_objects;
 
     // Called from resource manager thread
@@ -275,8 +272,7 @@ class ResourceManagerTest : public testing::Test
         *m_aObjectFactory);
       m_cObjectFactory = std::make_unique<CObjectFactory>(*m_delegate, *m_resourceManager,
         *m_bObjectFactory);
-      m_dObjectFactory = std::make_unique<DObjectFactory>(*m_delegate, *m_resourceManager,
-        *m_aObjectFactory);
+      m_dObjectFactory = std::make_unique<DObjectFactory>(*m_delegate, *m_resourceManager);
     }
 
     virtual void TearDown() override

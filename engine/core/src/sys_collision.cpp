@@ -343,7 +343,7 @@ class SysCollisionImpl : public SysCollision
 
   private:
     Logger& m_logger;
-    EventSystem& m_eventSystem;
+    //EventSystem& m_eventSystem;
     Ecs& m_ecs;
     std::unordered_map<EntityId, std::vector<EntityId>> m_aggregates;
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
@@ -370,9 +370,9 @@ class SysCollisionImpl : public SysCollision
       std::vector<Contact>& contacts) const;
 };
 
-SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
+SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem&, Logger& logger)
   : m_logger(logger)
-  , m_eventSystem(eventSystem)
+  //, m_eventSystem(eventSystem)
   , m_ecs(ecs)
 {
 }
