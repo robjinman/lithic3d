@@ -278,7 +278,7 @@ class PipelineImpl : public Pipeline
     PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
       VkRenderPass renderPass, uint32_t subpass, VkExtent2D swapchainExtent,
-      VkFormat swapchainImageFormat, VkFormat depthFormat, const ScreenMargins& margins);
+      VkFormat swapchainImageFormat, const ScreenMargins& margins);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
@@ -325,7 +325,7 @@ class PipelineImpl : public Pipeline
 
 PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat,
   const ScreenMargins& margins)
   : m_logger(logger)
   , m_renderResources(renderResources)
@@ -743,11 +743,11 @@ PipelineImpl::~PipelineImpl()
 
 PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shaderProgram,
   const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat, VkFormat depthFormat,
+  uint32_t subpass, VkExtent2D swapchainExtent, VkFormat swapchainImageFormat,
   const ScreenMargins& margins)
 {
   return std::make_unique<PipelineImpl>(spec, shaderProgram, renderResources, logger, device,
-    renderPass, subpass, swapchainExtent, swapchainImageFormat, depthFormat, margins);
+    renderPass, subpass, swapchainExtent, swapchainImageFormat, margins);
 }
 
 } // namespace render

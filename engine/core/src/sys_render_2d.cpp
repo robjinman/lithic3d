@@ -442,27 +442,27 @@ const std::string& SysRender2dImpl::name() const
   return name;
 }
 
-void SysRender2dImpl::extractComponentSpecs(const ComponentData& data,
-  std::vector<ComponentSpec>& specs) const
+void SysRender2dImpl::extractComponentSpecs(const ComponentData&,
+  std::vector<ComponentSpec>&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysRender2dImpl::constructComponentData(const XmlNode& data) const
+ComponentDataPtr SysRender2dImpl::constructComponentData(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysRender2dImpl::constructComponentDataWithModifications(const ComponentData& base,
-  const XmlNode& changes) const
+ComponentDataPtr SysRender2dImpl::constructComponentDataWithModifications(const ComponentData&,
+  const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-void SysRender2dImpl::addEntity(EntityId id, const ComponentData& data)
+void SysRender2dImpl::addEntity(EntityId, const ComponentData&)
 {
   // TODO
   EXCEPTION("Not implemented");

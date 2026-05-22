@@ -344,7 +344,6 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructDCapsule(const XmlNode& data) const;
     ComponentDataPtr constructDPolyhedron(const XmlNode& data) const;
     ComponentDataPtr constructDAggregate(const XmlNode& data) const;
-    ComponentDataPtr constructDTerrain(const XmlNode& data) const;
 
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
@@ -397,8 +396,8 @@ bool boxRayIntersect(const Mat4x4f& transform, const CCollisionBox& boxComp, con
   return true;
 }
 
-bool capsuleRayIntersect(const Mat4x4f& transform, const CCollisionCapsule& capsule,
-  const Vec3f& rayStart, const Vec3f& rayEnd, float& t)
+bool capsuleRayIntersect(const Mat4x4f&, const CCollisionCapsule&, const Vec3f&,
+  const Vec3f&, float&)
 {
   // TODO
   return false;
@@ -634,7 +633,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     DSpatial spatial{
       .transform = data.polyhedraTransforms[i],
       .parent = id,
-      .enabled = true
+      .enabled = true,
+      .aabb{}
     };
 
     sysSpatial.addEntity(childId, spatial);
@@ -663,7 +663,7 @@ void SysCollisionImpl::extractComponentSpecs(const ComponentData& data,
   // ...
 }
 
-ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode& data) const
+ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
@@ -690,25 +690,19 @@ ComponentDataPtr SysCollisionImpl::constructDStaticBox(const XmlNode& xmlStaticB
   });
 }
 
-ComponentDataPtr SysCollisionImpl::constructDCapsule(const XmlNode& data) const
+ComponentDataPtr SysCollisionImpl::constructDCapsule(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysCollisionImpl::constructDPolyhedron(const XmlNode& data) const
+ComponentDataPtr SysCollisionImpl::constructDPolyhedron(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode& data) const
-{
-  // TODO
-  EXCEPTION("Not implemented");
-}
-
-ComponentDataPtr SysCollisionImpl::constructDTerrain(const XmlNode& data) const
+ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
@@ -737,8 +731,8 @@ ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& xmlSysC
   }
 }
 
-ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
-  const ComponentData& base, const XmlNode& changes) const
+ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(const ComponentData&,
+  const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
@@ -996,13 +990,13 @@ inline bool isInside(const BoundingBox& box, const Vec3f& P, float epsilon = 0.f
 inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& transform)
 {
   // C------D
-  // |\     |\ 
-  // | \    | \ 
-  // A--\---B  \ 
-  //  \  \   \  \ 
-  //   \  G------H
-  //    \ |    \ |
-  //     \|     \|
+  // |\     |\        .
+  // | \    | \       .
+  // A--\---B  \      .
+  //  \  \   \  \     .
+  //   \  G------H    .
+  //    \ |    \ |    .
+  //     \|     \|    .
   //      E------F
   auto t = transform * box.transform;
   return {
@@ -1382,11 +1376,11 @@ void generateBoxBoxContacts(const ObjectComponents& A, const ObjectComponents& B
   }
 }
 
-void generateCapsuleCapsuleContacts(const ObjectComponents& A, const ObjectComponents& B,
-  std::vector<Contact>& contacts)
+void generateCapsuleCapsuleContacts(const ObjectComponents&, const ObjectComponents&,
+  std::vector<Contact>&)
 {
-  assert(A.capsule != nullptr);
-  assert(B.capsule != nullptr);
+  //assert(A.capsule != nullptr);
+  //assert(B.capsule != nullptr);
 
   // TODO
 }
@@ -1439,7 +1433,8 @@ Vec3f closestPoint(const std::array<Vec3f, 3>& triangle, const Vec3f& P)
   float ACdotAC = AC.dot(AC);
 
   Vec2f st;
-  bool result = solve({ ABdotAB, ABdotAC, -APdotAB }, { ABdotAC, ACdotAC, -APdotAC }, st);
+  [[ maybe_unused ]]bool result = solve({ ABdotAB, ABdotAC, -APdotAB },
+    { ABdotAC, ACdotAC, -APdotAC }, st);
   assert(result);
 
   // Barycentric coordinates
@@ -1564,33 +1559,33 @@ void generateCapsuleTerrainContacts(const ObjectComponents& A, const ObjectCompo
   }
 }
 
-void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponents& B,
-  std::vector<Contact>& contacts)
+void generateBoxCapsuleContacts(const ObjectComponents&, const ObjectComponents&,
+  std::vector<Contact>&)
 {
-  assert(A.box != nullptr);
-  assert(B.capsule != nullptr);
+  //assert(A.box != nullptr);
+  //assert(B.capsule != nullptr);
 
   // TODO
 }
 
-void SysCollisionImpl::generateBoxPolyContacts(const ObjectComponents& A, const ObjectComponents& B,
-  std::vector<Contact>& contacts) const
+void SysCollisionImpl::generateBoxPolyContacts(const ObjectComponents&, const ObjectComponents&,
+  std::vector<Contact>&) const
 {
-  assert(A.box != nullptr);
-  auto i = m_polyhedra.find(B.entityId);
-  assert(i != m_polyhedra.end());
-  const PolyhedronData& poly = *i->second;
+  //assert(A.box != nullptr);
+  //auto i = m_polyhedra.find(B.entityId);
+  //assert(i != m_polyhedra.end());
+  //const PolyhedronData& poly = *i->second;
 
   // TODO
 }
 
-void SysCollisionImpl::generateCapsulePolyContacts(const ObjectComponents& A,
-  const ObjectComponents& B, std::vector<Contact>& contacts) const
+void SysCollisionImpl::generateCapsulePolyContacts(const ObjectComponents&,
+  const ObjectComponents&, std::vector<Contact>&) const
 {
-  assert(A.capsule != nullptr);
-  auto i = m_polyhedra.find(B.entityId);
-  assert(i != m_polyhedra.end());
-  const PolyhedronData& poly = *i->second;
+  //assert(A.capsule != nullptr);
+  //auto i = m_polyhedra.find(B.entityId);
+  //assert(i != m_polyhedra.end());
+  //const PolyhedronData& poly = *i->second;
 
   // TODO
 }
@@ -2191,7 +2186,7 @@ void SysCollisionImpl::update(Tick, const InputState&)
   integrate();
 }
 
-void SysCollisionImpl::processEvent(const Event& event)
+void SysCollisionImpl::processEvent(const Event&)
 {
   // TODO
 }

@@ -67,27 +67,27 @@ const std::string& SysBehaviourImpl::name() const
   return name;
 }
 
-void SysBehaviourImpl::extractComponentSpecs(const ComponentData& data,
-  std::vector<ComponentSpec>& specs) const
+void SysBehaviourImpl::extractComponentSpecs(const ComponentData&,
+  std::vector<ComponentSpec>&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysBehaviourImpl::constructComponentData(const XmlNode& data) const
+ComponentDataPtr SysBehaviourImpl::constructComponentData(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysBehaviourImpl::constructComponentDataWithModifications(
-  const ComponentData& base, const XmlNode& changes) const
+ComponentDataPtr SysBehaviourImpl::constructComponentDataWithModifications(const ComponentData&,
+  const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-void SysBehaviourImpl::addEntity(EntityId id, const ComponentData& data)
+void SysBehaviourImpl::addEntity(EntityId, const ComponentData&)
 {
   // TODO
   EXCEPTION("Not implemented");

@@ -137,27 +137,27 @@ const std::string& SysUiImpl::name() const
   return name;
 }
 
-void SysUiImpl::extractComponentSpecs(const ComponentData& data,
-  std::vector<ComponentSpec>& specs) const
+void SysUiImpl::extractComponentSpecs(const ComponentData&,
+  std::vector<ComponentSpec>&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysUiImpl::constructComponentData(const XmlNode& data) const
+ComponentDataPtr SysUiImpl::constructComponentData(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysUiImpl::constructComponentDataWithModifications(const ComponentData& base,
-  const XmlNode& changes) const
+ComponentDataPtr SysUiImpl::constructComponentDataWithModifications(const ComponentData&,
+  const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-void SysUiImpl::addEntity(EntityId id, const ComponentData& data)
+void SysUiImpl::addEntity(EntityId, const ComponentData&)
 {
   // TODO
   EXCEPTION("Not implemented");

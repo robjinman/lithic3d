@@ -195,6 +195,7 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const std::string
         assert(data.typeId() == typeid(DSpatial).hash_code());
         auto& spatialWrapper = dynamic_cast<ComponentDataWrapper<DSpatial>&>(data);
         auto spatial = spatialWrapper.data(); // Copy
+        spatial.parent = parentId;
         spatial.transform = transform;
         m_ecs.system<SysSpatial>().addEntity(id, spatial);
       }
@@ -226,7 +227,7 @@ EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, const std::s
     assert(data.typeId() == typeid(DSpatial).hash_code());
     auto& spatialWrapper = dynamic_cast<ComponentDataWrapper<DSpatial>&>(data);
     auto spatial = spatialWrapper.data(); // Copy
-
+    spatial.parent = parentId;
     spatial.transform = transform;
     m_ecs.system<SysSpatial>().addEntity(id, spatial);
   }

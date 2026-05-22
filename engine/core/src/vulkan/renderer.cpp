@@ -31,7 +31,7 @@
 #endif
 
 #if !defined(NDEBUG) && !defined(PLATFORM_IOS)
-//#define USE_VALIDATION_LAYERS 1
+#define USE_VALIDATION_LAYERS 1
 #endif
 
 namespace lithic3d
@@ -462,15 +462,13 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
   DBG_TRACE(m_logger);
 
   auto compile = [&, this]() {
-    auto depthFormat = findDepthFormat(m_physicalDevice);
-
-    auto addPipeline = [this, depthFormat](PipelineKey key, VkExtent2D extent) {
+    auto addPipeline = [this](PipelineKey key, VkExtent2D extent) {
       if (!m_pipelines.contains(key)) {
         auto shader = loadShaderProgram(m_paths.shadersDir, key);
 
         auto subpass = m_renderPasses[static_cast<size_t>(key.renderPass)];
         auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device,
-          subpass.renderPass, subpass.subpass, extent, m_swapchainImageFormat, depthFormat,
+          subpass.renderPass, subpass.subpass, extent, m_swapchainImageFormat,
           m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
@@ -1186,7 +1184,7 @@ VkSurfaceFormatKHR RendererImpl::chooseSwapChainSurfaceFormat(
   const std::vector<VkSurfaceFormatKHR>& availableFormats) const
 {
   DBG_LOG(m_logger, "Available surface formats:");
-  for (const auto& format : availableFormats) {
+  for ([[maybe_unused]] const auto& format : availableFormats) {
     DBG_LOG(m_logger, STR("Format = " << format.format << ", colourSpace = " << format.colorSpace));
   }
 
@@ -1720,15 +1718,6 @@ QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) cons
   return indices;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL RendererImpl::debugCallback(
-  VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
-  const VkDebugUtilsMessengerCallbackDataEXT* data, void*)
-{
-  std::cerr << "Validation layer: " << data->pMessage << std::endl;
-
-  return VK_FALSE;
-}
-
 std::vector<const char*> RendererImpl::getRequiredExtensions() const
 {
   std::vector<const char*> extensions{
@@ -1768,26 +1757,6 @@ bool RendererImpl::checkDeviceExtensionSupport(VkPhysicalDevice device) const
     }
   }
   return true;
-}
-
-void RendererImpl::checkValidationLayerSupport() const
-{
-  uint32_t layerCount;
-  VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, nullptr),
-    "Failed to enumerate instance layer properties");
-
-  std::vector<VkLayerProperties> available(layerCount);
-  VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, available.data()),
-    "Failed to enumerate instance layer properties");
-
-  for (auto layer : ValidationLayers) {
-    auto fnMatches = [=](const VkLayerProperties& p) {
-      return strcmp(layer, p.layerName) == 0;
-    };
-    if (std::find_if(available.begin(), available.end(), fnMatches) == available.end()) {
-      EXCEPTION("Validation layer '" << layer << "' not supported");
-    }
-  }
 }
 
 bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
@@ -2405,6 +2374,36 @@ void RendererImpl::createInstance()
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &m_instance), "Failed to create instance");
 }
 
+#ifdef USE_VALIDATION_LAYERS
+VKAPI_ATTR VkBool32 VKAPI_CALL RendererImpl::debugCallback(
+  VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
+  const VkDebugUtilsMessengerCallbackDataEXT* data, void*)
+{
+  std::cerr << "Validation layer: " << data->pMessage << std::endl;
+
+  return VK_FALSE;
+}
+
+void RendererImpl::checkValidationLayerSupport() const
+{
+  uint32_t layerCount;
+  VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, nullptr),
+    "Failed to enumerate instance layer properties");
+
+  std::vector<VkLayerProperties> available(layerCount);
+  VK_CHECK(vkEnumerateInstanceLayerProperties(&layerCount, available.data()),
+    "Failed to enumerate instance layer properties");
+
+  for (auto layer : ValidationLayers) {
+    auto fnMatches = [=](const VkLayerProperties& p) {
+      return strcmp(layer, p.layerName) == 0;
+    };
+    if (std::find_if(available.begin(), available.end(), fnMatches) == available.end()) {
+      EXCEPTION("Validation layer '" << layer << "' not supported");
+    }
+  }
+}
+
 VkDebugUtilsMessengerCreateInfoEXT RendererImpl::getDebugMessengerCreateInfo() const
 {
   return VkDebugUtilsMessengerCreateInfoEXT{
@@ -2445,6 +2444,7 @@ void RendererImpl::destroyDebugMessenger()
     vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
   func(m_instance, m_debugMessenger, nullptr);
 }
+#endif
 
 RendererImpl::~RendererImpl()
 {

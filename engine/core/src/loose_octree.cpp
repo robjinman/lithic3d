@@ -208,8 +208,7 @@ std::set<EntityId> LooseOctreeImpl::getIntersecting(const Frustum& frustum) cons
   return entities;
 }
 
-std::set<EntityId> LooseOctreeImpl::getIntersecting(const Vec3f& rayStart,
-  const Vec3f& rayEnd) const
+std::set<EntityId> LooseOctreeImpl::getIntersecting(const Vec3f&, const Vec3f&) const
 {
   // TODO: Do this properly
 

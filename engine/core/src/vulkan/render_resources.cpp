@@ -224,7 +224,7 @@ class RenderResourcesImpl : public RenderResources
 
 RenderResourcesImpl::RenderResourcesImpl(std::thread::id resourceThreadId,
   GpuBufferManager& bufferManager, VkPhysicalDevice physicalDevice, VkDevice device,
-  VkCommandPool commandPool, // TODO: Never used?
+  VkCommandPool, // TODO: Never used?
   Logger& logger)
   : m_resourceThreadId(resourceThreadId)
   , m_logger(logger)

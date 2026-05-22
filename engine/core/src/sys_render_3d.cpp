@@ -295,26 +295,25 @@ ComponentDataPtr SysRender3dImpl::constructDModel(const XmlNode& xmlModel) const
   });
 }
 
-ComponentDataPtr SysRender3dImpl::constructDSkybox(const XmlNode& xmlSkybox) const
+ComponentDataPtr SysRender3dImpl::constructDSkybox(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysRender3dImpl::constructDDirectionalLight(
-  const XmlNode& xmlDirectionalLight) const
+ComponentDataPtr SysRender3dImpl::constructDDirectionalLight(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysRender3dImpl::constructDPointLight(const XmlNode& xmlPointLight) const
+ComponentDataPtr SysRender3dImpl::constructDPointLight(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysRender3dImpl::constructDParticleEmitter(const XmlNode& xmlParticleEmitter) const
+ComponentDataPtr SysRender3dImpl::constructDParticleEmitter(const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
@@ -343,8 +342,8 @@ ComponentDataPtr SysRender3dImpl::constructComponentData(const XmlNode& xmlSysRe
   }
 }
 
-ComponentDataPtr SysRender3dImpl::constructComponentDataWithModifications(const ComponentData& base,
-  const XmlNode& changes) const
+ComponentDataPtr SysRender3dImpl::constructComponentDataWithModifications(const ComponentData&,
+  const XmlNode&) const
 {
   // TODO
   EXCEPTION("Not implemented");
