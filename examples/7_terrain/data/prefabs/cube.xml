@@ -13,6 +13,6 @@
     </spatial>
   </spatial>
   <render_3d>
-    <model is-instanced="false" gltf="cube"/>
+    <model is_instanced="false" gltf="cube"/>
   </render_3d>
 </entity>

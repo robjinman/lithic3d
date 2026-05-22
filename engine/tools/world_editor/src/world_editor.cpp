@@ -113,6 +113,8 @@ class WorldEditorImpl : public WorldEditor
     void setCursorTransform(const Mat4x4f& m);
     void setCursorRotation(const Mat3x3f& rot);
     void raiseEvent(Event event);
+    void loadCurrentCell();
+    void cleanUp();
 
     fs::path m_projectRoot;
     WindowDelegate& m_windowDelegate;
@@ -140,8 +142,25 @@ WorldEditorImpl::WorldEditorImpl(const fs::path& projectRoot, WindowDelegate& wi
   , m_windowDelegate(windowDelegate)
 {
   createEngine();
-  constructLight();
-  constructCursor();
+
+  Vec3f initialPos = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
+  m_engine->ecs().system<SysRender3d>().camera().setPosition(initialPos);
+
+  try {
+    loadCurrentCell();
+
+    constructLight();
+    constructCursor();
+  }
+  catch (...) {
+    cleanUp();
+    throw;
+  }
+}
+
+void WorldEditorImpl::cleanUp()
+{
+  m_engine->resourceManager().deactivate();
 }
 
 void WorldEditorImpl::raiseEvent(Event event)
@@ -532,6 +551,18 @@ void WorldEditorImpl::constructCursor()
   sysRender3d.addEntity(m_cursorId, std::move(render));
 }
 
+void WorldEditorImpl::loadCurrentCell()
+{
+  auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+
+  auto cell = cellFromPosition(camera.getPosition());
+  for (int i = 0; i < 6; ++i) {
+    auto slice = m_engine->worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
+    m_worldState.slices.insert_or_assign({ cell[0], cell[1], i }, SliceState{slice,
+      m_engine->worldLoader().createEntities(slice.id()), false});
+  }
+}
+
 void WorldEditorImpl::createEngine()
 {
   auto platformPaths = createPlatformPaths("lithic3d_world_editor", "freeholdapps");
@@ -571,16 +602,6 @@ void WorldEditorImpl::createEngine()
 
   m_engine = lithic3d::createEngine(m_config, std::move(resourceManager), std::move(renderer),
     std::move(audioSystem), std::move(fileSystem), std::move(logger));
-
-  Vec3f initialPos = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
-  m_engine->ecs().system<SysRender3d>().camera().setPosition(initialPos);
-
-  auto cell = cellFromPosition(initialPos);
-  for (int i = 0; i < 6; ++i) {
-    auto slice = m_engine->worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
-    m_worldState.slices.insert_or_assign({ cell[0], cell[1], i }, SliceState{slice,
-      m_engine->worldLoader().createEntities(slice.id()), false});
-  }
 }
 
 void WorldEditorImpl::positionCursor()
@@ -716,7 +737,7 @@ void WorldEditorImpl::update()
 
 WorldEditorImpl::~WorldEditorImpl()
 {
-  m_engine->resourceManager().deactivate();
+  cleanUp();
 }
 
 } // namespace

@@ -1,287 +1,287 @@
 <shaders>
   <!-- Text, sprites, and quads -->
   <shader>
-    <render-passes>
-      <render-pass>overlay</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>overlay</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>*</normal>
         <uv>true</uv>
         <tangent>false</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>false</is-terrain>>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>false</has-tangents>-->
-        <casts-shadow>false</casts-shadow>
-        <is-quad>*</is-quad>
-        <is-dynamic-text>*</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>false</is_terrain>>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>false</has_tangents>-->
+        <casts_shadow>false</casts_shadow>
+        <is_quad>*</is_quad>
+        <is_dynamic_text>*</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>*</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>*</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <!-- Non-animated 3D models (with normal map) -->
   <shader>
-    <render-passes>
-      <render-pass>main</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>main</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
         <tangent>true</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>false</is-terrain>>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>true</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>false</is_terrain>>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>*</has_tangents>-->
+        <casts_shadow>true</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>true</has-texture>
-        <has-normal-map>true</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>true</has_texture>
+        <has_normal_map>true</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <!-- Non-animated 3D models -->
   <shader>
-    <render-passes>
-      <render-pass>main</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>main</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
         <tangent>false</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>false</is-terrain>>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>*</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>false</is_terrain>>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>*</has_tangents>-->
+        <casts_shadow>*</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>*</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>*</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <!-- Non-animated 3D models (shadow pass) -->
   <shader>
-    <render-passes>
-      <render-pass>shadow</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>shadow</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
         <tangent>false</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>false</is-terrain>>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>true</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>false</is_terrain>>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>*</has_tangents>-->
+        <casts_shadow>true</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>false</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>false</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <!-- Terrain -->
   <shader>
-    <render-passes>
-      <render-pass>main</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>main</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
         <tangent>false</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>true</is-terrain>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>true</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>true</is_terrain>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>*</has_tangents>-->
+        <casts_shadow>true</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>true</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>true</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <!-- Terrain shadow pass -->
   <shader>
-    <render-passes>
-      <render-pass>shadow</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>shadow</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
         <tangent>false</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>true</is-terrain>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>true</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>true</is_terrain>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>*</has_tangents>-->
+        <casts_shadow>true</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>false</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>false</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <shader>
-    <render-passes>
-      <render-pass>shadow</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>shadow</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>true</normal>
         <uv>true</uv>
         <tangent>true</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>false</is-skybox>
-        <is-terrain>false</is-terrain>>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>*</has-tangents>-->
-        <casts-shadow>true</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>false</is_skybox>
+        <is_terrain>false</is_terrain>>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>*</has_tangents>-->
+        <casts_shadow>true</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>false</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>false</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>false</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>false</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 
   <!-- Skybox -->
   <shader>
-    <render-passes>
-      <render-pass>main</render-pass>
-    </render-passes>
-    <mesh-features>
-      <vertex-layout>
+    <render_passes>
+      <render_pass>main</render_pass>
+    </render_passes>
+    <mesh_features>
+      <vertex_layout>
         <position>true</position>
         <normal>false</normal>
         <uv>false</uv>
         <tangent>false</tangent>
-        <joint-indices>false</joint-indices>
-        <joint-weights>false</joint-weights>
-      </vertex-layout>
+        <joint_indices>false</joint_indices>
+        <joint_weights>false</joint_weights>
+      </vertex_layout>
       <flags>
-        <is-instanced>false</is-instanced>
-        <is-skybox>true</is-skybox>
-        <is-animated>false</is-animated>
-        <!--<has-tangents>false</has-tangents>-->
-        <casts-shadow>false</casts-shadow>
-        <is-quad>false</is-quad>
-        <is-dynamic-text>false</is-dynamic-text>
+        <is_instanced>false</is_instanced>
+        <is_skybox>true</is_skybox>
+        <is_animated>false</is_animated>
+        <!--<has_tangents>false</has_tangents>-->
+        <casts_shadow>false</casts_shadow>
+        <is_quad>false</is_quad>
+        <is_dynamic_text>false</is_dynamic_text>
       </flags>
-    </mesh-features>
-    <material-features>
+    </mesh_features>
+    <material_features>
       <flags>
-        <has-transparency>false</has-transparency>
-        <has-texture>false</has-texture>
-        <has-normal-map>false</has-normal-map>
-        <has-cube-map>true</has-cube-map>
-        <is-double-sided>false</is-double-sided>
+        <has_transparency>false</has_transparency>
+        <has_texture>false</has_texture>
+        <has_normal_map>false</has_normal_map>
+        <has_cube_map>true</has_cube_map>
+        <is_double_sided>false</is_double_sided>
       </flags>
-    </material-features>
+    </material_features>
   </shader>
 </shaders>

@@ -7,6 +7,15 @@
 namespace lithic3d
 {
 
+BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
+{
+  return {
+    .min = constructVec3f(*xmlBoundingBox.child("min")),
+    .max = constructVec3f(*xmlBoundingBox.child("max")),
+    .transform = constructTransform(*xmlBoundingBox.child("transform"))
+  };
+}
+
 std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
@@ -663,19 +672,19 @@ void SysCollisionImpl::extractComponentSpecs(const ComponentData& data,
   // ...
 }
 
-ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode&) const
+ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode& xmlDynamicBox) const
 {
-  // TODO
-  EXCEPTION("Not implemented");
-}
+  float invMass = std::stof(xmlDynamicBox.attribute("inverse_mass"));
+  float restitution = std::stof(xmlDynamicBox.attribute("restitution"));
+  float friction = std::stof(xmlDynamicBox.attribute("friction"));
 
-BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
-{
-  return {
-    .min = constructVec3f(*xmlBoundingBox.child("min")),
-    .max = constructVec3f(*xmlBoundingBox.child("max")),
-    .transform = constructTransform(*xmlBoundingBox.child("transform"))
-  };
+  return std::make_unique<ComponentDataWrapper<DDynamicBox>>(DDynamicBox{
+    .inverseMass = invMass,
+    .restitution = restitution,
+    .friction = friction,
+    .centreOfMass = constructVec3f(*xmlDynamicBox.child("centre_of_mass")),
+    .boundingBox = constructBoundingBox(*xmlDynamicBox.child("bounding_box"))
+  });
 }
 
 ComponentDataPtr SysCollisionImpl::constructDStaticBox(const XmlNode& xmlStaticBox) const
@@ -742,6 +751,10 @@ void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)
 {
   if (data.typeId() == typeid(DStaticBox).hash_code()) {
     auto& collision = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(data).data();
+    addEntity(id, collision);
+  }
+  else if (data.typeId() == typeid(DDynamicBox).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DDynamicBox>&>(data).data();
     addEntity(id, collision);
   }
   // TODO

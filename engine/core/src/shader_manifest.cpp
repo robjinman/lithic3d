@@ -51,19 +51,19 @@ bool isValid(const ShaderProgramSpec& spec, std::string& message)
 
 MaterialFeatures::Enum parseMaterialFlagName(const std::string& name)
 {
-  if (name == "has-transparency") {
+  if (name == "has_transparency") {
     return MaterialFeatures::HasTransparency;
   }
-  else if (name == "has-texture") {
+  else if (name == "has_texture") {
     return MaterialFeatures::HasTexture;
   }
-  else if (name == "has-normal-map") {
+  else if (name == "has_normal_map") {
     return MaterialFeatures::HasNormalMap;
   }
-  else if (name == "has-cube-map") {
+  else if (name == "has_cube_map") {
     return MaterialFeatures::HasCubeMap;
   }
-  else if (name == "is-double-sided") {
+  else if (name == "is_double_sided") {
     return MaterialFeatures::IsDoubleSided;
   }
 
@@ -160,10 +160,10 @@ BufferUsage parseAttributeName(const std::string& name)
   else if (name == "tangent") {
     return BufferUsage::AttrTangent;
   }
-  else if (name == "joint-indices") {
+  else if (name == "joint_indices") {
     return BufferUsage::AttrJointIndices;
   }
-  else if (name == "joint-weights") {
+  else if (name == "joint_weights") {
     return BufferUsage::AttrJointWeights;
   }
 
@@ -237,29 +237,29 @@ std::vector<VertexLayout> parseVertexLayout(const XmlNode& vertexLayoutXml)
 
 MeshFeatures::Enum parseMeshFlagName(const std::string& name)
 {
-  if (name == "is-instanced") {
+  if (name == "is_instanced") {
     return MeshFeatures::IsInstanced;
   }
-  else if (name == "is-skybox") {
+  else if (name == "is_skybox") {
     return MeshFeatures::IsSkybox;
   }
-  else if (name == "is-terrain") {
+  else if (name == "is_terrain") {
     return MeshFeatures::IsTerrain;
   }
-  else if (name == "is-animated") {
+  else if (name == "is_animated") {
     return MeshFeatures::IsAnimated;
   }
-  else if (name == "has-tangents") {
-    EXCEPTION("No need to specify has-tangents as it's inferred");
+  else if (name == "has_tangents") {
+    EXCEPTION("No need to specify has_tangents as it's inferred");
     //return MeshFeatures::HasTangents;
   }
-  else if (name == "casts-shadow") {
+  else if (name == "casts_shadow") {
     return MeshFeatures::CastsShadow;
   }
-  else if (name == "is-quad") {
+  else if (name == "is_quad") {
     return MeshFeatures::IsQuad;
   }
-  else if (name == "is-dynamic-text") {
+  else if (name == "is_dynamic_text") {
     return MeshFeatures::IsDynamicText;
   }
 
@@ -268,7 +268,7 @@ MeshFeatures::Enum parseMeshFlagName(const std::string& name)
 
 std::vector<MeshFeatureSet> parseMeshFeaturesXml(const XmlNode& meshFeaturesXml)
 {
-  auto vertexLayouts = parseVertexLayout(*meshFeaturesXml.child("vertex-layout"));
+  auto vertexLayouts = parseVertexLayout(*meshFeaturesXml.child("vertex_layout"));
 
   auto stringToFlag = [](const std::string& name) { return parseMeshFlagName(name); };
 
@@ -304,7 +304,7 @@ std::vector<RenderPass> parseRenderPassesXml(const XmlNode& renderPassesXml)
   std::vector<RenderPass> renderPasses;
 
   for (auto& renderPassXml : renderPassesXml) {
-    ASSERT(renderPassXml.name() == "render-pass", "Expected <render-pass> element");
+    ASSERT(renderPassXml.name() == "render_pass", "Expected <render_pass> element");
     if (renderPassXml.value() == "overlay") {
       renderPasses.push_back(RenderPass::Overlay);
     }
@@ -322,9 +322,9 @@ std::vector<RenderPass> parseRenderPassesXml(const XmlNode& renderPassesXml)
 void parseShaderSpec(const XmlNode& shaderXml, std::vector<ShaderProgramSpec>& specs,
   Logger& logger)
 {
-  auto renderPassesXml = shaderXml.child("render-passes");
-  auto meshFeaturesXml = shaderXml.child("mesh-features");
-  auto materialFeaturesXml = shaderXml.child("material-features");
+  auto renderPassesXml = shaderXml.child("render_passes");
+  auto meshFeaturesXml = shaderXml.child("mesh_features");
+  auto materialFeaturesXml = shaderXml.child("material_features");
 
   auto renderPasses = parseRenderPassesXml(*renderPassesXml);
   auto meshFeatureSets = parseMeshFeaturesXml(*meshFeaturesXml);

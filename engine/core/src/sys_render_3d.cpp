@@ -290,7 +290,7 @@ ComponentDataPtr SysRender3dImpl::constructDModel(const XmlNode& xmlModel) const
 
   return std::make_unique<ComponentDataWrapper<DModel>>(DModel{
     .model = m_modelLoader.loadModelAsync(modelFile),
-    .isInstanced = xmlModel.attribute("is-instanced") == "true",
+    .isInstanced = xmlModel.attribute("is_instanced") == "true",
     .colour = { 1.f, 1.f, 1.f, 1.f } // TODO
   });
 }

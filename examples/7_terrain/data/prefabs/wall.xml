@@ -8,6 +8,6 @@
     </spatial>
   </spatial>
   <render_3d>
-    <model is-instanced="false" file="wall.gltf"/>
+    <model is_instanced="false" file="wall.gltf"/>
   </render_3d>
 </entity>
