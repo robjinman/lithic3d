@@ -1,4 +1,4 @@
-#include "lithic3d/ecs.hpp"
+#include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/event_system.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/component_store.hpp"
@@ -95,9 +95,33 @@ void EcsImpl::removeEntity(EntityId entityId)
 {
   DBG_LOG(m_logger, STR("Deleting entity " << entityId));
 
+  auto& sysSpatial = system<SysSpatial>();
+  std::vector<EntityId> descendents;
+
+  if (sysSpatial.hasEntity(entityId)) {
+    descendents = sysSpatial.getDescendents(entityId);
+  }
+
+#ifndef NDEBUG
+  for (auto id : descendents) {
+    m_logger.debug(STR("Deleting descendent of entity " << entityId << " with id " << id));
+  }
+#endif
+
   for (auto& entry : m_systems) {
+    if (entry.first != Systems::Spatial) {
+      for (auto descendent : descendents) {
+        entry.second->removeEntity(descendent);
+      }
+    }
+
     entry.second->removeEntity(entityId);
   }
+
+  for (auto descendent : descendents) {
+    m_componentStore->remove(descendent);
+  }
+
   m_componentStore->remove(entityId);
 }
 

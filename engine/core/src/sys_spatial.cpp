@@ -107,6 +107,7 @@ class SysSpatialImpl : public SysSpatial
 
     void addEntity(EntityId entityId, const DSpatial& data) override;
     EntityId root() const override;
+    std::vector<EntityId> getDescendents(EntityId entityId) const override;
     void setEnabled(EntityId entityId, bool enabled) override;
 
     const LooseOctree& dbg_getOctree() const override;
@@ -263,10 +264,36 @@ void SysSpatialImpl::addEntity(EntityId id, const ComponentData& data)
   }
 }
 
+std::vector<EntityId> SysSpatialImpl::getDescendents(EntityId entityId) const
+{
+  auto& node = *m_sceneGraph->nodes.at(entityId);
+  auto n = node.numDescendents;
+  auto idx = node.index;
+
+  std::vector<EntityId> descendents;
+
+  for (size_t i = 0; i < n; ++i) {
+    descendents.push_back(m_sceneGraph->dfs[idx + 1 + i]);
+  }
+
+  return descendents;
+}
+
 void SysSpatialImpl::removeEntity(EntityId entityId)
 {
-  m_sceneGraph->removeItem(entityId);
+  if (!hasEntity(entityId)) {
+    return;
+  }
+
+  auto descendents = getDescendents(entityId);
+
+  for (auto id : descendents) {
+    m_octree->remove(id);
+  }
   m_octree->remove(entityId);
+
+  // Also removes all descendents
+  m_sceneGraph->removeItem(entityId);
 }
 
 bool SysSpatialImpl::hasEntity(EntityId entityId) const

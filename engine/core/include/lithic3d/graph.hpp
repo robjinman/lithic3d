@@ -33,6 +33,9 @@ class Graph
       dfs.push_back(root);
       parents.push_back(NULL_VALUE);
       nodes.insert({ root, std::make_unique<TNode>() });
+
+      assert(dfs.size() == parents.size());
+      assert(nodes.size() == dfs.size());
     }
 
     bool hasItem(T itemId) const
@@ -55,7 +58,6 @@ class Graph
         size_t remainder = numEntities - index;
         std::memmove(&dfs[index + 1], &dfs[index], remainder * sizeof(T));
         std::memmove(&parents[index + 1], &parents[index], remainder * sizeof(T));
-        assert(dfs.size() == parents.size());
       }
 
       dfs[index] = itemId;
@@ -67,6 +69,9 @@ class Graph
       for (size_t i = index; i < dfs.size(); ++i) {
         nodes.at(dfs[i])->index = i;
       }
+
+      assert(dfs.size() == parents.size());
+      assert(nodes.size() == dfs.size());
     }
 
     void removeItem(T itemId)
@@ -83,31 +88,34 @@ class Graph
       }
 
       auto& node = *it->second;
+      auto numDescendents = node.numDescendents;
+      auto parentId = node.parentId;
       size_t index = node.index;
-
-      if (node.numDescendents > 0) {
-        EXCEPTION("Cannot remove node with children; delete children first");
-      }
 
       assert(dfs[index] == itemId);
 
-      if (index + 1 < dfs.size()) {
-        size_t remainder = dfs.size() - index - 1;
-        std::memmove(&dfs[index], &dfs[index + 1], remainder * sizeof(T));
-        std::memmove(&parents[index], &parents[index + 1], remainder * sizeof(T));
+      for (size_t i = 0; i < numDescendents + 1; ++i) {
+        nodes.erase(dfs[index + i]);
+      }
+
+      if (index + numDescendents < dfs.size()) {
+        size_t remainder = dfs.size() - (index + 1 + numDescendents);
+        std::memmove(&dfs[index], &dfs[index + 1 + numDescendents], remainder * sizeof(T));
+        std::memmove(&parents[index], &parents[index + 1 + numDescendents], remainder * sizeof(T));
       }
     
-      dfs.pop_back();
-      parents.pop_back();
+      dfs.resize(dfs.size() - (numDescendents + 1));
+      parents.resize(parents.size() - (numDescendents + 1));
 
-      auto& parentNode = *nodes.at(node.parentId);
-      decrementDescendentCount(parentNode);
+      auto& parentNode = *nodes.at(parentId);
+      decrementDescendentCount(parentNode, numDescendents + 1);
 
       for (size_t i = index; i < dfs.size(); ++i) {
         nodes.at(dfs[i])->index = i;
       }
 
-      nodes.erase(it);
+      assert(dfs.size() == parents.size());
+      assert(nodes.size() == dfs.size());
     }
 
   private:
@@ -119,11 +127,11 @@ class Graph
       }
     }
 
-    void decrementDescendentCount(TNode& node)
+    void decrementDescendentCount(TNode& node, size_t n)
     {
-      --node.numDescendents;
+      node.numDescendents -= n;
       if (node.parentId != NULL_VALUE) {
-        decrementDescendentCount(*nodes.at(node.parentId));
+        decrementDescendentCount(*nodes.at(node.parentId), n);
       }
     }
 };
