@@ -132,8 +132,8 @@ SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& edito
   auto vbox = new wxBoxSizer(wxVERTICAL);
   m_panel->SetSizer(vbox);
 
-  m_transformPanel = std::make_unique<TransformPanel>(m_panel, editorCore);
-  vbox->Add(m_transformPanel->getWxPtr());
+  //m_transformPanel = std::make_unique<TransformPanel>(m_panel, editorCore);
+  //vbox->Add(m_transformPanel->getWxPtr());
 }
 
 void SpatialComponentPanel::populate(EntityId entityId)

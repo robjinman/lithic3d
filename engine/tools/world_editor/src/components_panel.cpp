@@ -45,15 +45,6 @@ ComponentsPanelImpl::ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCor
 
   m_notebook = new wxNotebook(m_panel, wxID_ANY);
 
-  auto& ecs = m_core.engine().ecs();
-
-  for (SystemId systemId = 0; systemId < ecs.numSystems(); ++systemId) {
-    auto panel = createComponentPanel(systemId);
-    if (panel != nullptr) {
-      m_panels.insert({ systemId, std::move(panel) });
-    }
-  }
-
   wxButton* btnCancel = new wxButton(m_panel, wxID_ANY, "Cancel");
   wxButton* btnApply = new wxButton(m_panel, wxID_ANY, "Apply");
 
@@ -110,16 +101,15 @@ void ComponentsPanelImpl::onEntitySelect(EntityId entityId)
 
   for (SystemId systemId = 0; systemId < ecs.numSystems(); ++systemId) {
     auto& system = ecs.getSystem(systemId);
-    if (system.hasEntity(entityId)) {
-      auto i = m_panels.find(systemId);
-      if (i == m_panels.end()) {
-        continue;
-      }
-      auto& panel = *i->second;
-      panel.populate(entityId);
-      m_notebook->AddPage(panel.getWxPtr(), system.name().c_str());
+    auto panel = createComponentPanel(systemId);
+    if (panel != nullptr) {
+      panel->populate(entityId);
+      m_notebook->AddPage(panel->getWxPtr(), system.name().c_str());
+      m_panels.insert({ systemId, std::move(panel) });
     }
   }
+
+  m_notebook->Layout();
 }
 
 } // namespace

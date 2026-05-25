@@ -1,8 +1,9 @@
-#include "main_window.hpp"
 #include <wx/wx.h>
 #ifdef PLATFORM_LINUX
 #include <X11/Xlib.h>
 #endif
+
+wxFrame* createMainWindow(const wxString& title);
 
 class Application : public wxApp
 {
@@ -12,13 +13,13 @@ class Application : public wxApp
       wxEvent& event) const override;
 
   private:
-    MainWindowPtr m_mainWindow;
+    wxFrame* m_mainWindow = nullptr;
 };
 
 bool Application::OnInit()
 {
   m_mainWindow = createMainWindow("Lithic3D World Editor");
-  m_mainWindow->getWxPtr()->Show();
+  m_mainWindow->Show();
 
   return true;
 }

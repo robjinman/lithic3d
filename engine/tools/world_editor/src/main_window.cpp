@@ -1,4 +1,3 @@
-#include "main_window.hpp"
 #include "mode_ui.hpp"
 #include "editor_core.hpp"
 #include <sstream>
@@ -26,12 +25,10 @@ enum MenuItems
   MNU_SAVE
 };
 
-class MainWindowImpl : public MainWindow
+class MainWindowImpl : public wxFrame
 {
   public:
     explicit MainWindowImpl(const wxString& title);
-
-    wxFrame* getWxPtr() override;
 
     ~MainWindowImpl() override;
 
@@ -57,7 +54,6 @@ class MainWindowImpl : public MainWindow
     bool ready() const;
     ModeUi& currentMode();
 
-    wxFrame* m_frame = nullptr;
     wxSplitterWindow* m_splitter = nullptr;
     wxBoxSizer* m_vbox = nullptr;
     wxPanel* m_leftPanel = nullptr;
@@ -73,19 +69,18 @@ class MainWindowImpl : public MainWindow
 };
 
 MainWindowImpl::MainWindowImpl(const wxString& title)
+  : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition)
 {
-  m_frame = new wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition);
-
-  m_frame->Bind(wxEVT_CLOSE_WINDOW, &MainWindowImpl::onClose, this);
+  Bind(wxEVT_CLOSE_WINDOW, &MainWindowImpl::onClose, this);
 
   constructMenu();
 
   m_vbox = new wxBoxSizer(wxVERTICAL);
-  m_frame->SetSizer(m_vbox);
+  SetSizer(m_vbox);
 
-  m_frame->SetAutoLayout(true);
+  SetAutoLayout(true);
 
-  m_splitter = new wxSplitterWindow(m_frame);
+  m_splitter = new wxSplitterWindow(this);
   m_splitter->SetMinimumPaneSize(300);
 
   m_vbox->Add(m_splitter, 1, wxEXPAND, 0);
@@ -95,15 +90,10 @@ MainWindowImpl::MainWindowImpl(const wxString& title)
 
   m_splitter->SplitVertically(m_leftPanel, m_rightSidePanel, 10000);
 
-  m_frame->CreateStatusBar();
-  m_frame->SetStatusText(wxEmptyString);
+  CreateStatusBar();
+  SetStatusText(wxEmptyString);
 
-  m_frame->Maximize();
-}
-
-wxFrame* MainWindowImpl::getWxPtr()
-{
-  return m_frame;
+  Maximize();
 }
 
 bool MainWindowImpl::ready() const
@@ -118,7 +108,7 @@ ModeUi& MainWindowImpl::currentMode()
 
 void MainWindowImpl::onOpen(wxCommandEvent&)
 {
-  auto dialog = new wxDirDialog{m_frame, "Open directory"};
+  auto dialog = new wxDirDialog{this, "Open directory"};
 
   if (dialog->ShowModal() != wxID_OK) {
     return;
@@ -139,7 +129,7 @@ void MainWindowImpl::onOpen(wxCommandEvent&)
   m_modeSelector->SetSelection(0);
   m_modeSelector->Enable();
 
-  m_timer = new wxTimer(m_frame);
+  m_timer = new wxTimer(this);
   m_timer->Start(1000.0 / TICKS_PER_SECOND);
 
   m_canvas->Bind(wxEVT_SIZE, &MainWindowImpl::onCanvasResize, this);
@@ -149,7 +139,7 @@ void MainWindowImpl::onOpen(wxCommandEvent&)
   m_canvas->Bind(wxEVT_LEFT_UP, &MainWindowImpl::onCanvasLeftMouseBtnUp, this);
   m_canvas->Bind(wxEVT_MOTION, &MainWindowImpl::onCanvasMouseMove, this);
 
-  m_frame->Bind(wxEVT_TIMER, &MainWindowImpl::onTick, this);
+  Bind(wxEVT_TIMER, &MainWindowImpl::onTick, this);
 }
 
 void MainWindowImpl::onSave(wxCommandEvent&)
@@ -237,7 +227,7 @@ void MainWindowImpl::onCanvasResize(wxSizeEvent& e)
   m_core->onCanvasResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
 
 #ifdef PLATFORM_OSX
-  osxResizeMetalLayer(m_frame->GetHandle(), e.GetSize().GetWidth(), e.GetSize().GetHeight());
+  osxResizeMetalLayer(GetHandle(), e.GetSize().GetWidth(), e.GetSize().GetHeight());
 #endif
 }
 
@@ -274,14 +264,18 @@ void MainWindowImpl::onCanvasMouseMove(wxMouseEvent& e)
 
   e.Skip();
 
-  float x = static_cast<float>(e.GetX()) / m_frame->GetClientSize().GetWidth();
-  float y = static_cast<float>(e.GetY()) / m_frame->GetClientSize().GetHeight();
+  float x = static_cast<float>(e.GetX()) / GetClientSize().GetWidth();
+  float y = static_cast<float>(e.GetY()) / GetClientSize().GetHeight();
   m_core->onMouseMove(x, y);
   currentMode().onMouseMove(x, y);
 }
 
 void MainWindowImpl::onTick(wxTimerEvent&)
 {
+  if (!ready()) {
+    return;
+  }
+
   m_core->update();
   currentMode().update();
 }
@@ -302,12 +296,12 @@ void MainWindowImpl::constructMenu()
   menuBar->Append(mnuFile, wxGetTranslation("&File"));
   menuBar->Append(mnuHelp, wxGetTranslation("&Help"));
 
-  m_frame->SetMenuBar(menuBar);
+  SetMenuBar(menuBar);
 
-  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onOpen, this, MNU_OPEN);
-  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onSave, this, MNU_SAVE);
-  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onExit, this, wxID_EXIT);
-  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onAbout, this, wxID_ABOUT);
+  Bind(wxEVT_MENU, &MainWindowImpl::onOpen, this, MNU_OPEN);
+  Bind(wxEVT_MENU, &MainWindowImpl::onSave, this, MNU_SAVE);
+  Bind(wxEVT_MENU, &MainWindowImpl::onExit, this, wxID_EXIT);
+  Bind(wxEVT_MENU, &MainWindowImpl::onAbout, this, wxID_ABOUT);
 }
 
 void MainWindowImpl::constructLeftPanel()
@@ -354,7 +348,7 @@ void MainWindowImpl::constructRightPanel()
 
 void MainWindowImpl::onExit(wxCommandEvent&)
 {
-  m_frame->Close();
+  Close();
 }
 
 void MainWindowImpl::onAbout(wxCommandEvent&)
@@ -371,11 +365,19 @@ MainWindowImpl::~MainWindowImpl()
   if (m_timer) {
     m_timer->Stop();
   }
+
+  if (m_core != nullptr) {
+    m_core->engine().resourceManager().deactivate();
+    for (auto& m : m_modes) {
+      m.reset();
+    }
+    m_core.reset();
+  }
 }
 
 } // namespace
 
-MainWindowPtr createMainWindow(const wxString& title)
+wxFrame* createMainWindow(const wxString& title)
 {
-  return std::make_unique<MainWindowImpl>(title);
+  return new MainWindowImpl(title);
 }
