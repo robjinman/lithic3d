@@ -1,7 +1,6 @@
-#include "world_editor.hpp"
-#include "prefabs_panel.hpp"
-#include "scene_panel.hpp"
-#include "transform_panel.hpp"
+#include "main_window.hpp"
+#include "mode_ui.hpp"
+#include "editor_core.hpp"
 #include <sstream>
 #include <wx/wx.h>
 #include <wx/splitter.h>
@@ -27,18 +26,19 @@ enum MenuItems
   MNU_SAVE
 };
 
-class MainWindow : public wxFrame
+class MainWindowImpl : public MainWindow
 {
   public:
-    explicit MainWindow(const wxString& title);
+    explicit MainWindowImpl(const wxString& title);
 
-    ~MainWindow() override;
+    wxFrame* getWxPtr() override;
+
+    ~MainWindowImpl() override;
 
   private:
     void constructMenu();
     void constructLeftPanel();
     void constructRightPanel();
-    void populateRightPanel();
 
     void onOpen(wxCommandEvent& e);
     void onSave(wxCommandEvent& e);
@@ -54,34 +54,38 @@ class MainWindow : public wxFrame
     void onCanvasLeftMouseBtnUp(wxMouseEvent& e);
     void onCanvasMouseMove(wxMouseEvent& e);
 
+    bool ready() const;
+    ModeUi& currentMode();
+
+    wxFrame* m_frame = nullptr;
     wxSplitterWindow* m_splitter = nullptr;
     wxBoxSizer* m_vbox = nullptr;
     wxPanel* m_leftPanel = nullptr;
     wxPanel* m_rightSidePanel = nullptr;
+    wxChoice* m_modeSelector = nullptr;
     wxNotebook* m_rightSidePanelTopWindow = nullptr;
     wxNotebook* m_rightSidePanelBottomWindow = nullptr;
-    PrefabsPanelPtr m_prefabsPanel = nullptr;
-    ScenePanelPtr m_scenePanel = nullptr;
-    TransformPanelPtr m_transformPanel = nullptr;
+    EditorCorePtr m_core;
+    std::array<ModeUiPtr, 2> m_modes;
     wxPanel* m_canvas = nullptr;
     wxTimer* m_timer = nullptr;
     WindowDelegatePtr m_windowDelegate;
-    WorldEditorPtr m_worldEditor;
 };
 
-MainWindow::MainWindow(const wxString& title)
-  : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition)
+MainWindowImpl::MainWindowImpl(const wxString& title)
 {
-  Bind(wxEVT_CLOSE_WINDOW, &MainWindow::onClose, this);
+  m_frame = new wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition);
+
+  m_frame->Bind(wxEVT_CLOSE_WINDOW, &MainWindowImpl::onClose, this);
 
   constructMenu();
 
   m_vbox = new wxBoxSizer(wxVERTICAL);
-  SetSizer(m_vbox);
+  m_frame->SetSizer(m_vbox);
 
-  SetAutoLayout(true);
+  m_frame->SetAutoLayout(true);
 
-  m_splitter = new wxSplitterWindow(this);
+  m_splitter = new wxSplitterWindow(m_frame);
   m_splitter->SetMinimumPaneSize(300);
 
   m_vbox->Add(m_splitter, 1, wxEXPAND, 0);
@@ -91,46 +95,73 @@ MainWindow::MainWindow(const wxString& title)
 
   m_splitter->SplitVertically(m_leftPanel, m_rightSidePanel, 10000);
 
-  CreateStatusBar();
-  SetStatusText(wxEmptyString);
+  m_frame->CreateStatusBar();
+  m_frame->SetStatusText(wxEmptyString);
 
-  Maximize();
+  m_frame->Maximize();
 }
 
-void MainWindow::onOpen(wxCommandEvent&)
+wxFrame* MainWindowImpl::getWxPtr()
 {
-  auto dialog = new wxDirDialog{this, "Open directory"};
+  return m_frame;
+}
+
+bool MainWindowImpl::ready() const
+{
+  return m_modes[0] != nullptr;
+}
+
+ModeUi& MainWindowImpl::currentMode()
+{
+  return *m_modes.at(m_modeSelector->GetSelection());
+}
+
+void MainWindowImpl::onOpen(wxCommandEvent&)
+{
+  auto dialog = new wxDirDialog{m_frame, "Open directory"};
 
   if (dialog->ShowModal() != wxID_OK) {
     return;
   }
 
   m_windowDelegate = createWindowDelegate(m_canvas->GetHandle());
-  m_worldEditor = createWorldEditor(dialog->GetPath().ToStdString(), *m_windowDelegate);
+  m_core = createEditorCore(dialog->GetPath().ToStdString(), *m_windowDelegate);
 
-  m_timer = new wxTimer(this);
+  m_modes = {
+    createSceneEditModeUi(*m_rightSidePanelTopWindow, *m_rightSidePanelBottomWindow,
+      *m_core),
+    createPrefabEditModeUi(*m_rightSidePanelTopWindow, *m_rightSidePanelBottomWindow,
+      *m_core)
+  };
+
+  m_modes.at(0)->activate();
+
+  m_modeSelector->SetSelection(0);
+  m_modeSelector->Enable();
+
+  m_timer = new wxTimer(m_frame);
   m_timer->Start(1000.0 / TICKS_PER_SECOND);
 
-  populateRightPanel();
-  m_prefabsPanel->populate();
-  m_scenePanel->populate(m_worldEditor->getEntities());
+  m_canvas->Bind(wxEVT_SIZE, &MainWindowImpl::onCanvasResize, this);
+  m_canvas->Bind(wxEVT_KEY_DOWN, &MainWindowImpl::onCanvasKeyDown, this);
+  m_canvas->Bind(wxEVT_KEY_UP, &MainWindowImpl::onCanvasKeyUp, this);
+  m_canvas->Bind(wxEVT_LEFT_DOWN, &MainWindowImpl::onCanvasLeftMouseBtnDown, this);
+  m_canvas->Bind(wxEVT_LEFT_UP, &MainWindowImpl::onCanvasLeftMouseBtnUp, this);
+  m_canvas->Bind(wxEVT_MOTION, &MainWindowImpl::onCanvasMouseMove, this);
 
-  m_canvas->Bind(wxEVT_SIZE, &MainWindow::onCanvasResize, this);
-  m_canvas->Bind(wxEVT_KEY_DOWN, &MainWindow::onCanvasKeyDown, this);
-  m_canvas->Bind(wxEVT_KEY_UP, &MainWindow::onCanvasKeyUp, this);
-  m_canvas->Bind(wxEVT_LEFT_DOWN, &MainWindow::onCanvasLeftMouseBtnDown, this);
-  m_canvas->Bind(wxEVT_LEFT_UP, &MainWindow::onCanvasLeftMouseBtnUp, this);
-  m_canvas->Bind(wxEVT_MOTION, &MainWindow::onCanvasMouseMove, this);
-
-  Bind(wxEVT_TIMER, &MainWindow::onTick, this);
+  m_frame->Bind(wxEVT_TIMER, &MainWindowImpl::onTick, this);
 }
 
-void MainWindow::onSave(wxCommandEvent&)
+void MainWindowImpl::onSave(wxCommandEvent&)
 {
-  m_worldEditor->saveChanges();
+  if (!ready()) {
+    return;
+  }
+
+  currentMode().saveChanges();
 }
 
-void MainWindow::onClose(wxCloseEvent& e)
+void MainWindowImpl::onClose(wxCloseEvent& e)
 {
   e.Skip();
 }
@@ -169,65 +200,93 @@ KeyboardKey mapToLithic3dKey(int code)
   }
 }
 
-void MainWindow::onCanvasKeyDown(wxKeyEvent& e)
+void MainWindowImpl::onCanvasKeyDown(wxKeyEvent& e)
 {
+  if (!ready()) {
+    return;
+  }
+
   e.Skip();
 
   auto key = mapToLithic3dKey(e.GetKeyCode());
-  m_worldEditor->onKeyDown(key);
+  m_core->onKeyDown(key);
+  currentMode().onKeyDown(key);
 }
 
-void MainWindow::onCanvasKeyUp(wxKeyEvent& e)
+void MainWindowImpl::onCanvasKeyUp(wxKeyEvent& e)
 {
+  if (!ready()) {
+    return;
+  }
+
   e.Skip();
 
   auto key = mapToLithic3dKey(e.GetKeyCode());
-  m_worldEditor->onKeyUp(key);
+  m_core->onKeyUp(key);
+  currentMode().onKeyUp(key);
 }
 
-void MainWindow::onCanvasResize(wxSizeEvent& e)
+void MainWindowImpl::onCanvasResize(wxSizeEvent& e)
 {
+  if (!ready()) {
+    return;
+  }
+
   e.Skip();
 
-  m_worldEditor->onCanvasResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
+  m_core->onCanvasResize(e.GetSize().GetWidth(), e.GetSize().GetHeight());
 
 #ifdef PLATFORM_OSX
-  osxResizeMetalLayer(GetHandle(), e.GetSize().GetWidth(), e.GetSize().GetHeight());
+  osxResizeMetalLayer(m_frame->GetHandle(), e.GetSize().GetWidth(), e.GetSize().GetHeight());
 #endif
 }
 
-void MainWindow::onCanvasLeftMouseBtnDown(wxMouseEvent& e)
+void MainWindowImpl::onCanvasLeftMouseBtnDown(wxMouseEvent& e)
 {
+  if (!ready()) {
+    return;
+  }
+
   e.Skip();
 
   m_canvas->SetFocus();
-  m_worldEditor->onMouseLeftBtnDown();
+  m_core->onMouseLeftBtnDown();
+  currentMode().onMouseLeftBtnDown();
 }
 
-void MainWindow::onCanvasLeftMouseBtnUp(wxMouseEvent& e)
+void MainWindowImpl::onCanvasLeftMouseBtnUp(wxMouseEvent& e)
 {
-  e.Skip();
-
-  m_worldEditor->onMouseLeftBtnUp();
-}
-
-void MainWindow::onCanvasMouseMove(wxMouseEvent& e)
-{
-  e.Skip();
-
-  if (m_worldEditor) {
-    float x = static_cast<float>(e.GetX()) / GetClientSize().GetWidth();
-    float y = static_cast<float>(e.GetY()) / GetClientSize().GetHeight();
-    m_worldEditor->onMouseMove(x, y);
+  if (!ready()) {
+    return;
   }
+
+  e.Skip();
+
+  m_core->onMouseLeftBtnUp();
+  currentMode().onMouseLeftBtnUp();
 }
 
-void MainWindow::onTick(wxTimerEvent&)
+void MainWindowImpl::onCanvasMouseMove(wxMouseEvent& e)
 {
-  m_worldEditor->update();
+  if (!ready()) {
+    return;
+  }
+
+  e.Skip();
+
+  float x = static_cast<float>(e.GetX()) / m_frame->GetClientSize().GetWidth();
+  float y = static_cast<float>(e.GetY()) / m_frame->GetClientSize().GetHeight();
+  m_core->onMouseMove(x, y);
+  currentMode().onMouseMove(x, y);
 }
 
-void MainWindow::constructMenu()
+void MainWindowImpl::onTick(wxTimerEvent&)
+{
+  m_core->update();
+  currentMode().update();
+}
+
+void MainWindowImpl::constructMenu()
 {
   wxMenu* mnuFile = new wxMenu;
   auto itmOpen = new wxMenuItem(mnuFile, MNU_OPEN, "Open");
@@ -243,15 +302,15 @@ void MainWindow::constructMenu()
   menuBar->Append(mnuFile, wxGetTranslation("&File"));
   menuBar->Append(mnuHelp, wxGetTranslation("&Help"));
 
-  SetMenuBar(menuBar);
+  m_frame->SetMenuBar(menuBar);
 
-  Bind(wxEVT_MENU, &MainWindow::onOpen, this, MNU_OPEN);
-  Bind(wxEVT_MENU, &MainWindow::onSave, this, MNU_SAVE);
-  Bind(wxEVT_MENU, &MainWindow::onExit, this, wxID_EXIT);
-  Bind(wxEVT_MENU, &MainWindow::onAbout, this, wxID_ABOUT);
+  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onOpen, this, MNU_OPEN);
+  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onSave, this, MNU_SAVE);
+  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onExit, this, wxID_EXIT);
+  m_frame->Bind(wxEVT_MENU, &MainWindowImpl::onAbout, this, wxID_ABOUT);
 }
 
-void MainWindow::constructLeftPanel()
+void MainWindowImpl::constructLeftPanel()
 {
   assert(m_splitter);
 
@@ -263,39 +322,42 @@ void MainWindow::constructLeftPanel()
   m_leftPanel->SetCanFocus(true);
 }
 
-void MainWindow::constructRightPanel()
+void MainWindowImpl::constructRightPanel()
 {
   m_rightSidePanel = new wxPanel(m_splitter);
   auto vbox = new wxBoxSizer(wxVERTICAL);
   m_rightSidePanel->SetSizer(vbox);
 
+  wxFlexGridSizer* modeSizer = new wxFlexGridSizer(2);
+  wxStaticText* modeLabel = new wxStaticText(m_rightSidePanel, wxID_ANY, "Mode");
+
+  wxArrayString modes;
+  modes.Add("Scene editor");
+  modes.Add("Prefab editor");
+
+  m_modeSelector = new wxChoice(m_rightSidePanel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+    modes);
+
+  modeSizer->Add(modeLabel, wxSizerFlags().Expand().Border());
+  modeSizer->Add(m_modeSelector, wxSizerFlags().Expand().Border());
+  modeSizer->AddGrowableCol(1);
+
+  m_modeSelector->Disable();
+
   m_rightSidePanelTopWindow = new wxNotebook(m_rightSidePanel, wxID_ANY);
   m_rightSidePanelBottomWindow = new wxNotebook(m_rightSidePanel, wxID_ANY);
 
+  vbox->Add(modeSizer, 0, wxEXPAND);
   vbox->Add(m_rightSidePanelTopWindow, 1, wxEXPAND);
   vbox->Add(m_rightSidePanelBottomWindow, 1, wxEXPAND);
 }
 
-void MainWindow::populateRightPanel()
+void MainWindowImpl::onExit(wxCommandEvent&)
 {
-  assert(m_rightSidePanelTopWindow);
-  assert(m_rightSidePanelBottomWindow);
-
-  m_prefabsPanel = createPrefabsPanel(m_rightSidePanelTopWindow, *m_worldEditor);
-  m_scenePanel = createScenePanel(m_rightSidePanelTopWindow, *m_worldEditor);
-  m_transformPanel = createTransformPanel(m_rightSidePanelBottomWindow, *m_worldEditor);
-
-  m_rightSidePanelTopWindow->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
-  m_rightSidePanelTopWindow->AddPage(m_scenePanel->getWxPtr(), "Scene");
-  m_rightSidePanelBottomWindow->AddPage(m_transformPanel->getWxPtr(), "Transform");
+  m_frame->Close();
 }
 
-void MainWindow::onExit(wxCommandEvent&)
-{
-  Close();
-}
-
-void MainWindow::onAbout(wxCommandEvent&)
+void MainWindowImpl::onAbout(wxCommandEvent&)
 {
   std::stringstream ss;
   ss << "Lithic3D World Editor." << std::endl << std::endl;
@@ -304,7 +366,7 @@ void MainWindow::onAbout(wxCommandEvent&)
   wxMessageBox(wxGetTranslation(ss.str()), "Lithic3D World Editor", wxOK | wxICON_INFORMATION);
 }
 
-MainWindow::~MainWindow()
+MainWindowImpl::~MainWindowImpl()
 {
   if (m_timer) {
     m_timer->Stop();
@@ -313,7 +375,7 @@ MainWindow::~MainWindow()
 
 } // namespace
 
-wxFrame* createMainWindow(const wxString& title)
+MainWindowPtr createMainWindow(const wxString& title)
 {
-  return new MainWindow(title);
+  return std::make_unique<MainWindowImpl>(title);
 }

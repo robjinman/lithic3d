@@ -11,6 +11,8 @@ endif()
 
 file(GLOB CPP_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/prefab_edit_mode/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/scene_edit_mode/*.cpp"
 
   # TODO: Move to core
   "${CMAKE_CURRENT_SOURCE_DIR}/../../src/default/file_system.cpp"

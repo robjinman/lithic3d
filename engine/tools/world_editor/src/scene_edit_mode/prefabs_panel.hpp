@@ -16,6 +16,7 @@ class PrefabsPanel
 
 using PrefabsPanelPtr = std::unique_ptr<PrefabsPanel>;
 
-class WorldEditor;
+class EditorCore;
+class SceneEditMode;
 
-PrefabsPanelPtr createPrefabsPanel(wxWindow* parent, WorldEditor& worldEditor);
+PrefabsPanelPtr createPrefabsPanel(wxWindow* parent, EditorCore& editorCore, SceneEditMode& mode);

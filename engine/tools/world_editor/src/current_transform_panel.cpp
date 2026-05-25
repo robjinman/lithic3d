@@ -1,5 +1,5 @@
-#include "transform_panel.hpp"
-#include "world_editor.hpp"
+#include "current_transform_panel.hpp"
+#include "editor_core.hpp"
 #include <lithic3d/utils.hpp>
 #include <lithic3d/units.hpp>
 #include <wx/wx.h>
@@ -11,10 +11,10 @@ using namespace lithic3d;
 namespace
 {
 
-class TransformPanelImpl : public TransformPanel
+class CurrentTransformPanelImpl : public CurrentTransformPanel
 {
   public:
-    TransformPanelImpl(wxWindow* parent, WorldEditor& worldEditor);
+    CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore);
 
     wxPanel* getWxPtr() override;
 
@@ -25,14 +25,14 @@ class TransformPanelImpl : public TransformPanel
     void onCursorMove();
 
     wxPanel* m_panel = nullptr;
-    WorldEditor& m_worldEditor;
+    EditorCore& m_core;
     wxSpinCtrlDouble* m_spnDistance = nullptr;
     wxSpinCtrlDouble* m_spnScale = nullptr;
     wxSlider* m_sldEulerY = nullptr;
 };
 
-TransformPanelImpl::TransformPanelImpl(wxWindow* parent, WorldEditor& worldEditor)
-  : m_worldEditor(worldEditor)
+CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore)
+  : m_core(editorCore)
 {
   m_panel = new wxPanel(parent, wxID_ANY);
 
@@ -69,48 +69,48 @@ TransformPanelImpl::TransformPanelImpl(wxWindow* parent, WorldEditor& worldEdito
   m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
   m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent& e) { onRotationChange(e); });
 
-  m_worldEditor.listen(WorldEditor::Event::CursorMove, [this]() { onCursorMove(); });
+  m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-wxPanel* TransformPanelImpl::getWxPtr()
+wxPanel* CurrentTransformPanelImpl::getWxPtr()
 {
   return m_panel;
 }
 
-void TransformPanelImpl::onCursorMove()
+void CurrentTransformPanelImpl::onCursorMove()
 {
-  m_spnDistance->SetValue(worldUnitsToMetres(m_worldEditor.getCursorDistance()));
-  m_spnScale->SetValue(m_worldEditor.getCursorScale()[0] / WORLD_UNITS_PER_METRE);  // TODO
+  m_spnDistance->SetValue(worldUnitsToMetres(m_core.getCursorDistance()));
+  m_spnScale->SetValue(m_core.getCursorScale()[0] / WORLD_UNITS_PER_METRE);  // TODO
 
-  float radiansY = m_worldEditor.getCursorRotation()[1];
+  float radiansY = m_core.getCursorRotation()[1];
   int degreesY = static_cast<int>(radiansToDegrees(radiansY) + 0.5f);
   assert(inRange(degreesY, -180, 180));
   m_sldEulerY->SetValue(degreesY);
 }
 
-void TransformPanelImpl::onDistanceChange(wxEvent& e)
+void CurrentTransformPanelImpl::onDistanceChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
-  m_worldEditor.setCursorDistance(event.GetValue());
+  m_core.setCursorDistance(event.GetValue());
 }
 
-void TransformPanelImpl::onScaleChange(wxEvent& e)
+void CurrentTransformPanelImpl::onScaleChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
   Vec3f scale = Vec3f{ 1.f, 1.f, 1.f } * event.GetValue();
-  m_worldEditor.setCursorScale(scale * WORLD_UNITS_PER_METRE);
+  m_core.setCursorScale(scale * WORLD_UNITS_PER_METRE);
 }
 
-void TransformPanelImpl::onRotationChange(wxEvent& e)
+void CurrentTransformPanelImpl::onRotationChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxCommandEvent&>(e);
-  m_worldEditor.setCursorRotation(Vec3f{ 0.f,
+  m_core.setCursorRotation(Vec3f{ 0.f,
     degreesToRadians(static_cast<float>(event.GetInt())), 0.f });
 }
 
 } // namespace
 
-TransformPanelPtr createTransformPanel(wxWindow* parent, WorldEditor& worldEditor)
+CurrentTransformPanelPtr createCurrentTransformPanel(wxWindow* parent, EditorCore& editorCore)
 {
-  return std::make_unique<TransformPanelImpl>(parent, worldEditor);
+  return std::make_unique<CurrentTransformPanelImpl>(parent, editorCore);
 }

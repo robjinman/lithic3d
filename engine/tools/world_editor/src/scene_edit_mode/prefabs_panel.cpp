@@ -1,5 +1,6 @@
-#include "prefabs_panel.hpp"
-#include "world_editor.hpp"
+#include "scene_edit_mode/prefabs_panel.hpp"
+#include "scene_edit_mode/scene_edit_mode.hpp"
+#include "editor_core.hpp"
 #include <lithic3d/lithic3d.hpp>
 #include <wx/wx.h>
 
@@ -12,7 +13,7 @@ namespace
 class PrefabsPanelImpl : public PrefabsPanel
 {
   public:
-    PrefabsPanelImpl(wxWindow* parent, WorldEditor& worldEditor);
+    PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, SceneEditMode& mode);
 
     void populate() override;
     wxPanel* getWxPtr() override;
@@ -22,13 +23,15 @@ class PrefabsPanelImpl : public PrefabsPanel
     void onCancelClick();
     void onCreateClick();
 
-    WorldEditor& m_worldEditor;
+    EditorCore& m_core;
+    SceneEditMode& m_mode;
     wxPanel* m_basePanel = nullptr;
     wxListBox* m_listBox = nullptr;
 };
 
-PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, WorldEditor& worldEditor)
-  : m_worldEditor(worldEditor)
+PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, SceneEditMode& mode)
+  : m_core(editorCore)
+  , m_mode(mode)
 {
   m_basePanel = new wxPanel(parent);
   auto vbox = new wxBoxSizer(wxVERTICAL);
@@ -57,20 +60,20 @@ void PrefabsPanelImpl::onPrefabSelection(wxEvent&)
   auto selected = m_listBox->GetStringSelection().ToStdString();
 
   if (!selected.empty()) {
-    m_worldEditor.setActivePrefab(selected);
+    m_mode.setActivePrefab(selected);
   }
 }
 
 void PrefabsPanelImpl::onCancelClick()
 {
   m_listBox->DeselectAll();
-  m_worldEditor.cancelActivePrefab();
+  m_mode.cancelActivePrefab();
 }
 
 void PrefabsPanelImpl::onCreateClick()
 {
   m_listBox->DeselectAll();
-  m_worldEditor.instantiateActivePrefab();
+  m_mode.instantiateActivePrefab();
 }
 
 wxPanel* PrefabsPanelImpl::getWxPtr()
@@ -80,7 +83,7 @@ wxPanel* PrefabsPanelImpl::getWxPtr()
 
 void PrefabsPanelImpl::populate()
 {
-  auto prefabNames = m_worldEditor.listPrefabs();
+  auto prefabNames = m_core.listPrefabs();
 
   for (size_t i = 0; i < prefabNames.size(); ++i) {
      m_listBox->Insert(prefabNames[i], i);
@@ -89,7 +92,7 @@ void PrefabsPanelImpl::populate()
 
 } // namespace
 
-PrefabsPanelPtr createPrefabsPanel(wxWindow* parent, WorldEditor& worldEditor)
+PrefabsPanelPtr createPrefabsPanel(wxWindow* parent, EditorCore& editorCore, SceneEditMode& mode)
 {
-  return std::make_unique<PrefabsPanelImpl>(parent, worldEditor);
+  return std::make_unique<PrefabsPanelImpl>(parent, editorCore, mode);
 }

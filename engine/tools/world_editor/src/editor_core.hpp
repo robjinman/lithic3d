@@ -2,65 +2,59 @@
 
 #include <lithic3d/math.hpp>
 #include <lithic3d/input.hpp>
-#include <lithic3d/entity_id.hpp>
+#include <lithic3d/game.hpp>
 #include <memory>
 #include <filesystem>
 #include <vector>
 
-struct EntityIdAndType
-{
-  lithic3d::EntityId id;
-  std::string type;
-};
+namespace lithic3d { class Engine; }
 
-class WorldEditor
+// Manages the current state of the editor.
+class EditorCore
 {
   public:
     enum class Event
     {
-      CursorMove,
-      AddOrRemoveEntity
+      CursorMove
     };
 
     using Callback = std::function<void()>;
 
-    virtual std::vector<std::string> listPrefabs() const = 0;
-    virtual std::vector<EntityIdAndType> getEntities() const = 0;
-    virtual void setActivePrefab(const std::string& name) = 0;
-    virtual void instantiateActivePrefab() = 0;
-    virtual void cancelActivePrefab() = 0;
-
-    virtual void selectEntity(lithic3d::EntityId id, const std::string& type) = 0;
-    virtual void applyTransform() = 0;
-    virtual void cancelTransform() = 0;
+    virtual const lithic3d::GameConfig& config() const = 0;
+    virtual lithic3d::Engine& engine() const = 0;
 
     virtual float getCursorDistance() const = 0;
     virtual lithic3d::Vec3f getCursorRotation() = 0;
     virtual const lithic3d::Vec3f& getCursorScale() const = 0;
+    virtual lithic3d::Mat4x4f getCursorTransform() const = 0;
 
     virtual void setCursorDistance(float metres) = 0;
     virtual void setCursorRotation(const lithic3d::Vec3f& ori) = 0;
     virtual void setCursorScale(const lithic3d::Vec3f& scale) = 0;
-
-    virtual void update() = 0;
+    virtual void setCursorTransform(const lithic3d::Mat4x4f& transform) = 0;
 
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;
     virtual void onMouseLeftBtnDown() = 0;
     virtual void onMouseLeftBtnUp() = 0;
     virtual void onMouseMove(float x, float y) = 0;
+
+    virtual const lithic3d::InputState& inputState() const = 0;
+
+    virtual std::vector<std::string> listPrefabs() const = 0;
+
+    virtual void update() = 0;
+
     virtual void onCanvasResize(uint32_t w, uint32_t h) = 0;
 
     virtual void listen(Event event, const Callback& callback) = 0;
 
-    virtual void saveChanges() = 0;
-
-    virtual ~WorldEditor() = default;
+    virtual ~EditorCore() = default;
 };
 
-using WorldEditorPtr = std::unique_ptr<WorldEditor>;
+using EditorCorePtr = std::unique_ptr<EditorCore>;
 
 namespace lithic3d { class WindowDelegate; }
 
-WorldEditorPtr createWorldEditor(const std::filesystem::path& projectRoot,
+EditorCorePtr createEditorCore(const std::filesystem::path& projectRoot,
   lithic3d::WindowDelegate& windowDelegate);

@@ -1,5 +1,5 @@
-#include "scene_panel.hpp"
-#include "world_editor.hpp"
+#include "scene_edit_mode/scene_panel.hpp"
+#include "scene_edit_mode/scene_edit_mode.hpp"
 #include <lithic3d/lithic3d.hpp>
 #include <wx/wx.h>
 
@@ -12,7 +12,7 @@ namespace
 class ScenePanelImpl : public ScenePanel
 {
   public:
-    ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor);
+    ScenePanelImpl(wxWindow* parent, SceneEditMode& mode);
 
     void populate(const std::vector<EntityIdAndType>& entities) override;
     wxPanel* getWxPtr() override;
@@ -22,15 +22,15 @@ class ScenePanelImpl : public ScenePanel
     void onCancelClick();
     void onApplyClick();
 
-    WorldEditor& m_worldEditor;
+    SceneEditMode& m_mode;
     wxPanel* m_basePanel = nullptr;
     wxListBox* m_listBox = nullptr;
 
     void onAddOrRemoveEntity();
 };
 
-ScenePanelImpl::ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor)
-  : m_worldEditor(worldEditor)
+ScenePanelImpl::ScenePanelImpl(wxWindow* parent, SceneEditMode& mode)
+  : m_mode(mode)
 {
   m_basePanel = new wxPanel(parent);
   auto vbox = new wxBoxSizer(wxVERTICAL);
@@ -53,12 +53,12 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, WorldEditor& worldEditor)
 
   m_listBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent& e) { onInstanceSelection(e); });
 
-  m_worldEditor.listen(WorldEditor::Event::AddOrRemoveEntity, [this]() { onAddOrRemoveEntity(); });
+  m_mode.listen(SceneEditMode::Event::AddOrRemoveEntity, [this]() { onAddOrRemoveEntity(); });
 }
 
 void ScenePanelImpl::onAddOrRemoveEntity()
 {
-  populate(m_worldEditor.getEntities());
+  populate(m_mode.getEntities());
 }
 
 void ScenePanelImpl::onInstanceSelection(wxEvent&)
@@ -69,17 +69,17 @@ void ScenePanelImpl::onInstanceSelection(wxEvent&)
   }
 
   auto& entity = *reinterpret_cast<EntityIdAndType*>(m_listBox->GetClientData(index));
-  m_worldEditor.selectEntity(entity.id, entity.type);
+  m_mode.selectEntity(entity.id, entity.type);
 }
 
 void ScenePanelImpl::onCancelClick()
 {
-  m_worldEditor.cancelTransform();
+  m_mode.cancelTransform();
 }
 
 void ScenePanelImpl::onApplyClick()
 {
-  m_worldEditor.applyTransform();
+  m_mode.applyTransform();
 }
 
 wxPanel* ScenePanelImpl::getWxPtr()
@@ -99,7 +99,7 @@ void ScenePanelImpl::populate(const std::vector<EntityIdAndType>& entities)
 
 } // namespace
 
-ScenePanelPtr createScenePanel(wxWindow* parent, WorldEditor& worldEditor)
+ScenePanelPtr createScenePanel(wxWindow* parent, SceneEditMode& mode)
 {
-  return std::make_unique<ScenePanelImpl>(parent, worldEditor);
+  return std::make_unique<ScenePanelImpl>(parent, mode);
 }
