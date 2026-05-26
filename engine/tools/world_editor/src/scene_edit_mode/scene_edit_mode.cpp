@@ -60,10 +60,21 @@ enum class State
 
 using Callback = std::function<void()>;
 
+struct SuspendResumeState
+{
+  Vec3f cameraPosition = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
+  Vec3f cameraDirection = { 0.f, 0.f, -1.f };
+
+  // TODO: Cursor state
+};
+
 class SceneEditModeImpl : public SceneEditMode
 {
   public:
     explicit SceneEditModeImpl(EditorCore& core);
+
+    void activate() override;
+    void deactivate() override;
 
     std::vector<EntityIdAndType> getEntities() const override;
     void setActivePrefab(const std::string& name) override;
@@ -107,15 +118,41 @@ class SceneEditModeImpl : public SceneEditMode
     std::string m_cursorEntityType;
     EntityId m_selectedEntity = NULL_ENTITY_ID;
     WorldState m_worldState;
+
+    SuspendResumeState m_suspendResumeState;
 };
 
 SceneEditModeImpl::SceneEditModeImpl(EditorCore& core)
   : m_core(core)
 {
-  Vec3f initialPos = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
+  auto& initialPos = m_suspendResumeState.cameraPosition;
   m_core.engine().ecs().system<SysRender3d>().camera().setPosition(initialPos);
 
   loadCurrentCell();
+}
+
+void SceneEditModeImpl::activate()
+{
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  sysSpatial.setEnabled(m_core.engine().worldLoader().root(), false);
+
+  auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
+
+  camera.setPosition(m_suspendResumeState.cameraPosition);
+  camera.setDirection(m_suspendResumeState.cameraDirection);
+}
+
+void SceneEditModeImpl::deactivate()
+{
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  sysSpatial.setEnabled(m_core.engine().worldLoader().root(), true);
+
+  auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
+
+  m_suspendResumeState = {
+    .cameraPosition = camera.getPosition(),
+    .cameraDirection = camera.getDirection()
+  };
 }
 
 void SceneEditModeImpl::raiseEvent(Event event)

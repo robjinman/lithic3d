@@ -20,6 +20,9 @@ class SceneEditMode
       PrefabSelect
     };
 
+    virtual void activate() = 0;
+    virtual void deactivate() = 0;
+
     virtual std::vector<EntityIdAndType> getEntities() const = 0;
     virtual void setActivePrefab(const std::string& name) = 0;
     virtual const std::string& getActivePrefab() const = 0;

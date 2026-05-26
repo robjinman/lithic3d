@@ -13,6 +13,7 @@ class Camera3d
 
     void setTransform(const Mat4x4f& transform);
     void setPosition(const Vec3f& position);
+    void setDirection(const Vec3f& direction);
     void translate(const Vec3f& delta);
     void rotate(float deltaPitch, float deltaYaw); // Yaw is rotation to the right
     inline const Vec3f& getDirection() const;

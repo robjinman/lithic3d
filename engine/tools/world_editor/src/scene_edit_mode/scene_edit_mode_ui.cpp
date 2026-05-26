@@ -109,10 +109,14 @@ void SceneEditModeUi::activate()
   m_topPanel.AddPage(m_scenePanel->getWxPtr(), "Scene");
   m_bottomPanel.AddPage(m_currentTransformPanel->getWxPtr(), "Transform");
   m_bottomPanel.AddPage(m_componentsPanel->getWxPtr(), "Components");
+
+  m_mode->activate();
 }
 
 void SceneEditModeUi::deactivate()
 {
+  m_mode->deactivate();
+
   while (m_topPanel.GetPageCount() > 0) {
     m_topPanel.RemovePage(0);
   }

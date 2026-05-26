@@ -51,6 +51,8 @@ class MainWindowImpl : public wxFrame
     void onCanvasLeftMouseBtnUp(wxMouseEvent& e);
     void onCanvasMouseMove(wxMouseEvent& e);
 
+    void onModeChange(wxCommandEvent& e);
+
     bool ready() const;
     ModeUi& currentMode();
 
@@ -63,6 +65,7 @@ class MainWindowImpl : public wxFrame
     wxNotebook* m_rightSidePanelBottomWindow = nullptr;
     EditorCorePtr m_core;
     std::array<ModeUiPtr, 2> m_modes;
+    int m_currentMode = -1;
     wxPanel* m_canvas = nullptr;
     wxTimer* m_timer = nullptr;
     WindowDelegatePtr m_windowDelegate;
@@ -103,7 +106,7 @@ bool MainWindowImpl::ready() const
 
 ModeUi& MainWindowImpl::currentMode()
 {
-  return *m_modes.at(m_modeSelector->GetSelection());
+  return *m_modes.at(m_currentMode);
 }
 
 void MainWindowImpl::onOpen(wxCommandEvent&)
@@ -129,6 +132,8 @@ void MainWindowImpl::onOpen(wxCommandEvent&)
   m_modeSelector->SetSelection(0);
   m_modeSelector->Enable();
 
+  m_currentMode = 0;
+
   m_timer = new wxTimer(this);
   m_timer->Start(1000.0 / TICKS_PER_SECOND);
 
@@ -148,7 +153,11 @@ void MainWindowImpl::onSave(wxCommandEvent&)
     return;
   }
 
-  currentMode().saveChanges();
+  for (auto& mode : m_modes) {
+    if (mode != nullptr) {
+      mode->saveChanges();
+    }
+  }
 }
 
 void MainWindowImpl::onClose(wxCloseEvent& e)
@@ -304,6 +313,14 @@ void MainWindowImpl::constructMenu()
   Bind(wxEVT_MENU, &MainWindowImpl::onAbout, this, wxID_ABOUT);
 }
 
+void MainWindowImpl::onModeChange(wxCommandEvent&)
+{
+  currentMode().deactivate();
+  m_currentMode = m_modeSelector->GetSelection();
+  assert(m_currentMode >= 0 && static_cast<size_t>(m_currentMode) < m_modes.size());
+  m_modes.at(m_currentMode)->activate();
+}
+
 void MainWindowImpl::constructLeftPanel()
 {
   assert(m_splitter);
@@ -344,6 +361,8 @@ void MainWindowImpl::constructRightPanel()
   vbox->Add(modeSizer, 0, wxEXPAND);
   vbox->Add(m_rightSidePanelTopWindow, 1, wxEXPAND);
   vbox->Add(m_rightSidePanelBottomWindow, 1, wxEXPAND);
+
+  m_modeSelector->Bind(wxEVT_CHOICE, &MainWindowImpl::onModeChange, this);
 }
 
 void MainWindowImpl::onExit(wxCommandEvent&)

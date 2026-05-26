@@ -46,6 +46,12 @@ void Camera3d::setPosition(const Vec3f& position)
   onMove();
 }
 
+void Camera3d::setDirection(const Vec3f& direction)
+{
+  m_direction = direction;
+  onMove();
+}
+
 void Camera3d::translate(const Vec3f& delta)
 {
   m_position += delta;
