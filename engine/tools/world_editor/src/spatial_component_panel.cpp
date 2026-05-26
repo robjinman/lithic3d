@@ -91,7 +91,7 @@ void TransformPanel::setTransform(const Mat4x4f& transform)
 void TransformPanel::onDistanceChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
-  //m_core.setCursorDistance(event.GetValue());
+  //m_core.setCursorDistance(metresToWorldUnits(event.GetValue()));
 }
 
 void TransformPanel::onScaleChange(wxEvent& e)

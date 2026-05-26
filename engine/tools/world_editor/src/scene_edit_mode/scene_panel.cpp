@@ -25,6 +25,7 @@ class ScenePanelImpl : public ScenePanel
     SceneEditMode& m_mode;
     wxPanel* m_basePanel = nullptr;
     wxListBox* m_listBox = nullptr;
+    EventHandle m_onAddOrRemoveEntity;
 
     void onAddOrRemoveEntity();
 };
@@ -53,7 +54,8 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, SceneEditMode& mode)
 
   m_listBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent& e) { onInstanceSelection(e); });
 
-  m_mode.listen(SceneEditMode::Event::AddOrRemoveEntity, [this]() { onAddOrRemoveEntity(); });
+  m_onAddOrRemoveEntity = m_mode.listen(SceneEditMode::Event::AddOrRemoveEntity,
+    [this]() { onAddOrRemoveEntity(); });
 }
 
 void ScenePanelImpl::onAddOrRemoveEntity()

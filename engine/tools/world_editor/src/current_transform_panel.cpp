@@ -29,6 +29,7 @@ class CurrentTransformPanelImpl : public CurrentTransformPanel
     wxSpinCtrlDouble* m_spnDistance = nullptr;
     wxSpinCtrlDouble* m_spnScale = nullptr;
     wxSlider* m_sldEulerY = nullptr;
+    EventHandle m_onCursorMove;
 };
 
 CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore)
@@ -69,7 +70,7 @@ CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCor
   m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
   m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent& e) { onRotationChange(e); });
 
-  m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
+  m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
 wxPanel* CurrentTransformPanelImpl::getWxPtr()
@@ -91,21 +92,29 @@ void CurrentTransformPanelImpl::onCursorMove()
 void CurrentTransformPanelImpl::onDistanceChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
-  m_core.setCursorDistance(event.GetValue());
+
+  m_onCursorMove.reset();
+  m_core.setCursorDistance(metresToWorldUnits(event.GetValue()));
+  m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
 void CurrentTransformPanelImpl::onScaleChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
   Vec3f scale = Vec3f{ 1.f, 1.f, 1.f } * event.GetValue();
+
+  m_onCursorMove.reset();
   m_core.setCursorScale(scale * WORLD_UNITS_PER_METRE);
+  m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
 void CurrentTransformPanelImpl::onRotationChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxCommandEvent&>(e);
-  m_core.setCursorRotation(Vec3f{ 0.f,
-    degreesToRadians(static_cast<float>(event.GetInt())), 0.f });
+
+  m_onCursorMove.reset();
+  m_core.setCursorRotation(Vec3f{ 0.f, degreesToRadians(static_cast<float>(event.GetInt())), 0.f });
+  m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
 } // namespace

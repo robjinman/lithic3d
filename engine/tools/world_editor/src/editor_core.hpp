@@ -1,5 +1,6 @@
 #pragma once
 
+#include "event_emitter.hpp"
 #include <lithic3d/math.hpp>
 #include <lithic3d/input.hpp>
 #include <lithic3d/game.hpp>
@@ -13,12 +14,10 @@ namespace lithic3d { class Engine; }
 class EditorCore
 {
   public:
-    enum class Event
+    enum class Event : EventId
     {
       CursorMove
     };
-
-    using Callback = std::function<void()>;
 
     virtual const lithic3d::GameConfig& config() const = 0;
     virtual lithic3d::Engine& engine() const = 0;
@@ -28,10 +27,10 @@ class EditorCore
     virtual const lithic3d::Vec3f& getCursorScale() const = 0;
     virtual lithic3d::Mat4x4f getCursorTransform() const = 0;
 
-    virtual void setCursorDistance(float metres) = 0;
+    virtual void setCursorDistance(float distance) = 0;
     virtual void setCursorRotation(const lithic3d::Vec3f& ori) = 0;
     virtual void setCursorScale(const lithic3d::Vec3f& scale) = 0;
-    virtual void setCursorTransform(const lithic3d::Mat4x4f& transform) = 0;
+    virtual void setCursorRotationScale(const lithic3d::Mat3x3f& m) = 0;
 
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;
@@ -47,7 +46,7 @@ class EditorCore
 
     virtual void onCanvasResize(uint32_t w, uint32_t h) = 0;
 
-    virtual void listen(Event event, const Callback& callback) = 0;
+    virtual EventHandle listen(Event event, const EventHandler& handler) = 0;
 
     virtual ~EditorCore() = default;
 };

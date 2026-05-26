@@ -1,8 +1,7 @@
 #pragma once
 
+#include "event_emitter.hpp"
 #include <lithic3d/lithic3d.hpp>
-
-using Callback = std::function<void()>;
 
 struct EntityIdAndType
 {
@@ -42,7 +41,7 @@ class SceneEditMode
     virtual void onMouseLeftBtnUp() = 0;
     virtual void onMouseMove(float x, float y) = 0;
 
-    virtual void listen(Event event, const Callback& callback) = 0;
+    virtual EventHandle listen(Event event, const EventHandler& handler) = 0;
 
     virtual void saveChanges() = 0;
 

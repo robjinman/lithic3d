@@ -29,10 +29,10 @@ class EditorCoreImpl : public EditorCore
     const Vec3f& getCursorScale() const override;
     Mat4x4f getCursorTransform() const override;
 
-    void setCursorDistance(float metres) override;
+    void setCursorDistance(float distance) override;
     void setCursorRotation(const Vec3f& ori) override;
     void setCursorScale(const Vec3f& scale) override;
-    void setCursorTransform(const Mat4x4f& transform) override;
+    void setCursorRotationScale(const Mat3x3f& m) override;
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -48,7 +48,7 @@ class EditorCoreImpl : public EditorCore
 
     void update() override;
 
-    void listen(Event event, const Callback& callback) override;
+    EventHandle listen(Event event, const EventHandler& handler) override;
 
     ~EditorCoreImpl() override;
 
@@ -58,16 +58,15 @@ class EditorCoreImpl : public EditorCore
     void constructCursor();
     void positionCursor();
     void setCursorRotation(const Mat3x3f& rot);
-    void raiseEvent(Event event);
     void cleanUp();
 
     fs::path m_projectRoot;
     WindowDelegate& m_windowDelegate;
     EnginePtr m_engine;
     GameConfig m_config;
+    EventEmitterPtr m_eventEmitter;
     InputState m_inputState;
     EntityId m_cursorId = NULL_ENTITY_ID;
-    std::map<Event, std::vector<Callback>> m_eventHandlers;
   
     Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
     Mat3x3f m_activeRotation = identityMatrix<3>();
@@ -78,6 +77,8 @@ EditorCoreImpl::EditorCoreImpl(const fs::path& projectRoot, WindowDelegate& wind
   : m_projectRoot(projectRoot)
   , m_windowDelegate(windowDelegate)
 {
+  m_eventEmitter = createEventEmitter();
+
   createEngine();
 
   try {
@@ -105,16 +106,9 @@ void EditorCoreImpl::cleanUp()
   m_engine->resourceManager().deactivate();
 }
 
-void EditorCoreImpl::raiseEvent(Event event)
+EventHandle EditorCoreImpl::listen(Event event, const EventHandler& handler)
 {
-  for (auto& cb : m_eventHandlers[event]) {
-    cb();
-  }
-}
-
-void EditorCoreImpl::listen(Event event, const Callback& callback)
-{
-  m_eventHandlers[event].push_back(callback);
+  return m_eventEmitter->subscribe(static_cast<EventId>(event), handler);
 }
 
 float EditorCoreImpl::getCursorDistance() const
@@ -156,22 +150,23 @@ std::vector<std::string> EditorCoreImpl::listPrefabs() const
   return prefabNames;
 }
 
-void EditorCoreImpl::setCursorTransform(const Mat4x4f& m)
+void EditorCoreImpl::setCursorRotationScale(const Mat3x3f& m)
 {
-  auto rotationScale = getRotation3x3(m);
   Mat3x3f rotation;
   Vec3f scale;
-  decomposeRotationScale(rotationScale, rotation, scale);
+  decomposeRotationScale(m, rotation, scale);
 
   m_activeRotation = rotation;
   m_activeScale = scale;
 
-  raiseEvent(Event::CursorMove);
+  m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
 }
 
-void EditorCoreImpl::setCursorDistance(float metres)
+void EditorCoreImpl::setCursorDistance(float distance)
 {
-  m_activeTranslation = metresToWorldUnits(metres);
+  m_activeTranslation = distance;
+
+  m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
 }
 
 void EditorCoreImpl::setCursorRotation(const Vec3f& ori)
@@ -182,11 +177,15 @@ void EditorCoreImpl::setCursorRotation(const Vec3f& ori)
 void EditorCoreImpl::setCursorRotation(const Mat3x3f& rot)
 {
   m_activeRotation = rot;
+
+  m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
 }
 
 void EditorCoreImpl::setCursorScale(const Vec3f& scale)
 {
   m_activeScale = scale;
+
+  m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
 }
 
 void EditorCoreImpl::constructCursor()

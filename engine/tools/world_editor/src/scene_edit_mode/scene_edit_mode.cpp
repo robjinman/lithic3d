@@ -62,10 +62,10 @@ using Callback = std::function<void()>;
 
 struct SuspendResumeState
 {
-  Vec3f cameraPosition = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
-  Vec3f cameraDirection = { 0.f, 0.f, -1.f };
-
-  // TODO: Cursor state
+  Vec3f cameraPosition;
+  Vec3f cameraDirection;
+  Mat3x3f cursorRotationScale;
+  float cursorDistance;
 };
 
 class SceneEditModeImpl : public SceneEditMode
@@ -95,7 +95,7 @@ class SceneEditModeImpl : public SceneEditMode
     void onMouseLeftBtnUp() override;
     void onMouseMove(float x, float y) override;
 
-    void listen(Event event, const Callback& callback) override;
+    EventHandle listen(Event event, const EventHandler& handler) override;
 
     void saveChanges() override;
 
@@ -106,13 +106,12 @@ class SceneEditModeImpl : public SceneEditMode
     void saveChangesToSlice(const Vec3f& index, const SliceState& slice);
     void saveChangesToSlice(const fs::path& cellDirName, const std::string& sliceFileName,
       const SliceState& slice);
-    void raiseEvent(Event event);
     void loadCurrentCell();
 
     EditorCore& m_core;
     State m_state = State::None;
     std::map<std::string, ResourceHandle> m_prefabs;
-    std::map<Event, std::vector<Callback>> m_eventHandlers;
+    EventEmitterPtr m_eventEmitter;
     Vec2f m_prevMousePos;
     EntityId m_cursorEntity = NULL_ENTITY_ID;
     std::string m_cursorEntityType;
@@ -125,8 +124,19 @@ class SceneEditModeImpl : public SceneEditMode
 SceneEditModeImpl::SceneEditModeImpl(EditorCore& core)
   : m_core(core)
 {
-  auto& initialPos = m_suspendResumeState.cameraPosition;
+  m_eventEmitter = createEventEmitter();
+
+  auto initialPos = metresToWorldUnits(Vec3f{ 11305.0, 30.0, 9199.0 });
   m_core.engine().ecs().system<SysRender3d>().camera().setPosition(initialPos);
+
+  auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
+
+  m_suspendResumeState = {
+    .cameraPosition = camera.getPosition(),
+    .cameraDirection = camera.getDirection(),
+    .cursorRotationScale = getRotation3x3(m_core.getCursorTransform()),
+    .cursorDistance = m_core.getCursorDistance()
+  };
 
   loadCurrentCell();
 }
@@ -134,37 +144,35 @@ SceneEditModeImpl::SceneEditModeImpl(EditorCore& core)
 void SceneEditModeImpl::activate()
 {
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
-  sysSpatial.setEnabled(m_core.engine().worldLoader().root(), false);
+  sysSpatial.setEnabled(m_core.engine().worldLoader().root(), true);
 
   auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
 
   camera.setPosition(m_suspendResumeState.cameraPosition);
   camera.setDirection(m_suspendResumeState.cameraDirection);
+
+  m_core.setCursorRotationScale(m_suspendResumeState.cursorRotationScale);
+  m_core.setCursorDistance(m_suspendResumeState.cursorDistance);
 }
 
 void SceneEditModeImpl::deactivate()
 {
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
-  sysSpatial.setEnabled(m_core.engine().worldLoader().root(), true);
+  sysSpatial.setEnabled(m_core.engine().worldLoader().root(), false);
 
   auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
 
   m_suspendResumeState = {
     .cameraPosition = camera.getPosition(),
-    .cameraDirection = camera.getDirection()
+    .cameraDirection = camera.getDirection(),
+    .cursorRotationScale = getRotation3x3(m_core.getCursorTransform()),
+    .cursorDistance = m_core.getCursorDistance()
   };
 }
 
-void SceneEditModeImpl::raiseEvent(Event event)
+EventHandle SceneEditModeImpl::listen(Event event, const EventHandler& handler)
 {
-  for (auto& cb : m_eventHandlers[event]) {
-    cb();
-  }
-}
-
-void SceneEditModeImpl::listen(Event event, const Callback& callback)
-{
-  m_eventHandlers[event].push_back(callback);
+  return m_eventEmitter->subscribe(static_cast<EventId>(event), handler);
 }
 
 Vec2i SceneEditModeImpl::cellFromPosition(const Vec3f& pos) const
@@ -297,7 +305,7 @@ void SceneEditModeImpl::instantiateActivePrefab()
     m_cursorEntityType, {}});
   slice.dirty = true;
 
-  raiseEvent(Event::AddOrRemoveEntity);
+  m_eventEmitter->raise(static_cast<EventId>(Event::AddOrRemoveEntity));
 }
 
 void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
@@ -336,7 +344,7 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 
   camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
 
-  m_core.setCursorTransform(entityTransform);
+  m_core.setCursorRotationScale(getRotation3x3(entityTransform));
 
   m_selectedEntity = id;
 
@@ -348,7 +356,7 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
     entityTransform, GhostEntityColour);
   m_cursorEntityType = type;
 
-  raiseEvent(Event::EntitySelect);
+  m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));
 }
 
 EntityId SceneEditModeImpl::selectedEntity() const
@@ -389,7 +397,7 @@ void SceneEditModeImpl::cancelTransform()
   if (m_selectedEntity != NULL_ENTITY_ID) {
     sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
     m_selectedEntity = NULL_ENTITY_ID;
-    raiseEvent(Event::EntitySelect);
+    m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));
   }
   if (m_cursorEntity != NULL_ENTITY_ID) {
     m_core.engine().ecs().removeEntity(m_cursorEntity);

@@ -40,6 +40,7 @@ class SceneEditModeUi : public ModeUi
     ScenePanelPtr m_scenePanel = nullptr;
     CurrentTransformPanelPtr m_currentTransformPanel = nullptr;
     ComponentsPanelPtr m_componentsPanel = nullptr;
+    EventHandle m_onEntitySelect;
 
     void onEntitySelect();
 };
@@ -60,7 +61,8 @@ SceneEditModeUi::SceneEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel,
   m_prefabsPanel->populate();
   m_scenePanel->populate(m_mode->getEntities());
 
-  m_mode->listen(SceneEditMode::Event::EntitySelect, [this]() { onEntitySelect(); });
+  m_onEntitySelect = m_mode->listen(SceneEditMode::Event::EntitySelect,
+    [this]() { onEntitySelect(); });
 }
 
 void SceneEditModeUi::onKeyDown(KeyboardKey key)

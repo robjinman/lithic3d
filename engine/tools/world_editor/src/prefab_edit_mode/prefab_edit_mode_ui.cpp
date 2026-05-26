@@ -84,35 +84,42 @@ void PrefabEditModeUi::deactivate()
 
 void PrefabEditModeUi::onPrefabSelection()
 {
-  // TODO
+  m_mode->setActivePrefab(m_prefabsListBox->GetStringSelection().ToStdString());
 }
 
 void PrefabEditModeUi::update()
 {
+  m_mode->update();
 }
 
 void PrefabEditModeUi::onKeyDown(KeyboardKey key)
 {
+  m_mode->onKeyDown(key);
 }
 
 void PrefabEditModeUi::onKeyUp(KeyboardKey key)
 {
+  m_mode->onKeyUp(key);
 }
 
 void PrefabEditModeUi::onMouseLeftBtnDown()
 {
+  m_mode->onMouseLeftBtnDown();
 }
 
 void PrefabEditModeUi::onMouseLeftBtnUp()
 {
+  m_mode->onMouseLeftBtnUp();
 }
 
 void PrefabEditModeUi::onMouseMove(float x, float y)
 {
+  m_mode->onMouseMove(x, y);
 }
 
 void PrefabEditModeUi::saveChanges()
 {
+  m_mode->saveChanges();
 }
 
 } // namespace
