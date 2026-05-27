@@ -95,9 +95,7 @@ void ComponentsPanelImpl::onPrefabSelect(const std::string& prefab)
 
 void ComponentsPanelImpl::onEntitySelect(EntityId entityId)
 {
-  while (m_choicebook->GetPageCount() > 0) {
-    m_choicebook->RemovePage(0);
-  }
+  m_choicebook->DeleteAllPages();
 
   auto& ecs = m_core.engine().ecs();
 

@@ -28,6 +28,7 @@ TransformPanelImpl::TransformPanelImpl(wxWindow* parent)
   auto lblMatrix = new wxStaticText(m_panel, wxID_ANY, "Matrix");
 
   m_txtMatrix = new wxTextCtrl(m_panel, wxID_ANY, STR(identityMatrix<4>()));
+  m_txtMatrix->Disable();
 
   grid->Add(lblMatrix, wxSizerFlags().CentreVertical());
   grid->Add(m_txtMatrix, wxSizerFlags(1).Expand());
@@ -45,7 +46,7 @@ wxWindow* TransformPanelImpl::getWxPtr()
 
 void TransformPanelImpl::setTransform(const Mat4x4f& transform)
 {
-
+  m_txtMatrix->SetValue(STR(transform));
 }
 
 } // namespace
