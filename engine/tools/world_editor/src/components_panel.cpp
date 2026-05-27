@@ -5,12 +5,12 @@
 #include <lithic3d/ecs.hpp>
 #include <lithic3d/systems.hpp>
 #include <wx/wx.h>
-#include <wx/notebook.h>
+#include <wx/choicebk.h>
 
 using namespace lithic3d;
 
 ComponentPanelPtr createSpatialComponentPanel(wxWindow* parent, EditorCore& editorCore);
-//ComponentPanelPtr createCollisionComponentPanel(wxWindow* parent, EditorCore& editorCore);
+ComponentPanelPtr createCollisionComponentPanel(wxWindow* parent, EditorCore& editorCore);
 
 namespace
 {
@@ -27,7 +27,7 @@ class ComponentsPanelImpl : public ComponentsPanel
 
   private:
     wxPanel* m_panel = nullptr;
-    wxNotebook* m_notebook = nullptr;
+    wxChoicebook* m_choicebook = nullptr;
     EditorCore& m_core;
     std::map<EntityId, ComponentPanelPtr> m_panels;
 
@@ -41,19 +41,21 @@ ComponentsPanelImpl::ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCor
 {
   m_panel = new wxPanel(parent, wxID_ANY);
   auto vbox = new wxBoxSizer(wxVERTICAL);
-  m_panel->SetSizer(vbox);
 
-  m_notebook = new wxNotebook(m_panel, wxID_ANY);
+  m_choicebook = new wxChoicebook(m_panel, wxID_ANY);
 
   wxButton* btnCancel = new wxButton(m_panel, wxID_ANY, "Cancel");
   wxButton* btnApply = new wxButton(m_panel, wxID_ANY, "Apply");
 
   auto hbox = new wxBoxSizer(wxHORIZONTAL);
-  hbox->Add(btnCancel);
-  hbox->Add(btnApply);
+  hbox->Add(btnCancel, wxSizerFlags(1).Expand());
+  hbox->Add(btnApply, wxSizerFlags(1).Expand());
 
-  vbox->Add(m_notebook, 1, wxEXPAND);
-  vbox->Add(hbox);
+  vbox->Add(m_choicebook, wxSizerFlags(1).Expand());
+  vbox->Add(hbox, wxSizerFlags().Expand());
+
+  m_panel->SetSizer(vbox);
+  m_panel->Layout();
 
   btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
   btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
@@ -79,8 +81,8 @@ wxWindow* ComponentsPanelImpl::getWxPtr()
 ComponentPanelPtr ComponentsPanelImpl::createComponentPanel(SystemId systemId)
 {
   switch (systemId) {
-    case Systems::Spatial: return createSpatialComponentPanel(m_notebook, m_core);
-    //case Systems::Collision: return createCollisionComponentPanel(m_notebook, m_core);
+    case Systems::Spatial: return createSpatialComponentPanel(m_choicebook, m_core);
+    case Systems::Collision: return createCollisionComponentPanel(m_choicebook, m_core);
     // ...
     default: return nullptr;
   }
@@ -93,8 +95,8 @@ void ComponentsPanelImpl::onPrefabSelect(const std::string& prefab)
 
 void ComponentsPanelImpl::onEntitySelect(EntityId entityId)
 {
-  while (m_notebook->GetPageCount() > 0) {
-    m_notebook->RemovePage(0);
+  while (m_choicebook->GetPageCount() > 0) {
+    m_choicebook->RemovePage(0);
   }
 
   auto& ecs = m_core.engine().ecs();
@@ -104,12 +106,13 @@ void ComponentsPanelImpl::onEntitySelect(EntityId entityId)
     auto panel = createComponentPanel(systemId);
     if (panel != nullptr) {
       panel->populate(entityId);
-      m_notebook->AddPage(panel->getWxPtr(), system.name().c_str());
+      m_choicebook->AddPage(panel->getWxPtr(), system.name().c_str());
+      m_choicebook->Layout();
       m_panels.insert({ systemId, std::move(panel) });
     }
   }
 
-  m_notebook->Layout();
+  m_choicebook->Layout();
 }
 
 } // namespace

@@ -38,7 +38,6 @@ CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCor
   m_panel = new wxPanel(parent, wxID_ANY);
 
   auto grid = new wxGridBagSizer(0, 0);
-  m_panel->SetSizer(grid);
 
   wxStaticText* lblDistance = new wxStaticText(m_panel, wxID_ANY, "Distance (metres)");
 
@@ -55,16 +54,19 @@ CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCor
   m_sldEulerY = new wxSlider(m_panel, wxID_ANY, 0, -180, 180, wxDefaultPosition,
     wxDefaultSize, wxSL_LABELS);
 
-  grid->Add(lblDistance, wxGBPosition(0, 0));
+  grid->Add(lblDistance, wxGBPosition(0, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
   grid->Add(m_spnDistance, wxGBPosition(0, 1), wxDefaultSpan, wxEXPAND);
 
-  grid->Add(lblScale, wxGBPosition(1, 0));
+  grid->Add(lblScale, wxGBPosition(1, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
   grid->Add(m_spnScale, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND);
 
-  grid->Add(lblRotation, wxGBPosition(2, 0));
+  grid->Add(lblRotation, wxGBPosition(2, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
   grid->Add(m_sldEulerY, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND);
 
-  grid->AddGrowableCol(1, 1);
+  grid->AddGrowableCol(1);
+
+  m_panel->SetSizer(grid);
+  m_panel->Layout();
 
   m_spnDistance->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onDistanceChange(e); });
   m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });

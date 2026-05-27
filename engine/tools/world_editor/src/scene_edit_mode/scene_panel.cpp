@@ -38,7 +38,7 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, SceneEditMode& mode)
   m_basePanel->SetSizer(vbox);
 
   m_listBox = new wxListBox{m_basePanel, wxID_ANY};
-  vbox->Add(m_listBox, 1, wxEXPAND | wxALL);
+  vbox->Add(m_listBox, wxSizerFlags(1).Expand());
 
   wxButton* btnCancel = new wxButton(m_basePanel, wxID_ANY, "Cancel");
   wxButton* btnApply = new wxButton(m_basePanel, wxID_ANY, "Apply");

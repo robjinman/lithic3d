@@ -38,7 +38,7 @@ PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, Sce
   m_basePanel->SetSizer(vbox);
 
   m_listBox = new wxListBox{m_basePanel, wxID_ANY};
-  vbox->Add(m_listBox, 1, wxEXPAND | wxALL);
+  vbox->Add(m_listBox, wxSizerFlags(1).Expand());
 
   m_listBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent& e) { onPrefabSelection(e); });
 

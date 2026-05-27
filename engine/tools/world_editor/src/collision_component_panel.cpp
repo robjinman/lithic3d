@@ -1,6 +1,6 @@
 #include "component_panel.hpp"
-#include "editor_core.hpp" // TODO: Remove?
 #include "transform_panel.hpp"
+#include "editor_core.hpp"
 #include <wx/wx.h>
 
 using namespace lithic3d;
@@ -8,12 +8,10 @@ using namespace lithic3d;
 namespace
 {
 
-// TODO: AABB panel
-
-class SpatialComponentPanel : public ComponentPanel
+class CollisionComponentPanel : public ComponentPanel
 {
   public:
-    SpatialComponentPanel(wxWindow* parent, EditorCore& editorCore);
+    CollisionComponentPanel(wxWindow* parent, EditorCore& editorCore);
 
     wxPanel* getWxPtr() override;
     void populate(EntityId entityId) override;
@@ -25,7 +23,7 @@ class SpatialComponentPanel : public ComponentPanel
     void onEntitySelect();
 };
 
-SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& editorCore)
+CollisionComponentPanel::CollisionComponentPanel(wxWindow* parent, EditorCore& editorCore)
 {
   m_panel = new wxPanel(parent, wxID_ANY);
 
@@ -35,22 +33,21 @@ SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& edito
   vbox->Add(m_transformPanel->getWxPtr(), wxSizerFlags(1).Expand());
 
   m_panel->SetSizer(vbox);
-  m_panel->Layout();
 }
 
-void SpatialComponentPanel::populate(EntityId entityId)
+void CollisionComponentPanel::populate(EntityId entityId)
 {
   // TODO
 }
 
-wxPanel* SpatialComponentPanel::getWxPtr()
+wxPanel* CollisionComponentPanel::getWxPtr()
 {
   return m_panel;
 }
 
 } // namespace
 
-ComponentPanelPtr createSpatialComponentPanel(wxWindow* parent, EditorCore& editorCore)
+ComponentPanelPtr createCollisionComponentPanel(wxWindow* parent, EditorCore& editorCore)
 {
-  return std::make_unique<SpatialComponentPanel>(parent, editorCore);
+  return std::make_unique<CollisionComponentPanel>(parent, editorCore);
 }

@@ -79,24 +79,26 @@ MainWindowImpl::MainWindowImpl(const wxString& title)
   constructMenu();
 
   m_vbox = new wxBoxSizer(wxVERTICAL);
-  SetSizer(m_vbox);
 
   SetAutoLayout(true);
 
   m_splitter = new wxSplitterWindow(this);
   m_splitter->SetMinimumPaneSize(300);
 
-  m_vbox->Add(m_splitter, 1, wxEXPAND, 0);
+  m_vbox->Add(m_splitter, wxSizerFlags(1).Expand());
 
   constructLeftPanel();
   constructRightPanel();
 
-  m_splitter->SplitVertically(m_leftPanel, m_rightSidePanel, 10000);
+  SetSizer(m_vbox);
+
+  m_splitter->SplitVertically(m_leftPanel, m_rightSidePanel, -400);
 
   CreateStatusBar();
   SetStatusText(wxEmptyString);
 
   Maximize();
+  Layout();
 }
 
 bool MainWindowImpl::ready() const
@@ -328,16 +330,17 @@ void MainWindowImpl::constructLeftPanel()
   m_leftPanel = new wxPanel(m_splitter, wxID_ANY);
   auto vbox = new wxBoxSizer(wxVERTICAL);
   m_canvas = new wxPanel(m_leftPanel);
-  vbox->Add(m_canvas, 1, wxEXPAND, 5);
+  vbox->Add(m_canvas, wxSizerFlags(1).Expand());
   m_leftPanel->SetSizer(vbox);
   m_leftPanel->SetCanFocus(true);
+
+  m_leftPanel->Layout();
 }
 
 void MainWindowImpl::constructRightPanel()
 {
   m_rightSidePanel = new wxPanel(m_splitter);
   auto vbox = new wxBoxSizer(wxVERTICAL);
-  m_rightSidePanel->SetSizer(vbox);
 
   wxFlexGridSizer* modeSizer = new wxFlexGridSizer(2);
   wxStaticText* modeLabel = new wxStaticText(m_rightSidePanel, wxID_ANY, "Mode");
@@ -350,7 +353,7 @@ void MainWindowImpl::constructRightPanel()
     modes);
 
   modeSizer->Add(modeLabel, wxSizerFlags().Expand().Border());
-  modeSizer->Add(m_modeSelector, wxSizerFlags().Expand().Border());
+  modeSizer->Add(m_modeSelector, wxSizerFlags(1).Expand().Border());
   modeSizer->AddGrowableCol(1);
 
   m_modeSelector->Disable();
@@ -358,9 +361,12 @@ void MainWindowImpl::constructRightPanel()
   m_rightSidePanelTopWindow = new wxNotebook(m_rightSidePanel, wxID_ANY);
   m_rightSidePanelBottomWindow = new wxNotebook(m_rightSidePanel, wxID_ANY);
 
-  vbox->Add(modeSizer, 0, wxEXPAND);
-  vbox->Add(m_rightSidePanelTopWindow, 1, wxEXPAND);
-  vbox->Add(m_rightSidePanelBottomWindow, 1, wxEXPAND);
+  vbox->Add(modeSizer, wxSizerFlags().Expand());
+  vbox->Add(m_rightSidePanelTopWindow, wxSizerFlags(1).Expand());
+  vbox->Add(m_rightSidePanelBottomWindow, wxSizerFlags(1).Expand());
+
+  m_rightSidePanel->SetSizer(vbox);
+  m_rightSidePanel->Layout();
 
   m_modeSelector->Bind(wxEVT_CHOICE, &MainWindowImpl::onModeChange, this);
 }
