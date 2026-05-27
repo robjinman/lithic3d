@@ -35,7 +35,6 @@ PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, Sce
 {
   m_basePanel = new wxPanel(parent);
   auto vbox = new wxBoxSizer(wxVERTICAL);
-  m_basePanel->SetSizer(vbox);
 
   m_listBox = new wxListBox{m_basePanel, wxID_ANY};
   vbox->Add(m_listBox, wxSizerFlags(1).Expand());
@@ -46,10 +45,13 @@ PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, Sce
   wxButton* btnCreate = new wxButton(m_basePanel, wxID_ANY, "Create");
 
   auto hbox = new wxBoxSizer(wxHORIZONTAL);
-  hbox->Add(btnCancel);
-  hbox->Add(btnCreate);
+  hbox->Add(btnCancel, wxSizerFlags(1).Expand());
+  hbox->Add(btnCreate, wxSizerFlags(1).Expand());
 
-  vbox->Add(hbox);
+  vbox->Add(hbox, wxSizerFlags().Expand());
+
+  m_basePanel->SetSizer(vbox);
+  m_basePanel->Layout();
 
   btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
   btnCreate->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCreateClick(); });

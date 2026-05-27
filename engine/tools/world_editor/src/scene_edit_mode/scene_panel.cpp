@@ -35,7 +35,6 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, SceneEditMode& mode)
 {
   m_basePanel = new wxPanel(parent);
   auto vbox = new wxBoxSizer(wxVERTICAL);
-  m_basePanel->SetSizer(vbox);
 
   m_listBox = new wxListBox{m_basePanel, wxID_ANY};
   vbox->Add(m_listBox, wxSizerFlags(1).Expand());
@@ -44,10 +43,13 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, SceneEditMode& mode)
   wxButton* btnApply = new wxButton(m_basePanel, wxID_ANY, "Apply");
 
   auto hbox = new wxBoxSizer(wxHORIZONTAL);
-  hbox->Add(btnCancel);
-  hbox->Add(btnApply);
+  hbox->Add(btnCancel, wxSizerFlags(1).Expand());
+  hbox->Add(btnApply, wxSizerFlags(1).Expand());
 
-  vbox->Add(hbox);
+  vbox->Add(hbox, wxSizerFlags().Expand());
+
+  m_basePanel->SetSizer(vbox);
+  m_basePanel->Layout();
 
   btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
   btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
