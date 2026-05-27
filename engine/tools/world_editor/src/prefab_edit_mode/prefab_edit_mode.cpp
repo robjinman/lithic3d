@@ -25,6 +25,7 @@ class PrefabEditModeImpl : public PrefabEditMode
     void saveChanges() override;
     void update() override;
     void setActivePrefab(const std::string& prefab) override;
+    EntityId instantiatedPrefabId() const override;
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -92,6 +93,11 @@ void PrefabEditModeImpl::deactivate()
     .cursorRotationScale = getRotation3x3(m_core.getCursorTransform()),
     .cursorDistance = m_core.getCursorDistance()
   };
+}
+
+EntityId PrefabEditModeImpl::instantiatedPrefabId() const
+{
+  return m_entityId;
 }
 
 void PrefabEditModeImpl::setActivePrefab(const std::string& prefab)

@@ -13,7 +13,7 @@ namespace
 class PrefabEditModeUi : public ModeUi
 {
   public:
-    PrefabEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel, EditorCore& core);
+    PrefabEditModeUi(const Panels& panels, EditorCore& core);
 
     void activate() override;
     void deactivate() override;
@@ -29,8 +29,7 @@ class PrefabEditModeUi : public ModeUi
     void saveChanges() override;
 
   private:
-    wxNotebook& m_topPanel;
-    wxNotebook& m_bottomPanel;
+    Panels m_panels;
     EditorCore& m_core;
     PrefabEditModePtr m_mode;
     ComponentsPanelPtr m_componentsPanel;
@@ -40,17 +39,18 @@ class PrefabEditModeUi : public ModeUi
     void onPrefabSelection();
 };
 
-PrefabEditModeUi::PrefabEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel, EditorCore& core)
-  : m_topPanel(topPanel)
-  , m_bottomPanel(bottomPanel)
+PrefabEditModeUi::PrefabEditModeUi(const Panels& panels, EditorCore& core)
+  : m_panels(panels)
   , m_core(core)
 {
   m_mode = createPrefabEditMode(m_core);
 
-  m_currentTransformPanel = createCurrentTransformPanel(&m_bottomPanel, m_core);
-  m_componentsPanel = createComponentsPanel(&m_bottomPanel, m_core);
+  m_currentTransformPanel = createCurrentTransformPanel(m_panels.sidebar, m_core);
+  m_currentTransformPanel->getWxPtr()->Hide();
 
-  m_prefabsListBox = new wxListBox{&m_topPanel, wxID_ANY};
+  m_componentsPanel = createComponentsPanel(m_panels.panel2, m_core);
+
+  m_prefabsListBox = new wxListBox{m_panels.panel1, wxID_ANY};
   m_prefabsListBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onPrefabSelection(); });
 }
 
@@ -62,9 +62,12 @@ void PrefabEditModeUi::activate()
     m_prefabsListBox->Insert(prefabs[i], i);
   }
 
-  m_topPanel.AddPage(m_prefabsListBox, "Prefabs");
-  m_bottomPanel.AddPage(m_currentTransformPanel->getWxPtr(), "Transform");
-  m_bottomPanel.AddPage(m_componentsPanel->getWxPtr(), "Components");
+  m_panels.panel1->AddPage(m_prefabsListBox, "Prefabs");
+  m_panels.panel2->AddPage(m_componentsPanel->getWxPtr(), "Components");
+  m_panels.sidebar->GetSizer()->Add(m_currentTransformPanel->getWxPtr(),
+    wxSizerFlags(1).Expand().Border(wxALL, 10));
+  m_currentTransformPanel->getWxPtr()->Show();
+  m_panels.sidebar->Layout();
 
   m_mode->activate();
 }
@@ -73,18 +76,24 @@ void PrefabEditModeUi::deactivate()
 {
   m_mode->deactivate();
 
-  while (m_topPanel.GetPageCount() > 0) {
-    m_topPanel.RemovePage(0);
+  while (m_panels.panel1->GetPageCount() > 0) {
+    m_panels.panel1->RemovePage(0);
   }
 
-  while (m_bottomPanel.GetPageCount() > 0) {
-    m_bottomPanel.RemovePage(0);
+  while (m_panels.panel2->GetPageCount() > 0) {
+    m_panels.panel2->RemovePage(0);
   }
+
+  m_currentTransformPanel->getWxPtr()->Hide();
+  m_panels.sidebar->GetSizer()->Remove(0);
 }
 
 void PrefabEditModeUi::onPrefabSelection()
 {
   m_mode->setActivePrefab(m_prefabsListBox->GetStringSelection().ToStdString());
+  auto entityId = m_mode->instantiatedPrefabId();
+  assert(entityId != NULL_ENTITY_ID);
+  m_componentsPanel->onEntitySelect(entityId);
 }
 
 void PrefabEditModeUi::update()
@@ -124,8 +133,7 @@ void PrefabEditModeUi::saveChanges()
 
 } // namespace
 
-ModeUiPtr createPrefabEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel,
-  EditorCore& editorCore)
+ModeUiPtr createPrefabEditModeUi(const Panels& panels, EditorCore& editorCore)
 {
-  return std::make_unique<PrefabEditModeUi>(topPanel, bottomPanel, editorCore);
+  return std::make_unique<PrefabEditModeUi>(panels, editorCore);
 }

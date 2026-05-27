@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lithic3d/input.hpp>
+#include <lithic3d/entity_id.hpp>
 #include <memory>
 
 class PrefabEditMode
@@ -11,6 +12,7 @@ class PrefabEditMode
     virtual void update() = 0;
     virtual void saveChanges() = 0;
     virtual void setActivePrefab(const std::string& name) = 0;
+    virtual lithic3d::EntityId instantiatedPrefabId() const = 0;
 
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;

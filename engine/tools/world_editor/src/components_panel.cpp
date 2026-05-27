@@ -21,7 +21,6 @@ class ComponentsPanelImpl : public ComponentsPanel
     ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCore);
 
     void onEntitySelect(EntityId entityId) override;
-    void onPrefabSelect(const std::string& prefab) override;
 
     wxWindow* getWxPtr() override;
 
@@ -86,11 +85,6 @@ ComponentPanelPtr ComponentsPanelImpl::createComponentPanel(SystemId systemId)
     // ...
     default: return nullptr;
   }
-}
-
-void ComponentsPanelImpl::onPrefabSelect(const std::string& prefab)
-{
-  // TODO
 }
 
 void ComponentsPanelImpl::onEntitySelect(EntityId entityId)

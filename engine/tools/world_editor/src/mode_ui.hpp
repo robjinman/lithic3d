@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lithic3d/input.hpp>
+#include <wx/wx.h>
 #include <wx/notebook.h>
 #include <memory>
 
@@ -27,7 +28,12 @@ using ModeUiPtr = std::unique_ptr<ModeUi>;
 
 class EditorCore;
 
-ModeUiPtr createSceneEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel,
-  EditorCore& editorCore);
-ModeUiPtr createPrefabEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel,
-  EditorCore& editorCore);
+struct Panels
+{
+  wxPanel* sidebar;
+  wxNotebook* panel1;
+  wxNotebook* panel2;
+};
+
+ModeUiPtr createSceneEditModeUi(const Panels& panels, EditorCore& editorCore);
+ModeUiPtr createPrefabEditModeUi(const Panels& panels, EditorCore& editorCore);

@@ -16,7 +16,7 @@ namespace
 class SceneEditModeUi : public ModeUi
 {
   public:
-    SceneEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel, EditorCore& editorCore);
+    SceneEditModeUi(const Panels& panels, EditorCore& editorCore);
 
     void activate() override;
     void deactivate() override;
@@ -32,8 +32,7 @@ class SceneEditModeUi : public ModeUi
     void saveChanges() override;
 
   private:
-    wxNotebook& m_topPanel;
-    wxNotebook& m_bottomPanel;
+    Panels m_panels;
     SceneEditModePtr m_mode;
     EditorCore& m_core;
     PrefabsPanelPtr m_prefabsPanel = nullptr;
@@ -45,18 +44,17 @@ class SceneEditModeUi : public ModeUi
     void onEntitySelect();
 };
 
-SceneEditModeUi::SceneEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel,
-  EditorCore& editorCore)
-  : m_topPanel(topPanel)
-  , m_bottomPanel(bottomPanel)
+SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
+  : m_panels(panels)
   , m_core(editorCore)
 {
   m_mode = createSceneEditMode(m_core);
 
-  m_prefabsPanel = createPrefabsPanel(&m_topPanel, m_core, *m_mode);
-  m_scenePanel = createScenePanel(&m_topPanel, *m_mode);
-  m_currentTransformPanel = createCurrentTransformPanel(&m_bottomPanel, m_core);
-  m_componentsPanel = createComponentsPanel(&m_bottomPanel, m_core);
+  m_prefabsPanel = createPrefabsPanel(m_panels.panel1, m_core, *m_mode);
+  m_scenePanel = createScenePanel(m_panels.panel1, *m_mode);
+  m_currentTransformPanel = createCurrentTransformPanel(m_panels.sidebar, m_core);
+  m_currentTransformPanel->getWxPtr()->Hide();
+  m_componentsPanel = createComponentsPanel(m_panels.panel2, m_core);
 
   m_prefabsPanel->populate();
   m_scenePanel->populate(m_mode->getEntities());
@@ -107,10 +105,14 @@ void SceneEditModeUi::onEntitySelect()
 
 void SceneEditModeUi::activate()
 {
-  m_topPanel.AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
-  m_topPanel.AddPage(m_scenePanel->getWxPtr(), "Scene");
-  m_bottomPanel.AddPage(m_currentTransformPanel->getWxPtr(), "Transform");
-  m_bottomPanel.AddPage(m_componentsPanel->getWxPtr(), "Components");
+  m_panels.panel1->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
+  m_panels.panel1->AddPage(m_scenePanel->getWxPtr(), "Scene");
+  m_panels.panel2->AddPage(m_componentsPanel->getWxPtr(), "Components");
+
+  m_panels.sidebar->GetSizer()->Add(m_currentTransformPanel->getWxPtr(),
+    wxSizerFlags(1).Expand().Border(wxALL, 10));
+  m_currentTransformPanel->getWxPtr()->Show();
+  m_panels.sidebar->Layout();
 
   m_mode->activate();
 }
@@ -119,19 +121,21 @@ void SceneEditModeUi::deactivate()
 {
   m_mode->deactivate();
 
-  while (m_topPanel.GetPageCount() > 0) {
-    m_topPanel.RemovePage(0);
+  while (m_panels.panel1->GetPageCount() > 0) {
+    m_panels.panel1->RemovePage(0);
   }
 
-  while (m_bottomPanel.GetPageCount() > 0) {
-    m_bottomPanel.RemovePage(0);
+  while (m_panels.panel2->GetPageCount() > 0) {
+    m_panels.panel2->RemovePage(0);
   }
+
+  m_currentTransformPanel->getWxPtr()->Hide();
+  m_panels.sidebar->GetSizer()->Remove(0);
 }
 
 } // namespace
 
-ModeUiPtr createSceneEditModeUi(wxNotebook& topPanel, wxNotebook& bottomPanel,
-  EditorCore& editorCore)
+ModeUiPtr createSceneEditModeUi(const Panels& panels, EditorCore& editorCore)
 {
-  return std::make_unique<SceneEditModeUi>(topPanel, bottomPanel, editorCore);
+  return std::make_unique<SceneEditModeUi>(panels, editorCore);
 }

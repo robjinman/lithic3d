@@ -11,7 +11,6 @@ class ComponentsPanel
     virtual wxWindow* getWxPtr() = 0;
 
     virtual void onEntitySelect(lithic3d::EntityId entityId) = 0;
-    virtual void onPrefabSelect(const std::string& prefab) = 0;
 
     virtual ~ComponentsPanel() = default;
 };

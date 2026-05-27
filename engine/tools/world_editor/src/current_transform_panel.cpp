@@ -16,7 +16,7 @@ class CurrentTransformPanelImpl : public CurrentTransformPanel
   public:
     CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore);
 
-    wxPanel* getWxPtr() override;
+    wxWindow* getWxPtr() override;
 
   private:
     void onDistanceChange(wxEvent& e);
@@ -24,7 +24,7 @@ class CurrentTransformPanelImpl : public CurrentTransformPanel
     void onRotationChange(wxEvent& e);
     void onCursorMove();
 
-    wxPanel* m_panel = nullptr;
+    wxWindow* m_window = nullptr;
     EditorCore& m_core;
     wxSpinCtrlDouble* m_spnDistance = nullptr;
     wxSpinCtrlDouble* m_spnScale = nullptr;
@@ -35,38 +35,49 @@ class CurrentTransformPanelImpl : public CurrentTransformPanel
 CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore)
   : m_core(editorCore)
 {
-  m_panel = new wxPanel(parent, wxID_ANY);
+  m_window = new wxPanel(parent, wxID_ANY);
+  //auto vbox = new wxBoxSizer(wxVERTICAL);
 
-  auto grid = new wxGridBagSizer(0, 0);
+  auto staticBoxSizer = new wxStaticBoxSizer(wxVERTICAL, m_window, "Cursor");
+  auto staticBox = staticBoxSizer->GetStaticBox();
 
-  wxStaticText* lblDistance = new wxStaticText(m_panel, wxID_ANY, "Distance (metres)");
+  auto grid = new wxGridBagSizer(5, 5);
 
-  m_spnDistance = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+  wxStaticText* lblDistance = new wxStaticText(staticBox, wxID_ANY, "Distance (metres)");
+
+  m_spnDistance = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString,
     wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1.0, 100.0, 10.0, 0.1);
 
-  wxStaticText* lblScale = new wxStaticText(m_panel, wxID_ANY, "Scale");
+  wxStaticText* lblScale = new wxStaticText(staticBox, wxID_ANY, "Scale");
 
-  m_spnScale = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+  m_spnScale = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString,
     wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
 
-  wxStaticText* lblRotation = new wxStaticText(m_panel, wxID_ANY, "Rotation");
+  wxStaticText* lblRotation = new wxStaticText(staticBox, wxID_ANY, "Rotation");
 
-  m_sldEulerY = new wxSlider(m_panel, wxID_ANY, 0, -180, 180, wxDefaultPosition,
+  m_sldEulerY = new wxSlider(staticBox, wxID_ANY, 0, -180, 180, wxDefaultPosition,
     wxDefaultSize, wxSL_LABELS);
 
-  grid->Add(lblDistance, wxGBPosition(0, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
-  grid->Add(m_spnDistance, wxGBPosition(0, 1), wxDefaultSpan, wxEXPAND);
+  int border = 10;
 
-  grid->Add(lblScale, wxGBPosition(1, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
-  grid->Add(m_spnScale, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND);
+  grid->Add(lblDistance, wxGBPosition(0, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+    border);
+  grid->Add(m_spnDistance, wxGBPosition(0, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
 
-  grid->Add(lblRotation, wxGBPosition(2, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
-  grid->Add(m_sldEulerY, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND);
+  grid->Add(lblScale, wxGBPosition(1, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT, border);
+  grid->Add(m_spnScale, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
+
+  grid->Add(lblRotation, wxGBPosition(2, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+    border);
+  grid->Add(m_sldEulerY, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
 
   grid->AddGrowableCol(1);
 
-  m_panel->SetSizer(grid);
-  m_panel->Layout();
+  staticBox->SetSizer(grid);
+
+  //vbox->Add(staticBox, wxSizerFlags(1).Expand());
+
+  m_window->SetSizer(staticBoxSizer);
 
   m_spnDistance->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onDistanceChange(e); });
   m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
@@ -75,9 +86,9 @@ CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCor
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-wxPanel* CurrentTransformPanelImpl::getWxPtr()
+wxWindow* CurrentTransformPanelImpl::getWxPtr()
 {
-  return m_panel;
+  return m_window;
 }
 
 void CurrentTransformPanelImpl::onCursorMove()

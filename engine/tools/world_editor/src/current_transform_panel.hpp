@@ -2,14 +2,13 @@
 
 #include <memory>
 
-class wxPanel;
 class wxWindow;
 class EditorCore;
 
 class CurrentTransformPanel
 {
   public:
-    virtual wxPanel* getWxPtr() = 0;
+    virtual wxWindow* getWxPtr() = 0;
 
     virtual ~CurrentTransformPanel() = default;
 };
