@@ -16,12 +16,11 @@ class PrefabsPanelImpl : public PrefabsPanel
     PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, SceneEditMode& mode);
 
     void populate() override;
+    void deselectAll() override;
     wxPanel* getWxPtr() override;
 
   private:
     void onPrefabSelection(wxEvent& e);
-    void onCancelClick();
-    void onCreateClick();
 
     EditorCore& m_core;
     SceneEditMode& m_mode;
@@ -41,20 +40,8 @@ PrefabsPanelImpl::PrefabsPanelImpl(wxWindow* parent, EditorCore& editorCore, Sce
 
   m_listBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent& e) { onPrefabSelection(e); });
 
-  wxButton* btnCancel = new wxButton(m_basePanel, wxID_ANY, "Cancel");
-  wxButton* btnCreate = new wxButton(m_basePanel, wxID_ANY, "Create");
-
-  auto hbox = new wxBoxSizer(wxHORIZONTAL);
-  hbox->Add(btnCancel, wxSizerFlags(1).Expand());
-  hbox->Add(btnCreate, wxSizerFlags(1).Expand());
-
-  vbox->Add(hbox, wxSizerFlags().Expand());
-
   m_basePanel->SetSizer(vbox);
   m_basePanel->Layout();
-
-  btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
-  btnCreate->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCreateClick(); });
 }
 
 void PrefabsPanelImpl::onPrefabSelection(wxEvent&)
@@ -66,16 +53,9 @@ void PrefabsPanelImpl::onPrefabSelection(wxEvent&)
   }
 }
 
-void PrefabsPanelImpl::onCancelClick()
+void PrefabsPanelImpl::deselectAll()
 {
   m_listBox->DeselectAll();
-  m_mode.cancelActivePrefab();
-}
-
-void PrefabsPanelImpl::onCreateClick()
-{
-  m_listBox->DeselectAll();
-  m_mode.instantiateActivePrefab();
 }
 
 wxPanel* PrefabsPanelImpl::getWxPtr()

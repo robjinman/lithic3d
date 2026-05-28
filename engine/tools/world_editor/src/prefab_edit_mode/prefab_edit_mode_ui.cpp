@@ -2,7 +2,7 @@
 #include "mode_ui.hpp"
 #include "editor_core.hpp"
 #include "components_panel.hpp"
-#include "current_transform_panel.hpp"
+#include "cursor_panel.hpp"
 #include <wx/wx.h>
 
 using namespace lithic3d;
@@ -33,7 +33,7 @@ class PrefabEditModeUi : public ModeUi
     EditorCore& m_core;
     PrefabEditModePtr m_mode;
     ComponentsPanelPtr m_componentsPanel;
-    CurrentTransformPanelPtr m_currentTransformPanel;
+    CursorPanelPtr m_cursorPanel;
     wxListBox* m_prefabsListBox;
 
     void onPrefabSelection();
@@ -45,8 +45,8 @@ PrefabEditModeUi::PrefabEditModeUi(const Panels& panels, EditorCore& core)
 {
   m_mode = createPrefabEditMode(m_core);
 
-  m_currentTransformPanel = createCurrentTransformPanel(m_panels.sidebar, m_core);
-  m_currentTransformPanel->getWxPtr()->Hide();
+  m_cursorPanel = createCursorPanel(m_panels.sidebar, m_core);
+  m_cursorPanel->getWxPtr()->Hide();
 
   m_componentsPanel = createComponentsPanel(m_panels.panel2, m_core);
 
@@ -64,9 +64,9 @@ void PrefabEditModeUi::activate()
 
   m_panels.panel1->AddPage(m_prefabsListBox, "Prefabs");
   m_panels.panel2->AddPage(m_componentsPanel->getWxPtr(), "Components");
-  m_panels.sidebar->GetSizer()->Add(m_currentTransformPanel->getWxPtr(),
+  m_panels.sidebar->GetSizer()->Add(m_cursorPanel->getWxPtr(),
     wxSizerFlags(1).Expand().Border(wxALL, 10));
-  m_currentTransformPanel->getWxPtr()->Show();
+  m_cursorPanel->getWxPtr()->Show();
   m_panels.sidebar->Layout();
 
   m_mode->activate();
@@ -84,7 +84,7 @@ void PrefabEditModeUi::deactivate()
     m_panels.panel2->RemovePage(0);
   }
 
-  m_currentTransformPanel->getWxPtr()->Hide();
+  m_cursorPanel->getWxPtr()->Hide();
   m_panels.sidebar->GetSizer()->Remove(0);
 }
 

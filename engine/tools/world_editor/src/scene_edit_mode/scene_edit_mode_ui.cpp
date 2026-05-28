@@ -3,7 +3,7 @@
 #include "editor_core.hpp"
 #include "prefabs_panel.hpp"
 #include "scene_panel.hpp"
-#include "current_transform_panel.hpp"
+#include "cursor_panel.hpp"
 #include "components_panel.hpp"
 #include <wx/wx.h>
 #include <wx/notebook.h>
@@ -37,9 +37,11 @@ class SceneEditModeUi : public ModeUi
     EditorCore& m_core;
     PrefabsPanelPtr m_prefabsPanel = nullptr;
     ScenePanelPtr m_scenePanel = nullptr;
-    CurrentTransformPanelPtr m_currentTransformPanel = nullptr;
+    CursorPanelPtr m_cursorPanel = nullptr;
     ComponentsPanelPtr m_componentsPanel = nullptr;
     EventHandle m_onEntitySelect;
+    EventHandle m_onApplyTransform;
+    EventHandle m_onCancelTransform;
 
     void onEntitySelect();
 };
@@ -52,8 +54,12 @@ SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
 
   m_prefabsPanel = createPrefabsPanel(m_panels.panel1, m_core, *m_mode);
   m_scenePanel = createScenePanel(m_panels.panel1, *m_mode);
-  m_currentTransformPanel = createCurrentTransformPanel(m_panels.sidebar, m_core);
-  m_currentTransformPanel->getWxPtr()->Hide();
+  m_cursorPanel = createCursorPanel(m_panels.sidebar, m_core);
+  m_cursorPanel->getWxPtr()->Hide();
+  m_onCancelTransform = m_cursorPanel->listen(CursorPanel::Event::Cancel,
+    [this]() { m_mode->cancelTransform(); });
+  m_onApplyTransform = m_cursorPanel->listen(CursorPanel::Event::Apply,
+    [this]() { m_mode->applyTransform(); });
   m_componentsPanel = createComponentsPanel(m_panels.panel2, m_core);
 
   m_prefabsPanel->populate();
@@ -109,9 +115,9 @@ void SceneEditModeUi::activate()
   m_panels.panel1->AddPage(m_scenePanel->getWxPtr(), "Scene");
   m_panels.panel2->AddPage(m_componentsPanel->getWxPtr(), "Components");
 
-  m_panels.sidebar->GetSizer()->Add(m_currentTransformPanel->getWxPtr(),
+  m_panels.sidebar->GetSizer()->Add(m_cursorPanel->getWxPtr(),
     wxSizerFlags(1).Expand().Border(wxALL, 10));
-  m_currentTransformPanel->getWxPtr()->Show();
+  m_cursorPanel->getWxPtr()->Show();
   m_panels.sidebar->Layout();
 
   m_mode->activate();
@@ -129,7 +135,7 @@ void SceneEditModeUi::deactivate()
     m_panels.panel2->RemovePage(0);
   }
 
-  m_currentTransformPanel->getWxPtr()->Hide();
+  m_cursorPanel->getWxPtr()->Hide();
   m_panels.sidebar->GetSizer()->Remove(0);
 }
 

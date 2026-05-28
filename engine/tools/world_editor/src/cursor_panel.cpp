@@ -1,4 +1,4 @@
-#include "current_transform_panel.hpp"
+#include "cursor_panel.hpp"
 #include "editor_core.hpp"
 #include <lithic3d/utils.hpp>
 #include <lithic3d/units.hpp>
@@ -11,11 +11,12 @@ using namespace lithic3d;
 namespace
 {
 
-class CurrentTransformPanelImpl : public CurrentTransformPanel
+class CursorPanelImpl : public CursorPanel
 {
   public:
-    CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore);
+    CursorPanelImpl(wxWindow* parent, EditorCore& editorCore);
 
+    EventHandle listen(Event eventId, const EventHandler& handler) override;
     wxWindow* getWxPtr() override;
 
   private:
@@ -23,20 +24,25 @@ class CurrentTransformPanelImpl : public CurrentTransformPanel
     void onScaleChange(wxEvent& e);
     void onRotationChange(wxEvent& e);
     void onCursorMove();
+    void onCancelClick();
+    void onApplyClick();
 
     wxWindow* m_window = nullptr;
     EditorCore& m_core;
+    EventEmitterPtr m_eventEmitter;
     wxSpinCtrlDouble* m_spnDistance = nullptr;
     wxSpinCtrlDouble* m_spnScale = nullptr;
     wxSlider* m_sldEulerY = nullptr;
     EventHandle m_onCursorMove;
 };
 
-CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCore& editorCore)
+CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   : m_core(editorCore)
 {
+  m_eventEmitter = createEventEmitter();
+
   m_window = new wxPanel(parent, wxID_ANY);
-  //auto vbox = new wxBoxSizer(wxVERTICAL);
+  auto vbox = new wxBoxSizer(wxVERTICAL);
 
   auto staticBoxSizer = new wxStaticBoxSizer(wxVERTICAL, m_window, "Cursor");
   auto staticBox = staticBoxSizer->GetStaticBox();
@@ -73,9 +79,18 @@ CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCor
 
   grid->AddGrowableCol(1);
 
-  staticBox->SetSizer(grid);
+  vbox->Add(grid, wxSizerFlags().Expand());
 
-  //vbox->Add(staticBox, wxSizerFlags(1).Expand());
+  wxButton* btnCancel = new wxButton(staticBox, wxID_ANY, "Cancel");
+  wxButton* btnApply = new wxButton(staticBox, wxID_ANY, "Apply");
+
+  auto hbox = new wxBoxSizer(wxHORIZONTAL);
+  hbox->Add(btnCancel, wxSizerFlags(1).Expand().Border(wxLEFT, border));
+  hbox->Add(btnApply, wxSizerFlags(1).Expand().Border(wxRIGHT, border));
+
+  vbox->Add(hbox, wxSizerFlags().Expand());
+
+  staticBox->SetSizer(vbox);
 
   m_window->SetSizer(staticBoxSizer);
 
@@ -83,15 +98,33 @@ CurrentTransformPanelImpl::CurrentTransformPanelImpl(wxWindow* parent, EditorCor
   m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
   m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent& e) { onRotationChange(e); });
 
+  btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
+  btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
+
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-wxWindow* CurrentTransformPanelImpl::getWxPtr()
+EventHandle CursorPanelImpl::listen(Event eventId, const EventHandler& handler)
+{
+  return m_eventEmitter->subscribe(static_cast<EventId>(eventId), handler);
+}
+
+void CursorPanelImpl::onCancelClick()
+{
+  m_eventEmitter->raise(static_cast<EventId>(Event::Cancel));
+}
+
+void CursorPanelImpl::onApplyClick()
+{
+  m_eventEmitter->raise(static_cast<EventId>(Event::Apply));
+}
+
+wxWindow* CursorPanelImpl::getWxPtr()
 {
   return m_window;
 }
 
-void CurrentTransformPanelImpl::onCursorMove()
+void CursorPanelImpl::onCursorMove()
 {
   m_spnDistance->SetValue(worldUnitsToMetres(m_core.getCursorDistance()));
   m_spnScale->SetValue(m_core.getCursorScale()[0] / WORLD_UNITS_PER_METRE);  // TODO
@@ -102,7 +135,7 @@ void CurrentTransformPanelImpl::onCursorMove()
   m_sldEulerY->SetValue(degreesY);
 }
 
-void CurrentTransformPanelImpl::onDistanceChange(wxEvent& e)
+void CursorPanelImpl::onDistanceChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
 
@@ -111,7 +144,7 @@ void CurrentTransformPanelImpl::onDistanceChange(wxEvent& e)
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-void CurrentTransformPanelImpl::onScaleChange(wxEvent& e)
+void CursorPanelImpl::onScaleChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
   Vec3f scale = Vec3f{ 1.f, 1.f, 1.f } * event.GetValue();
@@ -121,7 +154,7 @@ void CurrentTransformPanelImpl::onScaleChange(wxEvent& e)
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-void CurrentTransformPanelImpl::onRotationChange(wxEvent& e)
+void CursorPanelImpl::onRotationChange(wxEvent& e)
 {
   auto event = dynamic_cast<wxCommandEvent&>(e);
 
@@ -132,7 +165,7 @@ void CurrentTransformPanelImpl::onRotationChange(wxEvent& e)
 
 } // namespace
 
-CurrentTransformPanelPtr createCurrentTransformPanel(wxWindow* parent, EditorCore& editorCore)
+CursorPanelPtr createCursorPanel(wxWindow* parent, EditorCore& editorCore)
 {
-  return std::make_unique<CurrentTransformPanelImpl>(parent, editorCore);
+  return std::make_unique<CursorPanelImpl>(parent, editorCore);
 }

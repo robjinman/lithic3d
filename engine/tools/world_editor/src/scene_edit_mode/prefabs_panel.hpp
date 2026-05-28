@@ -9,6 +9,7 @@ class PrefabsPanel
 {
   public:
     virtual void populate() = 0;
+    virtual void deselectAll() = 0;
     virtual wxPanel* getWxPtr() = 0;
 
     virtual ~PrefabsPanel() = default;

@@ -2,7 +2,7 @@
 #include "editor_core.hpp"
 #include "prefabs_panel.hpp"
 #include "scene_panel.hpp"
-#include "current_transform_panel.hpp"
+#include "cursor_panel.hpp"
 #include "components_panel.hpp"
 #include <lithic3d/lithic3d.hpp>
 
@@ -79,8 +79,6 @@ class SceneEditModeImpl : public SceneEditMode
     std::vector<EntityIdAndType> getEntities() const override;
     void setActivePrefab(const std::string& name) override;
     const std::string& getActivePrefab() const override;
-    void instantiateActivePrefab() override;
-    void cancelActivePrefab() override;
 
     void selectEntity(EntityId id, const std::string& type) override;
     EntityId selectedEntity() const override;
@@ -107,6 +105,10 @@ class SceneEditModeImpl : public SceneEditMode
     void saveChangesToSlice(const fs::path& cellDirName, const std::string& sliceFileName,
       const SliceState& slice);
     void loadCurrentCell();
+    void instantiateActivePrefab();
+    void cancelActivePrefab();
+    void applyCurrentTransformToEntity();
+    void cancelCurrentEntityTransform();
 
     EditorCore& m_core;
     State m_state = State::None;
@@ -366,10 +368,36 @@ EntityId SceneEditModeImpl::selectedEntity() const
 
 void SceneEditModeImpl::applyTransform()
 {
-  if (m_state != State::EntitySelected) {
-    return;
+  switch (m_state) {
+    case State::EntitySelected: {
+      applyCurrentTransformToEntity();
+      break;
+    }
+    case State::PrefabSelected: {
+      instantiateActivePrefab();
+      break;
+    }
+    default: break;
   }
+}
 
+void SceneEditModeImpl::cancelTransform()
+{
+  switch (m_state) {
+    case State::EntitySelected: {
+      cancelCurrentEntityTransform();
+      break;
+    }
+    case State::PrefabSelected: {
+      cancelActivePrefab();
+      break;
+    }
+    default: break;
+  }
+}
+
+void SceneEditModeImpl::applyCurrentTransformToEntity()
+{
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
   // TODO: Entity hierarchies?
@@ -384,12 +412,8 @@ void SceneEditModeImpl::applyTransform()
   slice.dirty = true;
 }
 
-void SceneEditModeImpl::cancelTransform()
+void SceneEditModeImpl::cancelCurrentEntityTransform()
 {
-  if (m_state != State::EntitySelected) {
-    return;
-  }
-
   m_state = State::None;
 
   auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
