@@ -116,6 +116,8 @@ class SysSpatial : public System
     virtual const Mat4x4f& getLocalTransform(EntityId id) const = 0;
     virtual const Mat4x4f& getGlobalTransform(EntityId id) const = 0;
 
+    virtual const Aabb& getAabb(EntityId entityId) const = 0;
+
     // Relative to self axes
     virtual void translateEntitySelf(EntityId id, const Vec3f& t) = 0;
 

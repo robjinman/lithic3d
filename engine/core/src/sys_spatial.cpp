@@ -96,6 +96,8 @@ class SysSpatialImpl : public SysSpatial
     const Mat4x4f& getLocalTransform(EntityId id) const override;
     const Mat4x4f& getGlobalTransform(EntityId id) const override;
 
+    const Aabb& getAabb(EntityId entityId) const override;
+
     void translateEntitySelf(EntityId id, const Vec3f& t) override;
 
     void rotateEntityLocal(EntityId id, const Mat3x3f& rot) override;
@@ -142,6 +144,11 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logge
 const LooseOctree& SysSpatialImpl::dbg_getOctree() const
 {
   return *m_octree;
+}
+
+const Aabb& SysSpatialImpl::getAabb(EntityId entityId) const
+{
+  m_ecs.componentStore().component<CBoundingBox>(entityId).modelSpaceAabb;
 }
 
 EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const

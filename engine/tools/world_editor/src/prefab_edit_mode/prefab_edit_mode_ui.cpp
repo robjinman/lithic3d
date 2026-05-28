@@ -34,8 +34,10 @@ class PrefabEditModeUi : public ModeUi
     PrefabEditModePtr m_mode;
     ComponentsPanelPtr m_componentsPanel;
     CursorPanelPtr m_cursorPanel;
+    wxPanel* m_panel1Content = nullptr;
     wxListBox* m_prefabsListBox;
 
+    void constructPanel1Content();
     void onPrefabSelection();
 };
 
@@ -48,9 +50,25 @@ PrefabEditModeUi::PrefabEditModeUi(const Panels& panels, EditorCore& core)
   m_cursorPanel = createCursorPanel(m_panels.sidebar, m_core);
   m_cursorPanel->getWxPtr()->Hide();
 
-  m_componentsPanel = createComponentsPanel(m_panels.panel2, m_core);
+  constructPanel1Content();
+}
 
-  m_prefabsListBox = new wxListBox{m_panels.panel1, wxID_ANY};
+void PrefabEditModeUi::constructPanel1Content()
+{
+  m_panel1Content = new wxPanel(m_panels.panel1, wxID_ANY);
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+
+  m_prefabsListBox = new wxListBox{m_panel1Content, wxID_ANY};
+
+  auto staticBoxSizer = new wxStaticBoxSizer(wxVERTICAL, m_panel1Content, "Components");
+  m_componentsPanel = createComponentsPanel(staticBoxSizer->GetStaticBox(), m_core);
+  staticBoxSizer->Add(m_componentsPanel->getWxPtr(), wxSizerFlags(1).Expand());
+
+  vbox->Add(m_prefabsListBox, wxSizerFlags(1).Expand());
+  vbox->Add(staticBoxSizer, wxSizerFlags(1).Expand());
+
+  m_panel1Content->SetSizer(vbox);
+
   m_prefabsListBox->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onPrefabSelection(); });
 }
 
@@ -62,8 +80,7 @@ void PrefabEditModeUi::activate()
     m_prefabsListBox->Insert(prefabs[i], i);
   }
 
-  m_panels.panel1->AddPage(m_prefabsListBox, "Prefabs");
-  m_panels.panel2->AddPage(m_componentsPanel->getWxPtr(), "Components");
+  m_panels.panel1->AddPage(m_panel1Content, "Prefabs");
   m_panels.sidebar->GetSizer()->Add(m_cursorPanel->getWxPtr(),
     wxSizerFlags(1).Expand().Border(wxALL, 10));
   m_cursorPanel->getWxPtr()->Show();
@@ -78,10 +95,6 @@ void PrefabEditModeUi::deactivate()
 
   while (m_panels.panel1->GetPageCount() > 0) {
     m_panels.panel1->RemovePage(0);
-  }
-
-  while (m_panels.panel2->GetPageCount() > 0) {
-    m_panels.panel2->RemovePage(0);
   }
 
   m_cursorPanel->getWxPtr()->Hide();

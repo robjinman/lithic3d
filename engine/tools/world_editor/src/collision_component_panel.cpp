@@ -14,6 +14,7 @@ class CollisionComponentPanel : public ComponentPanel
     CollisionComponentPanel(wxWindow* parent, EditorCore& editorCore);
 
     wxPanel* getWxPtr() override;
+    bool hasChanges() const override;
     void populate(EntityId entityId) override;
 
   private:
@@ -33,6 +34,12 @@ CollisionComponentPanel::CollisionComponentPanel(wxWindow* parent, EditorCore& e
   vbox->Add(m_transformPanel->getWxPtr(), wxSizerFlags(1).Expand());
 
   m_panel->SetSizer(vbox);
+}
+
+bool CollisionComponentPanel::hasChanges() const
+{
+  // TODO
+  return false;
 }
 
 void CollisionComponentPanel::populate(EntityId entityId)

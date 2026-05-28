@@ -62,8 +62,7 @@ class MainWindowImpl : public wxFrame
     wxPanel* m_leftPanel = nullptr;
     wxPanel* m_rightPanel = nullptr;
     wxChoice* m_modeSelector = nullptr;
-    wxNotebook* m_rightPanelTopWindow = nullptr;
-    wxNotebook* m_rightPanelBottomWindow = nullptr;
+    wxNotebook* m_rightPanelNotebook = nullptr;
     EditorCorePtr m_core;
     std::array<ModeUiPtr, 2> m_modes;
     int m_currentMode = -1;
@@ -131,8 +130,7 @@ void MainWindowImpl::onOpen(wxCommandEvent&)
 
   Panels panels{
     .sidebar = m_leftPanel,
-    .panel1 = m_rightPanelTopWindow,
-    .panel2 = m_rightPanelBottomWindow
+    .panel1 = m_rightPanelNotebook,
   };
 
   m_modes = {
@@ -366,12 +364,10 @@ void MainWindowImpl::constructRightPanel()
 
   m_modeSelector->Disable();
 
-  m_rightPanelTopWindow = new wxNotebook(m_rightPanel, wxID_ANY);
-  m_rightPanelBottomWindow = new wxNotebook(m_rightPanel, wxID_ANY);
+  m_rightPanelNotebook = new wxNotebook(m_rightPanel, wxID_ANY);
 
   vbox->Add(modeSizer, wxSizerFlags().Expand());
-  vbox->Add(m_rightPanelTopWindow, wxSizerFlags(1).Expand());
-  vbox->Add(m_rightPanelBottomWindow, wxSizerFlags(1).Expand());
+  vbox->Add(m_rightPanelNotebook, wxSizerFlags(1).Expand());
 
   m_rightPanel->SetSizer(vbox);
   m_rightPanel->Layout();

@@ -19,5 +19,6 @@ class ScenePanel
 using ScenePanelPtr = std::unique_ptr<ScenePanel>;
 
 class SceneEditMode;
+class EditorCore;
 
-ScenePanelPtr createScenePanel(wxWindow* parent, SceneEditMode& mode);
+ScenePanelPtr createScenePanel(wxWindow* parent, EditorCore& core, SceneEditMode& mode);

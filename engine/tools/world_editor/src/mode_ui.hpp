@@ -32,7 +32,6 @@ struct Panels
 {
   wxPanel* sidebar;
   wxNotebook* panel1;
-  wxNotebook* panel2;
 };
 
 ModeUiPtr createSceneEditModeUi(const Panels& panels, EditorCore& editorCore);

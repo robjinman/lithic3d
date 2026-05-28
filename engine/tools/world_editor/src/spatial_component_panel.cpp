@@ -12,9 +12,11 @@ namespace
 class AabbPanel
 {
   public:
-    AabbPanel(wxWindow* parent);
+    explicit AabbPanel(wxWindow* parent);
 
     wxWindow* getWxPtr();
+    bool hasChanges() const;
+    void setAabb(const Aabb& aabb);
 
   private:
     wxPanel* m_panel = nullptr;
@@ -24,6 +26,7 @@ class AabbPanel
     wxTextCtrl* m_txtYMax = nullptr;
     wxTextCtrl* m_txtZMin = nullptr;
     wxTextCtrl* m_txtZMax = nullptr;
+    bool m_hasChanges = false;
 };
 
 AabbPanel::AabbPanel(wxWindow* parent)
@@ -66,11 +69,35 @@ AabbPanel::AabbPanel(wxWindow* parent)
   grid->AddGrowableCol(3);
 
   m_panel->SetSizer(grid);
+
+  m_txtXMin->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+  m_txtXMax->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+  m_txtYMin->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+  m_txtYMax->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+  m_txtZMin->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+  m_txtZMax->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+}
+
+bool AabbPanel::hasChanges() const
+{
+  return m_hasChanges;
 }
 
 wxWindow* AabbPanel::getWxPtr()
 {
   return m_panel;
+}
+
+void AabbPanel::setAabb(const Aabb& aabb)
+{
+  m_txtXMin->SetValue(std::to_string(aabb.min[0]));
+  m_txtXMax->SetValue(std::to_string(aabb.max[0]));
+  m_txtYMin->SetValue(std::to_string(aabb.min[1]));
+  m_txtYMax->SetValue(std::to_string(aabb.max[1]));
+  m_txtZMin->SetValue(std::to_string(aabb.min[2]));
+  m_txtZMax->SetValue(std::to_string(aabb.max[2]));
+
+  m_hasChanges = false;
 }
 
 class SpatialComponentPanel : public ComponentPanel
@@ -80,14 +107,13 @@ class SpatialComponentPanel : public ComponentPanel
 
     wxPanel* getWxPtr() override;
     void populate(EntityId entityId) override;
+    bool hasChanges() const override;
 
   private:
     EditorCore& m_core;
     wxPanel* m_panel = nullptr;
     TransformPanelPtr m_transformPanel = nullptr;
     std::unique_ptr<AabbPanel> m_aabbPanel = nullptr;
-
-    void onEntitySelect();
 };
 
 SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& core)
@@ -112,10 +138,19 @@ SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& core)
   m_panel->Layout();
 }
 
+bool SpatialComponentPanel::hasChanges() const
+{
+  return m_aabbPanel->hasChanges();
+}
+
 void SpatialComponentPanel::populate(EntityId entityId)
 {
-  auto& transform = m_core.engine().ecs().system<SysSpatial>().getLocalTransform(entityId);
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  auto& transform = sysSpatial.getLocalTransform(entityId);
+  auto& aabb = sysSpatial.getAabb(entityId);
+
   m_transformPanel->setTransform(transform);
+  m_aabbPanel->setAabb(aabb);
 }
 
 wxPanel* SpatialComponentPanel::getWxPtr()

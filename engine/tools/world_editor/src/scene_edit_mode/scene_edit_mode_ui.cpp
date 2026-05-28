@@ -2,9 +2,8 @@
 #include "mode_ui.hpp"
 #include "editor_core.hpp"
 #include "prefabs_panel.hpp"
-#include "scene_panel.hpp"
 #include "cursor_panel.hpp"
-#include "components_panel.hpp"
+#include "scene_panel.hpp"
 #include <wx/wx.h>
 #include <wx/notebook.h>
 
@@ -38,12 +37,8 @@ class SceneEditModeUi : public ModeUi
     PrefabsPanelPtr m_prefabsPanel = nullptr;
     ScenePanelPtr m_scenePanel = nullptr;
     CursorPanelPtr m_cursorPanel = nullptr;
-    ComponentsPanelPtr m_componentsPanel = nullptr;
-    EventHandle m_onEntitySelect;
     EventHandle m_onApplyTransform;
     EventHandle m_onCancelTransform;
-
-    void onEntitySelect();
 };
 
 SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
@@ -53,20 +48,16 @@ SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
   m_mode = createSceneEditMode(m_core);
 
   m_prefabsPanel = createPrefabsPanel(m_panels.panel1, m_core, *m_mode);
-  m_scenePanel = createScenePanel(m_panels.panel1, *m_mode);
+  m_scenePanel = createScenePanel(m_panels.panel1, m_core, *m_mode);
   m_cursorPanel = createCursorPanel(m_panels.sidebar, m_core);
   m_cursorPanel->getWxPtr()->Hide();
   m_onCancelTransform = m_cursorPanel->listen(CursorPanel::Event::Cancel,
     [this]() { m_mode->cancelTransform(); });
   m_onApplyTransform = m_cursorPanel->listen(CursorPanel::Event::Apply,
     [this]() { m_mode->applyTransform(); });
-  m_componentsPanel = createComponentsPanel(m_panels.panel2, m_core);
 
   m_prefabsPanel->populate();
   m_scenePanel->populate(m_mode->getEntities());
-
-  m_onEntitySelect = m_mode->listen(SceneEditMode::Event::EntitySelect,
-    [this]() { onEntitySelect(); });
 }
 
 void SceneEditModeUi::onKeyDown(KeyboardKey key)
@@ -104,16 +95,10 @@ void SceneEditModeUi::saveChanges()
   m_mode->saveChanges();
 }
 
-void SceneEditModeUi::onEntitySelect()
-{
-  m_componentsPanel->onEntitySelect(m_mode->selectedEntity());
-}
-
 void SceneEditModeUi::activate()
 {
   m_panels.panel1->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
   m_panels.panel1->AddPage(m_scenePanel->getWxPtr(), "Scene");
-  m_panels.panel2->AddPage(m_componentsPanel->getWxPtr(), "Components");
 
   m_panels.sidebar->GetSizer()->Add(m_cursorPanel->getWxPtr(),
     wxSizerFlags(1).Expand().Border(wxALL, 10));
@@ -129,10 +114,6 @@ void SceneEditModeUi::deactivate()
 
   while (m_panels.panel1->GetPageCount() > 0) {
     m_panels.panel1->RemovePage(0);
-  }
-
-  while (m_panels.panel2->GetPageCount() > 0) {
-    m_panels.panel2->RemovePage(0);
   }
 
   m_cursorPanel->getWxPtr()->Hide();
