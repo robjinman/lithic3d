@@ -1,10 +1,7 @@
 #include "scene_edit_mode/scene_edit_mode.hpp"
 #include "mode_ui.hpp"
-#include "tools.hpp"
 #include "editor_core.hpp"
-#include "prefabs_panel.hpp"
 #include "cursor_panel.hpp"
-#include "scene_panel.hpp"
 #include <wx/wx.h>
 #include <wx/notebook.h>
 
@@ -35,13 +32,16 @@ class SceneEditModeUi : public ModeUi
     Panels m_panels;
     SceneEditModePtr m_mode;
     EditorCore& m_core;
-    PrefabsPanelPtr m_prefabsPanel = nullptr;
-    ScenePanelPtr m_scenePanel = nullptr;
+    wxNotebook* m_notebook = nullptr;
+    wxListBox* m_lstPrefabs = nullptr;
+    wxListBox* m_lstEntities = nullptr;
     CursorPanelPtr m_cursorPanel = nullptr;
+    EventHandle m_onAddOrRemoveEntity;
 
-    void onApplyTransform();
-    void onToolToggleOn(Tool tool);
-    void onToolToggleOff(Tool tool);
+    void populatePrefabs();
+    void populateEntities();
+    void onInstanceSelection();
+    void onPrefabSelection();
 };
 
 SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
@@ -50,50 +50,71 @@ SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
 {
   m_mode = createSceneEditMode(m_core);
 
-  m_prefabsPanel = createPrefabsPanel(m_panels.panel1, m_core, *m_mode);
-  m_scenePanel = createScenePanel(m_panels.panel1, m_core, *m_mode);
-  m_cursorPanel = createCursorPanel(m_panels.sidebar, m_core);
+  m_cursorPanel = createCursorPanel(m_panels.leftSidebar, m_core);
   m_cursorPanel->getWxPtr()->Hide();
 
   m_cursorPanel->getWxPtr()->Bind(ECancelActiveTransform,
     [this](wxEvent&) { m_mode->cancelTransform(); });
 
   m_cursorPanel->getWxPtr()->Bind(EApplyActiveTransform,
-    [this](wxEvent&) { onApplyTransform(); });
+    [this](wxEvent&) { m_mode->applyTransform(); });
 
-  m_scenePanel->getWxPtr()->Bind(EToolToggleOn,
-    [this](wxCommandEvent& e) { onToolToggleOn(static_cast<Tool>(e.GetInt())); });
+  m_notebook = new wxNotebook(m_panels.rightSidebar, wxID_ANY);
 
-  m_scenePanel->getWxPtr()->Bind(EToolToggleOff,
-    [this](wxCommandEvent& e) { onToolToggleOff(static_cast<Tool>(e.GetInt())); });
+  m_lstPrefabs = new wxListBox(m_notebook, wxID_ANY);
+  m_lstEntities = new wxListBox(m_notebook, wxID_ANY);
 
-  m_prefabsPanel->populate();
-  m_scenePanel->populate(m_mode->getEntities());
+  m_notebook->AddPage(m_lstPrefabs, "Prefabs");
+  m_notebook->AddPage(m_lstEntities, "Scene");
+
+  m_lstPrefabs->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onPrefabSelection(); });
+  m_lstEntities->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onInstanceSelection(); });
+
+  m_onAddOrRemoveEntity = m_mode->listen(SceneEditMode::Event::AddOrRemoveEntity,
+    [this]() { populateEntities(); });
+
+  populatePrefabs();
+  populateEntities();
 }
 
-void SceneEditModeUi::onApplyTransform()
+void SceneEditModeUi::onInstanceSelection()
 {
-  m_mode->applyTransform();
-  m_scenePanel->onApplyTransform();
+  auto index = m_lstEntities->GetSelection();
+  if (index == wxNOT_FOUND) {
+    return;
+  }
+
+  auto& entity = *reinterpret_cast<EntityIdAndType*>(m_lstEntities->GetClientData(index));
+  m_mode->selectEntity(entity.id, entity.type);
 }
 
-void SceneEditModeUi::onToolToggleOn(Tool tool)
+void SceneEditModeUi::onPrefabSelection()
 {
-  switch (tool) {
-    case Tool::BoundingBox:
-      std::cout << "Scene edit mode, tool bounding box toggled ON\n";
-      break;
-    default: break;
+  auto selected = m_lstPrefabs->GetStringSelection().ToStdString();
+
+  if (!selected.empty()) {
+    m_mode->setActivePrefab(selected);
   }
 }
 
-void SceneEditModeUi::onToolToggleOff(Tool tool)
+void SceneEditModeUi::populatePrefabs()
 {
-  switch (tool) {
-    case Tool::BoundingBox:
-      std::cout << "Scene edit mode, tool bounding box toggled OFF\n";
-      break;
-    default: break;
+  auto prefabNames = m_core.listPrefabs();
+
+  for (size_t i = 0; i < prefabNames.size(); ++i) {
+     m_lstPrefabs->Insert(prefabNames[i], i);
+  }
+}
+
+void SceneEditModeUi::populateEntities()
+{
+  m_lstEntities->Clear();
+
+  auto entities = m_mode->getEntities();
+
+  for (size_t i = 0; i < entities.size(); ++i) {
+    m_lstEntities->Insert(STR("[" << entities[i].id << "] " << entities[i].type), i,
+      new EntityIdAndType{entities[i]});
   }
 }
 
@@ -134,13 +155,14 @@ void SceneEditModeUi::saveChanges()
 
 void SceneEditModeUi::activate()
 {
-  m_panels.panel1->AddPage(m_prefabsPanel->getWxPtr(), "Prefabs");
-  m_panels.panel1->AddPage(m_scenePanel->getWxPtr(), "Scene");
+  m_panels.rightSidebar->GetSizer()->Add(m_notebook, wxSizerFlags(1).Expand());
+  m_notebook->Show();
+  m_panels.rightSidebar->Layout();
 
-  m_panels.sidebar->GetSizer()->Add(m_cursorPanel->getWxPtr(),
+  m_panels.leftSidebar->GetSizer()->Add(m_cursorPanel->getWxPtr(),
     wxSizerFlags(1).Expand().Border(wxALL, 10));
   m_cursorPanel->getWxPtr()->Show();
-  m_panels.sidebar->Layout();
+  m_panels.leftSidebar->Layout();
 
   m_mode->activate();
 }
@@ -149,12 +171,11 @@ void SceneEditModeUi::deactivate()
 {
   m_mode->deactivate();
 
-  while (m_panels.panel1->GetPageCount() > 0) {
-    m_panels.panel1->RemovePage(0);
-  }
+  m_notebook->Hide();
+  m_panels.rightSidebar->GetSizer()->Remove(0);
 
   m_cursorPanel->getWxPtr()->Hide();
-  m_panels.sidebar->GetSizer()->Remove(0);
+  m_panels.leftSidebar->GetSizer()->Remove(0);
 }
 
 } // namespace

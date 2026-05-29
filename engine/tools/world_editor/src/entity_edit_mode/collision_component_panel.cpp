@@ -1,4 +1,4 @@
-#include "component_panel.hpp"
+#include "entity_edit_mode/component_panel.hpp"
 #include "transform_panel.hpp"
 #include "editor_core.hpp"
 #include "tools.hpp"

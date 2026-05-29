@@ -5,7 +5,7 @@
 #include <lithic3d/sys_collision.hpp>
 #include <memory>
 
-class PrefabEditMode
+class EntityEditMode
 {
   public:
     virtual void activate() = 0;
@@ -25,11 +25,11 @@ class PrefabEditMode
     virtual void onMouseLeftBtnUp() = 0;
     virtual void onMouseMove(float x, float y) = 0;
 
-    virtual ~PrefabEditMode() = default;
+    virtual ~EntityEditMode() = default;
 };
 
-using PrefabEditModePtr = std::unique_ptr<PrefabEditMode>;
+using EntityEditModePtr = std::unique_ptr<EntityEditMode>;
 
 class EditorCore;
 
-PrefabEditModePtr createPrefabEditMode(EditorCore& core);
+EntityEditModePtr createEntityEditMode(EditorCore& core);

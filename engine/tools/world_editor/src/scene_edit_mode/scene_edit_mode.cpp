@@ -1,9 +1,5 @@
 #include "scene_edit_mode/scene_edit_mode.hpp"
 #include "editor_core.hpp"
-#include "prefabs_panel.hpp"
-#include "scene_panel.hpp"
-#include "cursor_panel.hpp"
-#include "components_panel.hpp"
 #include <lithic3d/lithic3d.hpp>
 
 using namespace lithic3d;

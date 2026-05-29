@@ -1,5 +1,5 @@
-#include "components_panel.hpp"
-#include "component_panel.hpp"
+#include "entity_edit_mode/components_panel.hpp"
+#include "entity_edit_mode/component_panel.hpp"
 #include "editor_core.hpp"
 #include <wx/wx.h>
 #include <wx/choicebk.h>

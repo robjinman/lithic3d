@@ -1,4 +1,4 @@
-#include "prefab_edit_mode/prefab_edit_mode.hpp"
+#include "entity_edit_mode/entity_edit_mode.hpp"
 #include "editor_core.hpp"
 #include <lithic3d/lithic3d.hpp>
 
@@ -15,10 +15,10 @@ struct SuspendResumeState
   float cursorDistance = metresToWorldUnits(10.f);
 };
 
-class PrefabEditModeImpl : public PrefabEditMode
+class EntityEditModeImpl : public EntityEditMode
 {
   public:
-    PrefabEditModeImpl(EditorCore& core);
+    EntityEditModeImpl(EditorCore& core);
 
     void activate() override;
     void deactivate() override;
@@ -48,13 +48,13 @@ class PrefabEditModeImpl : public PrefabEditMode
     void processKeyboardInput();
 };
 
-PrefabEditModeImpl::PrefabEditModeImpl(EditorCore& core)
+EntityEditModeImpl::EntityEditModeImpl(EditorCore& core)
   : m_core(core)
 {
   constructRoot();
 }
 
-void PrefabEditModeImpl::constructRoot()
+void EntityEditModeImpl::constructRoot()
 {
   Ecs& ecs = m_core.engine().ecs();
 
@@ -70,7 +70,7 @@ void PrefabEditModeImpl::constructRoot()
   });
 }
 
-void PrefabEditModeImpl::activate()
+void EntityEditModeImpl::activate()
 {
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
   sysSpatial.setEnabled(m_rootId, true);
@@ -84,7 +84,7 @@ void PrefabEditModeImpl::activate()
   m_core.setCursorDistance(m_suspendResumeState.cursorDistance);
 }
 
-void PrefabEditModeImpl::deactivate()
+void EntityEditModeImpl::deactivate()
 {
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
   sysSpatial.setEnabled(m_rootId, false);
@@ -99,12 +99,12 @@ void PrefabEditModeImpl::deactivate()
   };
 }
 
-EntityId PrefabEditModeImpl::instantiatedPrefabId() const
+EntityId EntityEditModeImpl::instantiatedPrefabId() const
 {
   return m_entityId;
 }
 
-void PrefabEditModeImpl::setActivePrefab(const std::string& prefab)
+void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
 {
   auto& engine = m_core.engine();
 
@@ -116,37 +116,37 @@ void PrefabEditModeImpl::setActivePrefab(const std::string& prefab)
   m_entityId = engine.entityFactory().constructEntity(m_rootId, prefab, transform);
 }
 
-void PrefabEditModeImpl::setActiveBoundingBox(const BoundingBox& box)
+void EntityEditModeImpl::setActiveBoundingBox(const BoundingBox& box)
 {
   // TODO
 }
 
-void PrefabEditModeImpl::cancelActiveBoundingBox()
+void EntityEditModeImpl::cancelActiveBoundingBox()
 {
   // TODO
 }
 
-void PrefabEditModeImpl::onKeyDown(KeyboardKey key)
+void EntityEditModeImpl::onKeyDown(KeyboardKey key)
 {
 
 }
 
-void PrefabEditModeImpl::onKeyUp(KeyboardKey key)
+void EntityEditModeImpl::onKeyUp(KeyboardKey key)
 {
   
 }
 
-void PrefabEditModeImpl::onMouseLeftBtnDown()
+void EntityEditModeImpl::onMouseLeftBtnDown()
 {
 
 }
 
-void PrefabEditModeImpl::onMouseLeftBtnUp()
+void EntityEditModeImpl::onMouseLeftBtnUp()
 {
 
 }
 
-void PrefabEditModeImpl::onMouseMove(float x, float y)
+void EntityEditModeImpl::onMouseMove(float x, float y)
 {
   auto& inputState = m_core.inputState();
 
@@ -162,7 +162,7 @@ void PrefabEditModeImpl::onMouseMove(float x, float y)
   m_prevMousePos = { x, y };
 }
 
-void PrefabEditModeImpl::processKeyboardInput()
+void EntityEditModeImpl::processKeyboardInput()
 {
   auto& inputState = m_core.inputState();
   auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
@@ -200,19 +200,19 @@ void PrefabEditModeImpl::processKeyboardInput()
   }
 }
 
-void PrefabEditModeImpl::saveChanges()
+void EntityEditModeImpl::saveChanges()
 {
   // TODO
 }
 
-void PrefabEditModeImpl::update()
+void EntityEditModeImpl::update()
 {
   processKeyboardInput();
 }
 
 } // namespace
 
-PrefabEditModePtr createPrefabEditMode(EditorCore& core)
+EntityEditModePtr createEntityEditMode(EditorCore& core)
 {
-  return std::make_unique<PrefabEditModeImpl>(core);
+  return std::make_unique<EntityEditModeImpl>(core);
 }

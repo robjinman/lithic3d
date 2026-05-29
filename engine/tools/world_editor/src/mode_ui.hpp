@@ -30,9 +30,9 @@ class EditorCore;
 
 struct Panels
 {
-  wxPanel* sidebar;
-  wxNotebook* panel1;
+  wxPanel* leftSidebar;
+  wxPanel* rightSidebar;
 };
 
 ModeUiPtr createSceneEditModeUi(const Panels& panels, EditorCore& editorCore);
-ModeUiPtr createPrefabEditModeUi(const Panels& panels, EditorCore& editorCore);
+ModeUiPtr createEntityEditModeUi(const Panels& panels, EditorCore& editorCore);

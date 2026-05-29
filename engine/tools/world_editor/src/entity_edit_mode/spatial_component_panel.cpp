@@ -1,4 +1,4 @@
-#include "component_panel.hpp"
+#include "entity_edit_mode/component_panel.hpp"
 #include "editor_core.hpp"
 #include "transform_panel.hpp"
 #include <lithic3d/lithic3d.hpp>

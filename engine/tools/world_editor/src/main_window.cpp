@@ -61,8 +61,8 @@ class MainWindowImpl : public wxFrame
     wxBoxSizer* m_vbox = nullptr;
     wxPanel* m_leftPanel = nullptr;
     wxPanel* m_rightPanel = nullptr;
+    wxPanel* m_rightSubpanel = nullptr;
     wxChoice* m_modeSelector = nullptr;
-    wxNotebook* m_rightPanelNotebook = nullptr;
     EditorCorePtr m_core;
     std::array<ModeUiPtr, 2> m_modes;
     int m_currentMode = -1;
@@ -129,13 +129,13 @@ void MainWindowImpl::onOpen(wxCommandEvent&)
   m_core = createEditorCore(dialog->GetPath().ToStdString(), *m_windowDelegate);
 
   Panels panels{
-    .sidebar = m_leftPanel,
-    .panel1 = m_rightPanelNotebook,
+    .leftSidebar = m_leftPanel,
+    .rightSidebar = m_rightSubpanel
   };
 
   m_modes = {
     createSceneEditModeUi(panels, *m_core),
-    createPrefabEditModeUi(panels, *m_core)
+    createEntityEditModeUi(panels, *m_core)
   };
 
   m_modes.at(0)->activate();
@@ -335,10 +335,7 @@ void MainWindowImpl::onModeChange(wxCommandEvent&)
 void MainWindowImpl::constructLeftPanel()
 {
   m_leftPanel = new wxPanel(m_outerSplitter, wxID_ANY);
-
-  auto vbox = new wxBoxSizer(wxVERTICAL);
-
-  m_leftPanel->SetSizer(vbox);
+  m_leftPanel->SetSizer(new wxBoxSizer(wxVERTICAL));
 }
 
 void MainWindowImpl::constructRightPanel()
@@ -353,7 +350,7 @@ void MainWindowImpl::constructRightPanel()
 
   wxArrayString modes;
   modes.Add("Scene editor");
-  modes.Add("Prefab editor");
+  modes.Add("Entity editor");
 
   m_modeSelector = new wxChoice(m_rightPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
     modes);
@@ -364,10 +361,11 @@ void MainWindowImpl::constructRightPanel()
 
   m_modeSelector->Disable();
 
-  m_rightPanelNotebook = new wxNotebook(m_rightPanel, wxID_ANY);
+  m_rightSubpanel = new wxPanel(m_rightPanel, wxID_ANY);
+  m_rightSubpanel->SetSizer(new wxBoxSizer(wxVERTICAL));
 
   vbox->Add(modeSizer, wxSizerFlags().Expand());
-  vbox->Add(m_rightPanelNotebook, wxSizerFlags(1).Expand());
+  vbox->Add(m_rightSubpanel, wxSizerFlags(1).Expand());
 
   m_rightPanel->SetSizer(vbox);
   m_rightPanel->Layout();
