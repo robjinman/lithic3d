@@ -14,10 +14,12 @@ class TransformPanelImpl : public TransformPanel
 
     wxWindow* getWxPtr() override;
     void setTransform(const Mat4x4f& transform) override;
+    const Mat4x4f& getTransform() const override;
 
   private:
     wxPanel* m_panel = nullptr;
     wxTextCtrl* m_txtMatrix = nullptr;
+    Mat4x4f m_transform;
 };
 
 TransformPanelImpl::TransformPanelImpl(wxWindow* parent)
@@ -44,9 +46,15 @@ wxWindow* TransformPanelImpl::getWxPtr()
   return m_panel;
 }
 
+const Mat4x4f& TransformPanelImpl::getTransform() const
+{
+  return m_transform;
+}
+
 void TransformPanelImpl::setTransform(const Mat4x4f& transform)
 {
-  m_txtMatrix->SetValue(STR(transform));
+  m_transform = transform;
+  m_txtMatrix->SetValue(STR(m_transform));
 }
 
 } // namespace

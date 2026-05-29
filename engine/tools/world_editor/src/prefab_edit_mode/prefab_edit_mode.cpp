@@ -24,8 +24,12 @@ class PrefabEditModeImpl : public PrefabEditMode
     void deactivate() override;
     void saveChanges() override;
     void update() override;
+
     void setActivePrefab(const std::string& prefab) override;
     EntityId instantiatedPrefabId() const override;
+
+    void setActiveBoundingBox(const BoundingBox& box) override;
+    void cancelActiveBoundingBox() override;
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -110,6 +114,16 @@ void PrefabEditModeImpl::setActivePrefab(const std::string& prefab)
 
   auto transform = scaleMatrix<4>(WORLD_UNITS_PER_METRE, true);
   m_entityId = engine.entityFactory().constructEntity(m_rootId, prefab, transform);
+}
+
+void PrefabEditModeImpl::setActiveBoundingBox(const BoundingBox& box)
+{
+  // TODO
+}
+
+void PrefabEditModeImpl::cancelActiveBoundingBox()
+{
+  // TODO
 }
 
 void PrefabEditModeImpl::onKeyDown(KeyboardKey key)

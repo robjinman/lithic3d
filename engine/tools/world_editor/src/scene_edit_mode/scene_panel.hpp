@@ -12,6 +12,7 @@ class ScenePanel
   public:
     virtual void populate(const std::vector<EntityIdAndType>& entities) = 0;
     virtual wxPanel* getWxPtr() = 0;
+    virtual void onApplyTransform() = 0;
 
     virtual ~ScenePanel() = default;
 };

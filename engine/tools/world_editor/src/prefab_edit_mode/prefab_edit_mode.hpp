@@ -2,6 +2,7 @@
 
 #include <lithic3d/input.hpp>
 #include <lithic3d/entity_id.hpp>
+#include <lithic3d/sys_collision.hpp>
 #include <memory>
 
 class PrefabEditMode
@@ -11,8 +12,12 @@ class PrefabEditMode
     virtual void deactivate() = 0;
     virtual void update() = 0;
     virtual void saveChanges() = 0;
+
     virtual void setActivePrefab(const std::string& name) = 0;
     virtual lithic3d::EntityId instantiatedPrefabId() const = 0;
+
+    virtual void setActiveBoundingBox(const lithic3d::BoundingBox& box) = 0;
+    virtual void cancelActiveBoundingBox() = 0;
 
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;

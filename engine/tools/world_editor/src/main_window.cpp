@@ -358,7 +358,7 @@ void MainWindowImpl::constructRightPanel()
   m_modeSelector = new wxChoice(m_rightPanel, wxID_ANY, wxDefaultPosition, wxDefaultSize,
     modes);
 
-  modeSizer->Add(modeLabel, wxSizerFlags().Expand().Border());
+  modeSizer->Add(modeLabel, wxSizerFlags().Expand().Align(wxALIGN_CENTER_VERTICAL).Border());
   modeSizer->Add(m_modeSelector, wxSizerFlags(1).Expand().Border());
   modeSizer->AddGrowableCol(1);
 

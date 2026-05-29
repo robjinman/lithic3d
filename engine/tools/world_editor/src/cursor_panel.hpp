@@ -1,26 +1,21 @@
 #pragma once
 
-#include "event_emitter.hpp"
+#include <wx/wx.h>
 #include <memory>
 
-class wxWindow;
 class EditorCore;
 
 class CursorPanel
 {
   public:
-    enum class Event : EventId
-    {
-      Apply,
-      Cancel
-    };
-
     virtual wxWindow* getWxPtr() = 0;
-    virtual EventHandle listen(Event eventId, const EventHandler& handler) = 0;
 
     virtual ~CursorPanel() = default;
 };
 
 using CursorPanelPtr = std::unique_ptr<CursorPanel>;
+
+wxDECLARE_EVENT(ECancelActiveTransform, wxCommandEvent);
+wxDECLARE_EVENT(EApplyActiveTransform, wxCommandEvent);
 
 CursorPanelPtr createCursorPanel(wxWindow* parent, EditorCore& editorCore);

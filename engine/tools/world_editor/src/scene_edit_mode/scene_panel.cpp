@@ -17,6 +17,7 @@ class ScenePanelImpl : public ScenePanel
 
     void populate(const std::vector<EntityIdAndType>& entities) override;
     wxPanel* getWxPtr() override;
+    void onApplyTransform() override;
 
   private:
     void onInstanceSelection(wxEvent& e);
@@ -26,7 +27,6 @@ class ScenePanelImpl : public ScenePanel
     wxListBox* m_listBox = nullptr;
     ComponentsPanelPtr m_componentsPanel = nullptr;
     EventHandle m_onAddOrRemoveEntity;
-    EventHandle m_onEntitySelect;
 
     void onAddOrRemoveEntity();
 };
@@ -53,6 +53,11 @@ ScenePanelImpl::ScenePanelImpl(wxWindow* parent, EditorCore& core, SceneEditMode
 
   m_onAddOrRemoveEntity = m_mode.listen(SceneEditMode::Event::AddOrRemoveEntity,
     [this]() { onAddOrRemoveEntity(); });
+}
+
+void ScenePanelImpl::onApplyTransform()
+{
+  m_componentsPanel->repopulate();
 }
 
 void ScenePanelImpl::onAddOrRemoveEntity()

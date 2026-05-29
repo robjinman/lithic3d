@@ -1,5 +1,6 @@
 #include "scene_edit_mode/scene_edit_mode.hpp"
 #include "mode_ui.hpp"
+#include "tools.hpp"
 #include "editor_core.hpp"
 #include "prefabs_panel.hpp"
 #include "cursor_panel.hpp"
@@ -37,8 +38,10 @@ class SceneEditModeUi : public ModeUi
     PrefabsPanelPtr m_prefabsPanel = nullptr;
     ScenePanelPtr m_scenePanel = nullptr;
     CursorPanelPtr m_cursorPanel = nullptr;
-    EventHandle m_onApplyTransform;
-    EventHandle m_onCancelTransform;
+
+    void onApplyTransform();
+    void onToolToggleOn(Tool tool);
+    void onToolToggleOff(Tool tool);
 };
 
 SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
@@ -51,13 +54,47 @@ SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
   m_scenePanel = createScenePanel(m_panels.panel1, m_core, *m_mode);
   m_cursorPanel = createCursorPanel(m_panels.sidebar, m_core);
   m_cursorPanel->getWxPtr()->Hide();
-  m_onCancelTransform = m_cursorPanel->listen(CursorPanel::Event::Cancel,
-    [this]() { m_mode->cancelTransform(); });
-  m_onApplyTransform = m_cursorPanel->listen(CursorPanel::Event::Apply,
-    [this]() { m_mode->applyTransform(); });
+
+  m_cursorPanel->getWxPtr()->Bind(ECancelActiveTransform,
+    [this](wxEvent&) { m_mode->cancelTransform(); });
+
+  m_cursorPanel->getWxPtr()->Bind(EApplyActiveTransform,
+    [this](wxEvent&) { onApplyTransform(); });
+
+  m_scenePanel->getWxPtr()->Bind(EToolToggleOn,
+    [this](wxCommandEvent& e) { onToolToggleOn(static_cast<Tool>(e.GetInt())); });
+
+  m_scenePanel->getWxPtr()->Bind(EToolToggleOff,
+    [this](wxCommandEvent& e) { onToolToggleOff(static_cast<Tool>(e.GetInt())); });
 
   m_prefabsPanel->populate();
   m_scenePanel->populate(m_mode->getEntities());
+}
+
+void SceneEditModeUi::onApplyTransform()
+{
+  m_mode->applyTransform();
+  m_scenePanel->onApplyTransform();
+}
+
+void SceneEditModeUi::onToolToggleOn(Tool tool)
+{
+  switch (tool) {
+    case Tool::BoundingBox:
+      std::cout << "Scene edit mode, tool bounding box toggled ON\n";
+      break;
+    default: break;
+  }
+}
+
+void SceneEditModeUi::onToolToggleOff(Tool tool)
+{
+  switch (tool) {
+    case Tool::BoundingBox:
+      std::cout << "Scene edit mode, tool bounding box toggled OFF\n";
+      break;
+    default: break;
+  }
 }
 
 void SceneEditModeUi::onKeyDown(KeyboardKey key)

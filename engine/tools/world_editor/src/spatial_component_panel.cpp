@@ -12,14 +12,16 @@ namespace
 class AabbPanel
 {
   public:
-    explicit AabbPanel(wxWindow* parent);
+    AabbPanel(wxWindow* parent);
 
     wxWindow* getWxPtr();
     bool hasChanges() const;
     void setAabb(const Aabb& aabb);
+    Aabb getAabb() const;
 
   private:
     wxPanel* m_panel = nullptr;
+    wxCheckBox* m_chkRender = nullptr;
     wxTextCtrl* m_txtXMin = nullptr;
     wxTextCtrl* m_txtXMax = nullptr;
     wxTextCtrl* m_txtYMin = nullptr;
@@ -27,11 +29,18 @@ class AabbPanel
     wxTextCtrl* m_txtZMin = nullptr;
     wxTextCtrl* m_txtZMax = nullptr;
     bool m_hasChanges = false;
+
+    void onRenderToggle();
 };
 
 AabbPanel::AabbPanel(wxWindow* parent)
 {
   m_panel = new wxPanel(parent, wxID_ANY);
+
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+
+  m_chkRender = new wxCheckBox(m_panel, wxID_ANY, "Render");
+  vbox->Add(m_chkRender, wxSizerFlags().Expand());
 
   auto grid = new wxFlexGridSizer(4);
 
@@ -68,14 +77,38 @@ AabbPanel::AabbPanel(wxWindow* parent)
   grid->AddGrowableCol(1);
   grid->AddGrowableCol(3);
 
-  m_panel->SetSizer(grid);
+  vbox->Add(grid, wxSizerFlags(1).Expand());
 
+  m_panel->SetSizer(vbox);
+
+  m_chkRender->Bind(wxEVT_CHECKBOX, [this](wxEvent&) { onRenderToggle(); });
   m_txtXMin->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
   m_txtXMax->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
   m_txtYMin->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
   m_txtYMax->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
   m_txtZMin->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
   m_txtZMax->Bind(wxEVT_TEXT, [this](wxEvent&) { m_hasChanges = true; });
+}
+
+Aabb AabbPanel::getAabb() const
+{
+  return {
+    .min{
+      std::stof(m_txtXMin->GetValue().ToStdString()),
+      std::stof(m_txtYMin->GetValue().ToStdString()),
+      std::stof(m_txtZMin->GetValue().ToStdString())
+    },
+    .max{
+      std::stof(m_txtXMax->GetValue().ToStdString()),
+      std::stof(m_txtYMax->GetValue().ToStdString()),
+      std::stof(m_txtZMax->GetValue().ToStdString())
+    }
+  };
+}
+
+void AabbPanel::onRenderToggle()
+{
+  // TODO
 }
 
 bool AabbPanel::hasChanges() const
@@ -108,12 +141,16 @@ class SpatialComponentPanel : public ComponentPanel
     wxPanel* getWxPtr() override;
     void populate(EntityId entityId) override;
     bool hasChanges() const override;
+    SystemId systemId() const override;
+    void repopulate() override;
+    ComponentDataPtr getComponentData() const override;
 
   private:
     EditorCore& m_core;
     wxPanel* m_panel = nullptr;
     TransformPanelPtr m_transformPanel = nullptr;
     std::unique_ptr<AabbPanel> m_aabbPanel = nullptr;
+    EntityId m_entityId = NULL_ENTITY_ID;
 };
 
 SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& core)
@@ -138,6 +175,26 @@ SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& core)
   m_panel->Layout();
 }
 
+SystemId SpatialComponentPanel::systemId() const
+{
+  return Systems::Spatial;
+}
+
+void SpatialComponentPanel::repopulate()
+{
+  populate(m_entityId);
+}
+
+ComponentDataPtr SpatialComponentPanel::getComponentData() const
+{
+  return std::make_unique<ComponentDataWrapper<DSpatial>>(DSpatial{
+    .transform = m_transformPanel->getTransform(),
+    .parent = NULL_ENTITY_ID,
+    .enabled = true,
+    .aabb = m_aabbPanel->getAabb()
+  });
+}
+
 bool SpatialComponentPanel::hasChanges() const
 {
   return m_aabbPanel->hasChanges();
@@ -145,9 +202,11 @@ bool SpatialComponentPanel::hasChanges() const
 
 void SpatialComponentPanel::populate(EntityId entityId)
 {
+  m_entityId = entityId;
+
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
-  auto& transform = sysSpatial.getLocalTransform(entityId);
-  auto& aabb = sysSpatial.getAabb(entityId);
+  auto& transform = sysSpatial.getLocalTransform(m_entityId);
+  auto& aabb = sysSpatial.getAabb(m_entityId);
 
   m_transformPanel->setTransform(transform);
   m_aabbPanel->setAabb(aabb);

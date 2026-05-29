@@ -8,6 +8,9 @@
 
 using namespace lithic3d;
 
+wxDEFINE_EVENT(ECancelActiveTransform, wxCommandEvent);
+wxDEFINE_EVENT(EApplyActiveTransform, wxCommandEvent);
+
 namespace
 {
 
@@ -16,7 +19,6 @@ class CursorPanelImpl : public CursorPanel
   public:
     CursorPanelImpl(wxWindow* parent, EditorCore& editorCore);
 
-    EventHandle listen(Event eventId, const EventHandler& handler) override;
     wxWindow* getWxPtr() override;
 
   private:
@@ -29,7 +31,6 @@ class CursorPanelImpl : public CursorPanel
 
     wxWindow* m_window = nullptr;
     EditorCore& m_core;
-    EventEmitterPtr m_eventEmitter;
     wxSpinCtrlDouble* m_spnDistance = nullptr;
     wxSpinCtrlDouble* m_spnScale = nullptr;
     wxSlider* m_sldEulerY = nullptr;
@@ -39,8 +40,6 @@ class CursorPanelImpl : public CursorPanel
 CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   : m_core(editorCore)
 {
-  m_eventEmitter = createEventEmitter();
-
   m_window = new wxPanel(parent, wxID_ANY);
   auto vbox = new wxBoxSizer(wxVERTICAL);
 
@@ -104,19 +103,16 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-EventHandle CursorPanelImpl::listen(Event eventId, const EventHandler& handler)
-{
-  return m_eventEmitter->subscribe(static_cast<EventId>(eventId), handler);
-}
-
 void CursorPanelImpl::onCancelClick()
 {
-  m_eventEmitter->raise(static_cast<EventId>(Event::Cancel));
+  wxCommandEvent event(ECancelActiveTransform);
+  wxPostEvent(m_window, event);
 }
 
 void CursorPanelImpl::onApplyClick()
 {
-  m_eventEmitter->raise(static_cast<EventId>(Event::Apply));
+  wxCommandEvent event(EApplyActiveTransform);
+  wxPostEvent(m_window, event);
 }
 
 wxWindow* CursorPanelImpl::getWxPtr()

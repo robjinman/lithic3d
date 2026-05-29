@@ -12,6 +12,7 @@ class TransformPanel
   public:
     virtual wxWindow* getWxPtr() = 0;
     virtual void setTransform(const lithic3d::Mat4x4f& transform) = 0;
+    virtual const lithic3d::Mat4x4f& getTransform() const = 0;
 
     virtual ~TransformPanel() = default;
 };
