@@ -25,6 +25,14 @@ enum class State
   BoundingBoxTool
 };
 
+// Transforms a unit cube (world units) to the box defined by min/max
+Mat4x4f unitCubeToBoxTransform(const Vec3f& min, const Vec3f& max)
+{
+  auto size = max - min;
+  auto centre = min + size * 0.5f;
+  return translationMatrix4x4(centre) * scaleMatrix4x4(size);
+}
+
 class EntityEditModeImpl : public EntityEditMode
 {
   public:
@@ -45,6 +53,9 @@ class EntityEditModeImpl : public EntityEditMode
 
     void updateBoundingBox(const BoundingBox& box) override;
     void updateAabb(const Aabb& aabb) override;
+
+    const Aabb& getAabb() const override;
+    const BoundingBox& getBoundingBox() const override;
 
     void applyTransform() override;
     void cancelTransform() override;
@@ -110,6 +121,12 @@ void EntityEditModeImpl::activate()
   camera.setPosition(m_suspendResumeState.cameraPosition);
   camera.setDirection(m_suspendResumeState.cameraDirection);
 
+  if (m_cursorEntityId == NULL_ENTITY_ID) {
+    m_core.showCursor();
+  }
+  else {
+    m_core.hideCursor();
+  }
   m_core.setCursorRotationScale(m_suspendResumeState.cursorRotationScale);
   m_core.setCursorDistance(m_suspendResumeState.cursorDistance);
 }
@@ -145,6 +162,16 @@ void EntityEditModeImpl::updateBoundingBox(const BoundingBox& box)
   if (m_renderedBboxId != NULL_ENTITY_ID) {
     updateRenderedBoundingBox();
   }
+}
+
+const Aabb& EntityEditModeImpl::getAabb() const
+{
+  return m_aabb;
+}
+
+const BoundingBox& EntityEditModeImpl::getBoundingBox() const
+{
+  return m_bbox;
 }
 
 void EntityEditModeImpl::renderBoundingBox(bool render)
@@ -183,9 +210,7 @@ void EntityEditModeImpl::updateRenderedAabb()
 {
   auto& engine = m_core.engine();
 
-  auto size = m_aabb.max - m_aabb.min;
-  auto centre = m_aabb.min + size * 0.5f;
-  auto m = translationMatrix4x4(centre) * scaleMatrix4x4(size);
+  auto m = unitCubeToBoxTransform(m_aabb.min, m_aabb.max);
   engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedAabbId, m);
 }
 
@@ -193,9 +218,7 @@ void EntityEditModeImpl::updateRenderedBoundingBox()
 {
   auto& engine = m_core.engine();
 
-  auto size = m_bbox.max - m_bbox.min;
-  auto centre = m_bbox.min + size * 0.5f;
-  auto m = m_bbox.transform * translationMatrix4x4(centre) * scaleMatrix4x4(size);
+  auto m = m_bbox.transform * unitCubeToBoxTransform(m_bbox.min, m_bbox.max);
   engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedBboxId, m);
 }
 
@@ -203,11 +226,18 @@ void EntityEditModeImpl::applyTransform()
 {
   switch (m_state) {
     case State::BoundingBoxTool: {
-      // TODO
-      // Set transform of m_renderedBboxId to the same as m_cursorEntityIdId
-      // Update bounding box of m_entityId
-      // Delete m_cursorEntityIdId
-      // Set state to None
+      auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+
+      m_bbox.transform = m_core.getCursorTransform();
+      if (m_renderedBboxId != NULL_ENTITY_ID) {
+        updateRenderedBoundingBox();
+      }
+
+      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_cursorEntityId});
+      m_cursorEntityId = NULL_ENTITY_ID;
+
+      m_state = State::None;
+      m_core.showCursor();
 
       break;
     }
@@ -219,10 +249,12 @@ void EntityEditModeImpl::cancelTransform()
 {
   switch (m_state) {
     case State::BoundingBoxTool: {
-      // TODO
-      // Delete m_cursorEntityIdId
-      // Set state to None
+      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_cursorEntityId});
+      m_cursorEntityId = NULL_ENTITY_ID;
 
+      m_state = State::None;
+      m_core.showCursor();
+      
       break;
     }
     default: break;
@@ -251,9 +283,19 @@ void EntityEditModeImpl::selectBoundingBox()
     m_cursorEntityId = constructBox(GHOST_ENTITY_COLOUR);
   }
 
-  // TODO
+  auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+
+  auto& camera = sysRender3d.camera();
+  auto& camDir = camera.getDirection();
+  Vec3f entityPos = getTranslation(m_bbox.transform);
+
+  camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
+
+  m_core.setCursorRotationScale(getRotation3x3(m_bbox.transform));
 
   m_state = State::BoundingBoxTool;
+  m_core.hideCursor();
 }
 
 EntityId EntityEditModeImpl::constructBox(const Vec4f& colour)
@@ -288,10 +330,10 @@ EntityId EntityEditModeImpl::constructBox(const Vec4f& colour)
   };
 
   auto material = std::make_unique<render::Material>();
-  material->featureSet = render::MaterialFeatureSet{
-    .flags{}
-  };
   material->colour = colour;
+  material->featureSet = {
+    .flags = bitflag(render::MaterialFeatures::HasTransparency)
+  };
 
   auto& renderResourceLoader = m_core.engine().renderResourceLoader();
 
@@ -397,8 +439,14 @@ void EntityEditModeImpl::updateCursorEntity()
 {
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
-  if (m_cursorEntityId != NULL_ENTITY_ID) {
-    sysSpatial.setLocalTransform(m_cursorEntityId, m_core.getCursorTransform());
+  switch (m_state) {
+    case State::BoundingBoxTool: {
+
+      auto m = m_core.getCursorTransform() * unitCubeToBoxTransform(m_bbox.min, m_bbox.max);
+      sysSpatial.setLocalTransform(m_cursorEntityId, m);
+      break;
+    }
+    default: break;
   }
 }
 

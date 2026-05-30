@@ -24,9 +24,7 @@ class ComponentsPanelImpl : public ComponentsPanel
     ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCore, EntityEditMode& mode);
 
     void onEntitySelect(EntityId entityId) override;
-    //void repopulate() override;
-    SystemId getSelectedSystem() const override;
-    //ComponentDataPtr getComponentData() const override;
+    void repopulateFromMode() override;
 
     wxWindow* getWxPtr() override;
 
@@ -73,35 +71,6 @@ ComponentsPanelImpl::ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCor
   btnApply->Bind(wxEVT_UPDATE_UI, [this](wxUpdateUIEvent& e) { e.Enable(hasChanges()); });
 }
 
-SystemId ComponentsPanelImpl::getSelectedSystem() const
-{
-  int pageIndex = m_choicebook->GetSelection();
-  if (pageIndex >= 0) {
-    auto& panel = m_panels.at(pageIndex);
-    return panel->systemId();
-  }
-  return std::numeric_limits<SystemId>::max();
-}
-/*
-ComponentDataPtr ComponentsPanelImpl::getComponentData() const
-{
-  int pageIndex = m_choicebook->GetSelection();
-  if (pageIndex >= 0) {
-    auto& panel = m_panels.at(pageIndex);
-    return panel->getComponentData();
-  }
-  return nullptr;
-}*/
-/*
-void ComponentsPanelImpl::repopulate()
-{
-  int pageIndex = m_choicebook->GetSelection();
-  if (pageIndex >= 0) {
-    auto& panel = m_panels.at(pageIndex);
-    panel->repopulate();
-  }
-}*/
-
 bool ComponentsPanelImpl::hasChanges() const
 {
   int pageIndex = m_choicebook->GetSelection();
@@ -140,6 +109,15 @@ ComponentPanelPtr ComponentsPanelImpl::createComponentPanel(SystemId systemId)
     case Systems::Collision: return createCollisionComponentPanel(m_choicebook, m_core, m_mode);
     // ...
     default: return nullptr;
+  }
+}
+
+void ComponentsPanelImpl::repopulateFromMode()
+{
+  int n = m_choicebook->GetPageCount();
+  for (int i = 0; i < n; ++i) {
+    auto& panel = m_panels.at(i);
+    panel->repopulateFromMode();
   }
 }
 

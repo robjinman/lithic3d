@@ -454,6 +454,11 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
   const std::function<bool(const Submodel&)>& filter)
 {
   for (EntityId id : entities) {
+    auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id).flags;
+    if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
+      continue;
+    }
+
     auto entry = m_models.find(id); // TODO: Insanely inefficient!
     if (entry == m_models.end()) {
       continue;

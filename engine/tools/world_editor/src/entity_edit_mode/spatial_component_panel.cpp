@@ -17,7 +17,7 @@ class AabbPanel
 
     wxWindow* getWxPtr();
     bool hasChanges() const;
-    void setAabb(const Aabb& aabb);
+    void setAabb(const Aabb& aabb, bool resetDirtyFlag = true);
 
   private:
     EntityEditMode& m_mode;
@@ -132,7 +132,7 @@ wxWindow* AabbPanel::getWxPtr()
   return m_panel;
 }
 
-void AabbPanel::setAabb(const Aabb& aabb)
+void AabbPanel::setAabb(const Aabb& aabb, bool resetDirtyFlag)
 {
   m_txtXMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[0])));
   m_txtXMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[0])));
@@ -141,7 +141,7 @@ void AabbPanel::setAabb(const Aabb& aabb)
   m_txtZMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[2])));
   m_txtZMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[2])));
 
-  m_hasChanges = false;
+  m_hasChanges = !resetDirtyFlag;
 }
 
 class SpatialComponentPanel : public ComponentPanel
@@ -151,10 +151,8 @@ class SpatialComponentPanel : public ComponentPanel
 
     wxPanel* getWxPtr() override;
     void populate(EntityId entityId) override;
+    void repopulateFromMode() override;
     bool hasChanges() const override;
-    SystemId systemId() const override;
-    //void repopulate() override;
-    //ComponentDataPtr getComponentData() const override;
 
   private:
     EditorCore& m_core;
@@ -189,26 +187,6 @@ SpatialComponentPanel::SpatialComponentPanel(wxWindow* parent, EditorCore& core,
   m_panel->Layout();
 }
 
-SystemId SpatialComponentPanel::systemId() const
-{
-  return Systems::Spatial;
-}
-/*
-void SpatialComponentPanel::repopulate()
-{
-  populate(m_entityId);
-}*/
-/*
-ComponentDataPtr SpatialComponentPanel::getComponentData() const
-{
-  return std::make_unique<ComponentDataWrapper<DSpatial>>(DSpatial{
-    .transform = m_transformPanel->getTransform(),
-    .parent = NULL_ENTITY_ID,
-    .enabled = true,
-    .aabb = m_aabbPanel->getAabb()
-  });
-}*/
-
 bool SpatialComponentPanel::hasChanges() const
 {
   return m_aabbPanel->hasChanges();
@@ -224,6 +202,13 @@ void SpatialComponentPanel::populate(EntityId entityId)
 
   m_transformPanel->setTransform(transform);
   m_aabbPanel->setAabb(aabb);
+}
+
+void SpatialComponentPanel::repopulateFromMode()
+{
+  // Transform shouldn't change
+
+  m_aabbPanel->setAabb(m_mode.getAabb(), false);
 }
 
 wxPanel* SpatialComponentPanel::getWxPtr()

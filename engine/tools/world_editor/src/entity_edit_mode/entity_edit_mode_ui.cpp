@@ -46,9 +46,6 @@ class EntityEditModeUi : public ModeUi
     void populateEntities();
     void onInstanceSelection();
     void onPrefabSelection();
-    //void onToolToggleOn(Tool tool);
-    //void onComponentChange(wxCommandEvent& e);
-    //void toggleBoundingBoxToolOn();
 };
 
 EntityEditModeUi::EntityEditModeUi(const Panels& panels, EditorCore& core)
@@ -59,6 +56,12 @@ EntityEditModeUi::EntityEditModeUi(const Panels& panels, EditorCore& core)
 
   m_cursorPanel = createCursorPanel(m_panels.leftSidebar, m_core);
   m_cursorPanel->getWxPtr()->Hide();
+
+  m_cursorPanel->getWxPtr()->Bind(ECancelActiveTransform,
+    [this](wxEvent&) { m_mode->cancelTransform(); });
+
+  m_cursorPanel->getWxPtr()->Bind(EApplyActiveTransform,
+    [this](wxEvent&) { m_mode->applyTransform(); m_componentsPanel->repopulateFromMode(); }); // TODO
 
   m_rightSidebarContent = new wxPanel(m_panels.rightSidebar, wxID_ANY);
   m_rightSidebarContent->Hide();
@@ -85,63 +88,9 @@ EntityEditModeUi::EntityEditModeUi(const Panels& panels, EditorCore& core)
   m_lstPrefabs->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onPrefabSelection(); });
   m_lstEntities->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onInstanceSelection(); });
 
-  //m_componentsPanel->getWxPtr()->Bind(EComponentChange,
-  //  [this](wxCommandEvent& e) { onComponentChange(e); });
-
-  //m_onAddOrRemoveEntity = m_mode->listen(SceneEditMode::Event::AddOrRemoveEntity,
-  //  [this]() { populateEntities(); });
-
-  //m_componentsPanel->getWxPtr()->Bind(EToolToggleOn,
-  //  [this](wxCommandEvent& e) { onToolToggleOn(static_cast<Tool>(e.GetInt())); });
-
   populatePrefabs();
   //populateEntities();
 }
-/*
-void EntityEditModeUi::onToolToggleOn(Tool tool)
-{
-  switch (tool) {
-    case Tool::BoundingBox:
-      toggleBoundingBoxToolOn();
-      break;
-  }
-}
-
-void EntityEditModeUi::toggleBoundingBoxToolOn()
-{
-  assert(m_componentsPanel->getSelectedSystem() == Systems::Collision);
-
-  auto data = m_componentsPanel->getComponentData();
-
-  if (data->typeId() == typeid(DStaticBox).hash_code()) {
-    auto& box = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(*data);
-    m_mode->setActiveBoundingBox(box.data().boundingBox);
-  }
-  else if (data->typeId() == typeid(DDynamicBox).hash_code()) {
-    auto& box = dynamic_cast<const ComponentDataWrapper<DDynamicBox>&>(*data);
-    m_mode->setActiveBoundingBox(box.data().boundingBox);
-  }
-  else {
-    EXCEPTION("Unexpected collision component type");
-  }
-}
-
-void EntityEditModeUi::onComponentChange(wxCommandEvent& e)
-{
-  auto data = m_componentsPanel->getComponentData();
-
-  if (data->typeId() == typeid(DStaticBox).hash_code()) {
-    auto& box = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(*data);
-    m_mode->updateActiveBoundingBox(box.data().boundingBox);
-  }
-  else if (data->typeId() == typeid(DDynamicBox).hash_code()) {
-    auto& box = dynamic_cast<const ComponentDataWrapper<DDynamicBox>&>(*data);
-    m_mode->updateActiveBoundingBox(box.data().boundingBox);
-  }
-  else {
-    EXCEPTION("Unexpected collision component type");
-  }
-}*/
 
 void EntityEditModeUi::onInstanceSelection()
 {

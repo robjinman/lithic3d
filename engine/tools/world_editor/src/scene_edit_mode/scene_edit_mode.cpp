@@ -111,9 +111,9 @@ class SceneEditModeImpl : public SceneEditMode
     std::map<std::string, ResourceHandle> m_prefabs;
     EventEmitterPtr m_eventEmitter;
     Vec2f m_prevMousePos;
-    EntityId m_cursorEntity = NULL_ENTITY_ID;
+    EntityId m_cursorEntityId = NULL_ENTITY_ID;
     std::string m_cursorEntityType;
-    EntityId m_selectedEntity = NULL_ENTITY_ID;
+    EntityId m_selectedEntityId = NULL_ENTITY_ID;
     WorldState m_worldState;
 
     SuspendResumeState m_suspendResumeState;
@@ -149,6 +149,12 @@ void SceneEditModeImpl::activate()
   camera.setPosition(m_suspendResumeState.cameraPosition);
   camera.setDirection(m_suspendResumeState.cameraDirection);
 
+  if (m_cursorEntityId == NULL_ENTITY_ID) {
+    m_core.showCursor();
+  }
+  else {
+    m_core.hideCursor();
+  }
   m_core.setCursorRotationScale(m_suspendResumeState.cursorRotationScale);
   m_core.setCursorDistance(m_suspendResumeState.cursorDistance);
 }
@@ -246,13 +252,13 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
 
   switch (m_state) {
     case State::EntitySelected: {
-      if (m_selectedEntity != NULL_ENTITY_ID) {
-        sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
-        m_selectedEntity = NULL_ENTITY_ID;
+      if (m_selectedEntityId != NULL_ENTITY_ID) {
+        sysRender3d.setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
+        m_selectedEntityId = NULL_ENTITY_ID;
       }
-      if (m_cursorEntity != NULL_ENTITY_ID) {
-        m_core.engine().ecs().removeEntity(m_cursorEntity);
-        m_cursorEntity = NULL_ENTITY_ID;
+      if (m_cursorEntityId != NULL_ENTITY_ID) {
+        m_core.engine().ecs().removeEntity(m_cursorEntityId);
+        m_cursorEntityId = NULL_ENTITY_ID;
       }
       break;
     }
@@ -264,6 +270,7 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
   }
 
   m_state = State::PrefabSelected;
+  m_core.hideCursor();
 
   auto& factory = m_core.engine().entityFactory();
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
@@ -279,7 +286,7 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
   }
 
   auto transform = m_core.getCursorTransform();
-  m_cursorEntity = factory.constructGhostEntity(m_core.engine().worldGrid().root(), name, transform,
+  m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), name, transform,
     GHOST_ENTITY_COLOUR);
   m_cursorEntityType = name;
 }
@@ -317,12 +324,12 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 
   switch (m_state) {
     case State::EntitySelected: {
-      if (m_cursorEntity != NULL_ENTITY_ID) {
-        m_core.engine().ecs().removeEntity(m_cursorEntity);
-        m_cursorEntity = NULL_ENTITY_ID;
+      if (m_cursorEntityId != NULL_ENTITY_ID) {
+        m_core.engine().ecs().removeEntity(m_cursorEntityId);
+        m_cursorEntityId = NULL_ENTITY_ID;
       }
-      if (m_selectedEntity != NULL_ENTITY_ID) {
-        sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
+      if (m_selectedEntityId != NULL_ENTITY_ID) {
+        sysRender3d.setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
       }
       break;
     }
@@ -334,6 +341,7 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
   }
 
   m_state = State::EntitySelected;
+  m_core.hideCursor();
 
   auto& camera = sysRender3d.camera();
   auto& camDir = camera.getDirection();
@@ -344,13 +352,13 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 
   m_core.setCursorRotationScale(getRotation3x3(entityTransform));
 
-  m_selectedEntity = id;
+  m_selectedEntityId = id;
 
-  sysRender3d.setEntityColour(m_selectedEntity, SELECTED_ENTITY_COLOUR);
+  sysRender3d.setEntityColour(m_selectedEntityId, SELECTED_ENTITY_COLOUR);
 
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
-  m_cursorEntity = factory.constructGhostEntity(m_core.engine().worldGrid().root(), type,
+  m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), type,
     entityTransform, GHOST_ENTITY_COLOUR);
   m_cursorEntityType = type;
 
@@ -359,7 +367,7 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 
 EntityId SceneEditModeImpl::selectedEntity() const
 {
-  return m_cursorEntity;
+  return m_cursorEntityId;
 }
 
 void SceneEditModeImpl::applyTransform()
@@ -397,8 +405,8 @@ void SceneEditModeImpl::applyCurrentTransformToEntity()
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
   // TODO: Entity hierarchies?
-  auto& transform = sysSpatial.getGlobalTransform(m_cursorEntity);
-  sysSpatial.setLocalTransform(m_selectedEntity, transform);
+  auto& transform = sysSpatial.getGlobalTransform(m_cursorEntityId);
+  sysSpatial.setLocalTransform(m_selectedEntityId, transform);
 
   Vec3f pos = getTranslation(transform);
   auto cell = cellFromPosition(pos);
@@ -411,17 +419,18 @@ void SceneEditModeImpl::applyCurrentTransformToEntity()
 void SceneEditModeImpl::cancelCurrentEntityTransform()
 {
   m_state = State::None;
+  m_core.showCursor();
 
   auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
 
-  if (m_selectedEntity != NULL_ENTITY_ID) {
-    sysRender3d.setEntityColour(m_selectedEntity, { 1.f, 1.f, 1.f, 1.f });
-    m_selectedEntity = NULL_ENTITY_ID;
+  if (m_selectedEntityId != NULL_ENTITY_ID) {
+    sysRender3d.setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
+    m_selectedEntityId = NULL_ENTITY_ID;
     m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));
   }
-  if (m_cursorEntity != NULL_ENTITY_ID) {
-    m_core.engine().ecs().removeEntity(m_cursorEntity);
-    m_cursorEntity = NULL_ENTITY_ID;
+  if (m_cursorEntityId != NULL_ENTITY_ID) {
+    m_core.engine().ecs().removeEntity(m_cursorEntityId);
+    m_cursorEntityId = NULL_ENTITY_ID;
   }
 }
 
@@ -491,11 +500,12 @@ void SceneEditModeImpl::cancelActivePrefab()
 {
   ASSERT(m_state == State::PrefabSelected, "Bad state transition");
   m_state = State::None;
+  m_core.showCursor();
 
-  if (m_cursorEntity != NULL_ENTITY_ID) {
-    m_core.engine().ecs().removeEntity(m_cursorEntity);
+  if (m_cursorEntityId != NULL_ENTITY_ID) {
+    m_core.engine().ecs().removeEntity(m_cursorEntityId);
   }
-  m_cursorEntity = NULL_ENTITY_ID;
+  m_cursorEntityId = NULL_ENTITY_ID;
 }
 
 void SceneEditModeImpl::loadCurrentCell()
@@ -552,8 +562,8 @@ void SceneEditModeImpl::positionCursorEntity()
 {
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
-  if (m_cursorEntity != NULL_ENTITY_ID) {
-    sysSpatial.setLocalTransform(m_cursorEntity, m_core.getCursorTransform());
+  if (m_cursorEntityId != NULL_ENTITY_ID) {
+    sysSpatial.setLocalTransform(m_cursorEntityId, m_core.getCursorTransform());
   }
 }
 

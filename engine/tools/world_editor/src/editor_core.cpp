@@ -29,6 +29,8 @@ class EditorCoreImpl : public EditorCore
     const Vec3f& getCursorScale() const override;
     Mat4x4f getCursorTransform() const override;
 
+    void hideCursor() override;
+    void showCursor() override;
     void setCursorDistance(float worldUnits) override;
     void setCursorRotation(const Vec3f& ori) override;
     void setCursorScale(const Vec3f& scale) override;
@@ -109,6 +111,18 @@ void EditorCoreImpl::cleanUp()
 EventHandle EditorCoreImpl::listen(Event event, const EventHandler& handler)
 {
   return m_eventEmitter->subscribe(static_cast<EventId>(event), handler);
+}
+
+void EditorCoreImpl::hideCursor()
+{
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+  sysSpatial.setEnabled(m_cursorId, false);
+}
+
+void EditorCoreImpl::showCursor()
+{
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+  sysSpatial.setEnabled(m_cursorId, true);
 }
 
 float EditorCoreImpl::getCursorDistance() const
@@ -200,7 +214,7 @@ void EditorCoreImpl::constructCursor()
 
   DSpatial spatial{
     .transform = identityMatrix<4>(),
-    .parent = m_engine->worldGrid().root(),
+    .parent = sysSpatial.root(),
     .enabled = true,
     .aabb = {
       .min = metresToWorldUnits(-sizeInMetres * 0.5f),

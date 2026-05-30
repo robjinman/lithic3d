@@ -18,7 +18,7 @@ class BoundingBoxPanel
 
     wxWindow* getWxPtr();
     bool hasChanges() const;
-    void setBoundingBox(const BoundingBox& box);
+    void setBoundingBox(const BoundingBox& box, bool resetDirtyFlag = true);
 
   private:
     EntityEditMode& m_mode;
@@ -146,7 +146,7 @@ wxWindow* BoundingBoxPanel::getWxPtr()
   return m_panel;
 }
 
-void BoundingBoxPanel::setBoundingBox(const BoundingBox& box)
+void BoundingBoxPanel::setBoundingBox(const BoundingBox& box, bool resetDirtyFlag)
 {
   m_transformPanel->setTransform(box.transform);
 
@@ -157,7 +157,7 @@ void BoundingBoxPanel::setBoundingBox(const BoundingBox& box)
   m_txtZMin->SetValue(std::to_string(worldUnitsToMetres(box.min[2])));
   m_txtZMax->SetValue(std::to_string(worldUnitsToMetres(box.max[2])));
 
-  m_hasChanges = false;
+  m_hasChanges = !resetDirtyFlag;
 }
 
 BoundingBox BoundingBoxPanel::getBoundingBox() const
@@ -185,9 +185,7 @@ class CollisionComponentPanel : public ComponentPanel
     wxPanel* getWxPtr() override;
     bool hasChanges() const override;
     void populate(EntityId entityId) override;
-    SystemId systemId() const override;
-    //void repopulate() override;
-    //ComponentDataPtr getComponentData() const override;
+    void repopulateFromMode() override;
 
   private:
     EditorCore& m_core;
@@ -215,27 +213,6 @@ CollisionComponentPanel::CollisionComponentPanel(wxWindow* parent, EditorCore& e
   m_panel->SetSizer(vbox);
 }
 
-SystemId CollisionComponentPanel::systemId() const
-{
-  return Systems::Collision;
-}
-/*
-void CollisionComponentPanel::repopulate()
-{
-  populate(m_entityId);
-}*/
-/*
-ComponentDataPtr CollisionComponentPanel::getComponentData() const
-{
-  // TODO: Support other types
-
-  return std::make_unique<ComponentDataWrapper<DStaticBox>>(DStaticBox{
-    .restitution = 0.2, // TODO
-    .friction = 0.4,    // TODO
-    .boundingBox = m_boundingBoxPanel->getBoundingBox()
-  });
-}*/
-
 bool CollisionComponentPanel::hasChanges() const
 {
   return m_boundingBoxPanel->hasChanges();
@@ -254,6 +231,11 @@ void CollisionComponentPanel::populate(EntityId entityId)
   else {
     // TODO
   }
+}
+
+void CollisionComponentPanel::repopulateFromMode()
+{
+  m_boundingBoxPanel->setBoundingBox(m_mode.getBoundingBox(), false);
 }
 
 wxPanel* CollisionComponentPanel::getWxPtr()

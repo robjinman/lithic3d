@@ -22,6 +22,8 @@ class EditorCore
     virtual const lithic3d::GameConfig& config() const = 0;
     virtual lithic3d::Engine& engine() const = 0;
 
+    virtual void hideCursor() = 0;
+    virtual void showCursor() = 0;
     // World units
     virtual float getCursorDistance() const = 0;
     virtual lithic3d::Vec3f getCursorRotation() = 0;

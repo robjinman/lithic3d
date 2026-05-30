@@ -24,6 +24,9 @@ class EntityEditMode
     virtual void updateBoundingBox(const lithic3d::BoundingBox& box) = 0;
     virtual void updateAabb(const lithic3d::Aabb& aabb) = 0;
 
+    virtual const lithic3d::BoundingBox& getBoundingBox() const = 0;
+    virtual const lithic3d::Aabb& getAabb() const = 0;
+
     virtual void applyTransform() = 0;
     virtual void cancelTransform() = 0;
 
