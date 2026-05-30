@@ -1,4 +1,4 @@
-<entity name="monkey">
+<entity type="monkey">
   <spatial>
     <spatial>
       <aabb>

@@ -49,29 +49,24 @@ Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m)
   return bounds;
 }
 
-XmlNodePtr toXml(const Mat4x4f& m)
+XmlNodePtr toXml(const Aabb& aabb)
 {
-  auto xmlTransform = createXmlNode("transform");
-  auto xmlMatrix = createXmlNode("matrix");
+  auto xmlAabb = createXmlNode("aabb");
 
-  std::stringstream ss;
+  auto xmlMin = createXmlNode("min");
+  xmlMin->setAttribute("x", std::to_string(worldUnitsToMetres(aabb.min[0])));
+  xmlMin->setAttribute("y", std::to_string(worldUnitsToMetres(aabb.min[1])));
+  xmlMin->setAttribute("z", std::to_string(worldUnitsToMetres(aabb.min[2])));
 
-  for (size_t r = 0; r < 3; ++r) {
-    for (size_t c = 0; c < 4; ++c) {
-      float scaleFactor = (c == 3 && r < 3) ? 1.f / WORLD_UNITS_PER_METRE : 1.f;
+  auto xmlMax = createXmlNode("max");
+  xmlMax->setAttribute("x", std::to_string(worldUnitsToMetres(aabb.max[0])));
+  xmlMax->setAttribute("y", std::to_string(worldUnitsToMetres(aabb.max[1])));
+  xmlMax->setAttribute("z", std::to_string(worldUnitsToMetres(aabb.max[2])));
 
-      ss << m.at(r, c) * scaleFactor;
-      if (!(r == 2 && c == 3)) {
-        ss << ",";
-      }
-    }
-  }
+  xmlAabb->addChild(std::move(xmlMin));
+  xmlAabb->addChild(std::move(xmlMax));
 
-  xmlMatrix->setValue(ss.str());
-
-  xmlTransform->addChild(std::move(xmlMatrix));
-
-  return xmlTransform;
+  return xmlAabb;
 }
 
 namespace
@@ -256,6 +251,8 @@ XmlNodePtr SysSpatialImpl::componentToXml(EntityId entityId) const
   auto xmlSpatial = createXmlNode("spatial");
 
   xmlSpatial->addChild(toXml(getLocalTransform(entityId)));
+  xmlSpatial->addChild(toXml(getAabb(entityId)));
+
   xmlSysSpatial->addChild(std::move(xmlSpatial));
 
   return xmlSysSpatial;

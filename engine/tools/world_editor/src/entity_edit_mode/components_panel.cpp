@@ -94,7 +94,9 @@ void ComponentsPanelImpl::onApplyClick()
 {
   // TODO: Show warning if entities affected
 
-  // TODO
+  m_mode.applyChangesToEntity();
+
+  onResetClick(); // Simulate a reset to mark as non-dirty
 }
 
 wxWindow* ComponentsPanelImpl::getWxPtr()

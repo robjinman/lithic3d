@@ -275,6 +275,8 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
   auto& factory = m_core.engine().entityFactory();
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
+  // TODO: Skip already loaded prefabs?
+
   ResourceHandle handle;
   auto i = m_prefabs.find(name);
   if (i == m_prefabs.end()) {

@@ -64,7 +64,7 @@ ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
     auto entityXml = parseXml(data);
 
     ASSERT(entityXml->name() == "entity", "Expected <entity> element");
-    ASSERT(entityXml->attribute("name") == name, "Expected entity of type '" << name << "'");
+    ASSERT(entityXml->attribute("type") == name, "Expected entity of type '" << name << "'");
 
     Prefab prefab;
     prefab.components.resize(m_ecs.numSystems());

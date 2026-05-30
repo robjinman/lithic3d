@@ -70,6 +70,7 @@ struct Model
 {
   AnimationSetPtr animations; // TODO: Share between models
   std::vector<SubmodelPtr> submodels;
+  std::filesystem::path filePath;
 };
 
 using ModelPtr = std::unique_ptr<Model>;

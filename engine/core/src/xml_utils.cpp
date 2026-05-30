@@ -66,4 +66,29 @@ Mat4x4f constructTransform(const XmlNode& transformXml)
   }
 }
 
+XmlNodePtr toXml(const Mat4x4f& m)
+{
+  auto xmlTransform = createXmlNode("transform");
+  auto xmlMatrix = createXmlNode("matrix");
+
+  std::stringstream ss;
+
+  for (size_t r = 0; r < 3; ++r) {
+    for (size_t c = 0; c < 4; ++c) {
+      float scaleFactor = (c == 3 && r < 3) ? 1.f / WORLD_UNITS_PER_METRE : 1.f;
+
+      ss << m.at(r, c) * scaleFactor;
+      if (!(r == 2 && c == 3)) {
+        ss << ",";
+      }
+    }
+  }
+
+  xmlMatrix->setValue(ss.str());
+
+  xmlTransform->addChild(std::move(xmlMatrix));
+
+  return xmlTransform;
+}
+
 } // namespace lithic3d

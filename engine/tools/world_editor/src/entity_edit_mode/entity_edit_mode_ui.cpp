@@ -46,6 +46,7 @@ class EntityEditModeUi : public ModeUi
     void populateEntities();
     void onInstanceSelection();
     void onPrefabSelection();
+    void onApplyActiveTransform();
 };
 
 EntityEditModeUi::EntityEditModeUi(const Panels& panels, EditorCore& core)
@@ -61,7 +62,7 @@ EntityEditModeUi::EntityEditModeUi(const Panels& panels, EditorCore& core)
     [this](wxEvent&) { m_mode->cancelTransform(); });
 
   m_cursorPanel->getWxPtr()->Bind(EApplyActiveTransform,
-    [this](wxEvent&) { m_mode->applyTransform(); m_componentsPanel->repopulateFromMode(); }); // TODO
+    [this](wxEvent&) { onApplyActiveTransform(); });
 
   m_rightSidebarContent = new wxPanel(m_panels.rightSidebar, wxID_ANY);
   m_rightSidebarContent->Hide();
@@ -141,6 +142,12 @@ void EntityEditModeUi::deactivate()
 
   m_cursorPanel->getWxPtr()->Hide();
   m_panels.leftSidebar->GetSizer()->Remove(0);
+}
+
+void EntityEditModeUi::onApplyActiveTransform()
+{
+  m_mode->applyTransform();
+  m_componentsPanel->repopulateFromMode();
 }
 
 void EntityEditModeUi::onPrefabSelection()

@@ -30,6 +30,8 @@ class EntityEditMode
     virtual void applyTransform() = 0;
     virtual void cancelTransform() = 0;
 
+    virtual void applyChangesToEntity() = 0;
+
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;
     virtual void onMouseLeftBtnDown() = 0;

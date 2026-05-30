@@ -60,6 +60,8 @@ class EntityEditModeImpl : public EntityEditMode
     void applyTransform() override;
     void cancelTransform() override;
 
+    void applyChangesToEntity() override;
+
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
     void onMouseLeftBtnDown() override;
@@ -75,6 +77,9 @@ class EntityEditModeImpl : public EntityEditMode
     State m_state = State::None;
     BoundingBox m_bbox;
     Aabb m_aabb;
+    bool m_entityIsPrefab = false;
+    std::string m_activePrefab;
+    std::vector<XmlNodePtr> m_unusedPrefabXml;
     EntityId m_entityId = NULL_ENTITY_ID;
     EntityId m_renderedBboxId = NULL_ENTITY_ID;
     EntityId m_renderedAabbId = NULL_ENTITY_ID;
@@ -261,6 +266,22 @@ void EntityEditModeImpl::cancelTransform()
   }
 }
 
+void EntityEditModeImpl::applyChangesToEntity()
+{
+  assert(m_entityId != NULL_ENTITY_ID);
+
+  auto& componentStore = m_core.engine().ecs().componentStore();
+
+  // TODO: Don't assume entity has all these components
+  // Add helper methods to system classes?
+
+  componentStore.component<CBoundingBox>(m_entityId).modelSpaceAabb = m_aabb;
+  componentStore.component<CSpatialFlags>(m_entityId).flags.set(SpatialFlags::Dirty);
+  componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bbox;
+
+  // TODO: If prefab, update all dependent entities in scene
+}
+
 EntityId EntityEditModeImpl::instantiatedPrefabId() const
 {
   return m_entityId;
@@ -270,11 +291,19 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
 {
   auto& engine = m_core.engine();
 
+  // TODO: Only delete if the entity is unchanged. If the entity has applied changes, keep it, so
+  // it can be restored.
+
   if (m_entityId != NULL_ENTITY_ID) {
     engine.eventSystem().raiseEvent(ERequestDeletion{m_entityId});
   }
 
-  m_entityId = engine.entityFactory().constructEntity(m_rootId, prefab, identityMatrix<4>());
+  auto prefabData = m_core.config().paths.prefabsDir->readFile(STR(prefab << ".xml"));
+  auto prefabXml = parseXml(prefabData);
+
+  m_entityId = engine.entityFactory().constructEntity(m_rootId, *prefabXml, m_unusedPrefabXml);
+  m_entityIsPrefab = true;
+  m_activePrefab = prefab;
 }
 
 void EntityEditModeImpl::selectBoundingBox()
@@ -432,7 +461,35 @@ void EntityEditModeImpl::processKeyboardInput()
 
 void EntityEditModeImpl::saveChanges()
 {
-  // TODO
+  if (m_entityIsPrefab) {
+    // TODO: Save all changed prefabs
+
+    auto xmlEntity = createXmlNode("entity");
+    xmlEntity->setAttribute("type", m_activePrefab);
+
+    for (SystemId systemId = 0; systemId < m_core.engine().ecs().numSystems(); ++systemId) {
+      auto& system = m_core.engine().ecs().getSystem(systemId);
+      auto node = system.componentToXml(m_entityId);
+      if (node != nullptr) {
+        xmlEntity->addChild(std::move(node));
+      }
+    }
+
+    for (auto& xmlUnknownSystem : m_unusedPrefabXml) {
+      xmlEntity->addChild(xmlUnknownSystem->clone());
+    }
+
+    std::stringstream stream;
+    xmlEntity->write(stream);
+
+    auto xmlString = stream.str();
+
+    m_core.config().paths.prefabsDir->writeFile(STR(m_activePrefab << "_test.xml"), xmlString.data(),
+      xmlString.size());
+  }
+  else {
+    // TODO
+  }
 }
 
 void EntityEditModeImpl::updateCursorEntity()

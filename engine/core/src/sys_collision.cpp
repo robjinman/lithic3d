@@ -16,6 +16,29 @@ BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
   };
 }
 
+XmlNodePtr toXml(const BoundingBox& bbox)
+{
+  auto xmlBoundingBox = createXmlNode("bounding_box");
+
+  auto xmlMin = createXmlNode("min");
+  xmlMin->setAttribute("x", std::to_string(worldUnitsToMetres(bbox.min[0])));
+  xmlMin->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.min[1])));
+  xmlMin->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.min[2])));
+
+  auto xmlMax = createXmlNode("max");
+  xmlMax->setAttribute("x", std::to_string(worldUnitsToMetres(bbox.max[0])));
+  xmlMax->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.max[1])));
+  xmlMax->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.max[2])));
+
+  auto xmlTransform = toXml(bbox.transform);
+
+  xmlBoundingBox->addChild(std::move(xmlMin));
+  xmlBoundingBox->addChild(std::move(xmlMax));
+  xmlBoundingBox->addChild(std::move(xmlTransform));
+
+  return xmlBoundingBox;
+}
+
 std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
@@ -334,7 +357,7 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
-    XmlNodePtr componentToXml(EntityId) const override { return nullptr; } // TODO
+    XmlNodePtr componentToXml(EntityId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -682,7 +705,7 @@ ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode& xmlDynami
     .inverseMass = invMass,
     .restitution = restitution,
     .friction = friction,
-    .centreOfMass = constructVec3f(*xmlDynamicBox.child("centre_of_mass")),
+    .centreOfMass = metresToWorldUnits(constructVec3f(*xmlDynamicBox.child("centre_of_mass"))),
     .boundingBox = constructBoundingBox(*xmlDynamicBox.child("bounding_box"))
   });
 }
@@ -740,11 +763,64 @@ ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& xmlSysC
   }
 }
 
-ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(const ComponentData&,
-  const XmlNode&) const
+ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
+  const ComponentData& base, const XmlNode&) const
 {
   // TODO
-  EXCEPTION("Not implemented");
+
+  // For now, just clone the base data and ignore modifications
+  if (base.typeId() == typeid(DStaticBox).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(base).data();
+    return std::make_unique<ComponentDataWrapper<DStaticBox>>(collision);
+  }
+  else if (base.typeId() == typeid(DDynamicBox).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DDynamicBox>&>(base).data();
+    return std::make_unique<ComponentDataWrapper<DDynamicBox>>(collision);
+  }
+  // TODO
+  // ...
+  else {
+    EXCEPTION("Not implemented")
+  }
+}
+
+XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId) const
+{
+  if (!hasEntity(entityId)) {
+    return nullptr;
+  }
+
+  bool isDynamic = m_ecs.componentStore().hasComponentForEntity<CCollisionDynamic>(entityId);
+  bool isBox = m_ecs.componentStore().hasComponentForEntity<CCollisionBox>(entityId);
+
+  if (isDynamic && isBox) {
+    auto& dynaComp = m_ecs.componentStore().component<CCollisionDynamic>(entityId);
+    auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
+    auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
+
+    auto xmlSysCollision = createXmlNode("collision");
+
+    auto xmlDynamicBox = createXmlNode("dynamic_box");
+    xmlDynamicBox->setAttribute("inverse_mass", std::to_string(dynaComp.inverseMass));
+    xmlDynamicBox->setAttribute("restitution", std::to_string(collisionComp.restitution));
+    xmlDynamicBox->setAttribute("friction", std::to_string(collisionComp.friction));
+
+    auto xmlCentre = createXmlNode("centre_of_mass");
+    xmlCentre->setAttribute("x", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[0])));
+    xmlCentre->setAttribute("y", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[1])));
+    xmlCentre->setAttribute("z", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[2])));
+
+    xmlDynamicBox->addChild(std::move(xmlCentre));
+    xmlDynamicBox->addChild(toXml(boxComp.boundingBox));
+
+    xmlSysCollision->addChild(std::move(xmlDynamicBox));
+
+    return xmlSysCollision;
+  }
+  else {
+    // TODO
+    return nullptr;
+  }
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)

@@ -121,7 +121,7 @@ class SysRender3dImpl : public SysRender3d
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
-    XmlNodePtr componentToXml(EntityId) const override { return nullptr; } // TODO
+    XmlNodePtr componentToXml(EntityId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -343,11 +343,49 @@ ComponentDataPtr SysRender3dImpl::constructComponentData(const XmlNode& xmlSysRe
   }
 }
 
-ComponentDataPtr SysRender3dImpl::constructComponentDataWithModifications(const ComponentData&,
+ComponentDataPtr SysRender3dImpl::constructComponentDataWithModifications(const ComponentData& base,
   const XmlNode&) const
 {
   // TODO
-  EXCEPTION("Not implemented");
+
+  // For now, just clone the base data and ignore modifications
+  if (base.typeId() == typeid(DModel).hash_code()) {
+    auto& comp = dynamic_cast<const ComponentDataWrapper<DModel>&>(base).data();
+    return std::make_unique<ComponentDataWrapper<DModel>>(comp);
+  }
+  // TODO
+  // ...
+  else {
+    EXCEPTION("Not implemented")
+  }
+}
+
+XmlNodePtr SysRender3dImpl::componentToXml(EntityId entityId) const
+{
+  if (!hasEntity(entityId)) {
+    return nullptr;
+  }
+
+  auto xmlSysRender3d = createXmlNode("render_3d");
+
+  auto i = m_models.find(entityId);
+  if (i != m_models.end()) {
+    auto& comp = *i->second;
+    auto& model = m_modelLoader.getModel(comp.model.id());
+
+    auto xmlModel = createXmlNode("model");
+    xmlModel->setAttribute("is_instanced", comp.isInstanced ? "true" : "false");
+    xmlModel->setAttribute("file", model.filePath);
+
+    xmlSysRender3d->addChild(std::move(xmlModel));
+
+    return xmlSysRender3d;
+  }
+  // TODO
+  // ...
+  else {
+    return nullptr;
+  }
 }
 
 void SysRender3dImpl::addEntity(EntityId id, const ComponentData& data)

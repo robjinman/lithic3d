@@ -1,4 +1,4 @@
-<entity name="wall">
+<entity type="wall">
   <spatial>
     <spatial>
       <aabb>

@@ -1,4 +1,4 @@
-<entity name="cube">
+<entity type="cube">
   <spatial>
     <spatial>
       <transform>

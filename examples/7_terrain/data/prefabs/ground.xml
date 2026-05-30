@@ -1,4 +1,4 @@
-<entity name="ground">
+<entity type="ground">
   <spatial>
     <spatial>
       <aabb>

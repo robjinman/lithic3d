@@ -581,6 +581,7 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
 
     bool hasAnimations = modelDesc.armature.animations.size() > 0;
     auto model = std::make_unique<Model>();
+    model->filePath = filePath;
 
     if (hasAnimations) {
       model->animations = std::make_unique<AnimationSet>();
