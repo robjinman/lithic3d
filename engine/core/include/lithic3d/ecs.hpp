@@ -92,7 +92,8 @@ class Ecs
     virtual uint32_t numSystems() const = 0;
     virtual System& getSystem(SystemId id) = 0;
     virtual const System& getSystem(SystemId id) const = 0;
-    virtual void update(Tick tick, const InputState& inputState) = 0;
+    virtual void update(Tick tick, const InputState& inputState,
+      const std::set<SystemId>& skip) = 0;
     virtual void processEvent(const Event& event) = 0;
     // Warning: This will immediately delete the entity. Consider raising ERequestDeletion instead.
     // TODO: Delete?

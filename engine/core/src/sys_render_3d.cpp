@@ -146,6 +146,7 @@ class SysRender3dImpl : public SysRender3d
     std::pair<EntityId, DDirectionalLightPtr> m_directionalLight = { NULL_ENTITY_ID, nullptr };
     std::pair<EntityId, DSkyboxPtr> m_skybox = { NULL_ENTITY_ID, nullptr };
     std::map<EntityId, AnimationState> m_animationStates;
+    Mat4x4f m_metresToWorld = scaleMatrix4x4(Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE);
 
     using DrawFilter = std::function<bool(const Submodel&)>;
 
@@ -463,23 +464,24 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
     auto& model = m_modelLoader.getModel(modelData.model.id());
 
     for (auto& submodel : model.submodels) {
+      Mat4x4f m = globalTransform * m_metresToWorld;
+
       if (filter(*submodel)) {
         if (modelData.isInstanced) {
           m_renderer.drawInstance(submodel->mesh.resource.id(), submodel->mesh.features,
-            submodel->material.resource.id(), submodel->material.features, globalTransform);
+            submodel->material.resource.id(), submodel->material.features, m);
         }
         else {
           if (submodel->jointTransformsDirty) {
             m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
-              submodel->material.resource.id(), submodel->material.features, modelData.colour,
-              globalTransform/* * submodel->mesh.transform*/, submodel->jointTransforms);
+              submodel->material.resource.id(), submodel->material.features, modelData.colour, m,
+              submodel->jointTransforms);
 
             submodel->jointTransformsDirty = false;
           }
           else {
             m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
-              submodel->material.resource.id(), submodel->material.features, modelData.colour,
-              globalTransform /* * submodel->mesh.transform*/);
+              submodel->material.resource.id(), submodel->material.features, modelData.colour, m);
           }
         }
       }
@@ -532,7 +534,7 @@ void SysRender3dImpl::drawPointLights()
       for (auto& submodel : light.submodels) {
         m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
           submodel->material.resource.id(), submodel->material.features, { light.colour, { 1.f }},
-          transform);
+          transform * m_metresToWorld);
       }
     }
   }

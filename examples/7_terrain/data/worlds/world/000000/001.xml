@@ -6,7 +6,7 @@
           <transform>
             <pos x="15.0" y="2.5" z="15.0"/>
             <ori x="0" y="180" z="0"/>
-            <scale x="6" y="6" z="6"/>
+            <scale x="1" y="1" z="1"/>
           </transform>
         </spatial>
       </spatial>
@@ -17,7 +17,7 @@
           <transform>
             <pos x="18.0" y="2.5" z="15.0"/>
             <ori x="0" y="0" z="0"/>
-            <scale x="6" y="6" z="6"/>
+            <scale x="1" y="1" z="1"/>
           </transform>
         </spatial>
       </spatial>
@@ -28,7 +28,7 @@
           <transform>
             <pos x="25.0" y="2.5" z="30.0"/>
             <ori x="0" y="0" z="0"/>
-            <scale x="10" y="10" z="10"/>
+            <scale x="1" y="1" z="1"/>
           </transform>
         </spatial>
       </spatial>
@@ -39,7 +39,7 @@
           <transform>
             <pos x="5.0" y="2.5" z="20.0"/>
             <ori x="0" y="180" z="0"/>
-            <scale x="10" y="10" z="10"/>
+            <scale x="1" y="1" z="1"/>
           </transform>
         </spatial>
       </spatial>
@@ -50,7 +50,7 @@
           <transform>
             <pos x="8.0" y="2.5" z="15.0"/>
             <ori x="0" y="90" z="0"/>
-            <scale x="10" y="10" z="10"/>
+            <scale x="1" y="1" z="1"/>
           </transform>
         </spatial>
       </spatial>

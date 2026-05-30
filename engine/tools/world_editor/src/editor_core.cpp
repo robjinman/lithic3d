@@ -29,7 +29,7 @@ class EditorCoreImpl : public EditorCore
     const Vec3f& getCursorScale() const override;
     Mat4x4f getCursorTransform() const override;
 
-    void setCursorDistance(float distance) override;
+    void setCursorDistance(float worldUnits) override;
     void setCursorRotation(const Vec3f& ori) override;
     void setCursorScale(const Vec3f& scale) override;
     void setCursorRotationScale(const Mat3x3f& m) override;
@@ -68,7 +68,7 @@ class EditorCoreImpl : public EditorCore
     InputState m_inputState;
     EntityId m_cursorId = NULL_ENTITY_ID;
   
-    Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f } * WORLD_UNITS_PER_METRE;
+    Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f };
     Mat3x3f m_activeRotation = identityMatrix<3>();
     float m_activeTranslation = metresToWorldUnits(10.f);
 };
@@ -162,9 +162,9 @@ void EditorCoreImpl::setCursorRotationScale(const Mat3x3f& m)
   m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
 }
 
-void EditorCoreImpl::setCursorDistance(float distance)
+void EditorCoreImpl::setCursorDistance(float worldUnits)
 {
-  m_activeTranslation = distance;
+  m_activeTranslation = worldUnits;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
 }
@@ -193,25 +193,24 @@ void EditorCoreImpl::constructCursor()
   auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
 
-  Vec3f postScaleSize = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
-  Vec3f preScaleSize = postScaleSize / m_activeScale;
-
   m_cursorId = m_engine->ecs().idGen().getNewEntityId();
   m_engine->ecs().componentStore().allocate<DSpatial, DModel>(m_cursorId);
+
+  Vec3f sizeInMetres = Vec3f{ 1.f, 1.f, 1.f };
 
   DSpatial spatial{
     .transform = identityMatrix<4>(),
     .parent = m_engine->worldGrid().root(),
     .enabled = true,
     .aabb = {
-      .min = -preScaleSize * 0.5f,
-      .max = preScaleSize * 0.5f
+      .min = metresToWorldUnits(-sizeInMetres * 0.5f),
+      .max = metresToWorldUnits(sizeInMetres * 0.5f)
     }
   };
 
   sysSpatial.addEntity(m_cursorId, spatial);
 
-  auto mesh = render::cuboid(preScaleSize, { 1.f, 1.f });
+  auto mesh = render::cuboid(sizeInMetres, metresToWorldUnits(Vec2f{ 1.f, 1.f }));
   mesh->featureSet = render::MeshFeatureSet{
     .vertexLayout = {
       render::BufferUsage::AttrPosition,
@@ -365,7 +364,7 @@ void EditorCoreImpl::update()
 {
   ASSERT(m_engine, "Engine not started");
 
-  m_engine->update(m_inputState);
+  m_engine->update(m_inputState, { Systems::Collision });
   positionCursor();
 }
 

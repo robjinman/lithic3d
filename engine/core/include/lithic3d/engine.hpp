@@ -2,6 +2,7 @@
 
 #include "units.hpp"
 #include <memory>
+#include <set>
 
 namespace lithic3d
 {
@@ -24,11 +25,13 @@ class EntityFactory;
 struct GameConfig;
 struct GameDataPaths;
 
+using SystemId = uint32_t;
+
 class Engine
 {
   public:
     virtual void setClearColour(const Vec4f& colour) = 0;
-    virtual void update(const InputState& inputState) = 0;
+    virtual void update(const InputState& inputState, const std::set<SystemId>& skip = {}) = 0;
     virtual void onWindowResize(uint32_t w, uint32_t h) = 0;
     virtual Tick currentTick() const = 0;
     virtual float measuredTickRate() const = 0;

@@ -83,6 +83,7 @@ void Demo::constructSkybox()
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>(id);
 
+  // For now, skybox meshes must me in world units
   auto mesh = render::cuboid({ 9999.f, 9999.f, 9999.f }, { 1.f, 1.f });
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };
@@ -164,7 +165,7 @@ EntityId Demo::constructModel(float x, float z)
   m_engine.ecs().componentStore().allocate<DSpatial, DModel>(id);
 
   auto m = translationMatrix4x4(metresToWorldUnits(Vec3f{ x, 2.f, z })) *
-    scaleMatrix4x4(Vec3f{ 10.f, 10.f, 10.f });
+    scaleMatrix4x4(Vec3f{ 1.f, 1.f, 1.f });
 
   DSpatial spatial{
     .transform = m,
@@ -200,8 +201,7 @@ EntityId Demo::constructGround()
   auto material = m_factory->createMaterialAsync("ground.png").wait();
 
   auto id = m_factory->createStaticCuboid(m_engine.ecs().system<SysSpatial>().root(),
-    metresToWorldUnits(Vec3f{ 200.f, 1.f, 200.f }), material, metresToWorldUnits(Vec2f{ 5.f, 5.f }),
-    0.f, 0.4);
+    Vec3f{ 200.f, 1.f, 200.f }, material, Vec2f{ 5.f, 5.f }, 0.f, 0.4);
 
   m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
     translationMatrix4x4(metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));

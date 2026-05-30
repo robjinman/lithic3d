@@ -8,4 +8,3 @@ enum class Tool : int
 };
 
 wxDECLARE_EVENT(EToolToggleOn, wxCommandEvent);
-wxDECLARE_EVENT(EToolToggleOff, wxCommandEvent);

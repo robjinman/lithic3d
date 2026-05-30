@@ -11,11 +11,11 @@ class Factory
 {
   public:
     virtual render::MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) = 0;
-    virtual EntityId createStaticCuboid(EntityId parentId, const Vec3f& size,
-      render::MaterialHandle material, const Vec2f& textureSize, float restitution,
+    virtual EntityId createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
+      render::MaterialHandle material, const Vec2f& textureSizeInMetres, float restitution,
       float friction) = 0;
-    virtual EntityId createDynamicCuboid(EntityId parentId, const Vec3f& size,
-      render::MaterialHandle material, const Vec2f& textureSize, float inverseMass,
+    virtual EntityId createDynamicCuboid(EntityId parentId, const Vec3f& sizeInMetres,
+      render::MaterialHandle material, const Vec2f& textureSizeInMetres, float inverseMass,
       float restitution, float friction) = 0;
 
     virtual ~Factory() = default;

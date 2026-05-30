@@ -293,10 +293,10 @@ void Demo::constructScenario(size_t i)
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
   auto material = m_factory->createMaterialAsync("bricks.png");
-  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+  auto texSize = Vec2f{ 1.f, 1.f };
 
   for (auto& obj : m_scenarios[i].boxes) {
-    auto size = metresToWorldUnits(obj.dimensions);
+    auto size = obj.dimensions;
     EntityId id = 0;
     if (obj.isStatic) {
       id = m_factory->createStaticCuboid(sysSpatial.root(), size, material, texSize, 0.2f, 0.4f);
@@ -322,7 +322,7 @@ void Demo::constructScenario(size_t i)
     for (size_t j = 0; j < obj.boxes.size(); ++j) {
       auto& box = obj.boxes[j];
 
-      auto mesh = render::cuboid(metresToWorldUnits(box.dimensions), texSize);
+      auto mesh = render::cuboid(box.dimensions, texSize);
       mesh->featureSet = MeshFeatureSet{
         .vertexLayout = {
           BufferUsage::AttrPosition,
@@ -433,11 +433,11 @@ void Demo::constructGround()
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto material = m_factory->createMaterialAsync("grass.png");
-  auto size = metresToWorldUnits(Vec3f{ 200.f, 4.f, 200.f });
-  auto texSize = metresToWorldUnits(Vec2f{ 10.f, 10.f });
+  auto size = Vec3f{ 200.f, 4.f, 200.f };
+  auto texSize = Vec2f{ 10.f, 10.f };
   auto id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
     0.4f); // TODO: Use static
-  sysSpatial.setLocalTransform(id, translationMatrix4x4(size * 0.5f));
+  sysSpatial.setLocalTransform(id, translationMatrix4x4(metresToWorldUnits(size * 0.5f)));
 }
 
 EntityId Demo::constructLight()

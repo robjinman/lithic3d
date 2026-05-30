@@ -40,7 +40,7 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
     ~RenderResourceLoaderImpl() override;
 
   private:
-    [[maybe_unused]] Logger& m_logger;
+    Logger& m_logger;
     ResourceManager& m_resourceManager;
     const GameDataPaths& m_paths;
     render::Renderer& m_renderer;

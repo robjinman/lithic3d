@@ -12,9 +12,9 @@ class ComponentsPanel
     virtual wxWindow* getWxPtr() = 0;
 
     virtual void onEntitySelect(lithic3d::EntityId entityId) = 0;
-    virtual void repopulate() = 0;
+    //virtual void repopulate() = 0;
     virtual lithic3d::SystemId getSelectedSystem() const = 0;
-    virtual lithic3d::ComponentDataPtr getComponentData() const = 0;
+    //virtual lithic3d::ComponentDataPtr getComponentData() const = 0;
 
     virtual ~ComponentsPanel() = default;
 };
@@ -22,5 +22,7 @@ class ComponentsPanel
 using ComponentsPanelPtr = std::unique_ptr<ComponentsPanel>;
 
 class EditorCore;
+class EntityEditMode;
 
-ComponentsPanelPtr createComponentsPanel(wxWindow* parent, EditorCore& editorCore);
+ComponentsPanelPtr createComponentsPanel(wxWindow* parent, EditorCore& editorCore,
+  EntityEditMode& mode);

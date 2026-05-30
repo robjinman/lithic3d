@@ -135,7 +135,7 @@ void Demo::rotateModel()
 {
   float a = (2 * PIf / 360.f) * (m_engine.currentTick() % 360);
   float b = (2 * PIf / 720.f) * (m_engine.currentTick() % 720);
-  auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, 0.f, -0.5f })), { b, a, 0.f });
+  auto m = createTransform(metresToWorldUnits(Vec3f({ 0.f, 0.f, -5.f })), { b, a, 0.f });
 
   m_engine.ecs().system<SysSpatial>().setLocalTransform(m_model, m);
 }

@@ -62,8 +62,8 @@ Demo::Demo(Engine& engine)
 
 void Demo::loadCubeResources()
 {
-  auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
-  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+  auto size = Vec3f{ 1.f, 1.f, 1.f };
+  auto texSize = Vec2f{ 1.f, 1.f };
   auto mesh = render::cuboid(size, texSize);
 
   auto model = std::make_unique<Model>();

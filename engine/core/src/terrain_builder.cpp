@@ -54,7 +54,8 @@ std::vector<float> constructHeightMap(const Mesh& mesh)
   std::vector<float> heightMap(n);
 
   for (size_t i = 0; i < n; ++i) {
-    heightMap[i] = positions[i][1];
+    // Mesh data is in metres
+    heightMap[i] = metresToWorldUnits(positions[i][1]);
   }
 
   return heightMap;
@@ -72,7 +73,7 @@ class TerrainBuilderImpl : public TerrainBuilder
 
   private:
     TerrainConfig m_config;
-    [[maybe_unused]] Logger& m_logger;
+    Logger& m_logger;
     Ecs& m_ecs;
     ModelLoader& m_modelLoader;
     RenderResourceLoader& m_renderResourceLoader;
@@ -201,10 +202,11 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
   assert(heightMap.height > 0);
   assert(heightMap.data.size() == heightMap.width * heightMap.height);
 
-  float minHeight = metresToWorldUnits(m_config.minHeight);
-  float maxHeight = metresToWorldUnits(m_config.maxHeight);
-  float cellWidth = metresToWorldUnits(m_config.cellWidth);
-  float cellHeight = metresToWorldUnits(m_config.cellHeight);
+  // Keep values in metres. Vertex positions are in metres.
+  float minHeight = m_config.minHeight;
+  float maxHeight = m_config.maxHeight;
+  float cellWidth = m_config.cellWidth;
+  float cellHeight = m_config.cellHeight;
   float heightRange = maxHeight - minHeight;
 
   uint32_t numVertices = heightMap.width * heightMap.height;
@@ -410,13 +412,14 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
   auto loader = [this, x, y, terrainXml = std::move(terrainXml)](ResourceId id) mutable {
     const auto cellPath = fs::path{m_config.world} / cellName(x, y);
 
-    Vec2f cellSize = metresToWorldUnits(Vec2f{ m_config.cellWidth, m_config.cellHeight });
-    float waterLevel = metresToWorldUnits(m_config.waterLevel);
+    Vec2f cellSizeMetres{ m_config.cellWidth, m_config.cellHeight };
+    Vec2f cellSizeWorld = metresToWorldUnits(cellSizeMetres);
+    float waterLevelMetres = m_config.waterLevel;
 
     TerrainRegion region;
-    region.position = { x * cellSize[0], 0.f, y * cellSize[1] };
+    region.position = { x * cellSizeWorld[0], 0.f, y * cellSizeWorld[1] };
     region.landModel = constructLandModelAsync(cellPath, *terrainXml, region.heightMap);
-    region.waterModel = constructWaterModelAsync(cellSize, waterLevel);
+    region.waterModel = constructWaterModelAsync(cellSizeMetres, waterLevelMetres);
 
     m_regions.insert({ id, std::move(region) });
 

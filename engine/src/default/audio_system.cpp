@@ -50,7 +50,7 @@ class AudioSystemImpl : public AudioSystem
     ~AudioSystemImpl();
 
   private:
-    [[maybe_unused]] Logger& m_logger;
+    Logger& m_logger;
     DirectoryPtr m_directory;
     ALCdevice* m_device;
     ALCcontext* m_context;

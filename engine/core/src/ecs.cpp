@@ -20,7 +20,7 @@ class EcsImpl : public Ecs
     uint32_t numSystems() const override;
     System& getSystem(SystemId id) override;
     const System& getSystem(SystemId id) const override;
-    void update(Tick tick, const InputState& inputState) override;
+    void update(Tick tick, const InputState& inputState, const std::set<SystemId>& skip) override;
     void processEvent(const Event& event) override;
     void removeEntity(EntityId entityId) override;
     ComponentStore& componentStore() override;
@@ -72,13 +72,14 @@ const System& EcsImpl::getSystem(SystemId id) const
   return *m_systems.at(id);
 }
 
-void EcsImpl::update(Tick tick, const InputState& inputState)
+void EcsImpl::update(Tick tick, const InputState& inputState, const std::set<SystemId>& skip)
 {
   deletePending();
 
   for (auto& entry : m_systems) {
-    //if (entry.first == 2) continue; // TODO
-    entry.second->update(tick, inputState);
+    if (!skip.contains(entry.first)) {
+      entry.second->update(tick, inputState);
+    }
   }
 }
 

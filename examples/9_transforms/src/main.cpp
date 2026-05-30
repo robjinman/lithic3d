@@ -44,7 +44,7 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
-  auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 0.f });
+  auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 20.f });
   m_engine.ecs().system<SysRender3d>().camera().setPosition(camPos);
 
   auto model = m_engine.modelLoader().loadModelAsync("indicator.gltf").wait();
@@ -121,7 +121,7 @@ EntityId Demo::constructChild(ResourceHandle model)
 
   sysRender3d.addEntity(id, std::move(render));
 
-  auto pos = metresToWorldUnits(Vec3f{ 1.f, 0.f, 0.f });
+  auto pos = metresToWorldUnits(Vec3f{ 10.f, 0.f, 0.f });
   auto t = createTransform(pos, {}, { 0.5f, 0.5f, 0.5f });
   sysSpatial.setLocalTransform(id, t);
 

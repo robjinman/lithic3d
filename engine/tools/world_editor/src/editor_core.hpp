@@ -22,12 +22,13 @@ class EditorCore
     virtual const lithic3d::GameConfig& config() const = 0;
     virtual lithic3d::Engine& engine() const = 0;
 
+    // World units
     virtual float getCursorDistance() const = 0;
     virtual lithic3d::Vec3f getCursorRotation() = 0;
     virtual const lithic3d::Vec3f& getCursorScale() const = 0;
     virtual lithic3d::Mat4x4f getCursorTransform() const = 0;
 
-    virtual void setCursorDistance(float distance) = 0;
+    virtual void setCursorDistance(float worldUnits) = 0;
     virtual void setCursorRotation(const lithic3d::Vec3f& ori) = 0;
     virtual void setCursorScale(const lithic3d::Vec3f& scale) = 0;
     virtual void setCursorRotationScale(const lithic3d::Mat3x3f& m) = 0;

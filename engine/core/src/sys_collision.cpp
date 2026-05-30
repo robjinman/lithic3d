@@ -10,8 +10,8 @@ namespace lithic3d
 BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
 {
   return {
-    .min = constructVec3f(*xmlBoundingBox.child("min")),
-    .max = constructVec3f(*xmlBoundingBox.child("max")),
+    .min = metresToWorldUnits(constructVec3f(*xmlBoundingBox.child("min"))),
+    .max = metresToWorldUnits(constructVec3f(*xmlBoundingBox.child("max"))),
     .transform = constructTransform(*xmlBoundingBox.child("transform"))
   };
 }

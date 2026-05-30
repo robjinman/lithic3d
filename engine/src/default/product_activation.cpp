@@ -26,7 +26,7 @@ class ProductActivationImpl : public ProductActivation
     EntityId root() const override;
 
   private:
-    [[maybe_unused]] Logger& m_logger;
+    Logger& m_logger;
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     Drm& m_drm;

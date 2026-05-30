@@ -36,7 +36,7 @@ class EngineImpl : public Engine
       LoggerPtr logger);
 
     void setClearColour(const Vec4f& colour) override;
-    void update(const InputState& inputState) override;
+    void update(const InputState& inputState, const std::set<SystemId>& skip) override;
     void onWindowResize(uint32_t w, uint32_t h) override;
     Tick currentTick() const override;
     float measuredTickRate() const override;
@@ -165,12 +165,12 @@ void EngineImpl::measureTickRate()
   }
 }
 
-void EngineImpl::update(const InputState& inputState)
+void EngineImpl::update(const InputState& inputState, const std::set<SystemId>& skip)
 {
   try {
     m_renderer->beginFrame(m_clearColour);
 
-    m_ecs->update(m_currentTick, inputState);
+    m_ecs->update(m_currentTick, inputState, skip);
     measureTickRate();
     ++m_currentTick;
 

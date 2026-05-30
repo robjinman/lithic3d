@@ -28,10 +28,12 @@ class FactoryImpl : public Factory
     // TODO: Use metres, not world units
 
     MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) override;
-    EntityId createStaticCuboid(EntityId parentId, const Vec3f& size, MaterialHandle material,
-      const Vec2f& textureSize, float restitution, float friction) override;
-    EntityId createDynamicCuboid(EntityId parentId, const Vec3f& size, MaterialHandle material,
-      const Vec2f& textureSize, float inverseMass, float restitution, float friction) override;
+    EntityId createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
+      MaterialHandle material, const Vec2f& textureSizeInMetres, float restitution,
+      float friction) override;
+    EntityId createDynamicCuboid(EntityId parentId, const Vec3f& sizeInMetres,
+      MaterialHandle material, const Vec2f& textureSizeInMetres, float inverseMass,
+      float restitution, float friction) override;
 
   private:
     Ecs& m_ecs;
@@ -62,8 +64,8 @@ MaterialHandle FactoryImpl::createMaterialAsync(const std::filesystem::path& tex
   return m_renderResourceLoader.loadMaterialAsync(std::move(material));
 }
 
-void FactoryImpl::createCuboidCommonComponents(EntityId id, EntityId parentId, const Vec3f& size,
-  const Vec2f& textureSize, MaterialHandle material)
+void FactoryImpl::createCuboidCommonComponents(EntityId id, EntityId parentId,
+  const Vec3f& sizeInMetres, const Vec2f& textureSizeInMetres, MaterialHandle material)
 {
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   auto& sysRender3d = m_ecs.system<SysRender3d>();
@@ -71,13 +73,13 @@ void FactoryImpl::createCuboidCommonComponents(EntityId id, EntityId parentId, c
   DSpatial spatial{};
   spatial.parent = parentId;
   spatial.aabb = {
-    .min = -size * 0.5f,
-    .max = size * 0.5f
+    .min = metresToWorldUnits(-sizeInMetres * 0.5f),
+    .max = metresToWorldUnits(sizeInMetres * 0.5f)
   };
 
   sysSpatial.addEntity(id, spatial);
 
-  auto mesh = render::cuboid(size, textureSize);
+  auto mesh = render::cuboid(sizeInMetres, textureSizeInMetres);
   mesh->featureSet = MeshFeatureSet{
     .vertexLayout = {
       BufferUsage::AttrPosition,
@@ -103,22 +105,22 @@ void FactoryImpl::createCuboidCommonComponents(EntityId id, EntityId parentId, c
   sysRender3d.addEntity(id, std::move(render));
 }
 
-EntityId FactoryImpl::createStaticCuboid(EntityId parentId, const Vec3f& size,
-  MaterialHandle material, const Vec2f& textureSize, float restitution, float friction)
+EntityId FactoryImpl::createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
+  MaterialHandle material, const Vec2f& textureSizeInMetres, float restitution, float friction)
 {
   auto id = m_ecs.idGen().getNewEntityId();
   m_ecs.componentStore().allocate<DSpatial, DModel, DStaticBox>(id);
 
   auto& sysCollision = m_ecs.system<SysCollision>();
 
-  createCuboidCommonComponents(id, parentId, size, textureSize, material);
+  createCuboidCommonComponents(id, parentId, sizeInMetres, textureSizeInMetres, material);
 
   DStaticBox collision{
     .restitution = restitution,
     .friction = friction,
     .boundingBox{
-      .min = -size * 0.5f,
-      .max = size * 0.5f,
+      .min = metresToWorldUnits(-sizeInMetres * 0.5f),
+      .max = metresToWorldUnits(sizeInMetres * 0.5f),
       .transform = identityMatrix<4>()
     }
   };
@@ -127,8 +129,8 @@ EntityId FactoryImpl::createStaticCuboid(EntityId parentId, const Vec3f& size,
   return id;
 }
 
-EntityId FactoryImpl::createDynamicCuboid(EntityId parentId, const Vec3f& size,
-  MaterialHandle material, const Vec2f& textureSize, float inverseMass, float restitution,
+EntityId FactoryImpl::createDynamicCuboid(EntityId parentId, const Vec3f& sizeInMetres,
+  MaterialHandle material, const Vec2f& textureSizeInMetres, float inverseMass, float restitution,
   float friction)
 {
   auto id = m_ecs.idGen().getNewEntityId();
@@ -136,7 +138,7 @@ EntityId FactoryImpl::createDynamicCuboid(EntityId parentId, const Vec3f& size,
 
   auto& sysCollision = m_ecs.system<SysCollision>();
 
-  createCuboidCommonComponents(id, parentId, size, textureSize, material);
+  createCuboidCommonComponents(id, parentId, sizeInMetres, textureSizeInMetres, material);
 
   DDynamicBox collision{
     .inverseMass = inverseMass,
@@ -144,8 +146,8 @@ EntityId FactoryImpl::createDynamicCuboid(EntityId parentId, const Vec3f& size,
     .friction = friction,
     .centreOfMass = { 0.f, 0.f, 0.f },
     .boundingBox{
-      .min = -size * 0.5f,
-      .max = size * 0.5f,
+      .min = metresToWorldUnits(-sizeInMetres * 0.5f),
+      .max = metresToWorldUnits(sizeInMetres * 0.5f),
       .transform = identityMatrix<4>()
     }
   };

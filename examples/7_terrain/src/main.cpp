@@ -115,7 +115,7 @@ EntityId Demo::constructLight()
   Vec4f colour = { 1.f, 0.2f, 0.f, 1.f };
 
   auto lightModel = std::make_unique<Submodel>();
-  auto lightMesh = cuboid(metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f }), { 1.f, 1.f });
+  auto lightMesh = cuboid(Vec3f{ 1.f, 1.f, 1.f }, { 1.f, 1.f });
   auto lightMaterial = std::make_unique<Material>();
   lightMaterial->colour = colour;
   lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
@@ -140,6 +140,7 @@ void Demo::constructSkybox()
   auto id = m_engine.ecs().idGen().getNewEntityId();
   m_engine.ecs().componentStore().allocate<DSpatial, DSkybox>(id);
 
+  // For now, skybox meshes must be in world units
   auto mesh = render::cuboid({ 9999.f, 9999.f, 9999.f }, { 1.f, 1.f });
   mesh->attributeBuffers.resize(1); // Just keep the positions
   mesh->featureSet.vertexLayout = { BufferUsage::AttrPosition };

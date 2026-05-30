@@ -67,6 +67,7 @@ TexturePtr loadGreyscaleTexture(const std::vector<char>& data)
   return loadTexture(data, STBI_grey);
 }
 
+// Size is in metres. Mesh data is in metres and scaled by SysRender3d when sent to the renderer.
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
 {
   float W = size[0];

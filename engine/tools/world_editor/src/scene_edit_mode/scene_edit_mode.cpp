@@ -8,8 +8,8 @@ namespace fs = std::filesystem;
 namespace
 {
 
-const Vec4f GhostEntityColour = { 0.5f, 1.f, 0.5f, 0.5f };
-const Vec4f SelectedEntityColour = { 3.f, 2.f, 2.f, 1.f };
+const Vec4f GHOST_ENTITY_COLOUR = { 0.5f, 1.f, 0.5f, 0.5f };
+const Vec4f SELECTED_ENTITY_COLOUR = { 3.f, 2.f, 2.f, 1.f };
 
 struct SliceState
 {
@@ -280,7 +280,7 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
 
   auto transform = m_core.getCursorTransform();
   m_cursorEntity = factory.constructGhostEntity(m_core.engine().worldGrid().root(), name, transform,
-    GhostEntityColour);
+    GHOST_ENTITY_COLOUR);
   m_cursorEntityType = name;
 }
 
@@ -346,12 +346,12 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 
   m_selectedEntity = id;
 
-  sysRender3d.setEntityColour(m_selectedEntity, SelectedEntityColour);
+  sysRender3d.setEntityColour(m_selectedEntity, SELECTED_ENTITY_COLOUR);
 
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
   m_cursorEntity = factory.constructGhostEntity(m_core.engine().worldGrid().root(), type,
-    entityTransform, GhostEntityColour);
+    entityTransform, GHOST_ENTITY_COLOUR);
   m_cursorEntityType = type;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));

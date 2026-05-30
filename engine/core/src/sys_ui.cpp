@@ -72,7 +72,7 @@ class SysUiImpl : public SysUi
     void sendFocus(EntityId id) override;
 
   private:
-    [[maybe_unused]] Logger& m_logger;
+    Logger& m_logger;
     Ecs& m_ecs;
     std::map<EntityId, ItemData> m_componentData;
     std::unordered_map<GroupId, ItemGroup> m_groups;

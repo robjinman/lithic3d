@@ -75,7 +75,7 @@ class SysAnimation2dImpl : public SysAnimation2d
     void finishAnimation(EntityId entityId) override;
 
   private:
-    [[maybe_unused]] Logger& m_logger;
+    Logger& m_logger;
     ComponentStore& m_componentStore;
     std::map<EntityId, CAnimation2dPtr> m_components;
     std::map<EntityId, AnimationState> m_activeAnimations;

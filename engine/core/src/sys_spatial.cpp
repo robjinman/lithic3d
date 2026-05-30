@@ -58,7 +58,9 @@ XmlNodePtr toXml(const Mat4x4f& m)
 
   for (size_t r = 0; r < 3; ++r) {
     for (size_t c = 0; c < 4; ++c) {
-      ss << m.at(r, c);
+      float scaleFactor = (c == 3 && r < 3) ? 1.f / WORLD_UNITS_PER_METRE : 1.f;
+
+      ss << m.at(r, c) * scaleFactor;
       if (!(r == 2 && c == 3)) {
         ss << ",";
       }
@@ -148,7 +150,7 @@ const LooseOctree& SysSpatialImpl::dbg_getOctree() const
 
 const Aabb& SysSpatialImpl::getAabb(EntityId entityId) const
 {
-  m_ecs.componentStore().component<CBoundingBox>(entityId).modelSpaceAabb;
+  return m_ecs.componentStore().component<CBoundingBox>(entityId).modelSpaceAabb;
 }
 
 EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const

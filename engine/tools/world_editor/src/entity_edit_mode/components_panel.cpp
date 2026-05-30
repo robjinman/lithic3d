@@ -1,13 +1,19 @@
 #include "entity_edit_mode/components_panel.hpp"
 #include "entity_edit_mode/component_panel.hpp"
+#include "entity_edit_mode/entity_edit_mode.hpp"
 #include "editor_core.hpp"
+#include <lithic3d/engine.hpp>
 #include <wx/wx.h>
 #include <wx/choicebk.h>
 
 using namespace lithic3d;
 
-ComponentPanelPtr createSpatialComponentPanel(wxWindow* parent, EditorCore& editorCore);
-ComponentPanelPtr createCollisionComponentPanel(wxWindow* parent, EditorCore& editorCore);
+wxDEFINE_EVENT(EComponentChange, wxCommandEvent);
+
+ComponentPanelPtr createSpatialComponentPanel(wxWindow* parent, EditorCore& editorCore,
+  EntityEditMode& mode);
+ComponentPanelPtr createCollisionComponentPanel(wxWindow* parent, EditorCore& editorCore,
+  EntityEditMode& mode);
 
 namespace
 {
@@ -15,12 +21,12 @@ namespace
 class ComponentsPanelImpl : public ComponentsPanel
 {
   public:
-    ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCore);
+    ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCore, EntityEditMode& mode);
 
     void onEntitySelect(EntityId entityId) override;
-    void repopulate() override;
+    //void repopulate() override;
     SystemId getSelectedSystem() const override;
-    ComponentDataPtr getComponentData() const override;
+    //ComponentDataPtr getComponentData() const override;
 
     wxWindow* getWxPtr() override;
 
@@ -28,6 +34,7 @@ class ComponentsPanelImpl : public ComponentsPanel
     wxPanel* m_panel = nullptr;
     wxChoicebook* m_choicebook = nullptr;
     EditorCore& m_core;
+    EntityEditMode& m_mode;
     std::vector<ComponentPanelPtr> m_panels;
     EntityId m_entityId = NULL_ENTITY_ID;
 
@@ -37,8 +44,10 @@ class ComponentsPanelImpl : public ComponentsPanel
     bool hasChanges() const;
 };
 
-ComponentsPanelImpl::ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCore)
+ComponentsPanelImpl::ComponentsPanelImpl(wxWindow* parent, EditorCore& editorCore,
+  EntityEditMode& mode)
   : m_core(editorCore)
+  , m_mode(mode)
 {
   m_panel = new wxPanel(parent, wxID_ANY);
   auto vbox = new wxBoxSizer(wxVERTICAL);
@@ -73,7 +82,7 @@ SystemId ComponentsPanelImpl::getSelectedSystem() const
   }
   return std::numeric_limits<SystemId>::max();
 }
-
+/*
 ComponentDataPtr ComponentsPanelImpl::getComponentData() const
 {
   int pageIndex = m_choicebook->GetSelection();
@@ -82,8 +91,8 @@ ComponentDataPtr ComponentsPanelImpl::getComponentData() const
     return panel->getComponentData();
   }
   return nullptr;
-}
-
+}*/
+/*
 void ComponentsPanelImpl::repopulate()
 {
   int pageIndex = m_choicebook->GetSelection();
@@ -91,7 +100,7 @@ void ComponentsPanelImpl::repopulate()
     auto& panel = m_panels.at(pageIndex);
     panel->repopulate();
   }
-}
+}*/
 
 bool ComponentsPanelImpl::hasChanges() const
 {
@@ -127,8 +136,8 @@ wxWindow* ComponentsPanelImpl::getWxPtr()
 ComponentPanelPtr ComponentsPanelImpl::createComponentPanel(SystemId systemId)
 {
   switch (systemId) {
-    case Systems::Spatial: return createSpatialComponentPanel(m_choicebook, m_core);
-    case Systems::Collision: return createCollisionComponentPanel(m_choicebook, m_core);
+    case Systems::Spatial: return createSpatialComponentPanel(m_choicebook, m_core, m_mode);
+    case Systems::Collision: return createCollisionComponentPanel(m_choicebook, m_core, m_mode);
     // ...
     default: return nullptr;
   }
@@ -158,7 +167,8 @@ void ComponentsPanelImpl::onEntitySelect(EntityId entityId)
 
 } // namespace
 
-ComponentsPanelPtr createComponentsPanel(wxWindow* parent, EditorCore& editorCore)
+ComponentsPanelPtr createComponentsPanel(wxWindow* parent, EditorCore& editorCore,
+  EntityEditMode& mode)
 {
-  return std::make_unique<ComponentsPanelImpl>(parent, editorCore);
+  return std::make_unique<ComponentsPanelImpl>(parent, editorCore, mode);
 }

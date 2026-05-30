@@ -123,7 +123,7 @@ wxWindow* CursorPanelImpl::getWxPtr()
 void CursorPanelImpl::onCursorMove()
 {
   m_spnDistance->SetValue(worldUnitsToMetres(m_core.getCursorDistance()));
-  m_spnScale->SetValue(m_core.getCursorScale()[0] / WORLD_UNITS_PER_METRE);  // TODO
+  m_spnScale->SetValue(m_core.getCursorScale()[0]);
 
   float radiansY = m_core.getCursorRotation()[1];
   int degreesY = static_cast<int>(radiansToDegrees(radiansY) + 0.5f);
@@ -146,7 +146,7 @@ void CursorPanelImpl::onScaleChange(wxEvent& e)
   Vec3f scale = Vec3f{ 1.f, 1.f, 1.f } * event.GetValue();
 
   m_onCursorMove.reset();
-  m_core.setCursorScale(scale * WORLD_UNITS_PER_METRE);
+  m_core.setCursorScale(scale);
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 

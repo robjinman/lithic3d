@@ -8,6 +8,10 @@ namespace lithic3d
 using Tick = long;
 
 constexpr size_t TICKS_PER_SECOND = 60;
+
+// The ultimate test of whether we've handled conversion to/from metres and world units correctly
+// everywhere is to change this value and see what changes. The game should look completely
+// unchanged.
 constexpr float WORLD_UNITS_PER_METRE = 10.f;
 
 constexpr float metresToWorldUnits(float x)

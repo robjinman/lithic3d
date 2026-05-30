@@ -42,7 +42,7 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
-  auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 1.f });
+  auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 10.f });
   m_engine.ecs().system<SysRender3d>().camera().setPosition(camPos);
 
   constructLight();

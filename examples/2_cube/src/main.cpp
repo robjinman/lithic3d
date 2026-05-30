@@ -58,8 +58,8 @@ Demo::Demo(Engine& engine)
 EntityId Demo::constructCube()
 {
   auto material = m_factory->createMaterialAsync("bricks.png");
-  auto size = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
-  auto texSize = metresToWorldUnits(Vec2f{ 1.f, 1.f });
+  auto size = Vec3f{ 1.f, 1.f, 1.f };
+  auto texSize = Vec2f{ 1.f, 1.f };
   return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
 }
 

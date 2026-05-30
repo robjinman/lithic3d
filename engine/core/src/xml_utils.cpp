@@ -16,8 +16,8 @@ Vec3f constructVec3f(const XmlNode& node)
 Aabb constructAabb(const XmlNode& aabbXml)
 {
   return Aabb{
-    .min = constructVec3f(*aabbXml.child("min")),
-    .max = constructVec3f(*aabbXml.child("max"))
+    .min = metresToWorldUnits(constructVec3f(*aabbXml.child("min"))),
+    .max = metresToWorldUnits(constructVec3f(*aabbXml.child("max")))
   };
 }
 
@@ -41,7 +41,9 @@ Mat4x4f constructTransform(const XmlNode& transformXml)
       size_t r = i / 4;
       size_t c = i % 4;
 
-      m.set(r, c, std::stof(strFloat));
+      float scaleFactor = (c == 3 && r < 3) ? WORLD_UNITS_PER_METRE : 1.f;
+
+      m.set(r, c, std::stof(strFloat) * scaleFactor);
       ++i;
     }
 
@@ -49,7 +51,9 @@ Mat4x4f constructTransform(const XmlNode& transformXml)
   }
   else {
     auto pos = constructVec3f(*transformXml.child("pos"));
-    auto ori = constructVec3f(*transformXml.child("ori"));
+    auto degs = constructVec3f(*transformXml.child("ori"));
+
+    Vec3f ori{ degreesToRadians(degs[0]), degreesToRadians(degs[1]), degreesToRadians(degs[2]) };
 
     Vec3f scale{ 1.f, 1.f, 1.f };
 

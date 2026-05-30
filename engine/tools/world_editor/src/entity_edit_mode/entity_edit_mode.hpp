@@ -16,8 +16,16 @@ class EntityEditMode
     virtual void setActivePrefab(const std::string& name) = 0;
     virtual lithic3d::EntityId instantiatedPrefabId() const = 0;
 
-    virtual void setActiveBoundingBox(const lithic3d::BoundingBox& box) = 0;
-    virtual void cancelActiveBoundingBox() = 0;
+    virtual void renderBoundingBox(bool render) = 0;
+    virtual void renderAabb(bool render) = 0;
+
+    virtual void selectBoundingBox() = 0;
+
+    virtual void updateBoundingBox(const lithic3d::BoundingBox& box) = 0;
+    virtual void updateAabb(const lithic3d::Aabb& aabb) = 0;
+
+    virtual void applyTransform() = 0;
+    virtual void cancelTransform() = 0;
 
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;

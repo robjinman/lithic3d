@@ -344,7 +344,10 @@ struct BitmapFont
 
 TexturePtr loadRgbaTexture(const std::vector<char>& data);
 TexturePtr loadGreyscaleTexture(const std::vector<char>& data);
+
+// Size is in metres
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize);
+
 std::vector<char> createVertexArray(const Mesh& mesh);
 
 } // namespace render
