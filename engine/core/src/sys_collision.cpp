@@ -793,27 +793,31 @@ XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId) const
   bool isDynamic = m_ecs.componentStore().hasComponentForEntity<CCollisionDynamic>(entityId);
   bool isBox = m_ecs.componentStore().hasComponentForEntity<CCollisionBox>(entityId);
 
-  if (isDynamic && isBox) {
-    auto& dynaComp = m_ecs.componentStore().component<CCollisionDynamic>(entityId);
+  if (isBox) {
     auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
     auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
 
     auto xmlSysCollision = createXmlNode("collision");
 
-    auto xmlDynamicBox = createXmlNode("dynamic_box");
-    xmlDynamicBox->setAttribute("inverse_mass", std::to_string(dynaComp.inverseMass));
-    xmlDynamicBox->setAttribute("restitution", std::to_string(collisionComp.restitution));
-    xmlDynamicBox->setAttribute("friction", std::to_string(collisionComp.friction));
+    auto xmlBox = createXmlNode(isDynamic ? "dynamic_box" : "static_box");
+    xmlBox->setAttribute("restitution", std::to_string(collisionComp.restitution));
+    xmlBox->setAttribute("friction", std::to_string(collisionComp.friction));
 
-    auto xmlCentre = createXmlNode("centre_of_mass");
-    xmlCentre->setAttribute("x", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[0])));
-    xmlCentre->setAttribute("y", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[1])));
-    xmlCentre->setAttribute("z", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[2])));
+    if (isDynamic) {
+      auto& dynaComp = m_ecs.componentStore().component<CCollisionDynamic>(entityId);
 
-    xmlDynamicBox->addChild(std::move(xmlCentre));
-    xmlDynamicBox->addChild(toXml(boxComp.boundingBox));
+      xmlBox->setAttribute("inverse_mass", std::to_string(dynaComp.inverseMass));
 
-    xmlSysCollision->addChild(std::move(xmlDynamicBox));
+      auto xmlCentre = createXmlNode("centre_of_mass");
+      xmlCentre->setAttribute("x", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[0])));
+      xmlCentre->setAttribute("y", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[1])));
+      xmlCentre->setAttribute("z", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[2])));
+
+      xmlBox->addChild(std::move(xmlCentre));
+    }
+
+    xmlBox->addChild(toXml(boxComp.boundingBox));
+    xmlSysCollision->addChild(std::move(xmlBox));
 
     return xmlSysCollision;
   }
