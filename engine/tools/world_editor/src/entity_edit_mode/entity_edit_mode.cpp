@@ -301,6 +301,7 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   auto prefabData = m_core.config().paths.prefabsDir->readFile(STR(prefab << ".xml"));
   auto prefabXml = parseXml(prefabData);
 
+  m_unusedPrefabXml.clear();
   m_entityId = engine.entityFactory().constructEntity(m_rootId, *prefabXml, m_unusedPrefabXml);
   m_entityIsPrefab = true;
   m_activePrefab = prefab;
@@ -484,7 +485,7 @@ void EntityEditModeImpl::saveChanges()
 
     auto xmlString = stream.str();
 
-    m_core.config().paths.prefabsDir->writeFile(STR(m_activePrefab << "_test.xml"), xmlString.data(),
+    m_core.config().paths.prefabsDir->writeFile(STR(m_activePrefab << ".xml"), xmlString.data(),
       xmlString.size());
   }
   else {
