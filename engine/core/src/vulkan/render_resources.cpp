@@ -113,9 +113,9 @@ class RenderResourcesImpl : public RenderResources
 
     // Resources
     //
-    void addTexture(ResourceId id, TexturePtr texture) override;
+    void addTexture(ResourceId id, TexturePtr texture, bool genMipmaps) override;
     void addSplatMap(ResourceId id, TexturePtr texture) override;
-    void addNormalMap(ResourceId id, TexturePtr texture) override;
+    void addNormalMap(ResourceId id, TexturePtr texture, bool genMipmaps) override;
     void addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures) override;
     void removeTexture(ResourceId id) override;
     void removeCubeMap(ResourceId id) override;
@@ -260,7 +260,7 @@ void RenderResourcesImpl::createDummyTexture()
     .channels = 4,
     .data = { 255, 0, 0, 255 }
   };
-  m_dummyTexture = m_bufferManager.createTexture(texture);
+  m_dummyTexture = m_bufferManager.createTexture(texture, false);
 }
 
 inline void RenderResourcesImpl::assertResourceThread() const
@@ -276,13 +276,13 @@ void RenderResourcesImpl::update(uint32_t frame)
   m_bufferManager.update(frame);
 }
 
-void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture)
+void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture, bool genMipmaps)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
 
   auto textureData = std::make_unique<TextureData>();
-  textureData->image = m_bufferManager.createTexture(*texture);
+  textureData->image = m_bufferManager.createTexture(*texture, genMipmaps);
   //textureData->texture = std::move(texture);
 
   {
@@ -297,7 +297,7 @@ void RenderResourcesImpl::addSplatMap(ResourceId id, TexturePtr texture)
   assertResourceThread();
 
   auto textureData = std::make_unique<TextureData>();
-  textureData->image = m_bufferManager.createTexture(*texture);
+  textureData->image = m_bufferManager.createTexture(*texture, false);
   //textureData->texture = std::move(texture);
 
   {
@@ -306,13 +306,13 @@ void RenderResourcesImpl::addSplatMap(ResourceId id, TexturePtr texture)
   }
 }
 
-void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture)
+void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture, bool genMipmaps)
 {
   DBG_TRACE(m_logger);
   assertResourceThread();
 
   auto textureData = std::make_unique<TextureData>();
-  textureData->image = m_bufferManager.createNormalMap(*texture);
+  textureData->image = m_bufferManager.createNormalMap(*texture, genMipmaps);
   //textureData->texture = std::move(texture);
 
   {
@@ -1263,7 +1263,7 @@ void RenderResourcesImpl::createTextureSampler()
     .compareEnable = VK_FALSE,
     .compareOp = VK_COMPARE_OP_ALWAYS,
     .minLod = 0.f,
-    .maxLod = 0.f,
+    .maxLod = 32, // TODO: This OK?
     .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
     .unnormalizedCoordinates = VK_FALSE
   };

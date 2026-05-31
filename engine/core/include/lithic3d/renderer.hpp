@@ -80,8 +80,8 @@ class Renderer
 
     // Textures
     //
-    virtual void addTexture(ResourceId id, TexturePtr texture) = 0;
-    virtual void addNormalMap(ResourceId id, TexturePtr texture) = 0;
+    virtual void addTexture(ResourceId id, TexturePtr texture, bool genMipmaps) = 0;
+    virtual void addNormalMap(ResourceId id, TexturePtr texture, bool genMipmaps) = 0;
     virtual void addCubeMap(ResourceId id, std::array<TexturePtr, 6>&& textures) = 0;
 
     virtual void removeTexture(ResourceId id) = 0;

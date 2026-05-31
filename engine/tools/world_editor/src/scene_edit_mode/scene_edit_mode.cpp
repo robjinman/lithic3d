@@ -288,8 +288,8 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
   }
 
   auto transform = m_core.getCursorTransform();
-  m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), name, transform,
-    GHOST_ENTITY_COLOUR);
+  m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), name,
+   transform, GHOST_ENTITY_COLOUR);
   m_cursorEntityType = name;
 }
 

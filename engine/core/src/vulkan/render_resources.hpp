@@ -96,9 +96,9 @@ class RenderResources
     // Textures
     //
     // Threads: resource
-    virtual void addTexture(ResourceId id, TexturePtr texture) = 0;
+    virtual void addTexture(ResourceId id, TexturePtr texture, bool genMipmaps) = 0;
     // Threads: resource
-    virtual void addNormalMap(ResourceId id, TexturePtr texture) = 0;
+    virtual void addNormalMap(ResourceId id, TexturePtr texture, bool genMipmaps) = 0;
     // Threads: resource
     virtual void addCubeMap(ResourceId id, std::array<TexturePtr, 6> textures) = 0;
     // Threads: resource

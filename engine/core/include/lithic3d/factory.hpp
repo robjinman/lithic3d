@@ -10,7 +10,8 @@ namespace lithic3d
 class Factory
 {
   public:
-    virtual render::MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) = 0;
+    virtual render::MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath,
+      bool genMipmaps) = 0;
     virtual EntityId createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
       render::MaterialHandle material, const Vec2f& textureSizeInMetres, float restitution,
       float friction) = 0;

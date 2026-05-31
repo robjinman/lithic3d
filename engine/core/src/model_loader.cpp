@@ -395,13 +395,13 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
 
   if (!desc.baseColourTexture.empty()) {
     material->textures = {
-      m_renderResourceLoader.loadTextureAsync(desc.baseColourTexture)
+      m_renderResourceLoader.loadTextureAsync(desc.baseColourTexture, true)
     };
   }
 
   if (!desc.normalMap.empty()) {
     material->normalMaps = {
-      m_renderResourceLoader.loadNormalMapAsync(desc.normalMap)
+      m_renderResourceLoader.loadNormalMapAsync(desc.normalMap, true)
     };
   }
 

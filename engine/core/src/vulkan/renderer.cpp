@@ -195,8 +195,8 @@ class RendererImpl : public Renderer
 
     // Resources
     //
-    void addTexture(ResourceId id, TexturePtr texture) override;
-    void addNormalMap(ResourceId id, TexturePtr texture) override;
+    void addTexture(ResourceId id, TexturePtr texture, bool genMipmaps) override;
+    void addNormalMap(ResourceId id, TexturePtr texture, bool genMipmaps) override;
     void addCubeMap(ResourceId id, std::array<TexturePtr, 6>&& textures) override;
     void removeTexture(ResourceId id) override;
     void removeCubeMap(ResourceId id) override;
@@ -1853,7 +1853,7 @@ void RendererImpl::createImageViews()
 
   for (size_t i = 0; i < m_swapchainImages.size(); ++i) {
     m_swapchainImageViews[i] = createImageView(m_device, m_swapchainImages[i],
-      m_swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 0);
+      m_swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1);
   }
 }
 
@@ -2160,18 +2160,18 @@ void RendererImpl::createCommandBuffers()
     "Failed to allocate command buffers");
 }
 
-void RendererImpl::addTexture(ResourceId id, TexturePtr texture)
+void RendererImpl::addTexture(ResourceId id, TexturePtr texture, bool genMipmaps)
 {
   DBG_TRACE(m_logger);
 
-  m_resources->addTexture(id, std::move(texture));
+  m_resources->addTexture(id, std::move(texture), genMipmaps);
 }
 
-void RendererImpl::addNormalMap(ResourceId id, TexturePtr texture)
+void RendererImpl::addNormalMap(ResourceId id, TexturePtr texture, bool genMipmaps)
 {
   DBG_TRACE(m_logger);
 
-  m_resources->addNormalMap(id, std::move(texture));
+  m_resources->addNormalMap(id, std::move(texture), genMipmaps);
 }
 
 void RendererImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6>&& textures)

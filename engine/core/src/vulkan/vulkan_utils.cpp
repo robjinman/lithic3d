@@ -23,7 +23,8 @@ uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
 }
 
 VkImageView createImageView(VkDevice device, VkImage image, VkFormat format,
-  VkImageAspectFlags aspectFlags, VkImageViewType type, uint32_t layerCount, uint32_t layer)
+  VkImageAspectFlags aspectFlags, VkImageViewType type, uint32_t layerCount, uint32_t layer,
+  uint32_t mipLevels)
 {
   VkImageViewCreateInfo createInfo{
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -41,7 +42,7 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format,
     .subresourceRange = VkImageSubresourceRange{
       .aspectMask = aspectFlags,
       .baseMipLevel = 0,
-      .levelCount = 1,
+      .levelCount = mipLevels,
       .baseArrayLayer = layer,
       .layerCount = layerCount
     }

@@ -9,9 +9,10 @@ namespace lithic3d
 class RenderResourceLoader
 {
   public:
-    virtual ResourceHandle loadTextureAsync(const std::filesystem::path& path,
+    virtual ResourceHandle loadTextureAsync(const std::filesystem::path& path, bool genMipmaps,
       DirectoryPtr directory = nullptr) = 0;
-    virtual ResourceHandle loadNormalMapAsync(const std::filesystem::path& path) = 0;
+    virtual ResourceHandle loadNormalMapAsync(const std::filesystem::path& path,
+      bool genMipmaps) = 0;
     virtual ResourceHandle loadCubeMapAsync(const std::array<std::filesystem::path, 6>& path) = 0;
     virtual render::MaterialHandle loadMaterialAsync(render::MaterialPtr material) = 0;
     virtual render::MeshHandle loadMeshAsync(render::MeshPtr mesh) = 0;

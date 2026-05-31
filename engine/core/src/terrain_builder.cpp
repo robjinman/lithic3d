@@ -357,7 +357,7 @@ ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellP
 
   auto material = std::make_unique<render::Material>();
   material->featureSet = materialFeatures;
-  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png",
+  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / "splat_map.png", true,
     m_paths.worldsDir);
 
   for (auto& textureXml : splatMapXml) {
@@ -365,7 +365,7 @@ ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellP
 
     ResourceHandle texture;
     if (!m_renderResourceLoader.hasTexture(filePath)) {
-      texture = m_renderResourceLoader.loadTextureAsync(filePath);
+      texture = m_renderResourceLoader.loadTextureAsync(filePath, true);
     }
     else {
       texture = m_renderResourceLoader.getTextureHandle(filePath);

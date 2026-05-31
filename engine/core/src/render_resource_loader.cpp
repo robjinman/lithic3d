@@ -25,8 +25,9 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
     RenderResourceLoaderImpl(ResourceManager& resourceManager, const GameDataPaths& paths,
       render::Renderer& renderer, Logger& logger);
 
-    ResourceHandle loadTextureAsync(const fs::path& path, DirectoryPtr directory) override;
-    ResourceHandle loadNormalMapAsync(const fs::path& path) override;
+    ResourceHandle loadTextureAsync(const fs::path& path, bool genMipmaps,
+      DirectoryPtr directory) override;
+    ResourceHandle loadNormalMapAsync(const fs::path& path, bool genMipmaps) override;
     ResourceHandle loadCubeMapAsync(const std::array<fs::path, 6>& paths) override;
     MaterialHandle loadMaterialAsync(render::MaterialPtr material) override;
     MeshHandle loadMeshAsync(render::MeshPtr mesh) override;
@@ -87,17 +88,17 @@ ResourceHandle RenderResourceLoaderImpl::getTextureHandle(const std::filesystem:
   return m_resourceManager.getHandle(i->second);
 }
 
-ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path,
+ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, bool genMipmaps,
   DirectoryPtr directory)
 {
   DBG_TRACE(m_logger);
 
-  return m_resourceManager.loadResource([this, path, directory](ResourceId id) {
+  return m_resourceManager.loadResource([this, path, directory, genMipmaps](ResourceId id) {
     DBG_TRACE(m_logger);
 
     auto data = (directory ? directory : m_paths.texturesDir)->readFile(path);
     auto texture = render::loadRgbaTexture(data);
-    m_renderer.addTexture(id, std::move(texture));
+    m_renderer.addTexture(id, std::move(texture), genMipmaps);
 
     {
       std::scoped_lock lock{m_mutex};
@@ -118,16 +119,16 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path,
   });
 }
 
-ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const fs::path& path)
+ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const fs::path& path, bool genMipmaps)
 {
   DBG_TRACE(m_logger);
 
-  return m_resourceManager.loadResource([this, path](ResourceId id) {
+  return m_resourceManager.loadResource([this, path, genMipmaps](ResourceId id) {
     DBG_TRACE(m_logger);
 
     auto data = m_paths.texturesDir->readFile(path);
     auto texture = render::loadRgbaTexture(data);
-    m_renderer.addNormalMap(id, std::move(texture));
+    m_renderer.addNormalMap(id, std::move(texture), genMipmaps);
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {

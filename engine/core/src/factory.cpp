@@ -27,7 +27,8 @@ class FactoryImpl : public Factory
 
     // TODO: Use metres, not world units
 
-    MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath) override;
+    MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath,
+      bool genMipmaps) override;
     EntityId createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
       MaterialHandle material, const Vec2f& textureSizeInMetres, float restitution,
       float friction) override;
@@ -51,7 +52,8 @@ FactoryImpl::FactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
   , m_renderResourceLoader(renderResourceLoader)
 {}
 
-MaterialHandle FactoryImpl::createMaterialAsync(const std::filesystem::path& texturePath)
+MaterialHandle FactoryImpl::createMaterialAsync(const std::filesystem::path& texturePath,
+  bool genMipmaps)
 {
   auto material = std::make_unique<Material>();
   material->featureSet = MaterialFeatureSet{
@@ -59,7 +61,7 @@ MaterialHandle FactoryImpl::createMaterialAsync(const std::filesystem::path& tex
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  material->textures = { m_renderResourceLoader.loadTextureAsync(texturePath) };
+  material->textures = { m_renderResourceLoader.loadTextureAsync(texturePath, genMipmaps) };
 
   return m_renderResourceLoader.loadMaterialAsync(std::move(material));
 }
