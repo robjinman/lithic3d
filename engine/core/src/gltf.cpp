@@ -249,9 +249,6 @@ std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
 
   auto& animations = root.at("animations");
 
-  // Map accessor index to position in animation's buffers array
-  std::map<size_t, size_t> bufferIndices;
-
   auto elementTypeFromString = [](const std::string& s) {
     if (s == "translation") {
       return ElementType::JointTranslation;
@@ -266,6 +263,9 @@ std::vector<AnimationDesc> extractAnimations(const nlohmann::json& root)
   };
 
   for (auto& animation : animations) {
+    // Map accessor index to position in animation's buffers array
+    std::map<size_t, size_t> bufferIndices;
+
     AnimationDesc animDesc;
     animDesc.name = animation.at("name").get<std::string>();
 
