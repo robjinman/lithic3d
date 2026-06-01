@@ -140,6 +140,7 @@ class SysRender3dImpl : public SysRender3d
     const Ecs& m_ecs;
     ModelLoader& m_modelLoader;
     Renderer& m_renderer;
+    float m_drawDistance;
     // TODO: Use component store
     std::map<EntityId, DModelPtr> m_models;
     std::map<EntityId, DPointLightPtr> m_pointLights;
@@ -158,6 +159,7 @@ class SysRender3dImpl : public SysRender3d
     void doShadowPass();
     void doMainPass();
     void updateAnimations();
+    size_t selectLod(float z, size_t lodLevels) const;
     std::array<LightProjection, 3> computeLightProjections(const Vec3f& worldSpaceLightDir) const;
     ComponentDataPtr constructDModel(const XmlNode& xmlNode) const;
     ComponentDataPtr constructDSkybox(const XmlNode& xmlNode) const;
@@ -172,6 +174,7 @@ SysRender3dImpl::SysRender3dImpl(float drawDistance, const Ecs& ecs, ModelLoader
   , m_ecs(ecs)
   , m_modelLoader(modelLoader)
   , m_renderer(renderer)
+  , m_drawDistance(metresToWorldUnits(drawDistance))
 {
   auto viewport = m_renderer.getViewportSize();
   float aspect = static_cast<float>(viewport[0]) / viewport[1];
@@ -483,9 +486,14 @@ void SysRender3dImpl::drawSkybox()
 
     auto& skybox = *m_skybox.second;
 
-    m_renderer.drawSkybox(skybox.model->mesh.resource.id(), skybox.model->mesh.features,
+    m_renderer.drawSkybox(skybox.model->lods[0].resource.id(), skybox.model->lods[0].features,
       skybox.model->material.resource.id(), skybox.model->material.features);
   }
+}
+
+size_t SysRender3dImpl::selectLod(float z, size_t lodLevels) const
+{
+  return std::min(static_cast<size_t>((z / m_drawDistance) * lodLevels), lodLevels - 1);
 }
 
 void SysRender3dImpl::drawModels(const EntityIdSet& entities,
@@ -506,24 +514,30 @@ void SysRender3dImpl::drawModels(const EntityIdSet& entities,
     auto& globalTransform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
     auto& model = m_modelLoader.getModel(modelData.model.id());
 
+    Mat4x4f m = globalTransform * m_metresToWorld;
+
+    auto worldSpacePos = Vec4f{ getTranslation(globalTransform), { 1.f }};
+    auto viewSpacePos = m_camera->getViewMatrix() * worldSpacePos;
+    float z = std::max(-viewSpacePos[2], 0.f);
+
     for (auto& submodel : model.submodels) {
-      Mat4x4f m = globalTransform * m_metresToWorld;
+      size_t lod = selectLod(z, submodel->lods.size());
 
       if (filter(*submodel)) {
         if (modelData.isInstanced) {
-          m_renderer.drawInstance(submodel->mesh.resource.id(), submodel->mesh.features,
+          m_renderer.drawInstance(submodel->lods[lod].resource.id(), submodel->lods[lod].features,
             submodel->material.resource.id(), submodel->material.features, m);
         }
         else {
           if (submodel->jointTransformsDirty) {
-            m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
+            m_renderer.drawModel(submodel->lods[lod].resource.id(), submodel->lods[lod].features,
               submodel->material.resource.id(), submodel->material.features, modelData.colour, m,
               submodel->jointTransforms);
 
             submodel->jointTransformsDirty = false;
           }
           else {
-            m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
+            m_renderer.drawModel(submodel->lods[lod].resource.id(), submodel->lods[lod].features,
               submodel->material.resource.id(), submodel->material.features, modelData.colour, m);
           }
         }
@@ -556,7 +570,8 @@ void SysRender3dImpl::doShadowPass()
       projection.projectionMatrix);
 
     drawModels(visible, [](const Submodel& x) {
-      return x.mesh.features.flags.test(MeshFeatures::CastsShadow);
+      // Assume flags are the same for each LOD
+      return x.lods[0].features.flags.test(MeshFeatures::CastsShadow);
     });
 
     m_renderer.endPass();
@@ -575,7 +590,7 @@ void SysRender3dImpl::drawPointLights()
 
     if (light.submodels.size() > 0) {
       for (auto& submodel : light.submodels) {
-        m_renderer.drawModel(submodel->mesh.resource.id(), submodel->mesh.features,
+        m_renderer.drawModel(submodel->lods[0].resource.id(), submodel->lods[0].features,
           submodel->material.resource.id(), submodel->material.features, { light.colour, { 1.f }},
           transform * m_metresToWorld);
       }

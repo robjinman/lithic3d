@@ -83,6 +83,7 @@ struct MeshDesc
   MaterialDesc material;
   Mat4x4f transform;
   SkinDesc skin;
+  std::string name;
 };
 
 struct NodeDesc

@@ -511,20 +511,58 @@ void ModelLoaderImpl::loadMeshes(const std::vector<std::vector<char>>& dataBuffe
 {
   bool hasAnimations = modelDesc.armature.animations.size() > 0;
 
-  for (auto& meshDesc : modelDesc.meshes) {
-    auto mesh = constructMesh(meshDesc, dataBuffers);
-    auto meshFeatures = mesh->featureSet;
+  std::map<std::string, std::vector<size_t>> submodelAssignments;
 
-    if (meshFeatures.flags.test(MeshFeatures::HasTangents)) {
-      computeMeshTangents(*mesh);
+  unsigned int numLods = 1;
+  for (auto& meshDesc : modelDesc.meshes) {
+    unsigned int lod = 0;
+    if (std::sscanf(meshDesc.name.c_str(), "LOD%u", &lod) == 1) {
+      if (lod + 1 > numLods) {
+        numLods = lod + 1;
+      }
+    }
+  }
+
+  for (size_t i = 0; i < modelDesc.meshes.size(); ++i) {
+    auto& meshDesc = modelDesc.meshes[i];
+
+    unsigned int lod = 0;
+    std::string meshName;
+    meshName.resize(32);
+    if (std::sscanf(meshDesc.name.c_str(), "LOD%u%31s", &lod, meshName.data()) == 2) {
+      auto& list = submodelAssignments[meshName];
+      if (list.size() < numLods) {
+        list.resize(numLods);
+      }
+      list[lod] = i;
+    }
+    else {
+      submodelAssignments[meshDesc.name] = { i };
+    }
+  }
+
+  for (auto& entry : submodelAssignments) {
+    auto submodel = std::make_unique<Submodel>();
+
+    for (size_t index : entry.second) {
+      auto& meshDesc = modelDesc.meshes[index];
+
+      auto mesh = constructMesh(meshDesc, dataBuffers);
+      auto meshFeatures = mesh->featureSet;
+
+      if (meshFeatures.flags.test(MeshFeatures::HasTangents)) {
+        computeMeshTangents(*mesh);
+      }
+
+      submodel->lods.push_back(m_renderResourceLoader.loadMeshAsync(std::move(mesh)));
     }
 
-    auto submodel = std::make_unique<Submodel>();
-    submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
-    submodel->material = loadMaterialAsync(meshDesc.material).wait();
+    // Assume all LOD meshes share the same skin and material
+    auto& lod0 = modelDesc.meshes[entry.second[0]];
+    submodel->material = loadMaterialAsync(lod0.material).wait();
 
     if (hasAnimations) {
-      submodel->skin = constructSkin(dataBuffers, meshDesc.skin);
+      submodel->skin = constructSkin(dataBuffers, lod0.skin);
     }
 
     model.submodels.push_back(std::move(submodel));

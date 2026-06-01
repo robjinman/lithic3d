@@ -4,3 +4,8 @@
 * Split terrain cells into chunks
 * Devise a way for the application to declare its own library dependencies
 * Consider use of Vulkan Profiles
+
+PERFORMANCE
+* Indirect draws - GPU frustum culling
+* Compute mipmaps offline
+* LOD mesh shading

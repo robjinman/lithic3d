@@ -461,6 +461,10 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
 {
   DBG_TRACE(m_logger);
 
+  DBG_LOG(m_logger, STR("Compiling shader: " << "[ RenderPass: " << spec.renderPass << ", Mesh: ("
+    << spec.meshFeatures.vertexLayout << ") " << spec.meshFeatures.flags.to_string()
+    << ", Material: " << spec.materialFeatures.flags.to_string() << " ]"));
+
   auto compile = [&, this]() {
     auto addPipeline = [this](PipelineKey key, VkExtent2D extent) {
       if (!m_pipelines.contains(key)) {

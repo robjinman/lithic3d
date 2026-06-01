@@ -243,7 +243,7 @@ void EditorCoreImpl::constructCursor()
   auto model = std::make_unique<Model>();
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
-      .mesh = m_engine->renderResourceLoader().loadMeshAsync(std::move(mesh)).wait(),
+      .lods = { m_engine->renderResourceLoader().loadMeshAsync(std::move(mesh)).wait() },
       .material = m_engine->renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
       .skin = nullptr,
       .jointTransforms{}

@@ -94,7 +94,7 @@ void FactoryImpl::createCuboidCommonComponents(EntityId id, EntityId parentId,
   auto model = std::make_unique<Model>();
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
-      .mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait(),
+      .lods = { m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait() },
       .material = material.wait(),
       .skin = nullptr,
       .jointTransforms{}

@@ -374,8 +374,10 @@ ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellP
     material->textures.push_back(texture);
   }
 
+  // TODO: Multiple terrain LODs
+
   auto submodel = std::make_unique<Submodel>();
-  submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
+  submodel->lods = { m_renderResourceLoader.loadMeshAsync(std::move(mesh)) };
   submodel->material = m_renderResourceLoader.loadMaterialAsync(std::move(material));
 
   auto model = std::make_unique<Model>();
@@ -396,7 +398,7 @@ ResourceHandle TerrainBuilderImpl::constructWaterModelAsync(const Vec2f& cellSiz
   auto mesh = constructWaterMesh(cellSize, waterLevel);
 
   auto submodel = std::make_unique<Submodel>();
-  submodel->mesh = m_renderResourceLoader.loadMeshAsync(std::move(mesh));
+  submodel->lods = { m_renderResourceLoader.loadMeshAsync(std::move(mesh)) };
   submodel->material = m_renderResourceLoader.loadMaterialAsync(std::move(material));
 
   auto model = std::make_unique<Model>();

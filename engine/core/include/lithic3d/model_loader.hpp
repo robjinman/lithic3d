@@ -55,7 +55,7 @@ using AnimationSetPtr = std::unique_ptr<AnimationSet>;
 
 struct Submodel
 {
-  render::MeshHandle mesh;
+  std::vector<render::MeshHandle> lods;
   render::MaterialHandle material;
   SkinPtr skin;
 

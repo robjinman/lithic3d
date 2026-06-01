@@ -370,7 +370,7 @@ EntityId EntityEditModeImpl::constructBox(const Vec4f& colour)
   auto model = std::make_unique<Model>();
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
-      .mesh = renderResourceLoader.loadMeshAsync(std::move(mesh)),
+      .lods = { renderResourceLoader.loadMeshAsync(std::move(mesh)) },
       .material = renderResourceLoader.loadMaterialAsync(std::move(material)),
       .skin = nullptr,
       .jointTransforms{}

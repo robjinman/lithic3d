@@ -112,7 +112,8 @@ MaterialDesc extractMaterial(const nlohmann::json& root, unsigned long materialI
   auto iTextures = root.find("textures");
   auto iImages = root.find("images");
   auto& material = materials[materialIndex];
-  materialDesc.isDoubleSided = material.at("doubleSided").get<bool>();
+  auto iDoubleSided = material.find("doubleSided");
+  materialDesc.isDoubleSided = iDoubleSided != material.end() && iDoubleSided->get<bool>();
   materialDesc.name = material.at("name").get<std::string>();
   auto& pbr = material.at("pbrMetallicRoughness");
   auto iBaseColourFactor = pbr.find("baseColorFactor");
@@ -159,11 +160,14 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
   if (iMeshIndex != node.end()) {
     auto& meshes = root.at("meshes");
     auto& mesh = meshes[iMeshIndex->get<unsigned long>()];
+    auto name = mesh.at("name").get<std::string>();
     auto& meshPrimitives = mesh.at("primitives");
 
+    int primIndex = 0;
     for (auto& meshPrimitive : meshPrimitives) {
       MeshDesc meshDesc;
       meshDesc.transform = globalTransform;
+      meshDesc.name = name + "_" + std::to_string(primIndex);
 
       auto& meshAttributes = meshPrimitive.at("attributes");
 
@@ -176,6 +180,7 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
       auto indexBufferIndex = meshPrimitive.at("indices").get<unsigned long>();
       meshDesc.buffers.push_back(extractBuffer(root, indexBufferIndex, ElementType::VertexIndex));
 
+      // TODO: We're potentially extracting the same materials repeatedly
       auto materialIndex = meshPrimitive.at("material").get<unsigned long>();
       meshDesc.material = extractMaterial(root, materialIndex);
 
@@ -194,6 +199,8 @@ void extractMeshHierarchy(const nlohmann::json& root, unsigned long nodeIndex,
       }
 
       meshDescs.push_back(meshDesc);
+
+      ++primIndex;
     }
   }
 

@@ -13,7 +13,7 @@ class Demo : public Game
 
     float gameViewportAspectRatio() const override { return 1.4f; }
     void onKeyDown(KeyboardKey) override;
-    void onKeyUp(KeyboardKey) override {}
+    void onKeyUp(KeyboardKey) override;
     void onButtonDown(GamepadButton) override {}
     void onButtonUp(GamepadButton) override {}
     void onMouseButtonDown() override {}
@@ -30,11 +30,13 @@ class Demo : public Game
     Engine& m_engine;
     FactoryPtr m_factory;
     EntityId m_model = NULL_ENTITY_ID;
+    InputState m_inputState;
 
     EntityId constructLight();
     EntityId constructModel();
     EntityId constructCaption();
     void rotateModel();
+    void processKeyboardInput();
 };
 
 Demo::Demo(Engine& engine)
@@ -114,7 +116,7 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterialAsync("fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("fonts.png", false).wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),
@@ -139,8 +141,24 @@ void Demo::rotateModel()
   m_engine.ecs().system<SysSpatial>().setLocalTransform(m_model, m);
 }
 
+void Demo::processKeyboardInput()
+{
+  float speed = 3.f; // Metres per second
+  float delta = metresToWorldUnits(speed) / TICKS_PER_SECOND;
+
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+
+  if (m_inputState.keysPressed.contains(KeyboardKey::W)) {
+    sysRender3d.camera().translate(Vec3f{ 0.f, 0.f, 1.f } * delta);
+  }
+  else if (m_inputState.keysPressed.contains(KeyboardKey::S)) {
+    sysRender3d.camera().translate(Vec3f{ 0.f, 0.f, -1.f } * delta);
+  }
+}
+
 bool Demo::update()
 {
+  processKeyboardInput();
   rotateModel();
   m_engine.update({});
 
@@ -149,6 +167,8 @@ bool Demo::update()
 
 void Demo::onKeyDown(KeyboardKey key)
 {
+  m_inputState.keysPressed.insert(key);
+
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
 
   switch (key) {
@@ -163,6 +183,11 @@ void Demo::onKeyDown(KeyboardKey key)
       break;
     default: break;
   }
+}
+
+void Demo::onKeyUp(KeyboardKey key)
+{
+  m_inputState.keysPressed.erase(key);
 }
 
 } // namespace
@@ -181,7 +206,7 @@ GameConfig getGameConfig()
     .captureMouse = false,
     .paths{},
     .features{},
-    .drawDistance = 1000.f
+    .drawDistance = 50.f
   };
 }
 
