@@ -89,6 +89,7 @@ struct AnimationState
   std::string animationName;
   Timer timer;
   std::vector<AnimationChannelState> channels;
+  bool repeat;
   size_t channelsComplete = 0;
 
   bool finished()
@@ -101,7 +102,7 @@ class SysRender3dImpl : public SysRender3d
 {
   public:
     SysRender3dImpl(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
-      Renderer& renderer, Logger& logger);
+      Renderer& renderer, EventSystem& eventSystem, Logger& logger);
 
     double frameRate() const override;
 
@@ -131,12 +132,13 @@ class SysRender3dImpl : public SysRender3d
 
     void setEntityColour(EntityId id, const Vec4f& colour) override;
 
-    void playAnimation(EntityId entityId, const std::string& name) override;
+    void playAnimation(EntityId entityId, const std::string& name, bool repeat) override;
 
     ~SysRender3dImpl() override;
 
   private:
     Logger& m_logger;
+    EventSystem& m_eventSystem;
     std::unique_ptr<Camera3d> m_camera;
     const Ecs& m_ecs;
     ModelLoader& m_modelLoader;
@@ -172,8 +174,9 @@ class SysRender3dImpl : public SysRender3d
 };
 
 SysRender3dImpl::SysRender3dImpl(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
-  Renderer& renderer, Logger& logger)
+  Renderer& renderer, EventSystem& eventSystem, Logger& logger)
   : m_logger(logger)
+  , m_eventSystem(eventSystem)
   , m_ecs(ecs)
   , m_modelLoader(modelLoader)
   , m_renderer(renderer)
@@ -471,12 +474,14 @@ void SysRender3dImpl::setEntityColour(EntityId id, const Vec4f& colour)
   it->second->colour = colour;
 }
 
-void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name)
+void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name, bool repeat)
 {
   m_animationStates[entityId] = AnimationState{
     .animationName = name,
     .timer{},
-    .channels{}
+    .channels{},
+    .repeat = repeat,
+    .channelsComplete = 0
   };
 }
 
@@ -841,11 +846,23 @@ void SysRender3dImpl::updateAnimations()
     }
 
     if (state.finished()) {
-      i = m_animationStates.erase(i++);
+      if (state.repeat) {
+        state = AnimationState{
+          .animationName = state.animationName,
+          .timer{},
+          .channels{},
+          .repeat = true,
+          .channelsComplete = 0
+        };
+      }
+      else {
+        i = m_animationStates.erase(i++);
+        //m_eventSystem.raise();
+        continue;
+      }
     }
-    else {
-      ++i;
-    }
+
+    ++i;
   }
 }
 
@@ -866,9 +883,10 @@ SysRender3dImpl::~SysRender3dImpl()
 } // namespace
 
 SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
-  Renderer& renderer, Logger& logger)
+  Renderer& renderer, EventSystem& eventSystem, Logger& logger)
 {
-  return std::make_unique<SysRender3dImpl>(drawDistance, ecs, modelLoader, renderer, logger);
+  return std::make_unique<SysRender3dImpl>(drawDistance, ecs, modelLoader, renderer, eventSystem,
+    logger);
 }
 
 } // namespace lithic3d

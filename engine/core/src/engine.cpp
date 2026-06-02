@@ -104,7 +104,7 @@ EngineImpl::EngineImpl(const GameConfig& config, ResourceManagerPtr resourceMana
   auto sysRender2d = createSysRender2d(config.aspectRatio, m_ecs->componentStore(), *m_renderer,
     *m_renderResourceLoader, *m_logger);
   auto sysRender3d = createSysRender3d(config.drawDistance, *m_ecs, *m_modelLoader, *m_renderer,
-    *m_logger);
+    *m_eventSystem, *m_logger);
   auto sysSpatial = createSysSpatial(*m_ecs, *m_eventSystem, *m_logger);
   auto sysAnimation2d = createSysAnimation2d(m_ecs->componentStore(), *m_logger);
   auto sysBehaviour = createSysBehaviour(m_ecs->componentStore());

@@ -87,7 +87,7 @@ class SysRender3d : public System
 
     // TODO: Implement scissors?
 
-    virtual void playAnimation(EntityId entityId, const std::string& name) = 0;
+    virtual void playAnimation(EntityId entityId, const std::string& name, bool repeat = false) = 0;
 
     virtual ~SysRender3d() {}
 
@@ -110,8 +110,9 @@ LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
 // -----
 
 class Logger;
+class EventSystem;
 
 SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
-  render::Renderer& renderer, Logger& logger);
+  render::Renderer& renderer, EventSystem& eventSystem, Logger& logger);
 
 } // namespace lithic3d

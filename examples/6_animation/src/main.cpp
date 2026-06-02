@@ -173,7 +173,7 @@ void Demo::onKeyDown(KeyboardKey key)
 
   switch (key) {
     case KeyboardKey::Num1:
-      sysRender3d.playAnimation(m_model, "Idle");
+      sysRender3d.playAnimation(m_model, "Idle", true);
       break;
     case KeyboardKey::Num2:
       sysRender3d.playAnimation(m_model, "Walk");
