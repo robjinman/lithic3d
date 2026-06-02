@@ -229,7 +229,8 @@ enum Enum : uint32_t
   HasTexture,
   HasNormalMap,
   HasCubeMap,
-  IsDoubleSided
+  IsDoubleSided,
+  IsWater
 };
 using Flags = std::bitset<32>;
 }

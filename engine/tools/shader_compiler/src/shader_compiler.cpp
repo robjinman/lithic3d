@@ -163,6 +163,9 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
 
         shader = "main_particles";
       }
+      else if (spec.materialFeatures.flags.test(MaterialFeatures::IsWater)) {
+        shader = "main_water";
+      }
       else if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
         shader = "main_skybox";
       }

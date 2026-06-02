@@ -26,6 +26,7 @@ struct DefaultPushConstants
 
   // Frag shader
   Vec4f colour;               // 16 bytes
+  uint32_t tick;              // 4 bytes
 };
 
 struct QuadPushConstants
@@ -70,7 +71,7 @@ struct ParticlesPushConstants
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t DEFAULT_PUSH_CONSTANTS_VERT_SIZE = 68;
 constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET = 80;
-constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_SIZE = 16;
+constexpr size_t DEFAULT_PUSH_CONSTANTS_FRAG_SIZE = 20;
 
 constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t SPRITE_PUSH_CONSTANTS_VERT_SIZE = 96;
@@ -281,7 +282,7 @@ class PipelineImpl : public Pipeline
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      BindState& bindState, size_t currentFrame, uint32_t shadowMapCascade) override;
+      BindState& bindState, size_t currentFrame, uint32_t tick, uint32_t shadowMapCascade) override;
 
     ~PipelineImpl() override;
 
@@ -609,7 +610,7 @@ void PipelineImpl::onViewportResize(VkExtent2D swapchainExtent)
 
 // TODO: Refactor
 void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-  BindState& bindState, size_t currentFrame, uint32_t shadowMapCascade)
+  BindState& bindState, size_t currentFrame, uint32_t tick, uint32_t shadowMapCascade)
 {
   DBG_TRACE(m_logger);
 
@@ -686,7 +687,8 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
         .modelMatrix = defaultNode.modelMatrix * buffers.transform,
         .shadowCascade = shadowMapCascade,
         ._padding0{},
-        .colour = defaultNode.colour
+        .colour = defaultNode.colour,
+        .tick = tick
       };
 
       vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,

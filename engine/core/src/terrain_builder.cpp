@@ -391,7 +391,7 @@ ResourceHandle TerrainBuilderImpl::constructWaterModelAsync(const Vec2f& cellSiz
 {
   auto material = std::make_unique<render::Material>();
   material->featureSet = {
-    .flags = 0
+    .flags = bitflag(render::MaterialFeatures::IsWater)
   };
   material->colour = { 0.15f, 0.2f, 0.6f, 1.f };
 

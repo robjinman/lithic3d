@@ -349,6 +349,7 @@ class RendererImpl : public Renderer
     std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_computeCommandBuffers;
 
     size_t m_currentFrame = 0;
+    uint32_t m_tick = 0;
     std::atomic<int> m_framebufferResized = 0;
     std::atomic<bool> m_requireReset = 0;
 
@@ -1216,6 +1217,7 @@ void RendererImpl::finishFrame()
   }
 
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+  ++m_tick;
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
@@ -2054,7 +2056,8 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
       prevPipeline = &pipeline;
     }
 
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame, shadowMapCascade);
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame, m_tick,
+      shadowMapCascade);
   }
 }
 

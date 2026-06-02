@@ -66,6 +66,9 @@ MaterialFeatures::Enum parseMaterialFlagName(const std::string& name)
   else if (name == "is_double_sided") {
     return MaterialFeatures::IsDoubleSided;
   }
+  else if (name == "is_water") {
+    return MaterialFeatures::IsWater;
+  }
 
   EXCEPTION("Unrecognised flag '" << name << "'");
 }
