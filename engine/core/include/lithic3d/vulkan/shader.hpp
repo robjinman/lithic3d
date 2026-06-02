@@ -11,7 +11,8 @@ namespace render
 enum class ShaderType
 {
   Vertex = 0,
-  Fragment
+  Fragment,
+  Compute
 };
 
 using ShaderByteCode = std::vector<uint32_t>;
@@ -20,6 +21,7 @@ struct ShaderProgram
 {
   ShaderByteCode vertexShaderCode;
   ShaderByteCode fragmentShaderCode;
+  ShaderByteCode computeShaderCode;
 };
 
 ShaderProgram loadShaderProgram(DirectoryPtr directory, const ShaderProgramSpec& spec);

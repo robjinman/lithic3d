@@ -114,6 +114,7 @@ class SysRender3dImpl : public SysRender3d
     void addEntity(EntityId id, DPointLightPtr light) override;
     void addEntity(EntityId id, DDirectionalLightPtr light) override;
     void addEntity(EntityId id, DSkyboxPtr skybox) override;
+    void addEntity(EntityId id, DParticleEmitterPtr particleEmitter) override;
 
     const std::string& name() const override;
     void extractComponentSpecs(const ComponentData& data,
@@ -144,6 +145,7 @@ class SysRender3dImpl : public SysRender3d
     // TODO: Use component store
     std::map<EntityId, DModelPtr> m_models;
     std::map<EntityId, DPointLightPtr> m_pointLights;
+    std::map<EntityId, DParticleEmitterPtr> m_particleEmitters;
     std::pair<EntityId, DDirectionalLightPtr> m_directionalLight = { NULL_ENTITY_ID, nullptr };
     std::pair<EntityId, DSkyboxPtr> m_skybox = { NULL_ENTITY_ID, nullptr };
     std::map<EntityId, AnimationState> m_animationStates;
@@ -156,6 +158,7 @@ class SysRender3dImpl : public SysRender3d
     void drawSkybox();
     void drawPointLights();
     void drawDirectionalLight();
+    void drawParticles();
     void doShadowPass();
     void doMainPass();
     void updateAnimations();
@@ -454,6 +457,14 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
   m_skybox = { id, std::move(skybox) };
 }
 
+void SysRender3dImpl::addEntity(EntityId id, DParticleEmitterPtr particleEmitter)
+{
+  assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
+  assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
+
+  m_particleEmitters.insert({ id, std::move(particleEmitter) });
+}
+
 void SysRender3dImpl::setEntityColour(EntityId id, const Vec4f& colour)
 {
   MAP_GET(it, m_models, id);
@@ -586,6 +597,8 @@ void SysRender3dImpl::drawPointLights()
 
     const auto& transform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
 
+    // TODO: Visibility check?
+
     m_renderer.drawPointLight(light.colour, light.ambient, light.specular, transform);
 
     if (light.submodels.size() > 0) {
@@ -595,6 +608,21 @@ void SysRender3dImpl::drawPointLights()
           transform * m_metresToWorld);
       }
     }
+  }
+}
+
+void SysRender3dImpl::drawParticles()
+{
+  for (auto& entry : m_particleEmitters) {
+    auto id = entry.first;
+
+    // TODO: We don't access entry.second?
+
+    const auto& transform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
+
+    // TODO: Visibility check?
+
+    m_renderer.drawParticles(transform);
   }
 }
 
@@ -630,6 +658,7 @@ void SysRender3dImpl::doMainPass()
   drawSkybox();
   drawDirectionalLight();
   drawPointLights();
+  drawParticles();
 
   m_renderer.endPass();
 }

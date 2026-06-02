@@ -24,6 +24,7 @@ void loadShader(DirectoryPtr directory, ShaderType type, const ShaderProgramSpec
 std::string ShaderProgramSpec::toString() const
 {
   std::stringstream ss;
+  ss << "typ" << static_cast<int>(type);
   ss << "rp" << static_cast<int>(renderPass);
   ss << "vtl";
   size_t n = meshFeatures.vertexLayout.size();
@@ -47,8 +48,18 @@ ShaderProgram loadShaderProgram(DirectoryPtr directory, const ShaderProgramSpec&
 {
   ShaderProgram program;
 
-  loadShader(directory, ShaderType::Vertex, spec, program.vertexShaderCode);
-  loadShader(directory, ShaderType::Fragment, spec, program.fragmentShaderCode);
+  switch(spec.type) {
+    case ShaderProgramType::Graphics: {
+      loadShader(directory, ShaderType::Vertex, spec, program.vertexShaderCode);
+      loadShader(directory, ShaderType::Fragment, spec, program.fragmentShaderCode);
+      break;
+    }
+    case ShaderProgramType::Compute: {
+      loadShader(directory, ShaderType::Compute, spec, program.computeShaderCode);
+      break;
+    }
+  }
+
 
   return program;
 }

@@ -101,8 +101,10 @@ class ShaderCompilerImpl : public ShaderCompiler
     ShaderByteCode compileShader(const ShaderSource& source);
     ShaderSource loadVertShaderSource(const ShaderProgramSpec& spec) const;
     ShaderSource loadFragShaderSource(const ShaderProgramSpec& spec) const;
+    ShaderSource loadComputeShaderSource(const ShaderProgramSpec& spec) const;
     std::string selectVertShader(const ShaderProgramSpec& spec) const;
     std::string selectFragShader(const ShaderProgramSpec& spec) const;
+    std::string selectComputeShader(const ShaderProgramSpec& spec) const;
     void writeCompiledShader(ShaderType type, const ShaderProgramSpec& spec,
       const ShaderByteCode& code);
 };
@@ -118,7 +120,14 @@ std::string ShaderCompilerImpl::selectVertShader(const ShaderProgramSpec& spec) 
   std::string shader = "main_default";
 
   if (spec.renderPass == RenderPass::Main) {
-    if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+    // TODO: Remove when we have isParticles flag
+    if (spec.meshFeatures.flags == 0 && spec.materialFeatures.flags == 0
+      && spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition
+      && spec.meshFeatures.vertexLayout[1] == BufferUsage::None) {
+
+      shader = "main_particles";
+    }
+    else if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
       shader = "main_passthrough";
     }
   }
@@ -147,7 +156,14 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
   }
   else {
     if (spec.renderPass == RenderPass::Main) {
-      if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
+      // TODO: Remove when we have isParticles flag
+      if (spec.meshFeatures.flags == 0 && spec.materialFeatures.flags == 0 &&
+        spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
+        spec.meshFeatures.vertexLayout[1] == BufferUsage::None) {
+
+        shader = "main_particles";
+      }
+      else if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
         shader = "main_skybox";
       }
       else if (spec.meshFeatures.flags.test(MeshFeatures::IsTerrain)) {
@@ -171,8 +187,13 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
   return shader;
 }
 
-ShaderSource ShaderCompilerImpl::loadVertShaderSource(const ShaderProgramSpec& spec) const
+std::string ShaderCompilerImpl::selectComputeShader(const ShaderProgramSpec& spec) const
 {
+  return "main_particles";
+}
+
+ShaderSource ShaderCompilerImpl::loadVertShaderSource(const ShaderProgramSpec& spec) const
+{ 
   ShaderSource source;
   source.name = "vertex";
   source.type = ShaderType::Vertex;
@@ -249,6 +270,17 @@ ShaderSource ShaderCompilerImpl::loadFragShaderSource(const ShaderProgramSpec& s
   return source;
 }
 
+ShaderSource ShaderCompilerImpl::loadComputeShaderSource(const ShaderProgramSpec& spec) const
+{
+  ShaderSource source;
+  source.name = "compute";
+  source.type = ShaderType::Compute;
+  source.fileName = selectComputeShader(spec);
+  source.source = readBinaryFile(m_sourcesDir / "compute" / (source.fileName + ".glsl"));
+
+  return source;
+}
+
 void ShaderCompilerImpl::writeCompiledShader(ShaderType type, const ShaderProgramSpec& spec,
   const ShaderByteCode& code)
 {
@@ -262,13 +294,26 @@ ShaderProgram ShaderCompilerImpl::compileShaderProgram(const ShaderProgramSpec& 
 {
   ShaderProgram program;
 
-  auto vertShaderSource = loadVertShaderSource(spec);
-  program.vertexShaderCode = compileShader(vertShaderSource);
-  writeCompiledShader(ShaderType::Vertex, spec, program.vertexShaderCode);
+  switch (spec.type) {
+    case ShaderProgramType::Graphics: {
+      auto vertShaderSource = loadVertShaderSource(spec);
+      program.vertexShaderCode = compileShader(vertShaderSource);
+      writeCompiledShader(ShaderType::Vertex, spec, program.vertexShaderCode);
 
-  auto fragShaderSource = loadFragShaderSource(spec);
-  program.fragmentShaderCode = compileShader(fragShaderSource);
-  writeCompiledShader(ShaderType::Fragment, spec, program.fragmentShaderCode);
+      auto fragShaderSource = loadFragShaderSource(spec);
+      program.fragmentShaderCode = compileShader(fragShaderSource);
+      writeCompiledShader(ShaderType::Fragment, spec, program.fragmentShaderCode);
+
+      break;
+    }
+    case ShaderProgramType::Compute: {
+      auto computeShaderSource = loadComputeShaderSource(spec);
+      program.computeShaderCode = compileShader(computeShaderSource);
+      writeCompiledShader(ShaderType::Compute, spec, program.computeShaderCode);
+
+      break;
+    }
+  }
 
   return program;
 }
@@ -282,6 +327,7 @@ ShaderByteCode ShaderCompilerImpl::compileShader(const ShaderSource& source)
   switch (source.type) {
     case ShaderType::Vertex: kind = shaderc_shader_kind::shaderc_glsl_vertex_shader; break;
     case ShaderType::Fragment: kind = shaderc_shader_kind::shaderc_glsl_fragment_shader; break;
+    case ShaderType::Compute: kind = shaderc_shader_kind::shaderc_glsl_compute_shader; break;
   }
 
   shaderc::Compiler compiler;

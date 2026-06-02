@@ -1,5 +1,6 @@
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/pipeline.hpp"
+#include "vulkan/compute_pipeline.hpp"
 #include "vulkan/render_resources.hpp"
 #include "vulkan/gpu_buffer_manager.hpp"
 #include "lithic3d/vulkan/vulkan_window_delegate.hpp"
@@ -106,6 +107,7 @@ enum class QueueType
 {
   Graphics,
   Present,
+  Compute,
   Transfer
 };
 
@@ -113,10 +115,13 @@ struct QueueFamilyIndices
 {
   std::optional<uint32_t> graphicsFamily = std::nullopt;
   std::optional<uint32_t> presentFamily = std::nullopt;
+  std::optional<uint32_t> computeFamily = std::nullopt;
+  std::optional<uint32_t> transferFamily = std::nullopt;
 
   bool isComplete() const
   {
-    return graphicsFamily.has_value() && presentFamily.has_value();
+    return graphicsFamily.has_value() && presentFamily.has_value() && computeFamily.has_value()
+      && transferFamily.has_value();
   }
 };
 
@@ -240,6 +245,7 @@ class RendererImpl : public Renderer
       const Mat4x4f& transform) override;
     void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId cubeMap,
       const MaterialFeatureSet& cubeMapFeatures) override;
+    void drawParticles(const Mat4x4f& transform) override;
     void endPass() override;
     void endFrame() override;
 
@@ -273,7 +279,7 @@ class RendererImpl : public Renderer
     void recreateSwapChain(bool recreateSurface);
     void cleanupSwapChain();
     void createImageViews();
-    void createCommandPool();
+    void createCommandPools();
     void createFramebuffers();
     void createRenderPasses();
     void createShadowRenderPass();
@@ -292,6 +298,7 @@ class RendererImpl : public Renderer
     void finishFrame();
     void createSyncObjects();
     void renderLoop();
+    void doComputePass();
     void recordCommandBuffer(RenderPass renderPass, const RenderGraph& renderGraph,
       const std::vector<VkRect2D>& scissors, VkCommandBuffer commandBuffer,
       uint32_t shadowMapCascade); // TODO: Remove shadowMapCascade
@@ -309,16 +316,16 @@ class RendererImpl : public Renderer
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
     WorkQueue m_workQueue;
-    VkInstance m_instance;
+    VkInstance m_instance = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceLimits m_deviceLimits;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_debugMessenger;
-    VkDevice m_device;
+    VkDevice m_device = VK_NULL_HANDLE;
     QueueFamilyIndices m_queueFamilyIndices;
-    VkQueue m_graphicsQueue;
-    VkQueue m_presentQueue;
-    //VkQueue m_transferQueue;
+    VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+    VkQueue m_presentQueue = VK_NULL_HANDLE;
+    VkQueue m_transferQueue = VK_NULL_HANDLE;
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
     VkFormat m_swapchainImageFormat;
     VkExtent2D m_swapchainExtent;
@@ -333,8 +340,13 @@ class RendererImpl : public Renderer
     std::vector<VkFramebuffer> m_shadowMapFramebuffers;
     GpuImagePtr m_depthImage;
     std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_commandBuffers;
-    uint32_t m_imageIndex;
-    VkCommandPool m_commandPool;
+    uint32_t m_imageIndex = 0;
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+
+    // Compute resources
+    VkQueue m_computeQueue = VK_NULL_HANDLE;
+    VkCommandPool m_computeCommandPool = VK_NULL_HANDLE;
+    std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_computeCommandBuffers;
 
     size_t m_currentFrame = 0;
     std::atomic<int> m_framebufferResized = 0;
@@ -348,6 +360,7 @@ class RendererImpl : public Renderer
   
     RenderResourcesPtr m_resources;
     std::unordered_map<PipelineKey, PipelinePtr> m_pipelines;
+    ComputePipelinePtr m_computePipeline; // TODO: Multiple pipelines
 
     Timer m_timer;
     std::atomic<double> m_frameRate;
@@ -403,7 +416,7 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
   m_thread.run<void>([this]() {
     createImageViews();
     createRenderPasses();
-    createCommandPool();
+    createCommandPools();
   }).get();
   // Do we really need to be on the resource thread?
   m_resourceManager.thread().run<void>([this]() {
@@ -412,7 +425,7 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
     auto commandPool = createResourceThreadCommandPool();
 
     m_bufferManager = createGpuBufferManager(m_physicalDevice, m_device, m_instance, commandPool,
-      m_graphicsQueue, m_thread.id(), m_workQueue, m_logger);
+      m_transferQueue, m_thread.id(), m_workQueue, m_logger);
 
     m_resources = createRenderResources(std::this_thread::get_id(), *m_bufferManager,
       m_physicalDevice, m_device, commandPool, m_logger);
@@ -461,11 +474,18 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
 {
   DBG_TRACE(m_logger);
 
-  DBG_LOG(m_logger, STR("Compiling shader: " << "[ RenderPass: " << spec.renderPass << ", Mesh: ("
-    << spec.meshFeatures.vertexLayout << ") " << spec.meshFeatures.flags.to_string()
-    << ", Material: " << spec.materialFeatures.flags.to_string() << " ]"));
+  DBG_LOG(m_logger, STR("Compiling shader: [ Type: " << spec.type << ", RenderPass: "
+    << spec.renderPass << ", Mesh: (" << spec.meshFeatures.vertexLayout << ") "
+    << spec.meshFeatures.flags.to_string() << ", Material: "
+    << spec.materialFeatures.flags.to_string() << " ]"));
 
   auto compile = [&, this]() {
+    if (spec.type == ShaderProgramType::Compute) {
+      auto shader = loadShaderProgram(m_paths.shadersDir, spec);
+      m_computePipeline = createComputePipeline(spec, shader, m_logger, m_device, *m_resources);
+      return;
+    }
+
     auto addPipeline = [this](PipelineKey key, VkExtent2D extent) {
       if (!m_pipelines.contains(key)) {
         auto shader = loadShaderProgram(m_paths.shadersDir, key);
@@ -826,6 +846,27 @@ void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeature
   renderGraph.insert(key, std::move(node));
 }
 
+void RendererImpl::drawParticles(const Mat4x4f& transform)
+{
+  DBG_TRACE(m_logger);
+
+  FrameState& frameState = m_frameStates.getWritable();
+  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
+  RenderPassState& state = iState->second;
+  RenderGraph& renderGraph = state.graph;
+
+  auto node = std::make_unique<ParticlesNode>();
+  node->meshFeatures.vertexLayout = { BufferUsage::AttrPosition };
+  node->scissorId = frameState.currentScissor;
+  node->modelMatrix = transform;
+
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, NULL_RESOURCE_ID, {},
+    NULL_RESOURCE_ID, {});
+
+  state.lookup.insert({ key, node.get() });
+  renderGraph.insert(key, std::move(node));
+}
+
 void RendererImpl::beginFrame(const Vec4f& clearColour)
 {
   DBG_TRACE(m_logger);
@@ -883,6 +924,31 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
   renderPassState.projectionMatrix = projectionMatrix;
 }
 
+void RendererImpl::doComputePass()
+{
+  VkCommandBuffer commandBuffer = m_computeCommandBuffers[m_currentFrame];
+
+  vkResetCommandBuffer(commandBuffer, 0);
+
+  VkCommandBufferBeginInfo beginInfo{};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+  VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
+    "Failed to begin recording command buffer");
+
+  m_computePipeline->recordCommandBuffer(commandBuffer, m_currentFrame);
+
+  VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
+
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer;
+
+  VK_CHECK(vkQueueSubmit(m_computeQueue, 1, &submitInfo, nullptr),
+    "Failed to submit compute command buffer");
+}
+
 void RendererImpl::renderLoop()
 {
   DBG_TRACE(m_logger);
@@ -913,7 +979,11 @@ void RendererImpl::renderLoop()
       VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]),
         "Error resetting fence");
 
-      vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
+      doComputePass();
+
+      auto commandBuffer = m_commandBuffers[m_currentFrame];
+
+      vkResetCommandBuffer(commandBuffer, 0);
 
       VkCommandBufferBeginInfo beginInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -922,13 +992,14 @@ void RendererImpl::renderLoop()
         .pInheritanceInfo = nullptr
       };
 
-      auto commandBuffer = m_commandBuffers[m_currentFrame];
-
       VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
         "Failed to begin recording command buffer");
 
       auto& frameState = m_frameStates.getReadable();
 
+      //if (frameState.renderPasses.contains(RenderPass:Compute)) {
+      //  doComputePass();
+      //}
       if (frameState.renderPasses.contains(RenderPass::Shadow0)) {
         updateLightTransformsUbo();
         doShadowPass(commandBuffer, 0);
@@ -1680,8 +1751,6 @@ QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) cons
 {
   assert(m_surface != VK_NULL_HANDLE);
 
-  // TODO: Look for dedicated transfer queue
-
   QueueFamilyIndices indices;
 
   uint32_t queueFamilyCount = 0;
@@ -1697,9 +1766,20 @@ QueueFamilyIndices RendererImpl::findQueueFamilies(VkPhysicalDevice device) cons
       if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
         indices.graphicsFamily = i;
 
-        // TODO
-        indices.presentFamily = i;
-        break;
+        indices.transferFamily = i; // TODO
+      }
+    }
+
+    //if (!indices.transferFamily.has_value()) {
+      // TODO: Check for lack of graphics bit, indicating dedicated transfer queue family?
+    //  if (queueFamilies[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+    //    indices.transferFamily = i;
+    //  }
+    //}
+
+    if (!indices.computeFamily.has_value()) {
+      if (queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
+        indices.computeFamily = i;
       }
     }
 
@@ -1785,12 +1865,13 @@ bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
 
   auto swapchainSupport = querySwapChainSupport(device);
   bool swapchainAdequate = !swapchainSupport.formats.empty() &&
-                      !swapchainSupport.presentModes.empty();
+    !swapchainSupport.presentModes.empty();
 
   VkPhysicalDeviceFeatures supportedFeatures;
   vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-  return swapchainAdequate && indices.isComplete() && supportedFeatures.samplerAnisotropy;
+  return swapchainAdequate && indices.isComplete() && supportedFeatures.samplerAnisotropy &&
+    supportedFeatures.fillModeNonSolid;
 }
 
 void RendererImpl::createLogicalDevice()
@@ -1802,7 +1883,9 @@ void RendererImpl::createLogicalDevice()
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
     m_queueFamilyIndices.graphicsFamily.value(),
-    m_queueFamilyIndices.presentFamily.value()
+    m_queueFamilyIndices.presentFamily.value(),
+    m_queueFamilyIndices.transferFamily.value(),
+    m_queueFamilyIndices.computeFamily.value()
   };
 
   for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -1821,6 +1904,7 @@ void RendererImpl::createLogicalDevice()
   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
   deviceFeatures2.pNext = nullptr;
   deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
+  deviceFeatures2.features.fillModeNonSolid = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1843,10 +1927,13 @@ void RendererImpl::createLogicalDevice()
 
   vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
   vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
+  vkGetDeviceQueue(m_device, m_queueFamilyIndices.transferFamily.value(), 0, &m_transferQueue);
+  vkGetDeviceQueue(m_device, m_queueFamilyIndices.computeFamily.value(), 0, &m_computeQueue);
 
   DBG_LOG(m_logger, STR("Graphics queue: " << m_graphicsQueue));
   DBG_LOG(m_logger, STR("Present queue: " << m_presentQueue));
-  DBG_LOG(m_logger, STR("Transfer queue: " << m_presentQueue));
+  DBG_LOG(m_logger, STR("Compute queue: " << m_computeQueue));
+  DBG_LOG(m_logger, STR("Transfer queue: " << m_transferQueue));
 }
 
 void RendererImpl::createImageViews()
@@ -1861,7 +1948,7 @@ void RendererImpl::createImageViews()
   }
 }
 
-void RendererImpl::createCommandPool()
+void RendererImpl::createCommandPools()
 {
   DBG_TRACE(m_logger);
 
@@ -1874,6 +1961,16 @@ void RendererImpl::createCommandPool()
 
   VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool),
     "Failed to create command pool");
+
+  poolInfo = VkCommandPoolCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+    .queueFamilyIndex = m_queueFamilyIndices.computeFamily.value()
+  };
+
+  VK_CHECK(vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_computeCommandPool),
+    "Failed to create command pool");
 }
 
 VkCommandPool RendererImpl::createResourceThreadCommandPool()
@@ -1884,7 +1981,7 @@ VkCommandPool RendererImpl::createResourceThreadCommandPool()
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
     .pNext = nullptr,
     .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    .queueFamilyIndex = m_queueFamilyIndices.graphicsFamily.value()
+    .queueFamilyIndex = m_queueFamilyIndices.graphicsFamily.value() // TODO: Transfer family?
   };
 
   VkCommandPool pool;
@@ -2162,6 +2259,17 @@ void RendererImpl::createCommandBuffers()
 
   VK_CHECK(vkAllocateCommandBuffers(m_device, &allocInfo, m_commandBuffers.data()),
     "Failed to allocate command buffers");
+
+  allocInfo = VkCommandBufferAllocateInfo{
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .pNext = nullptr,
+    .commandPool = m_computeCommandPool,
+    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandBufferCount = static_cast<uint32_t>(m_computeCommandBuffers.size())
+  };
+
+  VK_CHECK(vkAllocateCommandBuffers(m_device, &allocInfo, m_computeCommandBuffers.data()),
+    "Failed to allocate compute command buffers");
 }
 
 void RendererImpl::addTexture(ResourceId id, TexturePtr texture, bool genMipmaps)
@@ -2471,7 +2579,9 @@ RendererImpl::~RendererImpl()
     vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);
   }
   vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+  vkDestroyCommandPool(m_device, m_computeCommandPool, nullptr);
   m_pipelines.clear();
+  m_computePipeline.reset();
   VkRenderPass prevRp = VK_NULL_HANDLE;
   for (auto& renderPass : m_renderPasses) {
     if (renderPass.renderPass != VK_NULL_HANDLE && renderPass.renderPass != prevRp) {

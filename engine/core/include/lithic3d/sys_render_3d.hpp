@@ -56,7 +56,7 @@ struct DParticleEmitter
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
-  // TODO
+  Vec4f colour;
 };
 
 using DParticleEmitterPtr = std::unique_ptr<DParticleEmitter>;
@@ -81,6 +81,7 @@ class SysRender3d : public System
     virtual void addEntity(EntityId id, DPointLightPtr light) = 0;
     virtual void addEntity(EntityId id, DDirectionalLightPtr light) = 0;
     virtual void addEntity(EntityId id, DSkyboxPtr skybox) = 0;
+    virtual void addEntity(EntityId id, DParticleEmitterPtr particleEmitter) = 0;
 
     virtual void setEntityColour(EntityId id, const Vec4f& colour) = 0;
 

@@ -27,7 +27,6 @@ The class should call waitAll() on the ResourceManager in its destructor.
             // We're on the resource manager thread (make thread-safe!)
             // Construct resource here, including any sub-resources
 
-            hMaterial.wait(); // To be sure it exists
             auto& material = m_materialFactory.getMaterial(hMaterial.id());
 
             // Do something with material?

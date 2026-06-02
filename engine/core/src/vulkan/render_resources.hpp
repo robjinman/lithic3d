@@ -17,6 +17,8 @@ namespace render
 const uint32_t MAX_POINT_LIGHTS = 4;
 const uint32_t MAX_JOINTS = 128;
 
+const uint32_t PARTICLE_COUNT = 256; // TODO
+
 // TODO: Hide these inside cpp file?
 #pragma pack(push, 4)
 struct CameraTransformsUbo
@@ -64,6 +66,21 @@ struct MeshInstance
 {
   Mat4x4f modelMatrix;
 };
+
+//struct ParticlesUbo
+//{
+  // TODO
+//  int dummy;
+//};
+
+struct Particle
+{
+  Vec3f position;
+  uint8_t _pad0[4];
+  Vec3f velocity;
+  uint8_t _pad1[4];
+  Vec4f colour;
+};
 #pragma pack(pop)
 
 struct MeshBuffers
@@ -74,6 +91,14 @@ struct MeshBuffers
   uint32_t numIndices;
   uint32_t numInstances;
   Mat4x4f transform;
+};
+
+struct ParticleBuffers
+{
+  //std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> ubos;
+  std::array<VkBuffer, 2> ssbos;
+  VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+  std::array<VkDescriptorSet, 2> descriptorSets;
 };
 
 enum class DescriptorSetNumber : uint32_t
@@ -135,6 +160,11 @@ class RenderResources
     virtual MeshBuffers getMeshBuffers(ResourceId id) const = 0;
     // Threads: render
     virtual void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances) = 0;
+
+    // Particles
+    //
+    // Threads: render
+    virtual ParticleBuffers getParticleBuffers() const = 0;
 
     // Materials
     //

@@ -9,3 +9,4 @@ PERFORMANCE
 * Indirect draws - GPU frustum culling
 * Compute mipmaps offline
 * LOD mesh shading
+* Use KTX instead of PNG for textures

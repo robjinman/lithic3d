@@ -117,6 +117,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
     GpuBufferPtr createVertexBuffer(const char* data, size_t size) override;
     GpuBufferPtr createIndexBuffer(const char* data, size_t size) override;
     GpuBufferPtr createInstanceBuffer(size_t size) override;
+    GpuBufferPtr createParticleBuffer(const char* data, size_t size) override;
     GpuBufferPtr createStagingBuffer(size_t size) override;
     GpuImagePtr createCubeMap(const std::array<TexturePtr, 6>& textures) override;
     GpuImagePtr createTexture(const Texture& texture, bool genMipmaps) override;
@@ -144,15 +145,15 @@ class GpuBufferManagerImpl : public GpuBufferManager
 
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-    GpuBufferPtr createDeviceBuffer(const char* data, size_t size, VkBufferUsageFlags usage);
-    GpuBufferPtr createDeviceBuffer(size_t size, VkBufferUsageFlags usage);
+    GpuBufferPtr createBuffer(const char* data, size_t size, VmaMemoryUsage memUsage,
+      VkBufferUsageFlags bufferUsage);
+    GpuBufferPtr createBuffer(size_t size, VmaMemoryUsage memUsage, VkBufferUsageFlags bufferUsage);
 
     void transitionImageLayout(GpuImageImpl& image, VkImageLayout oldLayout,
       VkImageLayout newLayout, uint32_t layerCount, uint32_t mipLevels);
     void copyBufferToImage(GpuBuffer& buffer, GpuImage& image, uint32_t width, uint32_t height,
       VkDeviceSize bufferOffset, uint32_t layer);
     GpuImagePtr createTexture(const Texture& texture, VkFormat format, bool genMipmaps);
-    GpuImagePtr createDepthImage(VkExtent2D extent, VkImageUsageFlags usage, uint32_t layers);
     void generateMipmaps(VkImage image, VkFormat format, int32_t texWidth, int32_t texHeight,
       uint32_t mipLevels);
 };
@@ -325,8 +326,8 @@ GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
   return buffer;
 }
 
-GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const char* data, size_t size,
-  VkBufferUsageFlags usage)
+GpuBufferPtr GpuBufferManagerImpl::createBuffer(const char* data, size_t size,
+  VmaMemoryUsage memUsage, VkBufferUsageFlags bufferUsage)
 {
   DBG_TRACE(m_logger);
 
@@ -338,7 +339,7 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const char* data, size_t s
   VK_CHECK(vmaFlushAllocation(m_allocator, stagingBuffer.allocation, 0, size),
     "Failed to flush memory ranges");
 
-  auto bufferPtr = createDeviceBuffer(size, usage);
+  auto bufferPtr = createBuffer(size, memUsage, bufferUsage);
   auto& buffer = dynamic_cast<GpuBufferImpl&>(*bufferPtr);
 
   VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -356,10 +357,9 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(const char* data, size_t s
   return bufferPtr;
 }
 
-GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(size_t size, VkBufferUsageFlags usage)
+GpuBufferPtr GpuBufferManagerImpl::createBuffer(size_t size, VmaMemoryUsage memUsage,
+  VkBufferUsageFlags bufferUsage)
 {
-  DBG_TRACE(m_logger);
-
   auto buffer = std::make_unique<GpuBufferImpl>(m_allocator);
 
   VkBufferCreateInfo bufferInfo{
@@ -367,14 +367,14 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(size_t size, VkBufferUsage
     .pNext = nullptr,
     .flags = 0,
     .size = size,
-    .usage = usage,
+    .usage = bufferUsage,
     .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     .queueFamilyIndexCount = 0,
     .pQueueFamilyIndices = nullptr
   };
 
   VmaAllocationCreateInfo allocInfo{};
-  allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+  allocInfo.usage = memUsage;
 
   VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer->buffer,
     &buffer->allocation, &buffer->allocationInfo), "Failed to create buffer");
@@ -387,19 +387,26 @@ GpuBufferPtr GpuBufferManagerImpl::createDeviceBuffer(size_t size, VkBufferUsage
 GpuBufferPtr GpuBufferManagerImpl::createVertexBuffer(const char* data, size_t size)
 {
   auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-  return createDeviceBuffer(data, size, usage);
+  return createBuffer(data, size, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, usage);
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createIndexBuffer(const char* data, size_t size)
 {
   auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-  return createDeviceBuffer(data, size, usage);
+  return createBuffer(data, size, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, usage);
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createInstanceBuffer(size_t size)
 {
   auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-  return createDeviceBuffer(size, usage);
+  return createBuffer(size, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, usage);
+}
+
+GpuBufferPtr GpuBufferManagerImpl::createParticleBuffer(const char* data, size_t size)
+{
+  auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+    | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+  return createBuffer(data, size, VMA_MEMORY_USAGE_GPU_ONLY, usage);
 }
 
 void GpuBufferManagerImpl::writeToBuffer(GpuBuffer& buffer_, const char* data, size_t size)
@@ -594,6 +601,7 @@ void GpuBufferManagerImpl::generateMipmaps(VkImage image, VkFormat format, int32
     .image = image,
     .subresourceRange{
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
       .levelCount = 1,
       .baseArrayLayer = 0,
       .layerCount = 1
@@ -621,7 +629,7 @@ void GpuBufferManagerImpl::generateMipmaps(VkImage image, VkFormat format, int32
         .layerCount = 1
       },
       .srcOffsets{
-        { 0, 0, 0 },
+        { 0u, 0u, 0u },
         { mipWidth, mipHeight, 1 }
       },
       .dstSubresource{
@@ -631,8 +639,8 @@ void GpuBufferManagerImpl::generateMipmaps(VkImage image, VkFormat format, int32
         .layerCount = 1
       },
       .dstOffsets{
-        { 0, 0, 0 },
-        { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 }
+        { 0u, 0u, 0u },
+        { mipWidth > 1u ? mipWidth / 2u : 1u, mipHeight > 1u ? mipHeight / 2u : 1u, 1u }
       }
     };
 

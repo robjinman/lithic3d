@@ -30,8 +30,15 @@ inline bool isShadowPass(RenderPass renderPass)
   return renderPass >= RenderPass::Shadow0 && renderPass <= RenderPass::Shadow2;
 }
 
+enum class ShaderProgramType
+{
+  Graphics = 0,
+  Compute
+};
+
 struct ShaderProgramSpec
 {
+  ShaderProgramType type = ShaderProgramType::Graphics;
   RenderPass renderPass;
   MeshFeatureSet meshFeatures;
   MaterialFeatureSet materialFeatures;
@@ -41,7 +48,10 @@ struct ShaderProgramSpec
     bool rp = renderPass == rhs.renderPass ||
       (isShadowPass(renderPass) && isShadowPass(rhs.renderPass));
 
-    return meshFeatures == rhs.meshFeatures && materialFeatures == rhs.materialFeatures && rp;
+    return meshFeatures == rhs.meshFeatures
+      && materialFeatures == rhs.materialFeatures
+      && type == rhs.type
+      && rp;
   }
 
   std::string toString() const;
@@ -118,20 +128,24 @@ class Renderer
     virtual void drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId material, const MaterialFeatureSet& materialFeatures,
       const Mat4x4f& transform) = 0;
+     // TODO: Replace matrix with screen-space coords?
     virtual void drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId material, const MaterialFeatureSet& materialFeatures,
-      const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0; // TODO: Replace matrix with screen-space coords?
+      const std::array<Vec2f, 4>& uvCoords, const Vec4f& colour, const Mat4x4f& transform) = 0;
+    // TODO: Replace matrix with screen-space coords?
     virtual void drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures, float radius,
-      const Vec4f& colour, const Mat4x4f& transform) = 0; // TODO: Replace matrix with screen-space coords?
+      const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawPointLight(const Vec3f& colour, float ambient, float specular,
       const Mat4x4f& transform) = 0;
     virtual void drawDirectionalLight(const Vec3f& colour, float ambient, float specular,
       const Mat4x4f& transform) = 0;
+    // TODO: Replace matrix with screen-space coords?
     virtual void drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId material, const MaterialFeatureSet& materialFeatures, const std::string& text,
-      const Vec4f& colour, const Mat4x4f& transform) = 0; // TODO: Replace matrix with screen-space coords?
+      const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId cubeMap, const MaterialFeatureSet& cubeMapFeatures) = 0;
+    virtual void drawParticles(const Mat4x4f& transform) = 0;
     virtual void endPass() = 0;
     virtual void endFrame() = 0;
 
@@ -153,6 +167,15 @@ inline std::ostream& operator<<(std::ostream& stream, render::RenderPass renderP
     case render::RenderPass::Main:    stream << "Main";     break;
     case render::RenderPass::Ssr:     stream << "Ssr";      break;
     case render::RenderPass::Overlay: stream << "Overlay";  break;
+  }
+  return stream;
+}
+
+inline std::ostream& operator<<(std::ostream& stream, render::ShaderProgramType type)
+{
+  switch (type) {
+    case render::ShaderProgramType::Graphics: stream << "Graphics"; break;
+    case render::ShaderProgramType::Compute:  stream << "Compute";  break;
   }
   return stream;
 }

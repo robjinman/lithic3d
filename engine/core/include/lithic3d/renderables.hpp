@@ -215,7 +215,7 @@ using VertexLayout = std::array<BufferUsage, MAX_ATTRIBUTES>;
 
 struct MeshFeatureSet
 {
-  VertexLayout vertexLayout;
+  VertexLayout vertexLayout{};
   MeshFeatures::Flags flags;
 
   bool operator==(const MeshFeatureSet& rhs) const = default;

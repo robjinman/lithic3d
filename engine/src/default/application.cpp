@@ -166,8 +166,7 @@ Application::Application()
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, m_config.paths,
-    *logger, {});
+  auto renderer = createRenderer(*m_windowDelegate, *resourceManager, m_config.paths, *logger, {});
 
   logger->info("Compiling shaders...");
 

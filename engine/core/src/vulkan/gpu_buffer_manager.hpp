@@ -49,6 +49,7 @@ class GpuBufferManager
     virtual GpuBufferPtr createVertexBuffer(const char* data, size_t size) = 0;
     virtual GpuBufferPtr createIndexBuffer(const char* data, size_t size) = 0;
     virtual GpuBufferPtr createInstanceBuffer(size_t size) = 0;
+    virtual GpuBufferPtr createParticleBuffer(const char* data, size_t size) = 0;
     virtual GpuBufferPtr createStagingBuffer(size_t size) = 0;
     virtual GpuImagePtr createCubeMap(const std::array<TexturePtr, 6>& textures) = 0;
     virtual GpuImagePtr createTexture(const Texture& texture, bool genMipmaps) = 0;

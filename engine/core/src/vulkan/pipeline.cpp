@@ -57,6 +57,12 @@ struct DynamicTextPushConstants
   // Frag shader
   Vec4f colour;               // 16 bytes
 };
+
+struct ParticlesPushConstants
+{
+  // Vert shader
+  Mat4x4f modelMatrix;        // 64 bytes
+};
 #pragma pack(pop)
 
 // TODO: Store all of these details in the ShaderProgram object
@@ -80,6 +86,9 @@ constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET = 0;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET = 96;
 constexpr size_t DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE = 16;
+
+constexpr size_t PARTICLES_PUSH_CONSTANTS_VERT_OFFSET = 0;
+constexpr size_t PARTICLES_PUSH_CONSTANTS_VERT_SIZE = 64;
 
 VkShaderModule createShaderModule(VkDevice device, const std::vector<uint32_t>& code)
 {
@@ -131,17 +140,6 @@ std::vector<VkVertexInputAttributeDescription>
   }
 
   return attributes;
-}
-
-VkPipelineInputAssemblyStateCreateInfo defaultInputAssemblyState()
-{
-  return VkPipelineInputAssemblyStateCreateInfo{
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-    .pNext = nullptr,
-    .flags = 0,
-    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    .primitiveRestartEnable = VK_FALSE
-  };
 }
 
 VkPipelineViewportStateCreateInfo defaultViewportState(VkViewport& viewport, VkRect2D& scissor,
@@ -356,9 +354,21 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .pSpecializationInfo = nullptr
   };
 
+  // TODO: Add isParticles flag to MeshFeatureSet
+  bool isParticles = spec.meshFeatures.flags.count() == 0 &&
+    spec.materialFeatures.flags.count() == 0 &&
+    spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
+    spec.meshFeatures.vertexLayout[1] == BufferUsage::None;
+  
   size_t vertexSize = 0;
-  for (auto usage : spec.meshFeatures.vertexLayout) {
-    vertexSize += getAttributeSize(usage);
+
+  if (isParticles) {
+    vertexSize = sizeof(Particle);
+  }
+  else {
+    for (auto usage : spec.meshFeatures.vertexLayout) {
+      vertexSize += getAttributeSize(usage);
+    }
   }
 
   VkVertexInputBindingDescription vertexBindingDescription{
@@ -404,8 +414,17 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .pVertexAttributeDescriptions = m_vertexAttributeDescriptions.data()
   };
 
-  m_inputAssemblyStateInfo = defaultInputAssemblyState();
-  bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
+  m_inputAssemblyStateInfo = VkPipelineInputAssemblyStateCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .topology = isParticles ?
+      VK_PRIMITIVE_TOPOLOGY_POINT_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    .primitiveRestartEnable = VK_FALSE
+  };
+
+  bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided)
+    || isParticles;
   m_rasterizationStateInfo = defaultRasterizationState(doubleSided);
   if (isShadowPass(m_spec.renderPass)) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
@@ -414,6 +433,9 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     m_rasterizationStateInfo.depthBiasConstantFactor = 0.f;
     m_rasterizationStateInfo.depthBiasSlopeFactor = 0.1f;
     m_rasterizationStateInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
+  }
+  if (isParticles) {
+    m_rasterizationStateInfo.polygonMode = VK_POLYGON_MODE_POINT;
   }
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
@@ -427,7 +449,16 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (spec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
+  if (isParticles) {
+    m_pushConstantRanges = {
+      VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+        .offset = PARTICLES_PUSH_CONSTANTS_VERT_OFFSET,
+        .size = PARTICLES_PUSH_CONSTANTS_VERT_SIZE
+      }
+    };
+  }
+  else if (spec.meshFeatures.flags.test(MeshFeatures::IsQuad)) {
     if (spec.materialFeatures.flags.test(MaterialFeatures::HasTexture)) {
       m_pushConstantRanges = {
         VkPushConstantRange{
@@ -583,24 +614,14 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
   DBG_TRACE(m_logger);
 
   auto globalDescriptorSet = m_renderResources.getGlobalDescriptorSet(currentFrame);
-  auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(
-    m_spec.renderPass, currentFrame);
+  auto renderPassDescriptorSet = m_renderResources.getRenderPassDescriptorSet(m_spec.renderPass,
+    currentFrame);
   auto materialDescriptorSet = m_renderResources.getMaterialDescriptorSet(node.material);
   auto objectDescriptorSet = m_renderResources.getObjectDescriptorSet(node.mesh, currentFrame);
-
-  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
 
   if (m_pipeline != bindState.pipeline) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   }
-  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
-  if (node.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    vertexBuffers.push_back(buffers.instanceBuffer);
-  }
-  std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
-  vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
-    vertexBuffers.data(), offsets.data());
-  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
   std::vector<VkDescriptorSet> descriptorSets{
     globalDescriptorSet,
@@ -613,102 +634,135 @@ void PipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, const Rend
     descriptorSets.push_back(objectDescriptorSet);
   }
 
-  //m_logger.info(STR("Global descriptor set: " << globalDescriptorSet));
-  //m_logger.info(STR("Render pass descriptor set: " << renderPassDescriptorSet));
-  //m_logger.info(STR("Material descriptor set: " << materialDescriptorSet));
-  //m_logger.info(STR("Object descriptor set: " << objectDescriptorSet));
+  if (node.type == RenderNodeType::Particles) {
+    auto buffers = m_renderResources.getParticleBuffers();
 
-  //if (descriptorSets != bindState.descriptorSets) {
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &buffers.ssbos[currentFrame], offsets);
+
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
       static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
-  //}
 
-  if (node.type == RenderNodeType::DefaultModel) {
-    assert(!node.meshFeatures.flags.test(MeshFeatures::IsInstanced));
-    assert(!node.meshFeatures.flags.test(MeshFeatures::IsSkybox));
+    auto& particlesNode = dynamic_cast<const ParticlesNode&>(node);
 
-    auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
-
-    DefaultPushConstants constants{
-      .modelMatrix = defaultNode.modelMatrix * buffers.transform,
-      .shadowCascade = shadowMapCascade,
-      ._padding0{},
-      .colour = defaultNode.colour
+    ParticlesPushConstants constants{
+      .modelMatrix = particlesNode.modelMatrix
     };
 
     vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
-      DEFAULT_PUSH_CONSTANTS_VERT_OFFSET, DEFAULT_PUSH_CONSTANTS_VERT_SIZE, &constants);
+      PARTICLES_PUSH_CONSTANTS_VERT_OFFSET, PARTICLES_PUSH_CONSTANTS_VERT_SIZE, &constants);
 
-    void* fragPart = reinterpret_cast<char*>(&constants) + DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET;
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-      DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET, DEFAULT_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
-  }
-  else if (node.type == RenderNodeType::Sprite) {
-    auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
-
-    SpritePushConstants constants{
-      .modelMatrix = spriteNode.modelMatrix * buffers.transform,
-      .spriteUvCoords = {
-        spriteNode.uvCoords[0],
-        spriteNode.uvCoords[1],
-        spriteNode.uvCoords[2],
-        spriteNode.uvCoords[3]
-      },
-      .colour = spriteNode.colour
-    };
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
-      SPRITE_PUSH_CONSTANTS_VERT_OFFSET, SPRITE_PUSH_CONSTANTS_VERT_SIZE, &constants);
-
-    void* fragPart = reinterpret_cast<char*>(&constants) + SPRITE_PUSH_CONSTANTS_FRAG_OFFSET;
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-      SPRITE_PUSH_CONSTANTS_FRAG_OFFSET, SPRITE_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
-  }
-  else if (node.type == RenderNodeType::Quad) {
-    auto& quadNode = dynamic_cast<const QuadNode&>(node);
-
-    QuadPushConstants constants{
-      .modelMatrix = quadNode.modelMatrix * buffers.transform,
-      .colour = quadNode.colour,
-      .radius = quadNode.radius
-    };
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
-      QUAD_PUSH_CONSTANTS_VERT_OFFSET, QUAD_PUSH_CONSTANTS_VERT_SIZE, &constants);
-
-    void* fragPart = reinterpret_cast<char*>(&constants) + QUAD_PUSH_CONSTANTS_FRAG_OFFSET;
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-      QUAD_PUSH_CONSTANTS_FRAG_OFFSET, QUAD_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
-  }
-  else if (node.type == RenderNodeType::DynamicText) {
-    auto& textNode = dynamic_cast<const DynamicTextNode&>(node);
-
-    DynamicTextPushConstants constants;
-    constants.modelMatrix = textNode.modelMatrix * buffers.transform;
-    constants.colour = textNode.colour;
-
-    memset(constants.text, '\0', sizeof(constants.text));
-    strncpy(reinterpret_cast<char*>(constants.text), textNode.text.c_str(), textNode.text.size());
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
-      DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET, DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE, &constants);
-
-    void* fragPart = reinterpret_cast<char*>(&constants) + DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET;
-
-    vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-      DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET, DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
-  }
-
-  if (node.type == RenderNodeType::InstancedModel) {
-    assert(node.meshFeatures.flags.test(MeshFeatures::IsInstanced));
-
-    vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
+    vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
   }
   else {
-    vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
+    auto buffers = m_renderResources.getMeshBuffers(node.mesh);
+
+    std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
+    if (node.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+      vertexBuffers.push_back(buffers.instanceBuffer);
+    }
+    std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
+    vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
+      vertexBuffers.data(), offsets.data());
+    vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+    //m_logger.info(STR("Global descriptor set: " << globalDescriptorSet));
+    //m_logger.info(STR("Render pass descriptor set: " << renderPassDescriptorSet));
+    //m_logger.info(STR("Material descriptor set: " << materialDescriptorSet));
+    //m_logger.info(STR("Object descriptor set: " << objectDescriptorSet));
+
+    //if (descriptorSets != bindState.descriptorSets) {
+      vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
+        static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+    //}
+
+    if (node.type == RenderNodeType::DefaultModel) {
+      assert(!node.meshFeatures.flags.test(MeshFeatures::IsInstanced));
+      assert(!node.meshFeatures.flags.test(MeshFeatures::IsSkybox));
+
+      auto& defaultNode = dynamic_cast<const DefaultModelNode&>(node);
+
+      DefaultPushConstants constants{
+        .modelMatrix = defaultNode.modelMatrix * buffers.transform,
+        .shadowCascade = shadowMapCascade,
+        ._padding0{},
+        .colour = defaultNode.colour
+      };
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+        DEFAULT_PUSH_CONSTANTS_VERT_OFFSET, DEFAULT_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+      void* fragPart = reinterpret_cast<char*>(&constants) + DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET;
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+        DEFAULT_PUSH_CONSTANTS_FRAG_OFFSET, DEFAULT_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
+    }
+    else if (node.type == RenderNodeType::Sprite) {
+      auto& spriteNode = dynamic_cast<const SpriteNode&>(node);
+
+      SpritePushConstants constants{
+        .modelMatrix = spriteNode.modelMatrix * buffers.transform,
+        .spriteUvCoords = {
+          spriteNode.uvCoords[0],
+          spriteNode.uvCoords[1],
+          spriteNode.uvCoords[2],
+          spriteNode.uvCoords[3]
+        },
+        .colour = spriteNode.colour
+      };
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+        SPRITE_PUSH_CONSTANTS_VERT_OFFSET, SPRITE_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+      void* fragPart = reinterpret_cast<char*>(&constants) + SPRITE_PUSH_CONSTANTS_FRAG_OFFSET;
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+        SPRITE_PUSH_CONSTANTS_FRAG_OFFSET, SPRITE_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
+    }
+    else if (node.type == RenderNodeType::Quad) {
+      auto& quadNode = dynamic_cast<const QuadNode&>(node);
+
+      QuadPushConstants constants{
+        .modelMatrix = quadNode.modelMatrix * buffers.transform,
+        .colour = quadNode.colour,
+        .radius = quadNode.radius
+      };
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+        QUAD_PUSH_CONSTANTS_VERT_OFFSET, QUAD_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+      void* fragPart = reinterpret_cast<char*>(&constants) + QUAD_PUSH_CONSTANTS_FRAG_OFFSET;
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+        QUAD_PUSH_CONSTANTS_FRAG_OFFSET, QUAD_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
+    }
+    else if (node.type == RenderNodeType::DynamicText) {
+      auto& textNode = dynamic_cast<const DynamicTextNode&>(node);
+
+      DynamicTextPushConstants constants;
+      constants.modelMatrix = textNode.modelMatrix * buffers.transform;
+      constants.colour = textNode.colour;
+
+      memset(constants.text, '\0', sizeof(constants.text));
+      strncpy(reinterpret_cast<char*>(constants.text), textNode.text.c_str(), textNode.text.size());
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
+        DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_OFFSET, DYNAMIC_TEXT_PUSH_CONSTANTS_VERT_SIZE, &constants);
+
+      void* fragPart = reinterpret_cast<char*>(&constants) + DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET;
+
+      vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+        DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_OFFSET, DYNAMIC_TEXT_PUSH_CONSTANTS_FRAG_SIZE, fragPart);
+    }
+
+    if (node.type == RenderNodeType::InstancedModel) {
+      assert(node.meshFeatures.flags.test(MeshFeatures::IsInstanced));
+
+      vkCmdDrawIndexed(commandBuffer, buffers.numIndices, buffers.numInstances, 0, 0, 0);
+    }
+    else {
+      vkCmdDrawIndexed(commandBuffer, buffers.numIndices, 1, 0, 0, 0);
+    }
   }
 
   bindState.pipeline = m_pipeline;

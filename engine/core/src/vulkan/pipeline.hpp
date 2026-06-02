@@ -22,7 +22,8 @@ enum class RenderNodeType
   Skybox,
   Sprite,
   Quad,
-  DynamicText
+  DynamicText,
+  Particles
 };
 
 struct RenderNode
@@ -33,8 +34,8 @@ struct RenderNode
   RenderNodeType type;
   ResourceId mesh = NULL_RESOURCE_ID;
   ResourceId material = NULL_RESOURCE_ID;
-  MeshFeatureSet meshFeatures;
-  MaterialFeatureSet materialFeatures;
+  MeshFeatureSet meshFeatures{};
+  MaterialFeatureSet materialFeatures{};
   uint32_t scissorId = 0;
 
   virtual ~RenderNode() = default;
@@ -99,6 +100,15 @@ struct DynamicTextNode : public RenderNode
   Vec4f colour{ 1.f, 1.f, 1.f, 1.f };
 };
 
+struct ParticlesNode : public RenderNode
+{
+  ParticlesNode()
+    : RenderNode(RenderNodeType::Particles)
+  {}
+
+  Mat4x4f modelMatrix;
+};
+
 struct SkyboxNode : public RenderNode
 {
   SkyboxNode()
@@ -112,6 +122,7 @@ struct BindState
   std::vector<VkDescriptorSet> descriptorSets;
 };
 
+// TODO: Rename to GraphicsPipeline
 class Pipeline
 {
   public:

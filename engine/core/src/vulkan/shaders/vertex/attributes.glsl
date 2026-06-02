@@ -22,3 +22,5 @@ layout(location = 7) in vec4 inModelMatrix1;
 layout(location = 8) in vec4 inModelMatrix2;
 layout(location = 9) in vec4 inModelMatrix3;
 #endif
+
+// TODO: Colour?

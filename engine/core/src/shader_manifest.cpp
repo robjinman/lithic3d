@@ -334,6 +334,7 @@ void parseShaderSpec(const XmlNode& shaderXml, std::vector<ShaderProgramSpec>& s
     for (auto& meshFeatures : meshFeatureSets) {
       for (auto& materialFeatures : materialFeatureSets) {
         ShaderProgramSpec spec{
+          .type = ShaderProgramType::Graphics,
           .renderPass = renderPass,
           .meshFeatures = meshFeatures,
           .materialFeatures = materialFeatures
@@ -362,6 +363,26 @@ std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml, Logger
   for (auto& node : shadersXml) {
     parseShaderSpec(node, specs, logger);
   }
+
+  // TODO: For now, add a spec for the compute pass
+  specs.push_back(ShaderProgramSpec{
+    .type = ShaderProgramType::Compute,
+    .renderPass{},
+    .meshFeatures{},
+    .materialFeatures{}
+  });
+
+  // TODO: Hard-code a spec for particle rendering. We should add an isParticles flag to
+  // MeshFeatureSet.
+  specs.push_back(ShaderProgramSpec{
+    .type = ShaderProgramType::Graphics,
+    .renderPass = RenderPass::Main,
+    .meshFeatures{
+      .vertexLayout{ BufferUsage::AttrPosition},
+      .flags = 0
+    },
+    .materialFeatures{}
+  });
 
   return specs;
 }
