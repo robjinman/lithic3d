@@ -608,8 +608,8 @@ void GpuBufferManagerImpl::generateMipmaps(VkImage image, VkFormat format, int32
     }
   };
 
-  uint32_t mipWidth = width;
-  uint32_t mipHeight = height;
+  int32_t mipWidth = width;
+  int32_t mipHeight = height;
 
   for (uint32_t i = 1; i < mipLevels; ++i) {
     barrier.subresourceRange.baseMipLevel = i - 1;
@@ -629,7 +629,7 @@ void GpuBufferManagerImpl::generateMipmaps(VkImage image, VkFormat format, int32
         .layerCount = 1
       },
       .srcOffsets{
-        { 0u, 0u, 0u },
+        { 0, 0, 0 },
         { mipWidth, mipHeight, 1 }
       },
       .dstSubresource{
@@ -639,8 +639,8 @@ void GpuBufferManagerImpl::generateMipmaps(VkImage image, VkFormat format, int32
         .layerCount = 1
       },
       .dstOffsets{
-        { 0u, 0u, 0u },
-        { mipWidth > 1u ? mipWidth / 2u : 1u, mipHeight > 1u ? mipHeight / 2u : 1u, 1u }
+        { 0, 0, 0 },
+        { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 }
       }
     };
 

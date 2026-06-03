@@ -23,6 +23,5 @@ void main()
   vec4 viewPos = camera.viewMatrix * worldPos;
   gl_Position = camera.projMatrix * viewPos;
   gl_PointSize = 5.0;
-
-  outColour = vec4(1, 0, 0, 1); // TODO
+  outColour = inColour;
 }

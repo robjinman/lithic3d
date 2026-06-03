@@ -32,6 +32,7 @@ AlignedBytes createAlignedBuffer(BufferUsage usage, const gltf::BufferDesc desc)
   switch (usage) {
     case BufferUsage::AttrPosition: return AlignedBytes{desc.size, Vec3f{}};
     case BufferUsage::AttrNormal: return AlignedBytes{desc.size, Vec3f{}};
+    case BufferUsage::AttrColour: return AlignedBytes{desc.size, Vec4f{}};
     case BufferUsage::AttrTexCoord: return AlignedBytes{desc.size, Vec2f{}};
     case BufferUsage::AttrJointIndices: return AlignedBytes{desc.size, Vector<uint8_t, 4>{}};
     case BufferUsage::AttrJointWeights: return AlignedBytes{desc.size, Vector<float, 4>{}};
@@ -290,6 +291,8 @@ MaterialFeatureSet createMaterialFeatureSet(const gltf::MaterialDesc& materialDe
   features.flags.set(MaterialFeatures::HasTexture, !materialDesc.baseColourTexture.empty());
   features.flags.set(MaterialFeatures::HasNormalMap, !materialDesc.normalMap.empty());
   features.flags.set(MaterialFeatures::IsDoubleSided, materialDesc.isDoubleSided);
+  features.flags.set(MaterialFeatures::HasTransparency,
+    materialDesc.alphaMode != gltf::AlphaMode::Opaque);
 
   return features;
 }
@@ -387,11 +390,6 @@ MaterialHandle ModelLoaderImpl::loadMaterialAsync(const gltf::MaterialDesc& desc
   material->name = desc.name;
   material->colour = desc.baseColourFactor;
   material->featureSet = createMaterialFeatureSet(desc);
-
-  // TODO: Remove this. We need to provide material customisation
-  if (material->name == "models/weapons/rocketlauncher/rocketlauncher_fx") {
-    material->featureSet.flags.set(MaterialFeatures::HasTransparency);
-  }
 
   if (!desc.baseColourTexture.empty()) {
     material->textures = {

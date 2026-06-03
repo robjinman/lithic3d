@@ -171,6 +171,7 @@ enum class BufferUsage : uint8_t
   None = 0,
   AttrPosition = 1,
   AttrNormal,
+  AttrColour,
   AttrTexCoord,
   AttrTangent,
   AttrJointIndices,
@@ -186,6 +187,7 @@ inline size_t getAttributeSize(BufferUsage usage)
     case BufferUsage::None:             return 0;
     case BufferUsage::AttrPosition:     return sizeof(Vec3f);
     case BufferUsage::AttrNormal:       return sizeof(Vec3f);
+    case BufferUsage::AttrColour:       return sizeof(Vec4f);
     case BufferUsage::AttrTexCoord:     return sizeof(Vec2f);
     case BufferUsage::AttrTangent:      return sizeof(Vec3f);
     case BufferUsage::AttrJointIndices: return sizeof(uint8_t) * 4;

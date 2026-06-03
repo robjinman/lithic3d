@@ -77,9 +77,9 @@ struct Particle
 {
   Vec3f position;
   uint8_t _pad0[4];
+  Vec4f colour;
   Vec3f velocity;
   uint8_t _pad1[4];
-  Vec4f colour;
 };
 #pragma pack(pop)
 

@@ -157,6 +157,9 @@ BufferUsage parseAttributeName(const std::string& name)
   else if (name == "normal") {
     return BufferUsage::AttrNormal;
   }
+  else if (name == "colour") {
+    return BufferUsage::AttrColour;
+  }
   else if (name == "uv") {
     return BufferUsage::AttrTexCoord;
   }
@@ -381,7 +384,7 @@ std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml, Logger
     .type = ShaderProgramType::Graphics,
     .renderPass = RenderPass::Main,
     .meshFeatures{
-      .vertexLayout{ BufferUsage::AttrPosition},
+      .vertexLayout{ BufferUsage::AttrPosition, BufferUsage::AttrColour },
       .flags = 0
     },
     .materialFeatures{}

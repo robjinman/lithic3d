@@ -113,6 +113,7 @@ VkFormat attributeFormat(BufferUsage usage)
   switch (usage) {
     case BufferUsage::AttrPosition: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrNormal: return VK_FORMAT_R32G32B32_SFLOAT;
+    case BufferUsage::AttrColour: return VK_FORMAT_R32G32B32A32_SFLOAT;
     case BufferUsage::AttrTexCoord: return VK_FORMAT_R32G32_SFLOAT;
     case BufferUsage::AttrTangent: return VK_FORMAT_R32G32B32_SFLOAT;
     case BufferUsage::AttrJointIndices: return VK_FORMAT_R8G8B8A8_UINT;
@@ -359,7 +360,8 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
   bool isParticles = spec.meshFeatures.flags.count() == 0 &&
     spec.materialFeatures.flags.count() == 0 &&
     spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
-    spec.meshFeatures.vertexLayout[1] == BufferUsage::None;
+    spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour &&
+    spec.meshFeatures.vertexLayout[2] == BufferUsage::None;
   
   size_t vertexSize = 0;
 
@@ -378,7 +380,27 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  m_vertexAttributeDescriptions = createAttributeDescriptions(spec.meshFeatures.vertexLayout);
+  if (isParticles) {
+    const uint32_t first = static_cast<uint32_t>(BufferUsage::AttrPosition);
+    m_vertexAttributeDescriptions = {
+      VkVertexInputAttributeDescription{
+        .location = static_cast<uint32_t>(BufferUsage::AttrPosition) - first,
+        .binding = 0,
+        .format = attributeFormat(BufferUsage::AttrPosition),
+        .offset = offsetof(Particle, position)
+      },
+      VkVertexInputAttributeDescription{
+        .location = static_cast<uint32_t>(BufferUsage::AttrColour) - first,
+        .binding = 0,
+        .format = attributeFormat(BufferUsage::AttrColour),
+        .offset = offsetof(Particle, colour)
+      }
+    };
+  }
+  else {
+    m_vertexAttributeDescriptions = createAttributeDescriptions(spec.meshFeatures.vertexLayout);
+  }
+
   if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     for (unsigned int i = 0; i < 4; ++i) {
       uint32_t offset = offsetof(MeshInstance, modelMatrix) + 4 * sizeof(float) * i;

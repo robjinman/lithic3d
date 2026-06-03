@@ -43,6 +43,14 @@ uint32_t dimensions(const std::string& type)
   else EXCEPTION("Unknown element type '" << type << "'");
 }
 
+AlphaMode parseAlphaMode(const std::string& alphaMode)
+{
+  if (alphaMode == "BLEND") return AlphaMode::Blend;
+  else if (alphaMode == "OPAQUE") return AlphaMode::Opaque;
+  else if (alphaMode == "MASK") return AlphaMode::Mask;
+  else EXCEPTION("Unknown alpha mode '" << alphaMode << "'");
+}
+
 Transform extractTransform(const nlohmann::json& node)
 {
   Transform T;
@@ -114,6 +122,9 @@ MaterialDesc extractMaterial(const nlohmann::json& root, unsigned long materialI
   auto& material = materials[materialIndex];
   auto iDoubleSided = material.find("doubleSided");
   materialDesc.isDoubleSided = iDoubleSided != material.end() && iDoubleSided->get<bool>();
+  auto iAlphaMode = material.find("alphaMode");
+  materialDesc.alphaMode = iAlphaMode == material.end() ?
+    AlphaMode::Opaque : parseAlphaMode(iAlphaMode->get<std::string>());
   materialDesc.name = material.at("name").get<std::string>();
   auto& pbr = material.at("pbrMetallicRoughness");
   auto iBaseColourFactor = pbr.find("baseColorFactor");

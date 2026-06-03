@@ -123,7 +123,8 @@ std::string ShaderCompilerImpl::selectVertShader(const ShaderProgramSpec& spec) 
     // TODO: Remove when we have isParticles flag
     if (spec.meshFeatures.flags == 0 && spec.materialFeatures.flags == 0
       && spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition
-      && spec.meshFeatures.vertexLayout[1] == BufferUsage::None) {
+      && spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour
+      && spec.meshFeatures.vertexLayout[2] == BufferUsage::None) {
 
       shader = "main_particles";
     }
@@ -159,7 +160,8 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
       // TODO: Remove when we have isParticles flag
       if (spec.meshFeatures.flags == 0 && spec.materialFeatures.flags == 0 &&
         spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
-        spec.meshFeatures.vertexLayout[1] == BufferUsage::None) {
+        spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour &&
+        spec.meshFeatures.vertexLayout[2] == BufferUsage::None) {
 
         shader = "main_particles";
       }
@@ -207,6 +209,7 @@ ShaderSource ShaderCompilerImpl::loadVertShaderSource(const ShaderProgramSpec& s
     switch (attr) {
       case BufferUsage::AttrPosition: source.defines.push_back("ATTR_POSITION"); break;
       case BufferUsage::AttrNormal: source.defines.push_back("ATTR_NORMAL"); break;
+      case BufferUsage::AttrColour: source.defines.push_back("ATTR_COLOUR"); break;
       case BufferUsage::AttrTexCoord: source.defines.push_back("ATTR_TEXCOORD"); break;
       case BufferUsage::AttrTangent: source.defines.push_back("ATTR_TANGENT"); break;
       case BufferUsage::AttrJointIndices: source.defines.push_back("ATTR_JOINTS"); break;

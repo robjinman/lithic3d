@@ -859,7 +859,7 @@ void RendererImpl::drawParticles(const Mat4x4f& transform)
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<ParticlesNode>();
-  node->meshFeatures.vertexLayout = { BufferUsage::AttrPosition };
+  node->meshFeatures.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrColour };
   node->scissorId = frameState.currentScissor;
   node->modelMatrix = transform;
 

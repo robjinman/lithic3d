@@ -4,8 +4,8 @@
 struct Particle
 {
   vec3 position;
+  vec4 colour;
   vec3 velocity;
-  vec4 color;
 };
 
 layout(push_constant) uniform PushConstants
@@ -47,5 +47,6 @@ void main()
     particlesOut[index].position = particleIn.position + particleIn.velocity * s * t;
   }
 
+  particlesOut[index].colour = particleIn.colour;
   particlesOut[index].velocity = particleIn.velocity;
 }

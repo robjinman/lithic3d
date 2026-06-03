@@ -35,6 +35,13 @@ enum class ElementType
   JointScale
 };
 
+enum class AlphaMode
+{
+  Opaque,
+  Mask,
+  Blend
+};
+
 inline bool isAttribute(ElementType type)
 {
   switch (type) {
@@ -69,6 +76,7 @@ struct MaterialDesc
   float metallicFactor = 0.f;
   float roughnessFactor = 0.f;
   bool isDoubleSided = false;
+  AlphaMode alphaMode = AlphaMode::Opaque;
 };
 
 struct SkinDesc
