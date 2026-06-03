@@ -362,7 +362,7 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
     spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour &&
     spec.meshFeatures.vertexLayout[2] == BufferUsage::None;
-  
+
   size_t vertexSize = 0;
 
   if (isParticles) {

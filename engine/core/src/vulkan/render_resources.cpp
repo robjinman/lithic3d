@@ -249,6 +249,14 @@ RenderResourcesImpl::RenderResourcesImpl(std::thread::id resourceThreadId,
 {
   DBG_TRACE(m_logger);
 
+  // Don't do anthing here that winds up calling into GpuBufferManager::endSingleTimeCommands().
+  // Put it in initialise() instead.
+}
+
+void RenderResourcesImpl::initialise()
+{
+  DBG_TRACE(m_logger);
+
   createUbos();
   createShadowMap();
   createDescriptorPool();
@@ -260,14 +268,11 @@ RenderResourcesImpl::RenderResourcesImpl(std::thread::id resourceThreadId,
   //createShadowPassDescriptorSet();
   createObjectDescriptorSetLayout();
 
+  createDummyTexture();
+
   createParticleBuffers();
   createParticleDescriptorSetLayout();
   createParticleDescriptorSets();
-}
-
-void RenderResourcesImpl::initialise()
-{
-  createDummyTexture();
 }
 
 void RenderResourcesImpl::createDummyTexture()
@@ -1416,7 +1421,7 @@ void RenderResourcesImpl::createParticleBuffers()
 
     particle.position = { 0.f, 0.f, 0.f };
     particle.velocity = randVec;
-    particle.colour = { 1.f, 0.f, 0.f, 1.0f }; // TODO
+    particle.colour = { 1.f, 0.f, 1.f, 1.0f };
   }
 
   m_particleSsbos = {

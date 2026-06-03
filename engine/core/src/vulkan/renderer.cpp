@@ -351,7 +351,6 @@ class RendererImpl : public Renderer
     std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> m_computeFinishedSemaphores;
 
     size_t m_currentFrame = 0;
-    uint32_t m_tick = 0;
     std::atomic<int> m_framebufferResized = 0;
     std::atomic<bool> m_requireReset = 0;
 
@@ -947,7 +946,7 @@ void RendererImpl::doComputePass()
   VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
     "Failed to begin recording command buffer");
 
-  m_computePipeline->recordCommandBuffer(commandBuffer, m_currentFrame, m_tick);
+  m_computePipeline->recordCommandBuffer(commandBuffer, m_currentFrame, m_frameNumber);
 
   VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 
@@ -1240,7 +1239,6 @@ void RendererImpl::finishFrame()
   }
 
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-  ++m_tick;
 }
 
 VkExtent2D RendererImpl::chooseSwapChainExtent(
@@ -2079,7 +2077,7 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
       prevPipeline = &pipeline;
     }
 
-    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame, m_tick,
+    pipeline.recordCommandBuffer(commandBuffer, *node, bindState, m_currentFrame, m_frameNumber,
       shadowMapCascade);
   }
 }

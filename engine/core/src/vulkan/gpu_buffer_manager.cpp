@@ -336,7 +336,7 @@ GpuBufferPtr GpuBufferManagerImpl::createBuffer(const char* data, size_t size,
 
   memcpy(stagingBuffer.mappedAddress(), data, size);
 
-  VK_CHECK(vmaFlushAllocation(m_allocator, stagingBuffer.allocation, 0, size),
+  VK_CHECK(vmaFlushAllocation(m_allocator, stagingBuffer.allocation, 0, VK_WHOLE_SIZE),
     "Failed to flush memory ranges");
 
   auto bufferPtr = createBuffer(size, memUsage, bufferUsage);
