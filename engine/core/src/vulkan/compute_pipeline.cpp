@@ -4,7 +4,6 @@
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
 #include <array>
-#include <random> // TODO: Remove
 
 namespace lithic3d
 {
@@ -18,6 +17,7 @@ namespace
 struct PushConstants
 {
   uint32_t tick;      // 4 bytes
+  //uint8_t _pad0[12];  // 12 bytes
 };
 #pragma pack(pop)
 
@@ -27,7 +27,8 @@ class ComputePipelineImpl : public ComputePipeline
     ComputePipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader, Logger& logger,
       VkDevice device, RenderResources& renderResources);
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame) override;
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame,
+      uint32_t tick) override;
 
     ~ComputePipelineImpl() override;
 
@@ -35,23 +36,11 @@ class ComputePipelineImpl : public ComputePipeline
     Logger& m_logger;
     VkDevice m_device;
     RenderResources& m_renderResources;
-    //GpuBufferManager& m_gpuBufferManager;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
-    // TODO: Move these into render resources?
-    //VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
-    //VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    //std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_descriptorSets;
-    //std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> m_ubos;
-    //std::array<GpuBufferPtr, 2> m_ssbos;
-
-    //void createDescriptorSetLayout();
     VkPipelineLayout createPipelineLayout();
     VkShaderModule createShaderModule(const ShaderByteCode& shaderCode);
-    //void createBuffers();
-    //void createDescriptorPool();
-    //void createDescriptorSets();
 };
 
 ComputePipelineImpl::ComputePipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
@@ -60,7 +49,6 @@ ComputePipelineImpl::ComputePipelineImpl(const ShaderProgramSpec& spec, const Sh
   , m_device(device)
   , m_renderResources(renderResources)
 {
-  //createDescriptorSetLayout();
   m_pipelineLayout = createPipelineLayout();
 
   auto shaderModule = createShaderModule(shader.computeShaderCode);
@@ -91,32 +79,7 @@ ComputePipelineImpl::ComputePipelineImpl(const ShaderProgramSpec& spec, const Sh
   vkDestroyShaderModule(m_device, shaderModule, nullptr);
 
   m_logger.info(STR("Pipeline: " << m_pipeline));
-
-  //createBuffers();
-  //createDescriptorPool();
-  //createDescriptorSets();
 }
-
-// TODO: Use the pool from RenderResources
-/*
-void ComputePipelineImpl::createDescriptorPool()
-{
-  std::array<VkDescriptorPoolSize, 2> poolSizes{};
-  poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  poolSizes[0].descriptorCount = 128; // TODO
-
-  poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[1].descriptorCount = 32; // TODO
-
-  VkDescriptorPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-  poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = 32; // TODO
-
-  VK_CHECK(vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &m_descriptorPool),
-    "Failed to create descriptor pool");
-}*/
 
 VkShaderModule ComputePipelineImpl::createShaderModule(const ShaderByteCode& shaderCode)
 {
@@ -163,7 +126,8 @@ VkPipelineLayout ComputePipelineImpl::createPipelineLayout()
   return pipelineLayout;
 }
 
-void ComputePipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame)
+void ComputePipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame,
+  uint32_t tick)
 {
   auto buffers = m_renderResources.getParticleBuffers();
 
@@ -172,9 +136,8 @@ void ComputePipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, siz
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipelineLayout, 0, 1,
     &buffers.descriptorSets[currentFrame], 0, 0);
 
-  static uint32_t tick = 0;
   PushConstants pushConstants{
-    .tick = tick++
+    .tick = tick
   };
 
   vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,

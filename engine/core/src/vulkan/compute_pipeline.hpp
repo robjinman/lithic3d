@@ -14,7 +14,8 @@ namespace render
 class ComputePipeline
 {
   public:
-    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame) = 0;
+    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame,
+      uint32_t tick) = 0;
 
     virtual ~ComputePipeline() = default;
 };

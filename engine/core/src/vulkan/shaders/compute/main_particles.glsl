@@ -36,13 +36,16 @@ void main()
   const uint index = gl_GlobalInvocationID.x;
   Particle particleIn = particlesIn[index];
 
-  if (constants.tick % 30 == 0) {
+  int tick = constants.tick % 60;
+
+  if (tick == 0) {
     particlesOut[index].position = vec3(0, 0, 0);
-    particlesOut[index].velocity = particleIn.velocity;
   }
   else {
-    float t = float(constants.tick) / 60.0;
-    particlesOut[index].position = particleIn.position + particleIn.velocity * t;
-    particlesOut[index].velocity = particleIn.velocity;
+    float t = float(tick) / 60.0;
+    float s = 0.5;
+    particlesOut[index].position = particleIn.position + particleIn.velocity * s * t;
   }
+
+  particlesOut[index].velocity = particleIn.velocity;
 }

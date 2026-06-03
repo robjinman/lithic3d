@@ -347,15 +347,17 @@ class RendererImpl : public Renderer
     VkQueue m_computeQueue = VK_NULL_HANDLE;
     VkCommandPool m_computeCommandPool = VK_NULL_HANDLE;
     std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_computeCommandBuffers;
+    std::array<VkFence, MAX_FRAMES_IN_FLIGHT> m_computeInFlightFences;
+    std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> m_computeFinishedSemaphores;
 
     size_t m_currentFrame = 0;
     uint32_t m_tick = 0;
     std::atomic<int> m_framebufferResized = 0;
     std::atomic<bool> m_requireReset = 0;
 
-    std::vector<VkSemaphore> m_imageAvailableSemaphores;
+    std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
-    std::vector<VkFence> m_inFlightFences;
+    std::array<VkFence, MAX_FRAMES_IN_FLIGHT> m_inFlightFences;
 
     TripleBuffer<FrameState> m_frameStates;
   
@@ -927,9 +929,17 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
 
 void RendererImpl::doComputePass()
 {
+  VK_CHECK(vkWaitForFences(m_device, 1, &m_computeInFlightFences[m_currentFrame], VK_TRUE,
+    UINT64_MAX), "Error waiting for fence");
+
+  // TODO: Update UBOs here
+
+  VK_CHECK(vkResetFences(m_device, 1, &m_computeInFlightFences[m_currentFrame]),
+    "Error resetting fence");
+
   VkCommandBuffer commandBuffer = m_computeCommandBuffers[m_currentFrame];
 
-  vkResetCommandBuffer(commandBuffer, 0);
+  VK_CHECK(vkResetCommandBuffer(commandBuffer, 0), "Error resetting command buffer");
 
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -937,16 +947,23 @@ void RendererImpl::doComputePass()
   VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo),
     "Failed to begin recording command buffer");
 
-  m_computePipeline->recordCommandBuffer(commandBuffer, m_currentFrame);
+  m_computePipeline->recordCommandBuffer(commandBuffer, m_currentFrame, m_tick);
 
   VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
+  VkSubmitInfo submitInfo{
+    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .pNext = nullptr,
+    .waitSemaphoreCount = 0,
+    .pWaitSemaphores = nullptr,
+    .pWaitDstStageMask = 0,
+    .commandBufferCount = 1,
+    .pCommandBuffers = &commandBuffer,
+    .signalSemaphoreCount = 1,
+    .pSignalSemaphores = &m_computeFinishedSemaphores[m_currentFrame]
+  };
 
-  VK_CHECK(vkQueueSubmit(m_computeQueue, 1, &submitInfo, nullptr),
+  VK_CHECK(vkQueueSubmit(m_computeQueue, 1, &submitInfo, m_computeInFlightFences[m_currentFrame]),
     "Failed to submit compute command buffer");
 }
 
@@ -958,6 +975,11 @@ void RendererImpl::renderLoop()
     while (m_running) {
       m_resources->update(m_frameNumber);
       m_workQueue.runAll();
+
+      doComputePass();
+
+      // TODO: Remove
+      VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
 
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
         "Error waiting for fence");
@@ -980,11 +1002,9 @@ void RendererImpl::renderLoop()
       VK_CHECK(vkResetFences(m_device, 1, &m_inFlightFences[m_currentFrame]),
         "Error resetting fence");
 
-      doComputePass();
-
       auto commandBuffer = m_commandBuffers[m_currentFrame];
 
-      vkResetCommandBuffer(commandBuffer, 0);
+      VK_CHECK(vkResetCommandBuffer(commandBuffer, 0), "Error resetting command buffer");
 
       VkCommandBufferBeginInfo beginInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -998,9 +1018,6 @@ void RendererImpl::renderLoop()
 
       auto& frameState = m_frameStates.getReadable();
 
-      //if (frameState.renderPasses.contains(RenderPass:Compute)) {
-      //  doComputePass();
-      //}
       if (frameState.renderPasses.contains(RenderPass::Shadow0)) {
         updateLightTransformsUbo();
         doShadowPass(commandBuffer, 0);
@@ -1173,17 +1190,23 @@ void RendererImpl::finishFrame()
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-  VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
-  submitInfo.waitSemaphoreCount = 1;
-  submitInfo.pWaitSemaphores = waitSemaphores;
-  VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-  submitInfo.pWaitDstStageMask = waitStages;
+  std::array<VkSemaphore, 2> waitSemaphores = {
+    m_computeFinishedSemaphores[m_currentFrame],
+    m_imageAvailableSemaphores[m_currentFrame]
+  };
+  std::array<VkPipelineStageFlags, 2> waitStages = {
+    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+  };
+
+  submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
+  submitInfo.pWaitSemaphores = waitSemaphores.data();
+  submitInfo.pWaitDstStageMask = waitStages.data();
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
 
-  VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_imageIndex] };
   submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = signalSemaphores;
+  submitInfo.pSignalSemaphores = &m_renderFinishedSemaphores[m_imageIndex];
 
   VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]),
     "Failed to submit draw command buffer");
@@ -1194,7 +1217,7 @@ void RendererImpl::finishFrame()
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .pNext = nullptr,
     .waitSemaphoreCount = 1,
-    .pWaitSemaphores = signalSemaphores,
+    .pWaitSemaphores = &m_renderFinishedSemaphores[m_imageIndex],
     .swapchainCount = 1,
     .pSwapchains = swapchains,
     .pImageIndices = &m_imageIndex,
@@ -2342,9 +2365,7 @@ void RendererImpl::createSyncObjects()
 {
   DBG_TRACE(m_logger);
 
-  m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
   m_renderFinishedSemaphores.resize(m_swapchainImages.size());
-  m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
   VkSemaphoreCreateInfo semaphoreInfo{};
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -2359,9 +2380,17 @@ void RendererImpl::createSyncObjects()
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]),
       "Failed to create fence");
   }
+
   for (size_t i = 0; i < m_swapchainImages.size(); ++i) {
     VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]),
       "Failed to create semaphore");
+  }
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    VK_CHECK(vkCreateSemaphore(m_device, &semaphoreInfo, nullptr, &m_computeFinishedSemaphores[i]),
+      "Failed to create semaphore");
+    VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_computeInFlightFences[i]),
+      "Failed to create fence");
   }
 }
 
@@ -2577,6 +2606,9 @@ RendererImpl::~RendererImpl()
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     vkDestroySemaphore(m_device, m_imageAvailableSemaphores[i], nullptr);
     vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
+
+    vkDestroySemaphore(m_device, m_computeFinishedSemaphores[i], nullptr);
+    vkDestroyFence(m_device, m_computeInFlightFences[i], nullptr);
   }
   for (size_t i = 0; i < m_renderFinishedSemaphores.size(); ++i) {
     vkDestroySemaphore(m_device, m_renderFinishedSemaphores[i], nullptr);

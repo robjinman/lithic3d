@@ -1409,14 +1409,14 @@ void RenderResourcesImpl::createParticleBuffers()
   std::vector<Particle> particles(PARTICLE_COUNT);
 
   std::mt19937 rndEngine;
-  std::uniform_real_distribution<float> rndDist{0.f, 1.f};
+  std::uniform_real_distribution<float> rndDist{-1.f, 1.f};
 
   for (auto& particle : particles) {
     auto randVec = Vec3f{ rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine) }.normalise();
 
     particle.position = { 0.f, 0.f, 0.f };
-    particle.velocity = randVec * 0.1f;
-    particle.colour = { 1.f, 0.f, 0.f, 1.0f }; // TODO
+    particle.velocity = randVec;
+    particle.colour = { 1.f, 0.f, 0.f, 0.0f }; // TODO
   }
 
   m_particleSsbos = {
