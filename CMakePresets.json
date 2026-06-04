@@ -114,7 +114,8 @@
         "VCPKG_INSTALLED_DIR": "${sourceDir}/build/ios/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/ios/release/package",
-        "PLATFORM_IOS": "TRUE"
+        "PLATFORM_IOS": "TRUE",
+        "VULKAN_VALIDATION_LAYERS_OFF": "TRUE"
       }
     },
     {
@@ -194,7 +195,8 @@
       "inherits": "pi5-default",
       "binaryDir": "${sourceDir}/build/pi5/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VULKAN_VALIDATION_LAYERS_OFF": "TRUE"
       }
     },
     {

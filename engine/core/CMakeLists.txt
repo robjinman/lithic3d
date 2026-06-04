@@ -204,6 +204,11 @@ elseif(PLATFORM_IOS)
   endif()
 endif()
 
+target_compile_definitions(${ENGINE_LIB_TARGET}
+  PUBLIC
+    $<$<BOOL:${VULKAN_VALIDATION_LAYERS_OFF}>:VULKAN_VALIDATION_LAYERS_OFF>
+)
+
 target_include_directories(${ENGINE_LIB_TARGET}
   PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/include" # Location of version.hpp

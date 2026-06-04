@@ -31,7 +31,7 @@
 #include <TargetConditionals.h>
 #endif
 
-#if !defined(NDEBUG) && !defined(PLATFORM_IOS)
+#if !defined(NDEBUG) && !defined(VULKAN_VALIDATION_LAYERS_OFF)
 #define USE_VALIDATION_LAYERS 1
 #endif
 
@@ -859,6 +859,8 @@ void RendererImpl::drawParticles(const Mat4x4f& transform)
 
   auto node = std::make_unique<ParticlesNode>();
   node->meshFeatures.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrColour };
+  node->meshFeatures.flags = { bitflag(MeshFeatures::IsParticles) };
+  node->materialFeatures.flags = { bitflag(MaterialFeatures::IsDoubleSided) };
   node->scissorId = frameState.currentScissor;
   node->modelMatrix = transform;
 

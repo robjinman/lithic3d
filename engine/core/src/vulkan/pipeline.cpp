@@ -356,16 +356,9 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .pSpecializationInfo = nullptr
   };
 
-  // TODO: Add isParticles flag to MeshFeatureSet
-  bool isParticles = spec.meshFeatures.flags.count() == 0 &&
-    spec.materialFeatures.flags.count() == 0 &&
-    spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
-    spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour &&
-    spec.meshFeatures.vertexLayout[2] == BufferUsage::None;
-
   size_t vertexSize = 0;
 
-  if (isParticles) {
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsParticles)) {
     vertexSize = sizeof(Particle);
   }
   else {
@@ -380,7 +373,7 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  if (isParticles) {
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsParticles)) {
     const uint32_t first = static_cast<uint32_t>(BufferUsage::AttrPosition);
     m_vertexAttributeDescriptions = {
       VkVertexInputAttributeDescription{
@@ -441,13 +434,12 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
     .pNext = nullptr,
     .flags = 0,
-    .topology = isParticles ?
+    .topology = spec.meshFeatures.flags.test(MeshFeatures::IsParticles) ?
       VK_PRIMITIVE_TOPOLOGY_POINT_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
     .primitiveRestartEnable = VK_FALSE
   };
 
-  bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided)
-    || isParticles;
+  bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
   m_rasterizationStateInfo = defaultRasterizationState(doubleSided);
   if (isShadowPass(m_spec.renderPass)) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
@@ -457,7 +449,7 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     m_rasterizationStateInfo.depthBiasSlopeFactor = 0.1f;
     m_rasterizationStateInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
   }
-  if (isParticles) {
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsParticles)) {
     m_rasterizationStateInfo.polygonMode = VK_POLYGON_MODE_POINT;
   }
   m_multisampleStateInfo = defaultMultisamplingState();
@@ -472,7 +464,7 @@ PipelineImpl::PipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& s
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-  if (isParticles) {
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsParticles)) {
     m_pushConstantRanges = {
       VkPushConstantRange{
         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,

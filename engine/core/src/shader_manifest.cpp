@@ -252,6 +252,9 @@ MeshFeatures::Enum parseMeshFlagName(const std::string& name)
   else if (name == "is_terrain") {
     return MeshFeatures::IsTerrain;
   }
+  else if (name == "is_particles") {
+    return MeshFeatures::IsParticles;
+  }
   else if (name == "is_animated") {
     return MeshFeatures::IsAnimated;
   }
@@ -375,18 +378,6 @@ std::vector<ShaderProgramSpec> parseShadersXml(const XmlNode& shadersXml, Logger
     .type = ShaderProgramType::Compute,
     .renderPass{},
     .meshFeatures{},
-    .materialFeatures{}
-  });
-
-  // TODO: Hard-code a spec for particle rendering. We should add an isParticles flag to
-  // MeshFeatureSet.
-  specs.push_back(ShaderProgramSpec{
-    .type = ShaderProgramType::Graphics,
-    .renderPass = RenderPass::Main,
-    .meshFeatures{
-      .vertexLayout{ BufferUsage::AttrPosition, BufferUsage::AttrColour },
-      .flags = 0
-    },
     .materialFeatures{}
   });
 

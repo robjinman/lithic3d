@@ -203,6 +203,7 @@ enum Enum : uint32_t
 {
   IsInstanced,
   IsTerrain,
+  IsParticles,
   IsSkybox,
   IsAnimated,
   HasTangents,

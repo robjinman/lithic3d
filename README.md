@@ -141,8 +141,6 @@ Install the APKs
     java -jar ~/Downloads/bundletool-all-1.18.1.jar install-apks --apks=output.apks
 ```
 
-To debug the app, see [Android Debugging](docs/android_debugging.md).
-
 Before uploading to the Play Store, sign the bundle
 
 ```
@@ -222,6 +220,46 @@ And once inside the build environment
 ```
 
 The build will then be available inside the build directory on the host side.
+
+### Debug
+
+#### Android
+
+See [Android Debugging](docs/android_debugging.md).
+
+#### Raspberry Pi 5
+
+On the device, start gdbserver
+
+```
+    gdbserver localhost:4444 ./your_game
+```
+
+Then, on the host, you can either use gdb-multiarch
+
+```
+    gdb-multiarch ./your_game
+
+    # From within gdb
+    target remote 192.168.XXX.XXX:4444
+
+    # Set breakpoints, e.g.
+    catch throw
+    break game.cpp:321
+
+    continue
+```
+
+Or ssh into the device and use its gdb client
+
+```
+    ssh username@192.168.XXX.XXX
+    gdb ./your_game
+
+    target remote localhost:4444
+
+    # Proceed as above
+```
 
 
 Example projects

@@ -120,12 +120,7 @@ std::string ShaderCompilerImpl::selectVertShader(const ShaderProgramSpec& spec) 
   std::string shader = "main_default";
 
   if (spec.renderPass == RenderPass::Main) {
-    // TODO: Remove when we have isParticles flag
-    if (spec.meshFeatures.flags == 0 && spec.materialFeatures.flags == 0
-      && spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition
-      && spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour
-      && spec.meshFeatures.vertexLayout[2] == BufferUsage::None) {
-
+    if (spec.meshFeatures.flags.test(MeshFeatures::IsParticles)) {
       shader = "main_particles";
     }
     else if (spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
@@ -157,12 +152,7 @@ std::string ShaderCompilerImpl::selectFragShader(const ShaderProgramSpec& spec) 
   }
   else {
     if (spec.renderPass == RenderPass::Main) {
-      // TODO: Remove when we have isParticles flag
-      if (spec.meshFeatures.flags == 0 && spec.materialFeatures.flags == 0 &&
-        spec.meshFeatures.vertexLayout[0] == BufferUsage::AttrPosition &&
-        spec.meshFeatures.vertexLayout[1] == BufferUsage::AttrColour &&
-        spec.meshFeatures.vertexLayout[2] == BufferUsage::None) {
-
+      if (spec.meshFeatures.flags.test(MeshFeatures::IsParticles)) {
         shader = "main_particles";
       }
       else if (spec.materialFeatures.flags.test(MaterialFeatures::IsWater)) {

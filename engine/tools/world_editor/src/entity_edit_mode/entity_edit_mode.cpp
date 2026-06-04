@@ -277,7 +277,10 @@ void EntityEditModeImpl::applyChangesToEntity()
 
   componentStore.component<CBoundingBox>(m_entityId).modelSpaceAabb = m_aabb;
   componentStore.component<CSpatialFlags>(m_entityId).flags.set(SpatialFlags::Dirty);
-  componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bbox;
+
+  if (componentStore.hasComponentForEntity<CCollisionBox>(m_entityId)) {
+    componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bbox;
+  }
 
   // TODO: If prefab, update all dependent entities in scene
 }
