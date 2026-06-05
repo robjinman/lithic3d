@@ -78,7 +78,9 @@ using ModelPtr = std::unique_ptr<Model>;
 class ModelLoader
 {
   public:
-    virtual ResourceHandle loadModelAsync(const std::filesystem::path& path) = 0;
+    // maxInstances should be zero for non-instanced meshes
+    virtual ResourceHandle loadModelAsync(const std::filesystem::path& path,
+      uint32_t maxInstances) = 0;
     virtual ResourceHandle loadModelAsync(ModelPtr model) = 0; // Get a handle for an existing model
     virtual const Model& getModel(ResourceId id) const = 0;
     //virtual const Skin& getSkin(ResourceId id) const = 0;

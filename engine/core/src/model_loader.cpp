@@ -257,7 +257,7 @@ void computeMeshTangents(Mesh& mesh)
   mesh.attributeBuffers.push_back(Buffer{AlignedBytes{tangents}, BufferUsage::AttrTangent});
 }
 
-MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
+MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc, bool isInstanced)
 {
   auto hasAttribute = [&](gltf::ElementType type) {
     for (auto& buf : meshDesc.buffers) {
@@ -275,6 +275,7 @@ MeshFeatureSet createMeshFeatureSet(const gltf::MeshDesc& meshDesc)
   flags.set(MeshFeatures::CastsShadow, true);
   flags.set(MeshFeatures::HasTangents, hasTangents);
   flags.set(MeshFeatures::IsAnimated, isAnimated);
+  flags.set(MeshFeatures::IsInstanced, isInstanced);
 
   MeshFeatureSet features{
     .vertexLayout = getVertexLayout(meshDesc, hasTangents),
@@ -298,11 +299,12 @@ MaterialFeatureSet createMaterialFeatureSet(const gltf::MaterialDesc& materialDe
 }
 
 render::MeshPtr constructMesh(const gltf::MeshDesc& meshDesc,
-  const std::vector<std::vector<char>>& dataBuffers)
+  const std::vector<std::vector<char>>& dataBuffers, uint32_t maxInstances)
 {
   auto mesh = std::make_unique<Mesh>();
-  mesh->featureSet = createMeshFeatureSet(meshDesc);
+  mesh->featureSet = createMeshFeatureSet(meshDesc, maxInstances > 0);
   mesh->transform = meshDesc.transform;
+  mesh->maxInstances = maxInstances;
 
   // TODO: Set mesh rest pose
 
@@ -348,7 +350,8 @@ class ModelLoaderImpl : public ModelLoader
     ModelLoaderImpl(RenderResourceLoader& renderResourceLoader, ResourceManager& resourceManager,
       const GameDataPaths& paths, Logger& logger);
 
-    ResourceHandle loadModelAsync(const std::filesystem::path& path) override;
+    ResourceHandle loadModelAsync(const std::filesystem::path& path,
+      uint32_t maxInstances) override;
     ResourceHandle loadModelAsync(ModelPtr model) override;
 
     const Model& getModel(ResourceId id) const override;
@@ -366,7 +369,7 @@ class ModelLoaderImpl : public ModelLoader
 
     MaterialHandle loadMaterialAsync(const gltf::MaterialDesc& desc);
     void loadMeshes(const std::vector<std::vector<char>>& dataBuffers,
-      const gltf::ModelDesc& modelDesc, Model& model);
+      const gltf::ModelDesc& modelDesc, Model& model, uint32_t maxInstances);
 };
 
 ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
@@ -505,7 +508,7 @@ std::vector<Transform> extractTransforms(const std::vector<std::vector<char>>& d
 }
 
 void ModelLoaderImpl::loadMeshes(const std::vector<std::vector<char>>& dataBuffers,
-  const gltf::ModelDesc& modelDesc, Model& model)
+  const gltf::ModelDesc& modelDesc, Model& model, uint32_t maxInstances)
 {
   bool hasAnimations = modelDesc.armature.animations.size() > 0;
 
@@ -545,7 +548,7 @@ void ModelLoaderImpl::loadMeshes(const std::vector<std::vector<char>>& dataBuffe
     for (size_t index : entry.second) {
       auto& meshDesc = modelDesc.meshes[index];
 
-      auto mesh = constructMesh(meshDesc, dataBuffers);
+      auto mesh = constructMesh(meshDesc, dataBuffers, maxInstances);
       auto meshFeatures = mesh->featureSet;
 
       if (meshFeatures.flags.test(MeshFeatures::HasTangents)) {
@@ -604,9 +607,10 @@ void extractAnimations(const std::vector<std::vector<char>>& dataBuffers,
   }
 }
 
-ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath)
+ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& filePath,
+  uint32_t maxInstances)
 {
-  return m_resourceManager.loadResource([this, filePath](ResourceId id) {
+  return m_resourceManager.loadResource([this, filePath, maxInstances](ResourceId id) {
     auto modelDesc = gltf::extractModel(m_paths.modelsDir->readFile(filePath));
 
     std::vector<std::vector<char>> dataBuffers;
@@ -624,7 +628,7 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
       model->animations->skeleton = extractSkeleton(modelDesc.armature);
     }
 
-    loadMeshes(dataBuffers, modelDesc, *model);
+    loadMeshes(dataBuffers, modelDesc, *model, maxInstances);
     extractAnimations(dataBuffers, modelDesc, *model);
 
     {

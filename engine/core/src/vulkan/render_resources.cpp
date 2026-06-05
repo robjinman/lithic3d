@@ -535,7 +535,7 @@ void RenderResourcesImpl::updateMeshInstances(ResourceId id,
 
   mesh.numInstances = static_cast<uint32_t>(instances.size());
   m_bufferManager.writeToBuffer(*mesh.instanceBuffer,
-    reinterpret_cast<const char*>(instances.data()), instances.size());
+    reinterpret_cast<const char*>(instances.data()), instances.size() * sizeof(MeshInstance));
 }
 
 void RenderResourcesImpl::updateJointTransforms(ResourceId id, const std::vector<Mat4x4f>& joints,

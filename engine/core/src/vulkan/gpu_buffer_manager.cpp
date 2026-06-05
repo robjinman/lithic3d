@@ -398,8 +398,30 @@ GpuBufferPtr GpuBufferManagerImpl::createIndexBuffer(const char* data, size_t si
 
 GpuBufferPtr GpuBufferManagerImpl::createInstanceBuffer(size_t size)
 {
-  auto usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-  return createBuffer(size, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, usage);
+  auto buffer = std::make_unique<GpuBufferImpl>(m_allocator);
+
+  VkBufferCreateInfo bufferInfo{
+    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .pNext = nullptr,
+    .flags = 0,
+    .size = size,
+    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = 0,
+    .pQueueFamilyIndices = nullptr
+  };
+
+  VmaAllocationCreateInfo allocInfo{};
+  allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT |
+    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT; // Use random access instead?
+  allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+  VK_CHECK(vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer->buffer,
+    &buffer->allocation, &buffer->allocationInfo), "Failed to create buffer");
+
+  m_logger.info(STR("Created VkBuffer: " << buffer->buffer));
+
+  return buffer;
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createParticleBuffer(const char* data, size_t size)

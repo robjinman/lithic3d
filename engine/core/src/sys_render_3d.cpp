@@ -298,9 +298,15 @@ ComponentDataPtr SysRender3dImpl::constructDModel(const XmlNode& xmlModel) const
 {
   auto modelFile = xmlModel.attribute("file");
 
+  bool isInstanced = xmlModel.attribute("is_instanced") == "true";
+  uint32_t maxInstances = 0;
+  if (isInstanced) {
+    maxInstances = std::stoul(xmlModel.attribute("max_instances"));
+  }
+
   return std::make_unique<ComponentDataWrapper<DModel>>(DModel{
-    .model = m_modelLoader.loadModelAsync(modelFile),
-    .isInstanced = xmlModel.attribute("is_instanced") == "true",
+    .model = m_modelLoader.loadModelAsync(modelFile, maxInstances),
+    .isInstanced = isInstanced,
     .colour = { 1.f, 1.f, 1.f, 1.f } // TODO
   });
 }

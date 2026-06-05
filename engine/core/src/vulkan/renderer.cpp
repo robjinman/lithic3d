@@ -660,7 +660,7 @@ void RendererImpl::drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatu
     renderGraph.insert(key, std::move(newNode));
     state.lookup.insert({ key, node });
   }
-  node->instances.push_back(MeshInstance{transform/* * mesh.transform*/});
+  node->instances.push_back(MeshInstance{transform});
 }
 
 void RendererImpl::drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeatures,
