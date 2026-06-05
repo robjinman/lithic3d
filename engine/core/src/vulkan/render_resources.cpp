@@ -132,7 +132,7 @@ class RenderResourcesImpl : public RenderResources
 
     // Particles
     //
-    ParticleBuffers getParticleBuffers() const override;
+    const ParticleBuffers& getParticleBuffers() const override;
 
     // Materials
     //
@@ -201,10 +201,13 @@ class RenderResourcesImpl : public RenderResources
     GpuImagePtr m_shadowMapImage;
     VkSampler m_shadowMapSampler;
 
-    VkDescriptorSetLayout m_particleDescriptorSetLayout = VK_NULL_HANDLE;
-    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_particleDescriptorSets;
+    VkDescriptorSetLayout m_particleCmpDescriptorSetLayout = VK_NULL_HANDLE;
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_particleCmpDescriptorSets;
     //std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> m_particleUbos;
+    GpuBufferPtr m_particlesVertexBuffer;
+    GpuBufferPtr m_particlesIndexBuffer;
     std::array<GpuBufferPtr, 2> m_particleSsbos;
+    ParticleBuffers m_particleBuffers;
 
     inline void assertResourceThread() const;
 
@@ -273,6 +276,17 @@ void RenderResourcesImpl::initialise()
   createParticleBuffers();
   createParticleDescriptorSetLayout();
   createParticleDescriptorSets();
+
+  m_particleBuffers = {
+    // TODO: Don't hard-code length 2 (should be MAX_FRAMES_IN_FLIGHT)
+    //.ubos{ m_particleUbos[0]->vkBuffer(), m_particleUbos[1]->vkBuffer() },
+    .vertexBuffer = m_particlesVertexBuffer->vkBuffer(),
+    .indexBuffer = m_particlesIndexBuffer->vkBuffer(),
+    .ssbos{ m_particleSsbos[0]->vkBuffer(), m_particleSsbos[1]->vkBuffer() },
+    .cmpDescriptorSetLayout = m_particleCmpDescriptorSetLayout,
+    .cmpDescriptorSets = m_particleCmpDescriptorSets,
+    .numIndices = 6
+  };
 }
 
 void RenderResourcesImpl::createDummyTexture()
@@ -508,15 +522,9 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
   };
 }
 
-ParticleBuffers RenderResourcesImpl::getParticleBuffers() const
+const ParticleBuffers& RenderResourcesImpl::getParticleBuffers() const
 {
-  return {
-    // TODO: Don't hard-code length 2 (should be MAX_FRAMES_IN_FLIGHT)
-    //.ubos{ m_particleUbos[0]->vkBuffer(), m_particleUbos[1]->vkBuffer() },
-    .ssbos{ m_particleSsbos[0]->vkBuffer(), m_particleSsbos[1]->vkBuffer() },
-    .descriptorSetLayout = m_particleDescriptorSetLayout,
-    .descriptorSets = m_particleDescriptorSets
-  };
+  return m_particleBuffers;
 }
 
 // TODO: This is far too slow
@@ -1411,6 +1419,44 @@ void RenderResourcesImpl::createParticleBuffers()
   //  m_particleUbos[i] = m_bufferManager.createUbo(sizeof(ParticlesUbo));
   //}
 
+  Mesh mesh;
+  mesh.featureSet = MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+  mesh.attributeBuffers.emplace_back(Buffer{AlignedBytes{
+    std::vector<Vec3f>{
+      { 0, 0, 0 },
+      { 1, 0, 0 },
+      { 1, 1, 0 },
+      { 0, 1, 0 }
+    }}, BufferUsage::AttrPosition
+  });
+  mesh.attributeBuffers.emplace_back(Buffer{AlignedBytes{
+    std::vector<Vec2f>{
+      { 0, 0 },
+      { 1, 0 },
+      { 1, 1 },
+      { 0, 1 }
+    }}, BufferUsage::AttrTexCoord
+  });
+  mesh.indexBuffer = Buffer{AlignedBytes{
+    std::vector<uint16_t>{
+      0, 1, 2, 0, 2, 3
+    }},
+    BufferUsage::Index
+  };
+
+  auto vertexArray = createVertexArray(mesh);
+  m_particlesIndexBuffer = m_bufferManager.createIndexBuffer(mesh.indexBuffer.data.rawBytes(),
+    mesh.indexBuffer.data.sizeInBytes());
+
+  m_particlesVertexBuffer = m_bufferManager.createVertexBuffer(vertexArray.data(),
+    vertexArray.size());
+
   std::vector<Particle> particles(PARTICLE_COUNT);
 
   std::mt19937 rndEngine;
@@ -1420,8 +1466,9 @@ void RenderResourcesImpl::createParticleBuffers()
     auto randVec = Vec3f{ rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine) }.normalise();
 
     particle.position = { 0.f, 0.f, 0.f };
+    particle.size = 1.f + rndDist(rndEngine);
     particle.velocity = randVec;
-    particle.colour = { 1.f, 0.f, 1.f, 1.0f };  //  TODO
+    particle.colour = { 1.f, 1.f, 1.f, 1.0f };  //  TODO
   }
 
   m_particleSsbos = {
@@ -1471,7 +1518,7 @@ void RenderResourcesImpl::createParticleDescriptorSetLayout()
   };
 
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
-    &m_particleDescriptorSetLayout), "Failed to create descriptor set layout");
+    &m_particleCmpDescriptorSetLayout), "Failed to create descriptor set layout");
 }
 
 void RenderResourcesImpl::createParticleDescriptorSets()
@@ -1482,10 +1529,10 @@ void RenderResourcesImpl::createParticleDescriptorSets()
       .pNext = nullptr,
       .descriptorPool = m_descriptorPool,
       .descriptorSetCount = 1,
-      .pSetLayouts = &m_particleDescriptorSetLayout
+      .pSetLayouts = &m_particleCmpDescriptorSetLayout
     };
 
-    VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &m_particleDescriptorSets[i]),
+    VK_CHECK(vkAllocateDescriptorSets(m_device, &allocInfo, &m_particleCmpDescriptorSets[i]),
       "Failed to allocate descriptor set");
 /*
     VkDescriptorBufferInfo uniformBufferInfo{
@@ -1511,7 +1558,7 @@ void RenderResourcesImpl::createParticleDescriptorSets()
       VkWriteDescriptorSet{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
-        .dstSet = m_particleDescriptorSets[i],
+        .dstSet = m_particleCmpDescriptorSets[i],
         .dstBinding = 0,
         .dstArrayElement = 0,
         .descriptorCount = 1,
@@ -1523,7 +1570,7 @@ void RenderResourcesImpl::createParticleDescriptorSets()
       VkWriteDescriptorSet{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
-        .dstSet = m_particleDescriptorSets[i],
+        .dstSet = m_particleCmpDescriptorSets[i],
         .dstBinding = 0,
         .dstArrayElement = 0,
         .descriptorCount = 1,
@@ -1535,7 +1582,7 @@ void RenderResourcesImpl::createParticleDescriptorSets()
       VkWriteDescriptorSet{
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
-        .dstSet = m_particleDescriptorSets[i],
+        .dstSet = m_particleCmpDescriptorSets[i],
         .dstBinding = 1,
         .dstArrayElement = 0,
         .descriptorCount = 1,
@@ -1560,7 +1607,7 @@ RenderResourcesImpl::~RenderResourcesImpl()
   vkDestroyDescriptorSetLayout(m_device, m_renderPassDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_materialDescriptorSetLayout, nullptr);
   vkDestroyDescriptorSetLayout(m_device, m_objectDescriptorSetLayout, nullptr);
-  vkDestroyDescriptorSetLayout(m_device, m_particleDescriptorSetLayout, nullptr);
+  vkDestroyDescriptorSetLayout(m_device, m_particleCmpDescriptorSetLayout, nullptr);
 
   vkDestroySampler(m_device, m_shadowMapSampler, nullptr);
 

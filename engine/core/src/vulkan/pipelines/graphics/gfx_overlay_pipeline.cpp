@@ -445,16 +445,10 @@ void GfxOverlayPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, cons
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   }
 
-  std::vector<VkBuffer> vertexBuffers{ buffers.vertexBuffer };
-  if (node.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    vertexBuffers.push_back(buffers.instanceBuffer);
-  }
+  VkBuffer vertexBuffers[] = { buffers.vertexBuffer };
+  VkDeviceSize offsets[] = { 0 };
 
-  std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
-
-  vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
-    vertexBuffers.data(), offsets.data());
-
+  vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
   vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
   auto descriptorSets = getDescriptorSets(currentFrame, node.mesh, node.material);

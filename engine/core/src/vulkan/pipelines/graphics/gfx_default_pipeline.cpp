@@ -181,7 +181,6 @@ GfxDefaultPipeline::GfxDefaultPipeline(const ShaderProgramSpec& spec, const Shad
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
   };
 
-
   if (!m_spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)
     && !m_spec.meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
 

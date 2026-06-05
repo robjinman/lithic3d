@@ -145,7 +145,7 @@ class Renderer
       const Vec4f& colour, const Mat4x4f& transform) = 0;
     virtual void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures,
       ResourceId cubeMap, const MaterialFeatureSet& cubeMapFeatures) = 0;
-    virtual void drawParticles(const Mat4x4f& transform) = 0;
+    virtual void drawParticles(ResourceId material, const Mat4x4f& transform) = 0;
     virtual void endPass() = 0;
     virtual void endFrame() = 0;
 

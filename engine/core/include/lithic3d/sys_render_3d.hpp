@@ -56,6 +56,7 @@ struct DParticleEmitter
 {
   using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
 
+  render::MaterialHandle material;
   Vec4f colour = { 1.f, 0.f, 0.f, 1.f };
   uint32_t numParticles = 100;
   float sizeMean = 2.f;

@@ -115,7 +115,7 @@ VkPipelineLayout CmpParticlesPipeline::createPipelineLayout()
     .pNext = nullptr,
     .flags = 0,
     .setLayoutCount = 1,
-    .pSetLayouts = &buffers.descriptorSetLayout,
+    .pSetLayouts = &buffers.cmpDescriptorSetLayout,
     .pushConstantRangeCount = 1,
     .pPushConstantRanges = &pushConstantRange
   };
@@ -136,7 +136,7 @@ void CmpParticlesPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, si
   vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
   vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipelineLayout, 0, 1,
-    &buffers.descriptorSets[currentFrame], 0, 0);
+    &buffers.cmpDescriptorSets[currentFrame], 0, 0);
 
   PushConstants pushConstants{
     .tick = tick

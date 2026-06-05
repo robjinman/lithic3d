@@ -627,13 +627,11 @@ void SysRender3dImpl::drawParticles()
   for (auto& entry : m_particleEmitters) {
     auto id = entry.first;
 
-    // TODO: We don't access entry.second?
-
     const auto& transform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
 
     // TODO: Visibility check?
 
-    m_renderer.drawParticles(transform);
+    m_renderer.drawParticles(entry.second->material.resource.id(), transform);
   }
 }
 

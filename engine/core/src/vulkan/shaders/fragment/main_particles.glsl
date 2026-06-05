@@ -4,10 +4,15 @@
 #include "common.glsl"
 
 layout(location = 0) in vec4 inColour;
+layout(location = 1) in vec2 inTexCoord;
+
+#include "fragment/materials.glsl"
 
 layout(location = 0) out vec4 outColour;
 
 void main()
 {
-  outColour = inColour;
+  vec4 texel = computeTexel(inTexCoord);
+
+  outColour = inColour * texel;
 }

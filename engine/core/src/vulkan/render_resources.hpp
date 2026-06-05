@@ -94,9 +94,12 @@ struct MeshBuffers
 struct ParticleBuffers
 {
   //std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> ubos;
+  VkBuffer vertexBuffer;
+  VkBuffer indexBuffer;
   std::array<VkBuffer, 2> ssbos;
-  VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-  std::array<VkDescriptorSet, 2> descriptorSets;
+  VkDescriptorSetLayout cmpDescriptorSetLayout = VK_NULL_HANDLE;
+  std::array<VkDescriptorSet, 2> cmpDescriptorSets;
+  uint32_t numIndices;
 };
 
 enum class DescriptorSetNumber : uint32_t
@@ -162,7 +165,7 @@ class RenderResources
     // Particles
     //
     // Threads: render
-    virtual ParticleBuffers getParticleBuffers() const = 0;
+    virtual const ParticleBuffers& getParticleBuffers() const = 0;
 
     // Materials
     //

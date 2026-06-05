@@ -105,33 +105,58 @@ GfxParticlesPipeline::GfxParticlesPipeline(const ShaderProgramSpec& spec,
     .pName = "main",
     .pSpecializationInfo = nullptr
   };
-
-  size_t vertexSize = sizeof(Particle);
-
-  VkVertexInputBindingDescription vertexBindingDescription{
-    .binding = 0,
-    .stride = static_cast<uint32_t>(vertexSize),
-    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-  };
-
-  const uint32_t first = static_cast<uint32_t>(BufferUsage::AttrPosition);
+  
   m_vertexAttributeDescriptions = {
     VkVertexInputAttributeDescription{
-      .location = static_cast<uint32_t>(BufferUsage::AttrPosition) - first,
+      .location = 0,
       .binding = 0,
       .format = attributeFormat(BufferUsage::AttrPosition),
+      .offset = static_cast<uint32_t>(calcOffsetInVertex(spec.meshFeatures.vertexLayout,
+        BufferUsage::AttrPosition))
+    },
+    VkVertexInputAttributeDescription{
+      .location = 1,
+      .binding = 0,
+      .format = attributeFormat(BufferUsage::AttrTexCoord),
+      .offset = static_cast<uint32_t>(calcOffsetInVertex(spec.meshFeatures.vertexLayout,
+        BufferUsage::AttrTexCoord))
+    },
+    VkVertexInputAttributeDescription{
+      .location = 2,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32B32_SFLOAT,
       .offset = offsetof(Particle, position)
     },
     VkVertexInputAttributeDescription{
-      .location = static_cast<uint32_t>(BufferUsage::AttrColour) - first,
-      .binding = 0,
-      .format = attributeFormat(BufferUsage::AttrColour),
+      .location = 3,
+      .binding = 1,
+      .format = VK_FORMAT_R32_SFLOAT,
+      .offset = offsetof(Particle, size)
+    },
+    VkVertexInputAttributeDescription{
+      .location = 4,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
       .offset = offsetof(Particle, colour)
     }
   };
 
+  size_t vertexSize = 0;
+  for (auto usage : spec.meshFeatures.vertexLayout) {
+    vertexSize += getAttributeSize(usage);
+  }
+
   m_vertexBindingDescriptions = {
-    vertexBindingDescription
+    VkVertexInputBindingDescription{
+      .binding = 0,
+      .stride = static_cast<uint32_t>(vertexSize),
+      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    },
+    VkVertexInputBindingDescription{
+      .binding = 1,
+      .stride = sizeof(Particle),
+      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+    }
   };
 
   m_vertexInputStateInfo = VkPipelineVertexInputStateCreateInfo{
@@ -153,17 +178,16 @@ GfxParticlesPipeline::GfxParticlesPipeline(const ShaderProgramSpec& spec,
   };
 
   m_rasterizationStateInfo = defaultRasterizationState(true);
-  m_rasterizationStateInfo.polygonMode = VK_POLYGON_MODE_POINT;
 
   m_multisampleStateInfo = defaultMultisamplingState();
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
   m_depthStencilStateInfo = defaultDepthStencilState();
+  m_depthStencilStateInfo.depthWriteEnable = VK_FALSE;
 
   m_descriptorSetLayouts = {
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Global),
     m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::RenderPass),
-    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Material),
-    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Object)
+    m_renderResources.getDescriptorSetLayout(DescriptorSetNumber::Material)
   };
 
   m_pushConstantRanges = {
@@ -271,22 +295,26 @@ void GfxParticlesPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer,
 
   std::vector<VkDescriptorSet> descriptorSets{
     globalDescriptorSet,
-    renderPassDescriptorSet
+    renderPassDescriptorSet,
+    materialDescriptorSet
   };
-  if (materialDescriptorSet != VK_NULL_HANDLE) {
-    descriptorSets.push_back(materialDescriptorSet);
-  }
-  if (objectDescriptorSet != VK_NULL_HANDLE) {
-    descriptorSets.push_back(objectDescriptorSet);
-  }
 
   auto buffers = m_renderResources.getParticleBuffers();
 
-  VkDeviceSize offsets[] = { 0 };
-  vkCmdBindVertexBuffers(commandBuffer, 0, 1, &buffers.ssbos[currentFrame], offsets);
+  std::vector<VkBuffer> vertexBuffers{
+    buffers.vertexBuffer,
+    buffers.ssbos[currentFrame]
+  };
 
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
-    static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+  std::vector<VkDeviceSize> offsets(vertexBuffers.size(), 0);
+  vkCmdBindVertexBuffers(commandBuffer, 0, static_cast<uint32_t>(vertexBuffers.size()),
+    vertexBuffers.data(), offsets.data());
+  vkCmdBindIndexBuffer(commandBuffer, buffers.indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+  if (descriptorSets != bindState.descriptorSets) {
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout, 0,
+      static_cast<uint32_t>(descriptorSets.size()), descriptorSets.data(), 0, nullptr);
+  }
 
   auto& particlesNode = dynamic_cast<const ParticlesNode&>(node);
 
@@ -297,7 +325,7 @@ void GfxParticlesPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer,
   vkCmdPushConstants(commandBuffer, m_layout, VK_SHADER_STAGE_VERTEX_BIT,
     PARTICLES_PUSH_CONSTANTS_VERT_OFFSET, PARTICLES_PUSH_CONSTANTS_VERT_SIZE, &constants);
 
-  vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
+  vkCmdDrawIndexed(commandBuffer, buffers.numIndices, PARTICLE_COUNT, 0, 0, 0);
 
   bindState.pipeline = m_pipeline;
   bindState.descriptorSets = descriptorSets;

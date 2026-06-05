@@ -244,7 +244,7 @@ class RendererImpl : public Renderer
       const Mat4x4f& transform) override;
     void drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId cubeMap,
       const MaterialFeatureSet& cubeMapFeatures) override;
-    void drawParticles(const Mat4x4f& transform) override;
+    void drawParticles(ResourceId material, const Mat4x4f& transform) override;
     void endPass() override;
     void endFrame() override;
 
@@ -594,6 +594,8 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, Resourc
   const MeshFeatureSet& meshFeatures, ResourceId material,
   const MaterialFeatureSet& materialFeatures) const
 {
+  static RenderGraphKey nextId = 0;
+
   PipelineKey pipelineKey{
     .renderPass = RenderPass::Main,
     .meshFeatures = meshFeatures,
@@ -602,13 +604,17 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, Resourc
   auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
 
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    return RenderGraph::Key{
+    auto key = RenderGraph::Key{
       static_cast<RenderGraphKey>(orderKey),
       static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
       static_cast<RenderGraphKey>(pipelineHash),
       static_cast<RenderGraphKey>(mesh),
       static_cast<RenderGraphKey>(material)
     };
+    if (meshFeatures.flags.test(MeshFeatures::IsParticles)) {
+      key.push_back(nextId++);
+    }
+    return key;
   }
   else if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
     return RenderGraph::Key{
@@ -618,8 +624,6 @@ RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, Resourc
     };
   }
   else {
-    static RenderGraphKey nextId = 0;
-
     return RenderGraph::Key{
       static_cast<RenderGraphKey>(orderKey),
       static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
@@ -849,7 +853,7 @@ void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeature
   renderGraph.insert(key, std::move(node));
 }
 
-void RendererImpl::drawParticles(const Mat4x4f& transform)
+void RendererImpl::drawParticles(ResourceId material, const Mat4x4f& transform)
 {
   DBG_TRACE(m_logger);
 
@@ -859,14 +863,21 @@ void RendererImpl::drawParticles(const Mat4x4f& transform)
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<ParticlesNode>();
-  node->meshFeatures.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrColour };
-  node->meshFeatures.flags = { bitflag(MeshFeatures::IsParticles) };
-  node->materialFeatures.flags = { bitflag(MaterialFeatures::IsDoubleSided) };
+  // TODO: Retrieve mesh from render resources or let pipeline do it?
+  node->meshFeatures.vertexLayout = { BufferUsage::AttrPosition, BufferUsage::AttrTexCoord };
+  node->meshFeatures.flags = {
+    bitflag(MeshFeatures::IsParticles) | bitflag(MeshFeatures::IsInstanced)
+  };
+  node->material = material;
+  node->materialFeatures.flags = {
+    bitflag(MaterialFeatures::HasTexture) | bitflag(MaterialFeatures::IsDoubleSided) |
+    bitflag(MaterialFeatures::HasTransparency)
+  };
   node->scissorId = frameState.currentScissor;
   node->modelMatrix = transform;
 
-  auto key = generateRenderGraphKey(frameState.currentOrderKey, NULL_RESOURCE_ID, {},
-    NULL_RESOURCE_ID, {});
+  auto key = generateRenderGraphKey(frameState.currentOrderKey, NULL_RESOURCE_ID,
+    node->meshFeatures, node->material, node->materialFeatures);
 
   state.lookup.insert({ key, node.get() });
   renderGraph.insert(key, std::move(node));
