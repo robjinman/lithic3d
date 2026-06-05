@@ -16,7 +16,7 @@ namespace render
 const uint32_t MAX_POINT_LIGHTS = 4;
 const uint32_t MAX_JOINTS = 128;
 
-const uint32_t PARTICLE_COUNT = 256; // TODO
+const uint32_t PARTICLE_COUNT = 512; // TODO
 
 // TODO: Hide these inside cpp file?
 #pragma pack(push, 4)

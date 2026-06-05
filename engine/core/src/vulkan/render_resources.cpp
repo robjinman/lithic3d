@@ -1460,15 +1460,18 @@ void RenderResourcesImpl::createParticleBuffers()
   std::vector<Particle> particles(PARTICLE_COUNT);
 
   std::mt19937 rndEngine;
-  std::uniform_real_distribution<float> rndDist{-1.f, 1.f};
+  std::uniform_real_distribution<float> posDist{-2.5f, 2.5f};
+  std::uniform_real_distribution<float> velDist{5.f, 1.f};
+  std::uniform_real_distribution<float> sizeDist{0.8f, 1.4f};
+  std::uniform_real_distribution<float> rDist{0.8f, 1.f};
+  std::uniform_real_distribution<float> gDist{0.7f, 0.95f};
+  std::uniform_real_distribution<float> bDist{0.6f, 0.8f};
 
   for (auto& particle : particles) {
-    auto randVec = Vec3f{ rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine) }.normalise();
-
-    particle.position = { 0.f, 0.f, 0.f };
-    particle.size = 1.f + rndDist(rndEngine);
-    particle.velocity = randVec;
-    particle.colour = { 1.f, 1.f, 1.f, 1.0f };  //  TODO
+    particle.position = { posDist(rndEngine), 0.f, posDist(rndEngine) };
+    particle.size = sizeDist(rndEngine);
+    particle.velocity = { 0.f, velDist(rndEngine), 0.f };
+    particle.colour = { rDist(rndEngine), gDist(rndEngine), bDist(rndEngine), 1.f }; // TODO
   }
 
   m_particleSsbos = {

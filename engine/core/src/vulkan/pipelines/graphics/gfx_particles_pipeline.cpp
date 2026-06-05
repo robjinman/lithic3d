@@ -180,7 +180,15 @@ GfxParticlesPipeline::GfxParticlesPipeline(const ShaderProgramSpec& spec,
   m_rasterizationStateInfo = defaultRasterizationState(true);
 
   m_multisampleStateInfo = defaultMultisamplingState();
+
   m_colourBlendStateInfo = defaultColourBlendState(m_colourBlendAttachmentState);
+  m_colourBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+  m_colourBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+  m_colourBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+  m_colourBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
+  m_colourBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+  m_colourBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+
   m_depthStencilStateInfo = defaultDepthStencilState();
   m_depthStencilStateInfo.depthWriteEnable = VK_FALSE;
 
