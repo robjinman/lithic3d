@@ -1,7 +1,7 @@
 #pragma once
 
-#include "lithic3d/vulkan/shader.hpp"
 #include <vulkan/vulkan.h>
+#include <memory>
 
 namespace lithic3d
 {
@@ -21,11 +21,6 @@ class ComputePipeline
 };
 
 using ComputePipelinePtr = std::unique_ptr<ComputePipeline>;
-
-class RenderResources;
-
-ComputePipelinePtr createComputePipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
-  Logger& logger, VkDevice device, RenderResources& renderResources);
 
 } // namespace render
 } // namespace lithic3d

@@ -3,7 +3,6 @@
 #include "lithic3d/renderer.hpp"
 #include "vulkan/gpu_buffer_manager.hpp"
 #include <vulkan/vulkan.h>
-#include <filesystem>
 
 namespace lithic3d
 {
@@ -67,16 +66,15 @@ struct MeshInstance
   Mat4x4f modelMatrix;
 };
 
-//struct ParticlesUbo
-//{
-  // TODO
-//  int dummy;
-//};
+struct ParticlesUbo
+{
+  uint32_t numParticles;
+};
 
 struct Particle
 {
   Vec3f position;
-  uint8_t _pad0[4];
+  float size;
   Vec4f colour;
   Vec3f velocity;
   uint8_t _pad1[4];

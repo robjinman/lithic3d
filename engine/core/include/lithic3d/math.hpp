@@ -1,6 +1,7 @@
 #pragma once
 
 #include "exception.hpp"
+#include "hash.hpp"
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -818,3 +819,12 @@ inline int wrap(int value, int min, int max)
 }
 
 } // namespace lithic3d
+
+template<>
+struct std::hash<lithic3d::Recti>
+{
+  std::size_t operator()(const lithic3d::Recti& rect) const noexcept
+  {
+    return lithic3d::hashAll(rect.x, rect.y, rect.w, rect.h);
+  }
+};

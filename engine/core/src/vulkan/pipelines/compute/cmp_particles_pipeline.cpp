@@ -1,6 +1,7 @@
-#include "vulkan/compute_pipeline.hpp"
+#include "vulkan/pipelines/compute_pipeline.hpp"
 #include "vulkan/vulkan_utils.hpp"
 #include "vulkan/render_resources.hpp"
+#include "lithic3d/vulkan/shader.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
 #include <array>
@@ -21,21 +22,21 @@ struct PushConstants
 };
 #pragma pack(pop)
 
-class ComputePipelineImpl : public ComputePipeline
+class CmpParticlesPipeline : public ComputePipeline
 {
   public:
-    ComputePipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader, Logger& logger,
-      VkDevice device, RenderResources& renderResources);
+    CmpParticlesPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader, Logger& logger,
+      VkDevice device, const RenderResources& renderResources);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame,
       uint32_t tick) override;
 
-    ~ComputePipelineImpl() override;
+    ~CmpParticlesPipeline() override;
 
   private:
     Logger& m_logger;
     VkDevice m_device;
-    RenderResources& m_renderResources;
+    const RenderResources& m_renderResources;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
@@ -43,8 +44,9 @@ class ComputePipelineImpl : public ComputePipeline
     VkShaderModule createShaderModule(const ShaderByteCode& shaderCode);
 };
 
-ComputePipelineImpl::ComputePipelineImpl(const ShaderProgramSpec& spec, const ShaderProgram& shader,
-  Logger& logger, VkDevice device, RenderResources& renderResources)
+CmpParticlesPipeline::CmpParticlesPipeline(const ShaderProgramSpec& spec,
+  const ShaderProgram& shader, Logger& logger, VkDevice device,
+  const RenderResources& renderResources)
   : m_logger(logger)
   , m_device(device)
   , m_renderResources(renderResources)
@@ -81,7 +83,7 @@ ComputePipelineImpl::ComputePipelineImpl(const ShaderProgramSpec& spec, const Sh
   m_logger.info(STR("Pipeline: " << m_pipeline));
 }
 
-VkShaderModule ComputePipelineImpl::createShaderModule(const ShaderByteCode& shaderCode)
+VkShaderModule CmpParticlesPipeline::createShaderModule(const ShaderByteCode& shaderCode)
 {
   VkShaderModuleCreateInfo createInfo{
     .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -98,7 +100,7 @@ VkShaderModule ComputePipelineImpl::createShaderModule(const ShaderByteCode& sha
   return shaderModule;
 }
 
-VkPipelineLayout ComputePipelineImpl::createPipelineLayout()
+VkPipelineLayout CmpParticlesPipeline::createPipelineLayout()
 {
   VkPushConstantRange pushConstantRange{
     .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -126,7 +128,7 @@ VkPipelineLayout ComputePipelineImpl::createPipelineLayout()
   return pipelineLayout;
 }
 
-void ComputePipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame,
+void CmpParticlesPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, size_t currentFrame,
   uint32_t tick)
 {
   auto buffers = m_renderResources.getParticleBuffers();
@@ -146,7 +148,7 @@ void ComputePipelineImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, siz
   vkCmdDispatch(commandBuffer, 256 / PARTICLE_COUNT, 1, 1);
 }
 
-ComputePipelineImpl::~ComputePipelineImpl()
+CmpParticlesPipeline::~CmpParticlesPipeline()
 {
   if (m_pipeline != VK_NULL_HANDLE) {
     vkDestroyPipeline(m_device, m_pipeline, nullptr);
@@ -158,10 +160,11 @@ ComputePipelineImpl::~ComputePipelineImpl()
 
 } // namespace
 
-ComputePipelinePtr createComputePipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
-  Logger& logger, VkDevice device, RenderResources& renderResources)
+ComputePipelinePtr createCmpParticlesPipeline(const ShaderProgramSpec& spec,
+  const ShaderProgram& shader, Logger& logger, VkDevice device,
+  const RenderResources& renderResources)
 {
-  return std::make_unique<ComputePipelineImpl>(spec, shader, logger, device, renderResources);
+  return std::make_unique<CmpParticlesPipeline>(spec, shader, logger, device, renderResources);
 }
 
 } // namespace render

@@ -1,16 +1,11 @@
 #pragma once
 
-#include "lithic3d/tree_set.hpp"
-#include "lithic3d/vulkan/shader.hpp"
 #include "vulkan/render_resources.hpp"
-#include <vulkan/vulkan.h>
+#include "lithic3d/tree_set.hpp"
 #include <optional>
 
 namespace lithic3d
 {
-
-class Logger;
-
 namespace render
 {
 
@@ -116,39 +111,5 @@ struct SkyboxNode : public RenderNode
   {}
 };
 
-struct BindState
-{
-  VkPipeline pipeline;
-  std::vector<VkDescriptorSet> descriptorSets;
-};
-
-// TODO: Rename to GraphicsPipeline
-class Pipeline
-{
-  public:
-    virtual void onViewportResize(VkExtent2D swapchainExtent) = 0;
-
-    // TODO: Remove shadowMapCascade - find another way to pass this info
-    virtual void recordCommandBuffer(VkCommandBuffer commandBuffer, const RenderNode& node,
-      BindState& bindState, size_t currentFrame, uint32_t tick, uint32_t shadowMapCascade) = 0;
-
-    virtual ~Pipeline() {}
-};
-
-using PipelinePtr = std::unique_ptr<Pipeline>;
-
-PipelinePtr createPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
-  const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, const ScreenMargins& margins);
-
 } // namespace render
 } // namespace lithic3d
-
-template<>
-struct std::hash<lithic3d::Recti>
-{
-  std::size_t operator()(const lithic3d::Recti& rect) const noexcept
-  {
-    return lithic3d::hashAll(rect.x, rect.y, rect.w, rect.h);
-  }
-};

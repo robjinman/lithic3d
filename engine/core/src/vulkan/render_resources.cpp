@@ -1421,7 +1421,7 @@ void RenderResourcesImpl::createParticleBuffers()
 
     particle.position = { 0.f, 0.f, 0.f };
     particle.velocity = randVec;
-    particle.colour = { 1.f, 0.f, 1.f, 1.0f };
+    particle.colour = { 1.f, 0.f, 1.f, 1.0f };  //  TODO
   }
 
   m_particleSsbos = {

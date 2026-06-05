@@ -1,6 +1,5 @@
 #include "vulkan/vulkan_utils.hpp"
-#include "vulkan/pipeline.hpp"
-#include "vulkan/compute_pipeline.hpp"
+#include "vulkan/pipelines/pipeline_factory.hpp"
 #include "vulkan/render_resources.hpp"
 #include "vulkan/gpu_buffer_manager.hpp"
 #include "lithic3d/vulkan/vulkan_window_delegate.hpp"
@@ -305,7 +304,7 @@ class RendererImpl : public Renderer
     RenderGraph::Key generateRenderGraphKey(uint32_t orderKey, ResourceId mesh,
       const MeshFeatureSet& meshFeatures, ResourceId material,
       const MaterialFeatureSet& materialFeatures) const;
-    Pipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
+    GraphicsPipeline& choosePipeline(RenderPass renderPass, const RenderNode& node);
     void drawModelInternal(ResourceId mesh, const MeshFeatureSet& meshFeatures, ResourceId material,
       const MaterialFeatureSet& materialFeatures, const Mat4x4f& transform, const Vec4f& colour,
       const std::optional<std::vector<Mat4x4f>>& jointTransforms);
@@ -361,7 +360,8 @@ class RendererImpl : public Renderer
     TripleBuffer<FrameState> m_frameStates;
   
     RenderResourcesPtr m_resources;
-    std::unordered_map<PipelineKey, PipelinePtr> m_pipelines;
+    PipelineFactoryPtr m_pipelineFactory;
+    std::unordered_map<PipelineKey, GraphicsPipelinePtr> m_pipelines;
     ComputePipelinePtr m_computePipeline; // TODO: Multiple pipelines
 
     Timer m_timer;
@@ -439,6 +439,8 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
     createCommandBuffers();
     createSyncObjects();
   }).get();
+
+  m_pipelineFactory = createPipelineFactory(*m_resources, m_logger, m_device);
 }
 
 void RendererImpl::start()
@@ -484,7 +486,7 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
   auto compile = [&, this]() {
     if (spec.type == ShaderProgramType::Compute) {
       auto shader = loadShaderProgram(m_paths.shadersDir, spec);
-      m_computePipeline = createComputePipeline(spec, shader, m_logger, m_device, *m_resources);
+      m_computePipeline = m_pipelineFactory->createComputePipeline(spec, shader);
       return;
     }
 
@@ -493,9 +495,8 @@ void RendererImpl::compileShader(const ShaderProgramSpec& spec)
         auto shader = loadShaderProgram(m_paths.shadersDir, key);
 
         auto subpass = m_renderPasses[static_cast<size_t>(key.renderPass)];
-        auto pipeline = createPipeline(key, shader, *m_resources, m_logger, m_device,
-          subpass.renderPass, subpass.subpass, extent,
-          m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins);
+        auto pipeline = m_pipelineFactory->createGraphicsPipeline(key, shader, subpass.renderPass,
+          subpass.subpass, extent, m_viewportRotation != 0 ? rotateMargins(m_margins) : m_margins);
 
         m_pipelines.insert(std::make_pair(key, std::move(pipeline)));
       }
@@ -2017,7 +2018,7 @@ VkCommandPool RendererImpl::createResourceThreadCommandPool()
   return pool;
 }
 
-Pipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& node)
+GraphicsPipeline& RendererImpl::choosePipeline(RenderPass renderPass, const RenderNode& node)
 {
   auto key = getPipelineKey(renderPass, node.meshFeatures, node.materialFeatures);
   auto i = m_pipelines.find(key);
@@ -2036,7 +2037,7 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
   DBG_TRACE(m_logger);
 
   uint32_t scissorId = std::numeric_limits<uint32_t>::max();
-  Pipeline* prevPipeline = nullptr;
+  GraphicsPipeline* prevPipeline = nullptr;
   BindState bindState{};
 
   for (auto& node : renderGraph) {

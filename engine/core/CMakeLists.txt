@@ -86,9 +86,8 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/include/version.hpp"
 )
 
-file(GLOB CPP_SOURCES
+file(GLOB_RECURSE CPP_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/vulkan/*.cpp"
 )
 
 if(PLATFORM_LINUX)
