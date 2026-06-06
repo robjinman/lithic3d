@@ -991,9 +991,6 @@ void RendererImpl::renderLoop()
 
       doComputePass();
 
-      // TODO: Remove
-      VK_CHECK(vkDeviceWaitIdle(m_device), "Error waiting for device to be idle");
-
       VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX),
         "Error waiting for fence");
 
