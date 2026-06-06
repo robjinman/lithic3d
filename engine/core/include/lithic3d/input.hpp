@@ -48,6 +48,7 @@ enum class GamepadButton
   Right,
   Up,
   Down,
+  Start,
   // ...
   Unknown
 };

@@ -192,6 +192,69 @@ WindowDelegatePtr createWindowDelegate(CAMetalLayer* metalLayer);
         _application->onButtonUp(GamepadButton::B);
       }
     };
+    gp.buttonX.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::X);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::X);
+      }
+    };
+    gp.buttonY.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::Y);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::Y);
+      }
+    };
+    gp.leftShoulder.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::L1);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::L1);
+      }
+    };
+    gp.rightShoulder.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::R1);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::R1);
+      }
+    };
+    gp.leftTrigger.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::L2);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::L2);
+      }
+    };
+    gp.rightTrigger.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::R2);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::R2);
+      }
+    };
+    gp.buttonMenu.pressedChangedHandler = ^(GCControllerButtonInput* b, float value, BOOL pressed) {
+      if (pressed) {
+        _application->hideMobileControls();
+        _application->onButtonDown(GamepadButton::Start);
+      }
+      else {
+        _application->onButtonUp(GamepadButton::Start);
+      }
+    };
     gp.leftThumbstick.valueChangedHandler = ^(GCControllerDirectionPad* pad, float x, float y) {
       _application->hideMobileControls();
       _application->onLeftStickMove(x, -y);

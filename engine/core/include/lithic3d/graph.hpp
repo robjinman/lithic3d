@@ -98,7 +98,7 @@ class Graph
         nodes.erase(dfs[index + i]);
       }
 
-      if (index + numDescendents < dfs.size()) {
+      if (index + numDescendents + 1 < dfs.size()) {
         size_t remainder = dfs.size() - (index + 1 + numDescendents);
         std::memmove(&dfs[index], &dfs[index + 1 + numDescendents], remainder * sizeof(T));
         std::memmove(&parents[index], &parents[index + 1 + numDescendents], remainder * sizeof(T));

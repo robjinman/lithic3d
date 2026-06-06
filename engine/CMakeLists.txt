@@ -173,7 +173,7 @@ else()
       "${PROJECT_SOURCE_DIR}/src/ios/platform_paths.cpp"
       "${PROJECT_SOURCE_DIR}/src/ios/vulkan_window_delegate.mm"
       "${AUDIO_SYSTEM_CPP}"
-      "${PROJECT_SOURCE_DIR}/third_party_stb_vorbis/stb_vorbis.cpp"
+      "${PROJECT_SOURCE_DIR}/third_party/stb_vorbis/stb_vorbis.cpp"
       "${GAME_PROJECT_DIRECTORY}/data"
       "$ENV{VULKAN_SDK}/../iOS/share/vulkan"
       "${LAUNCH_STORYBOARDC}"
