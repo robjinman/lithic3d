@@ -210,6 +210,7 @@ ShaderSource ShaderCompilerImpl::loadVertShaderSource(const ShaderProgramSpec& s
 
   if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
     source.defines.push_back("ATTR_MODEL_MATRIX");
+    source.defines.push_back("IS_INSTANCED");
   }
 
   if (spec.meshFeatures.flags.test(MeshFeatures::IsAnimated)) {
@@ -242,6 +243,10 @@ ShaderSource ShaderCompilerImpl::loadFragShaderSource(const ShaderProgramSpec& s
   source.type = ShaderType::Fragment;
   source.fileName = selectFragShader(spec);
   source.source = readBinaryFile(m_sourcesDir / "fragment" / (source.fileName + ".glsl"));
+
+  if (spec.meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
+    source.defines.push_back("IS_INSTANCED");
+  }
 
   if (isShadowPass(spec.renderPass)) {
     source.defines.push_back("RENDER_PASS_SHADOW");

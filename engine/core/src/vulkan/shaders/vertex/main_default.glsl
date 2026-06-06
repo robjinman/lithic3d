@@ -24,11 +24,19 @@ layout(std140, set = DESCRIPTOR_SET_OBJECT, binding = 0) uniform JointTransforms
 } joints;
 #endif
 
+#ifdef IS_INSTANCED
+struct DummyConstants
+{
+  uint shadowCascadeIndex;
+};
+const DummyConstants constants = DummyConstants(0);
+#else
 layout(push_constant) uniform PushConstants
 {
   mat4 modelMatrix;
   uint shadowCascadeIndex;
 } constants;
+#endif
 
 #if defined(FEATURE_TEXTURE_MAPPING) || defined(FEATURE_NORMAL_MAPPING)
 layout(location = 0) out vec2 outTexCoord;

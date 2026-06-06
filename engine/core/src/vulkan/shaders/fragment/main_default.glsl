@@ -27,10 +27,19 @@ layout(location = 8) in vec3 inBitangent;
 layout(location = 0) out vec4 outColour;
 #endif
 
+#ifdef IS_INSTANCED
+// TODO
+struct DummyConstants
+{
+  vec4 colour;
+};
+const DummyConstants constants = DummyConstants(vec4(1.0, 1.0, 1.0, 1.0));
+#else
 layout(push_constant) uniform PushConstants
 {
   layout(offset = 80) vec4 colour;
 } constants;
+#endif
 
 void main()
 {

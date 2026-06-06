@@ -883,13 +883,20 @@ void RenderResourcesImpl::createDescriptorPool()
 {
   DBG_TRACE(m_logger);
 
-  std::array<VkDescriptorPoolSize, 2> poolSizes{};
-
-  poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = 1000; // TODO
-
-  poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = 1000; // TODO
+  std::array<VkDescriptorPoolSize, 3> poolSizes{
+    VkDescriptorPoolSize{
+      .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = 1000
+    },
+    VkDescriptorPoolSize{
+      .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1000
+    },
+    VkDescriptorPoolSize{
+      .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = 10
+    }
+  };
 
   VkDescriptorPoolCreateInfo poolInfo{
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
