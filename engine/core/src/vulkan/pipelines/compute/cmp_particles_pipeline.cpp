@@ -145,7 +145,7 @@ void CmpParticlesPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, si
   vkCmdPushConstants(commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
     sizeof(PushConstants), &pushConstants);
 
-  vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
+  vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 128, 1, 1);
 }
 
 CmpParticlesPipeline::~CmpParticlesPipeline()

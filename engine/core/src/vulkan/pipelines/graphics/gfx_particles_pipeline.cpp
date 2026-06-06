@@ -130,12 +130,6 @@ GfxParticlesPipeline::GfxParticlesPipeline(const ShaderProgramSpec& spec,
     VkVertexInputAttributeDescription{
       .location = 3,
       .binding = 1,
-      .format = VK_FORMAT_R32_SFLOAT,
-      .offset = offsetof(Particle, size)
-    },
-    VkVertexInputAttributeDescription{
-      .location = 4,
-      .binding = 1,
       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
       .offset = offsetof(Particle, colour)
     }

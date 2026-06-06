@@ -67,6 +67,9 @@ LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
   float f = -min[2];    // Negate because the orthographic function expects positive values for n
                         // and f (when their z is negative)
 
+  // Pull the near plane back a bit so objects that are slightly out of view can cast a shadow
+  n -= metresToWorldUnits(15.f);
+
   P.projectionMatrix = orthographic(l, r, t, b, n, f);
   P.frustum = computeFrustumFromMatrix(P.projectionMatrix * P.viewMatrix);
 

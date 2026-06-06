@@ -16,7 +16,7 @@ namespace render
 const uint32_t MAX_POINT_LIGHTS = 4;
 const uint32_t MAX_JOINTS = 128;
 
-const uint32_t PARTICLE_COUNT = 512; // TODO
+const uint32_t PARTICLE_COUNT = 128; // TODO
 
 // TODO: Hide these inside cpp file?
 #pragma pack(push, 4)
@@ -74,7 +74,7 @@ struct ParticlesUbo
 struct Particle
 {
   Vec3f position;
-  float size;
+  uint8_t _pad0[4];
   Vec4f colour;
   Vec3f velocity;
   uint8_t _pad1[4];
