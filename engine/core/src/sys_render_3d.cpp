@@ -423,6 +423,8 @@ void SysRender3dImpl::removeEntity(EntityId entityId)
 {
   m_pointLights.erase(entityId);
   m_models.erase(entityId);
+  m_animationStates.erase(entityId);
+  m_particleEmitters.erase(entityId);
   if (m_skybox.first == entityId) {
     m_skybox = { NULL_ENTITY_ID, nullptr };
   }
