@@ -63,18 +63,19 @@ void autoHideNavBar(android_app* state)
 GamepadButton buttonCode(int32_t key)
 {
   switch (key) {
-    case AKEYCODE_BUTTON_A:   return GamepadButton::A;
-    case AKEYCODE_BUTTON_B:   return GamepadButton::B;
-    case AKEYCODE_BUTTON_X:   return GamepadButton::X;
-    case AKEYCODE_BUTTON_Y:   return GamepadButton::Y;
-    case AKEYCODE_BUTTON_L1:  return GamepadButton::L1;
-    case AKEYCODE_BUTTON_L2:  return GamepadButton::L2;
-    case AKEYCODE_BUTTON_R1:  return GamepadButton::R1;
-    case AKEYCODE_BUTTON_R2:  return GamepadButton::R2;
-    case AKEYCODE_DPAD_UP:    return GamepadButton::Up;
-    case AKEYCODE_DPAD_DOWN:  return GamepadButton::Down;
-    case AKEYCODE_DPAD_LEFT:  return GamepadButton::Left;
-    case AKEYCODE_DPAD_RIGHT: return GamepadButton::Right;
+    case AKEYCODE_BUTTON_A:     return GamepadButton::A;
+    case AKEYCODE_BUTTON_B:     return GamepadButton::B;
+    case AKEYCODE_BUTTON_X:     return GamepadButton::X;
+    case AKEYCODE_BUTTON_Y:     return GamepadButton::Y;
+    case AKEYCODE_BUTTON_L1:    return GamepadButton::L1;
+    case AKEYCODE_BUTTON_L2:    return GamepadButton::L2;
+    case AKEYCODE_BUTTON_R1:    return GamepadButton::R1;
+    case AKEYCODE_BUTTON_R2:    return GamepadButton::R2;
+    case AKEYCODE_DPAD_UP:      return GamepadButton::Up;
+    case AKEYCODE_DPAD_DOWN:    return GamepadButton::Down;
+    case AKEYCODE_DPAD_LEFT:    return GamepadButton::Left;
+    case AKEYCODE_DPAD_RIGHT:   return GamepadButton::Right;
+    case AKEYCODE_BUTTON_START: return GamepadButton::Start;
     default: return GamepadButton::Unknown;
   }
 }
@@ -332,6 +333,8 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
   if (m_app) {
     int32_t eventType = AInputEvent_getType(&event);
 
+    m_logger.debug(STR("Input event, type = " << eventType));
+
     if (eventType == AINPUT_EVENT_TYPE_KEY) {
       int32_t action = AKeyEvent_getAction(&event);
       int32_t key = AKeyEvent_getKeyCode(&event);
@@ -359,6 +362,8 @@ int32_t EventHandler::onInputEvent(const AInputEvent& event)
     }
     if (eventType == AINPUT_EVENT_TYPE_MOTION) {
       auto src = AInputEvent_getSource(&event);
+
+      m_logger.debug(STR("Input event, source = " << src));
 
       if (src == AINPUT_SOURCE_JOYSTICK || src == AINPUT_SOURCE_GAMEPAD
         || src == AINPUT_SOURCE_DPAD) {

@@ -1904,8 +1904,7 @@ bool RendererImpl::isPhysicalDeviceSuitable(VkPhysicalDevice device) const
   VkPhysicalDeviceFeatures supportedFeatures;
   vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-  return swapchainAdequate && indices.isComplete() && supportedFeatures.samplerAnisotropy &&
-    supportedFeatures.fillModeNonSolid;
+  return swapchainAdequate && indices.isComplete() && supportedFeatures.samplerAnisotropy;
 }
 
 void RendererImpl::createLogicalDevice()
@@ -1938,7 +1937,6 @@ void RendererImpl::createLogicalDevice()
   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
   deviceFeatures2.pNext = nullptr;
   deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
-  deviceFeatures2.features.fillModeNonSolid = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
