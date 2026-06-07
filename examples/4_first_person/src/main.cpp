@@ -104,7 +104,7 @@ void Demo::constructSkybox()
 
   auto render = std::make_unique<DSkybox>();
   render->model = std::make_unique<Submodel>();
-  render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+  render->model->lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)) };
   render->model->material =
     m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait();
 
@@ -151,7 +151,7 @@ EntityId Demo::constructLight()
 DModelPtr Demo::loadModel()
 {
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("monkey.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("monkey.gltf", 0).wait();
 
   return render;
 }
@@ -198,7 +198,7 @@ void Demo::constructModels()
 
 EntityId Demo::constructGround()
 {
-  auto material = m_factory->createMaterialAsync("ground.png").wait();
+  auto material = m_factory->createMaterialAsync("ground.png", true).wait();
 
   auto id = m_factory->createStaticCuboid(m_engine.ecs().system<SysSpatial>().root(),
     Vec3f{ 200.f, 1.f, 200.f }, material, Vec2f{ 5.f, 5.f }, 0.f, 0.4);

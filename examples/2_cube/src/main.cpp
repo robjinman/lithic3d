@@ -57,7 +57,7 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructCube()
 {
-  auto material = m_factory->createMaterialAsync("bricks.png");
+  auto material = m_factory->createMaterialAsync("bricks.png", true);
   auto size = Vec3f{ 1.f, 1.f, 1.f };
   auto texSize = Vec2f{ 1.f, 1.f };
   return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
@@ -108,7 +108,7 @@ EntityId Demo::constructCaption()
     }
   };
   material->textures = {
-    m_engine.renderResourceLoader().loadTextureAsync("fonts.png").wait()
+    m_engine.renderResourceLoader().loadTextureAsync("fonts.png", false).wait()
   };
 
   DText render{

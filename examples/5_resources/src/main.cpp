@@ -69,8 +69,8 @@ void Demo::loadCubeResources()
   auto model = std::make_unique<Model>();
   model->submodels.push_back(
     std::unique_ptr<Submodel>(new Submodel{
-      .mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)),
-      .material = m_factory->createMaterialAsync("bricks.png").wait(),
+      .lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)) },
+      .material = m_factory->createMaterialAsync("bricks.png", true).wait(),
       .skin = nullptr,
       .jointTransforms{}
     })
@@ -181,7 +181,7 @@ EntityId Demo::constructCaption()
       bitflag(MaterialFeatures::HasTexture)
     }
   };
-  material->textures = { m_engine.renderResourceLoader().loadTextureAsync("fonts.png") };
+  material->textures = { m_engine.renderResourceLoader().loadTextureAsync("fonts.png", false) };
 
   DText render{
     .scissor = 0,

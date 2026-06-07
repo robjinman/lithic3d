@@ -47,7 +47,7 @@ Demo::Demo(Engine& engine)
   auto camPos = metresToWorldUnits(Vec3f{ 0.f, 0.f, 20.f });
   m_engine.ecs().system<SysRender3d>().camera().setPosition(camPos);
 
-  auto model = m_engine.modelLoader().loadModelAsync("indicator.gltf").wait();
+  auto model = m_engine.modelLoader().loadModelAsync("indicator.gltf", 0).wait();
 
   constructLight();
   m_parent = constructParent(model);
@@ -147,7 +147,7 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterialAsync("fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("fonts.png", false).wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),

@@ -88,7 +88,7 @@ EntityId Demo::constructModel()
   sysSpatial.addEntity(id, spatial);
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("monkey.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("monkey.gltf", 0).wait();
 
   sysRender3d.addEntity(id, std::move(render));
 
@@ -114,7 +114,7 @@ EntityId Demo::constructCaption()
 
   DText render{
     .scissor = 0,
-    .material = m_factory->createMaterialAsync("fonts.png").wait(),
+    .material = m_factory->createMaterialAsync("fonts.png", false).wait(),
     .textureRect = {
       .x = pxToUvX(768.f, 1024.f),
       .y = pxToUvY(0.f, 256.f, 256.f),

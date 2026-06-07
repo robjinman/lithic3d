@@ -17,6 +17,7 @@ namespace render
 namespace
 {
 
+const Tick UNLOAD_DELAY = TICKS_PER_SECOND / 2;
 const uint32_t SAMPLER_ARRAY_LEN = 5;
 
 template<typename T, size_t N>
@@ -377,7 +378,7 @@ void RenderResourcesImpl::removeTexture(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+  m_scheduler.run(UNLOAD_DELAY, [this, id]() {
     std::scoped_lock lock{m_mutex};
 
     auto i = m_textures.find(id);
@@ -394,7 +395,7 @@ void RenderResourcesImpl::removeCubeMap(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+  m_scheduler.run(UNLOAD_DELAY, [this, id]() {
     std::scoped_lock lock{m_mutex};
 
     auto i = m_cubeMaps.find(id);
@@ -483,7 +484,7 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+  m_scheduler.run(UNLOAD_DELAY, [this, id]() {
     std::scoped_lock lock{m_mutex};
 
     auto i = m_meshes.find(id);
@@ -713,7 +714,7 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
   DBG_TRACE(m_logger);
   assertResourceThread();
 
-  m_scheduler.run(MAX_FRAMES_IN_FLIGHT, [this, id]() {
+  m_scheduler.run(UNLOAD_DELAY, [this, id]() {
     std::scoped_lock lock{m_mutex};
 
     auto i = m_materials.find(id);

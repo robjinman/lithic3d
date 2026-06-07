@@ -118,7 +118,7 @@ EntityId Demo::constructLight()
   auto lightMesh = cuboid(Vec3f{ 1.f, 1.f, 1.f }, { 1.f, 1.f });
   auto lightMaterial = std::make_unique<Material>();
   lightMaterial->colour = colour;
-  lightModel->mesh = resourceLoader.loadMeshAsync(std::move(lightMesh));
+  lightModel->lods = { resourceLoader.loadMeshAsync(std::move(lightMesh)) };
   lightModel->material = resourceLoader.loadMaterialAsync(std::move(lightMaterial)).wait();
 
   auto light = std::make_unique<DPointLight>();
@@ -161,7 +161,7 @@ void Demo::constructSkybox()
 
   auto render = std::make_unique<DSkybox>();
   render->model = std::make_unique<Submodel>();
-  render->model->mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh));
+  render->model->lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)) };
   render->model->material =
     m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait();
 
@@ -198,7 +198,7 @@ EntityId Demo::constructCaption()
     }
   };
   material->textures = {
-    m_engine.renderResourceLoader().loadTextureAsync("fonts.png").wait()
+    m_engine.renderResourceLoader().loadTextureAsync("fonts.png", false).wait()
   };
 
   DText render{

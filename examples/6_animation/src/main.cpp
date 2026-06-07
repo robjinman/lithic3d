@@ -90,7 +90,7 @@ EntityId Demo::constructModel()
   sysSpatial.addEntity(id, spatial);
 
   auto render = std::make_unique<DModel>();
-  render->model = m_engine.modelLoader().loadModelAsync("demon.gltf").wait();
+  render->model = m_engine.modelLoader().loadModelAsync("demon.gltf", 0).wait();
 
   sysRender3d.addEntity(id, std::move(render));
 

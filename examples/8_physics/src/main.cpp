@@ -292,7 +292,7 @@ void Demo::constructScenario(size_t i)
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
-  auto material = m_factory->createMaterialAsync("bricks.png");
+  auto material = m_factory->createMaterialAsync("bricks.png", true);
   auto texSize = Vec2f{ 1.f, 1.f };
 
   for (auto& obj : m_scenarios[i].boxes) {
@@ -336,7 +336,7 @@ void Demo::constructScenario(size_t i)
 
       model->submodels.push_back(
         std::unique_ptr<Submodel>(new Submodel{
-          .mesh = m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait(),
+          .lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait() },
           .material = material.wait(),
           .skin = nullptr,
           .jointTransforms{}
@@ -432,7 +432,7 @@ void Demo::constructTerrain()
 void Demo::constructGround()
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto material = m_factory->createMaterialAsync("grass.png");
+  auto material = m_factory->createMaterialAsync("grass.png", true);
   auto size = Vec3f{ 200.f, 4.f, 200.f };
   auto texSize = Vec2f{ 10.f, 10.f };
   auto id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
@@ -487,7 +487,7 @@ EntityId Demo::constructCaption()
     }
   };
   material->textures = {
-    m_engine.renderResourceLoader().loadTextureAsync("fonts.png").wait()
+    m_engine.renderResourceLoader().loadTextureAsync("fonts.png", false).wait()
   };
 
   DText render{
@@ -521,7 +521,7 @@ void Demo::enablePhysics()
     auto id = m_boxes[i];
 
     if (!obj.infiniteMass && !obj.isStatic) {
-      const float scale = 1.f;//WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE * WORLD_UNITS_PER_METRE;
+      const float scale = 1.f;
       auto invMass = 1.f / (obj.dimensions[0] * obj.dimensions[1] * obj.dimensions[2] * scale);
       sysCollision.setInverseMass(id, invMass);
     }
