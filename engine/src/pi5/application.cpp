@@ -342,6 +342,9 @@ void Application::run()
 
 void Application::cleanUp()
 {
+  m_engine->resourceManager().deactivate();
+  m_game.reset();
+  m_engine.reset();
 }
 
 Application::~Application()
