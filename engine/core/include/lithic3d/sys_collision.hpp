@@ -131,6 +131,16 @@ struct CCollisionDynamic
   static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
 };
 
+enum class CollisionComponentType
+{
+  StaticBox,
+  DynamicBox,
+  TerrainChunk,
+  Aggregate,
+  Capsule,
+  Polyhedron
+};
+
 struct DDynamicBox
 {
   using RequiredComponents = type_list<
@@ -167,6 +177,8 @@ struct DTerrainChunk
   HeightMap heightMap;
 };
 
+// For now, polyhedra are static
+// TODO: Do we even need polyhedra?
 struct DPolyhedron
 {
   using RequiredComponents = type_list<
@@ -175,7 +187,6 @@ struct DPolyhedron
 
   float restitution = 0.2f;
   float friction = 0.4f;
-  Vec3f centreOfMass;
   std::vector<Vec3f> vertices;
   std::vector<uint16_t> indices;
 };
@@ -188,8 +199,8 @@ struct DAggregate
 
   std::vector<DStaticBox> boxes;
   std::vector<Mat4x4f> boxTransforms;
-  std::vector<DPolyhedron> polyhedra;
-  std::vector<Mat4x4f> polyhedraTransforms;
+  //std::vector<DPolyhedron> polyhedra;
+  //std::vector<Mat4x4f> polyhedraTransforms;
 };
 
 struct DCapsule
@@ -228,6 +239,9 @@ class SysCollision : public System
     virtual void addEntity(EntityId id, const DPolyhedron& data) = 0;
     virtual void addEntity(EntityId id, const DCapsule& data) = 0;
     virtual void addEntity(EntityId id, const DAggregate& data) = 0;
+
+    virtual const std::vector<EntityId>& getAggregateChildren(EntityId entityId) const = 0;
+    virtual CollisionComponentType componentType(EntityId entityId) const = 0;
 
     virtual std::vector<Intersection> getIntersecting(const Vec3f& rayStart,
       const Vec3f& rayEnd) const = 0;

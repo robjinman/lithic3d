@@ -5,6 +5,8 @@
 #include "tools.hpp"
 #include <lithic3d/engine.hpp>
 #include <lithic3d/sys_collision.hpp>
+#include <wx/spinctrl.h>
+#include <wx/choicebk.h>
 
 using namespace lithic3d;
 
@@ -14,24 +16,26 @@ namespace
 class BoundingBoxPanel
 {
   public:
-    explicit BoundingBoxPanel(wxWindow* parent, EntityEditMode& mode);
+    BoundingBoxPanel(wxWindow* parent, uint32_t index, EntityEditMode& mode);
 
     wxWindow* getWxPtr();
     bool hasChanges() const;
     void setBoundingBox(const BoundingBox& box, bool resetDirtyFlag = true);
+    void setActive();
 
   private:
     EntityEditMode& m_mode;
+    uint32_t m_index; // TODO: Remove
     wxPanel* m_panel = nullptr;
-    wxButton* m_btnTool = nullptr;
+    wxButton* m_btnEdit = nullptr;
     wxCheckBox* m_chkRender = nullptr;
     TransformPanelPtr m_transformPanel;
-    wxTextCtrl* m_txtXMin = nullptr;
-    wxTextCtrl* m_txtXMax = nullptr;
-    wxTextCtrl* m_txtYMin = nullptr;
-    wxTextCtrl* m_txtYMax = nullptr;
-    wxTextCtrl* m_txtZMin = nullptr;
-    wxTextCtrl* m_txtZMax = nullptr;
+    wxSpinCtrlDouble* m_spnXMin = nullptr;
+    wxSpinCtrlDouble* m_spnXMax = nullptr;
+    wxSpinCtrlDouble* m_spnYMin = nullptr;
+    wxSpinCtrlDouble* m_spnYMax = nullptr;
+    wxSpinCtrlDouble* m_spnZMin = nullptr;
+    wxSpinCtrlDouble* m_spnZMax = nullptr;
     bool m_hasChanges = false;
 
     void onToolToggle();
@@ -40,8 +44,9 @@ class BoundingBoxPanel
     BoundingBox getBoundingBox() const;
 };
 
-BoundingBoxPanel::BoundingBoxPanel(wxWindow* parent, EntityEditMode& mode)
+BoundingBoxPanel::BoundingBoxPanel(wxWindow* parent, uint32_t index, EntityEditMode& mode)
   : m_mode(mode)
+  , m_index(index)
 {
   m_panel = new wxPanel(parent, wxID_ANY);
 
@@ -51,9 +56,9 @@ BoundingBoxPanel::BoundingBoxPanel(wxWindow* parent, EntityEditMode& mode)
   vbox->Add(m_chkRender, wxSizerFlags().Expand());
 
   auto transformBoxSizer = new wxStaticBoxSizer(wxVERTICAL, m_panel, "Transform");
-  m_btnTool = new wxButton(transformBoxSizer->GetStaticBox(), wxID_ANY, "Edit");
+  m_btnEdit = new wxButton(transformBoxSizer->GetStaticBox(), wxID_ANY, "Edit");
   m_transformPanel = createTransformPanel(transformBoxSizer->GetStaticBox());
-  transformBoxSizer->Add(m_btnTool);
+  transformBoxSizer->Add(m_btnEdit);
   transformBoxSizer->Add(m_transformPanel->getWxPtr(), wxSizerFlags(1).Expand());
 
   vbox->Add(transformBoxSizer, wxSizerFlags(1).Expand());
@@ -61,34 +66,38 @@ BoundingBoxPanel::BoundingBoxPanel(wxWindow* parent, EntityEditMode& mode)
   auto grid = new wxFlexGridSizer(4);
 
   auto lblXMin = new wxStaticText(m_panel, wxID_ANY, "Min X");
-  m_txtXMin = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnXMin = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblXMax = new wxStaticText(m_panel, wxID_ANY, "Max X");
-  m_txtXMax = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
-
+  m_spnXMax = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblYMin = new wxStaticText(m_panel, wxID_ANY, "Min Y");
-  m_txtYMin = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnYMin = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblYMax = new wxStaticText(m_panel, wxID_ANY, "Max Y");
-  m_txtYMax = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
-
+  m_spnYMax = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblZMin = new wxStaticText(m_panel, wxID_ANY, "Min Z");
-  m_txtZMin = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnZMin = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblZMax = new wxStaticText(m_panel, wxID_ANY, "Max Z");
-  m_txtZMax = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnZMax = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
 
   grid->Add(lblXMin, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtXMin, wxSizerFlags().Expand());
+  grid->Add(m_spnXMin, wxSizerFlags().Expand());
   grid->Add(lblXMax, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtXMax, wxSizerFlags().Expand());
+  grid->Add(m_spnXMax, wxSizerFlags().Expand());
 
   grid->Add(lblYMin, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtYMin, wxSizerFlags().Expand());
+  grid->Add(m_spnYMin, wxSizerFlags().Expand());
   grid->Add(lblYMax, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtYMax, wxSizerFlags().Expand());
+  grid->Add(m_spnYMax, wxSizerFlags().Expand());
 
   grid->Add(lblZMin, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtZMin, wxSizerFlags().Expand());
+  grid->Add(m_spnZMin, wxSizerFlags().Expand());
   grid->Add(lblZMax, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtZMax, wxSizerFlags().Expand());
+  grid->Add(m_spnZMax, wxSizerFlags().Expand());
 
   grid->AddGrowableCol(1);
   grid->AddGrowableCol(3);
@@ -99,19 +108,24 @@ BoundingBoxPanel::BoundingBoxPanel(wxWindow* parent, EntityEditMode& mode)
 
   m_chkRender->Bind(wxEVT_CHECKBOX, [this](wxEvent&) { onRenderToggle(); });
 
-  m_btnTool->Bind(wxEVT_BUTTON, [this](wxEvent&) { onToolToggle(); });
+  m_btnEdit->Bind(wxEVT_BUTTON, [this](wxEvent&) { onToolToggle(); });
 
-  m_txtXMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtXMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtYMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtYMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtZMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtZMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnXMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnXMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnYMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnYMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnZMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnZMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+}
+
+void BoundingBoxPanel::setActive()
+{
+  m_mode.updateBoundingBox(getBoundingBox(), m_index);
 }
 
 void BoundingBoxPanel::onRenderToggle()
 {
-  m_mode.renderBoundingBox(m_chkRender->GetValue());
+  m_mode.renderBoundingBox(m_index, m_chkRender->GetValue());
 }
 
 void BoundingBoxPanel::onChange()
@@ -123,7 +137,7 @@ void BoundingBoxPanel::onChange()
 
   //wxPostEvent(m_panel, event);
 
-  m_mode.updateBoundingBox(getBoundingBox());
+  m_mode.updateBoundingBox(getBoundingBox(), m_index);
 }
 
 void BoundingBoxPanel::onToolToggle()
@@ -133,7 +147,7 @@ void BoundingBoxPanel::onToolToggle()
 
   //wxPostEvent(m_panel, event);
 
-  m_mode.selectBoundingBox();
+  m_mode.selectBoundingBox(m_index);
 }
 
 bool BoundingBoxPanel::hasChanges() const
@@ -150,12 +164,14 @@ void BoundingBoxPanel::setBoundingBox(const BoundingBox& box, bool resetDirtyFla
 {
   m_transformPanel->setTransform(box.transform);
 
-  m_txtXMin->SetValue(std::to_string(worldUnitsToMetres(box.min[0])));
-  m_txtXMax->SetValue(std::to_string(worldUnitsToMetres(box.max[0])));
-  m_txtYMin->SetValue(std::to_string(worldUnitsToMetres(box.min[1])));
-  m_txtYMax->SetValue(std::to_string(worldUnitsToMetres(box.max[1])));
-  m_txtZMin->SetValue(std::to_string(worldUnitsToMetres(box.min[2])));
-  m_txtZMax->SetValue(std::to_string(worldUnitsToMetres(box.max[2])));
+  m_spnXMin->SetValue(std::to_string(worldUnitsToMetres(box.min[0])));
+  m_spnXMax->SetValue(std::to_string(worldUnitsToMetres(box.max[0])));
+  m_spnYMin->SetValue(std::to_string(worldUnitsToMetres(box.min[1])));
+  m_spnYMax->SetValue(std::to_string(worldUnitsToMetres(box.max[1])));
+  m_spnZMin->SetValue(std::to_string(worldUnitsToMetres(box.min[2])));
+  m_spnZMax->SetValue(std::to_string(worldUnitsToMetres(box.max[2])));
+
+  m_mode.updateBoundingBox(getBoundingBox(), m_index);
 
   m_hasChanges = !resetDirtyFlag;
 }
@@ -164,17 +180,288 @@ BoundingBox BoundingBoxPanel::getBoundingBox() const
 {
   return {
     .min = metresToWorldUnits(Vec3f{
-      std::stof(m_txtXMin->GetValue().ToStdString()),
-      std::stof(m_txtYMin->GetValue().ToStdString()),
-      std::stof(m_txtZMin->GetValue().ToStdString())
+      static_cast<float>(m_spnXMin->GetValue()),
+      static_cast<float>(m_spnYMin->GetValue()),
+      static_cast<float>(m_spnZMin->GetValue())
     }),
     .max = metresToWorldUnits(Vec3f{
-      std::stof(m_txtXMax->GetValue().ToStdString()),
-      std::stof(m_txtYMax->GetValue().ToStdString()),
-      std::stof(m_txtZMax->GetValue().ToStdString())
+      static_cast<float>(m_spnXMax->GetValue()),
+      static_cast<float>(m_spnYMax->GetValue()),
+      static_cast<float>(m_spnZMax->GetValue())
     }),
     .transform = m_transformPanel->getTransform()
   };
+}
+
+class CollisionSubtypePanel
+{
+  public:
+    virtual wxWindow* getWxPtr() = 0;
+    virtual void setActive() = 0;
+    virtual bool hasChanges() const = 0;
+    virtual void repopulateFromMode() = 0;
+
+    virtual ~CollisionSubtypePanel() = default;
+};
+
+using CollisionSubtypePanelPtr = std::unique_ptr<CollisionSubtypePanel>;
+
+class DynamicBoxPanel : public CollisionSubtypePanel
+{
+  public:
+    DynamicBoxPanel(wxWindow* parent, EntityId entityId, EditorCore& editorCore,
+      EntityEditMode& mode);
+
+    wxWindow* getWxPtr() override;
+    void setActive() override;
+    bool hasChanges() const override;
+    void repopulateFromMode() override;
+
+  private:
+    EditorCore& m_core;
+    EntityEditMode& m_mode;
+    wxWindow* m_window = nullptr;
+    std::unique_ptr<BoundingBoxPanel> m_boundingBoxPanel;
+};
+
+DynamicBoxPanel::DynamicBoxPanel(wxWindow* parent, EntityId entityId, EditorCore& editorCore,
+  EntityEditMode& mode)
+  : m_core(editorCore)
+  , m_mode(mode)
+{
+  m_window = new wxPanel(parent, wxID_ANY);
+
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+
+  // TODO:
+  // - Friction
+  // - Restitution
+  // - Centre of mass
+
+  auto boxSizer = new wxStaticBoxSizer(wxVERTICAL, m_window, "Bounding Box");
+  m_boundingBoxPanel = std::make_unique<BoundingBoxPanel>(boxSizer->GetStaticBox(), 0, mode);
+  boxSizer->Add(m_boundingBoxPanel->getWxPtr(), wxSizerFlags(1).Expand());
+
+  vbox->Add(boxSizer, wxSizerFlags(1).Expand());
+
+  m_window->SetSizer(vbox);
+
+  auto& componentStore = m_core.engine().ecs().componentStore();
+  assert(componentStore.hasComponentForEntity<CCollisionBox>(entityId));
+
+  auto& bboxComp = componentStore.component<CCollisionBox>(entityId);
+  m_boundingBoxPanel->setBoundingBox(bboxComp.boundingBox);
+}
+
+void DynamicBoxPanel::setActive()
+{
+  m_boundingBoxPanel->setActive();
+}
+
+bool DynamicBoxPanel::hasChanges() const
+{
+  return m_boundingBoxPanel->hasChanges();
+}
+
+void DynamicBoxPanel::repopulateFromMode()
+{
+  m_boundingBoxPanel->setBoundingBox(m_mode.getBoundingBox(0), false);
+}
+
+wxWindow* DynamicBoxPanel::getWxPtr()
+{
+  return m_window;
+}
+
+class StaticBoxPanel : public CollisionSubtypePanel
+{
+  public:
+    StaticBoxPanel(wxWindow* parent, EntityId entityId, uint32_t index, EditorCore& editorCore,
+      EntityEditMode& mode);
+
+    wxWindow* getWxPtr() override;
+    void setActive() override;
+    bool hasChanges() const override;
+    void repopulateFromMode() override;
+
+  private:
+    EditorCore& m_core;
+    EntityEditMode& m_mode;
+    uint32_t m_index;
+    wxWindow* m_window = nullptr;
+    std::unique_ptr<BoundingBoxPanel> m_boundingBoxPanel;
+};
+
+StaticBoxPanel::StaticBoxPanel(wxWindow* parent, EntityId entityId, uint32_t index,
+  EditorCore& editorCore, EntityEditMode& mode)
+  : m_core(editorCore)
+  , m_mode(mode)
+  , m_index(index)
+{
+  m_window = new wxPanel(parent, wxID_ANY);
+
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+
+  // TODO:
+  // - Friction
+  // - Restitution
+
+  auto boxSizer = new wxStaticBoxSizer(wxVERTICAL, m_window, "Bounding Box");
+  m_boundingBoxPanel = std::make_unique<BoundingBoxPanel>(boxSizer->GetStaticBox(), m_index, mode);
+  boxSizer->Add(m_boundingBoxPanel->getWxPtr(), wxSizerFlags(1).Expand());
+
+  vbox->Add(boxSizer, wxSizerFlags(1).Expand());
+
+  m_window->SetSizer(vbox);
+
+  auto& componentStore = m_core.engine().ecs().componentStore();
+  assert(componentStore.hasComponentForEntity<CCollisionBox>(entityId));
+
+  auto& bboxComp = componentStore.component<CCollisionBox>(entityId);
+  m_boundingBoxPanel->setBoundingBox(bboxComp.boundingBox);
+}
+
+void StaticBoxPanel::setActive()
+{
+  m_boundingBoxPanel->setActive();
+}
+
+bool StaticBoxPanel::hasChanges() const
+{
+  return m_boundingBoxPanel->hasChanges();
+}
+
+void StaticBoxPanel::repopulateFromMode()
+{
+  m_boundingBoxPanel->setBoundingBox(m_mode.getBoundingBox(m_index), false);
+}
+
+wxWindow* StaticBoxPanel::getWxPtr()
+{
+  return m_window;
+}
+
+class AggregatePanel : public CollisionSubtypePanel
+{
+  public:
+    AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& editorCore,
+      EntityEditMode& mode);
+
+    wxWindow* getWxPtr() override;
+    void setActive() override;
+    bool hasChanges() const override;
+    void repopulateFromMode() override;
+
+  private:
+    EditorCore& m_core;
+    EntityEditMode& m_mode;
+    wxWindow* m_window = nullptr;
+    wxPanel* m_partInfoPanel = nullptr;
+    std::vector<CollisionSubtypePanelPtr> m_partPanels;
+    wxChoicebook* m_chcParts = nullptr;
+
+    void onPartCreate();
+    void onPartSelect();
+};
+
+AggregatePanel::AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& editorCore,
+  EntityEditMode& mode)
+  : m_core(editorCore)
+  , m_mode(mode)
+{
+  m_window = new wxPanel(parent, wxID_ANY);
+
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+
+  m_chcParts = new wxChoicebook(m_window, wxID_ANY);
+
+  auto cboType = new wxChoice(m_window, wxID_ANY);
+  auto btnCreate = new wxButton(m_window, wxID_ANY, "Create new");
+  auto hbox = new wxBoxSizer(wxHORIZONTAL);
+  hbox->Add(cboType, wxSizerFlags(1).Expand());
+  hbox->Add(btnCreate, wxSizerFlags(1).Expand());
+
+  m_partInfoPanel = new wxPanel(m_window, wxID_ANY);
+
+  vbox->Add(m_chcParts, wxSizerFlags(1).Expand());
+  vbox->Add(hbox, wxSizerFlags(0).Expand());
+  vbox->Add(m_partInfoPanel, wxSizerFlags(1).Expand());
+
+  m_window->SetSizer(vbox);
+
+  btnCreate->Bind(wxEVT_BUTTON, [this](wxEvent&) { onPartCreate(); });
+  m_chcParts->Bind(wxEVT_CHOICEBOOK_PAGE_CHANGED, [this](wxEvent&) { onPartSelect(); });
+
+  auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
+  auto& children = sysCollision.getAggregateChildren(entityId);
+
+  m_chcParts->DeleteAllPages();
+  m_partPanels.clear();
+
+  for (size_t i = 0; i < children.size(); ++i) {
+    auto type = sysCollision.componentType(children[i]);
+    std::string typeName = "";
+    CollisionSubtypePanelPtr panel;
+
+    switch (type) {
+      case CollisionComponentType::StaticBox: {
+        typeName = "Static Box";
+        panel = std::make_unique<StaticBoxPanel>(m_window, children[i], i, m_core, m_mode);
+        break;
+      }
+      default: {
+        EXCEPTION("Unexpected component type in aggregate");
+      }
+    }
+
+    m_partPanels.push_back(std::move(panel));
+    m_chcParts->AddPage(m_partPanels.back()->getWxPtr(), STR("[" << i << "] " << typeName));
+  }
+
+  m_chcParts->SetSelection(0);
+}
+
+bool AggregatePanel::hasChanges() const
+{
+  for (auto& panel : m_partPanels) {
+    if (panel->hasChanges()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void AggregatePanel::repopulateFromMode()
+{
+  for (auto& panel : m_partPanels) {
+    panel->repopulateFromMode();
+  }
+}
+
+wxWindow* AggregatePanel::getWxPtr()
+{
+  return m_window;
+}
+
+void AggregatePanel::setActive()
+{
+  onPartSelect();
+}
+
+void AggregatePanel::onPartSelect()
+{
+  int idx = m_chcParts->GetSelection();
+  if (idx == wxNOT_FOUND) {
+    return;
+  }
+
+  m_partPanels[idx]->setActive();
+}
+
+void AggregatePanel::onPartCreate()
+{
+  // TODO
 }
 
 class CollisionComponentPanel : public ComponentPanel
@@ -182,7 +469,7 @@ class CollisionComponentPanel : public ComponentPanel
   public:
     CollisionComponentPanel(wxWindow* parent, EditorCore& editorCore, EntityEditMode& mode);
 
-    wxPanel* getWxPtr() override;
+    wxWindow* getWxPtr() override;
     bool hasChanges() const override;
     void populate(EntityId entityId) override;
     void repopulateFromMode() override;
@@ -190,9 +477,8 @@ class CollisionComponentPanel : public ComponentPanel
   private:
     EditorCore& m_core;
     EntityEditMode& m_mode;
+    CollisionSubtypePanelPtr m_componentPanel = nullptr;
     wxPanel* m_panel = nullptr;
-    std::unique_ptr<BoundingBoxPanel> m_boundingBoxPanel;
-    EntityId m_entityId = NULL_ENTITY_ID;
 };
 
 CollisionComponentPanel::CollisionComponentPanel(wxWindow* parent, EditorCore& editorCore,
@@ -201,44 +487,62 @@ CollisionComponentPanel::CollisionComponentPanel(wxWindow* parent, EditorCore& e
   , m_mode(mode)
 {
   m_panel = new wxPanel(parent, wxID_ANY);
-
-  auto vbox = new wxBoxSizer(wxVERTICAL);
-
-  auto boxSizer = new wxStaticBoxSizer(wxVERTICAL, m_panel, "Bounding Box");
-  m_boundingBoxPanel = std::make_unique<BoundingBoxPanel>(boxSizer->GetStaticBox(), m_mode);
-  boxSizer->Add(m_boundingBoxPanel->getWxPtr(), wxSizerFlags(1).Expand());
-
-  vbox->Add(boxSizer, wxSizerFlags(1).Expand());
-
-  m_panel->SetSizer(vbox);
 }
 
 bool CollisionComponentPanel::hasChanges() const
 {
-  return m_boundingBoxPanel->hasChanges();
+  if (m_componentPanel != nullptr) {
+    return m_componentPanel->hasChanges();
+  }
+  return false;
 }
 
 void CollisionComponentPanel::populate(EntityId entityId)
 {
-  m_entityId = entityId;
+  m_panel->DestroyChildren();
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+  m_panel->SetSizer(vbox, true);
 
-  auto& componentStore = m_core.engine().ecs().componentStore();
+  auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
 
-  if (componentStore.hasComponentForEntity<CCollisionBox>(entityId)) {
-    auto& bboxComp = componentStore.component<CCollisionBox>(entityId);
-    m_boundingBoxPanel->setBoundingBox(bboxComp.boundingBox);
+  wxString typeName = "";
+  auto type = sysCollision.componentType(entityId);
+
+  switch (type) {
+    case CollisionComponentType::StaticBox: {
+      typeName = "Static Box";
+      m_componentPanel = std::make_unique<StaticBoxPanel>(m_panel, entityId, 0, m_core, m_mode);
+      break;
+    }
+    case CollisionComponentType::DynamicBox: {
+      typeName = "Dynamic Box";
+      m_componentPanel = std::make_unique<DynamicBoxPanel>(m_panel, entityId, m_core, m_mode);
+      break;
+    }
+    case CollisionComponentType::Aggregate: {
+      typeName = "Aggregate";
+      m_componentPanel = std::make_unique<AggregatePanel>(m_panel, entityId, m_core, m_mode);
+      break;
+    }
+    default: EXCEPTION("Unrecognised collision component type");
   }
-  else {
-    // TODO
+
+  if (m_componentPanel != nullptr) {
+    auto lblComponentType = new wxStaticText(m_panel, wxID_ANY, STR("Type: " << typeName));
+
+    vbox->Add(lblComponentType, wxSizerFlags(0).Expand());
+    vbox->Add(m_componentPanel->getWxPtr(), wxSizerFlags(1).Expand());
   }
+
+  m_panel->Layout();
 }
 
 void CollisionComponentPanel::repopulateFromMode()
 {
-  m_boundingBoxPanel->setBoundingBox(m_mode.getBoundingBox(), false);
+  m_componentPanel->repopulateFromMode();
 }
 
-wxPanel* CollisionComponentPanel::getWxPtr()
+wxWindow* CollisionComponentPanel::getWxPtr()
 {
   return m_panel;
 }

@@ -321,12 +321,14 @@ struct Contact
   Mat3x3f fromContactSpace;
 };
 
+using PolyEdge = std::array<uint16_t, 2>;
+using PolyFace = std::array<uint16_t, 3>;
+
 struct PolyhedronData
 {
-  Vec3f centreOfMass;
   std::vector<Vec3f> vertices;
-  std::vector<std::array<uint16_t, 2>> edges;
-  std::vector<std::array<uint16_t, 3>> faces;
+  std::vector<PolyEdge> edges;
+  std::vector<PolyFace> faces;
 };
 
 using PolyhedronDataPtr = std::unique_ptr<PolyhedronData>;
@@ -342,6 +344,9 @@ class SysCollisionImpl : public SysCollision
     void addEntity(EntityId id, const DPolyhedron& data) override;
     void addEntity(EntityId id, const DCapsule& data) override;
     void addEntity(EntityId id, const DAggregate& data) override;
+
+    CollisionComponentType componentType(EntityId entityId) const override;
+    const std::vector<EntityId>& getAggregateChildren(EntityId entityId) const override;
 
     void setInverseMass(EntityId id, float inverseMass) override;
     void applyForce(EntityId id, const Vec3f& force, float seconds) override;
@@ -377,6 +382,12 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructDPolyhedron(const XmlNode& data) const;
     ComponentDataPtr constructDAggregate(const XmlNode& data) const;
 
+    XmlNodePtr staticBoxToXml(EntityId) const;
+    XmlNodePtr dynamicBoxToXml(EntityId) const;
+    XmlNodePtr capsuleToXml(EntityId) const;
+    XmlNodePtr polyhedronToXml(EntityId) const;
+    XmlNodePtr aggregateToXml(EntityId) const;
+
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
       const Force& torque);
@@ -398,6 +409,39 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem&, Logger& logger)
   //, m_eventSystem(eventSystem)
   , m_ecs(ecs)
 {
+}
+
+const std::vector<EntityId>& SysCollisionImpl::getAggregateChildren(EntityId entityId) const
+{
+  MAP_GET(i, m_aggregates, entityId);
+  return i->second;
+}
+
+CollisionComponentType SysCollisionImpl::componentType(EntityId entityId) const
+{
+  ASSERT(hasEntity(entityId), "Entity has no collision component");
+
+  auto& componentStore = m_ecs.componentStore();
+
+  bool hasBox = componentStore.hasComponentForEntity<CCollisionBox>(entityId);
+  if (hasBox) {
+    bool isDynamic = componentStore.hasComponentForEntity<CCollisionDynamic>(entityId);
+    return isDynamic ? CollisionComponentType::DynamicBox : CollisionComponentType::StaticBox;
+  }
+
+  bool hasCapsule = componentStore.hasComponentForEntity<CCollisionCapsule>(entityId);
+  if (hasCapsule) {
+    return CollisionComponentType::Capsule;
+  }
+
+  bool isTerrain = componentStore.hasComponentForEntity<CCollisionTerrain>(entityId);
+  if (isTerrain) {
+    return CollisionComponentType::TerrainChunk;
+  }
+
+  if (m_aggregates.contains(entityId)) {
+    return CollisionComponentType::Aggregate;
+  }
 }
 
 bool boxRayIntersect(const Mat4x4f& transform, const CCollisionBox& boxComp, const Vec3f& rayStart,
@@ -564,6 +608,16 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
   };
 }
 
+std::vector<PolyEdge> computePolyhedronEdges(const DPolyhedron& data)
+{
+  // TODO
+}
+
+std::vector<PolyFace> computePolyhedronFaces(const DPolyhedron& data)
+{
+  // TODO
+}
+
 void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
 {
   auto& componentStore = m_ecs.componentStore();
@@ -581,9 +635,11 @@ void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
   };
 
   auto poly = std::make_unique<PolyhedronData>();
-  poly->centreOfMass = data.centreOfMass;
+  poly->vertices = data.vertices;
+  poly->edges = computePolyhedronEdges(data);
+  poly->faces = computePolyhedronFaces(data);
 
-  // TODO
+  // TODO: Create component for polyhedron data?
 
   m_polyhedra[id] = std::move(poly);
 }
@@ -630,8 +686,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
 void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 {
   ASSERT(data.boxes.size() == data.boxTransforms.size(), "Incorrect number of box transforms");
-  ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
-    "Incorrect number of polyhedron transforms");
+  //ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
+  //  "Incorrect number of polyhedron transforms");
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
@@ -657,7 +713,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 
     m_aggregates[id].push_back(childId);
   }
-
+/*
   for (size_t i = 0; i < data.polyhedra.size(); ++i) {
     auto childId = m_ecs.idGen().getNewEntityId();
     m_ecs.componentStore().allocate<DSpatial, DPolyhedron>(childId);
@@ -674,7 +730,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     addEntity(childId, data.polyhedra[i]);
 
     m_aggregates[id].push_back(childId);
-  }
+  }*/
 }
 
 const std::string& SysCollisionImpl::name() const
@@ -734,10 +790,28 @@ ComponentDataPtr SysCollisionImpl::constructDPolyhedron(const XmlNode&) const
   EXCEPTION("Not implemented");
 }
 
-ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode&) const
+ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode& xmlAggregate) const
 {
-  // TODO
-  EXCEPTION("Not implemented");
+  DAggregate aggregate;
+
+  for (auto& xmlAggregatePart : xmlAggregate) {
+    auto data = constructComponentData(*xmlAggregatePart.child("collision"));
+    auto& xmlTransform = *xmlAggregatePart.child("transform");
+
+    if (data->typeId() == typeid(DStaticBox).hash_code()) {
+      auto& wrapper = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(*data);
+      aggregate.boxes.push_back(wrapper.data());
+      aggregate.boxTransforms.push_back(constructTransform(xmlTransform));
+
+      assert(aggregate.boxes.size() == aggregate.boxTransforms.size());
+    }
+    // ...
+    else {
+      EXCEPTION("Component cannot be part of aggregate");
+    }
+  }
+
+  return std::make_unique<ComponentDataWrapper<DAggregate>>(std::move(aggregate));
 }
 
 ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& xmlSysCollision) const
@@ -777,11 +851,109 @@ ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
     auto& collision = dynamic_cast<const ComponentDataWrapper<DDynamicBox>&>(base).data();
     return std::make_unique<ComponentDataWrapper<DDynamicBox>>(collision);
   }
+  else if (base.typeId() == typeid(DAggregate).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DAggregate>&>(base).data();
+    return std::make_unique<ComponentDataWrapper<DAggregate>>(collision);
+  }
   // TODO
   // ...
   else {
     EXCEPTION("Not implemented")
   }
+}
+
+XmlNodePtr SysCollisionImpl::staticBoxToXml(EntityId entityId) const
+{
+  auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
+  auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
+
+  auto xmlSysCollision = createXmlNode("collision");
+
+  auto xmlBox = createXmlNode("static_box");
+  xmlBox->setAttribute("restitution", std::to_string(collisionComp.restitution));
+  xmlBox->setAttribute("friction", std::to_string(collisionComp.friction));
+
+  xmlBox->addChild(toXml(boxComp.boundingBox));
+  xmlSysCollision->addChild(std::move(xmlBox));
+
+  return xmlSysCollision;
+}
+
+XmlNodePtr SysCollisionImpl::dynamicBoxToXml(EntityId entityId) const
+{
+  auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
+  auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
+
+  auto xmlSysCollision = createXmlNode("collision");
+
+  auto xmlBox = createXmlNode("static_box");
+  xmlBox->setAttribute("restitution", std::to_string(collisionComp.restitution));
+  xmlBox->setAttribute("friction", std::to_string(collisionComp.friction));
+
+  auto& dynaComp = m_ecs.componentStore().component<CCollisionDynamic>(entityId);
+
+  xmlBox->setAttribute("inverse_mass", std::to_string(dynaComp.inverseMass));
+
+  auto xmlCentre = createXmlNode("centre_of_mass");
+  xmlCentre->setAttribute("x", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[0])));
+  xmlCentre->setAttribute("y", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[1])));
+  xmlCentre->setAttribute("z", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[2])));
+
+  xmlBox->addChild(std::move(xmlCentre));
+
+  xmlBox->addChild(toXml(boxComp.boundingBox));
+  xmlSysCollision->addChild(std::move(xmlBox));
+
+  return xmlSysCollision;
+}
+
+XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
+{
+  auto& componentStore = m_ecs.componentStore();
+
+  auto xmlSysCollision = createXmlNode("collision");
+  auto xmlAggregate = createXmlNode("aggregate");
+
+  auto childrenIds = getAggregateChildren(entityId);
+
+  for (auto childId : childrenIds) {
+    auto xmlAggregatePart = createXmlNode("aggregate_part");
+    XmlNodePtr xmlChild;
+
+    auto partType = componentType(childId);
+    switch (partType) {
+      case CollisionComponentType::StaticBox: {
+        xmlChild = staticBoxToXml(childId);
+        break;
+      }
+      case CollisionComponentType::Polyhedron: {
+        xmlChild = polyhedronToXml(childId);
+        break;
+      }
+      default: EXCEPTION("Error converting to XML; Unexpected component type in aggregate");
+    }
+
+    auto& localTransform = componentStore.component<CLocalTransform>(childId);
+    auto xmlTransform = toXml(localTransform.transform);
+
+    xmlAggregatePart->addChild(std::move(xmlTransform));
+    xmlAggregatePart->addChild(std::move(xmlChild));
+    xmlAggregate->addChild(std::move(xmlAggregatePart));
+  }
+
+  xmlSysCollision->addChild(std::move(xmlAggregate));
+
+  return xmlSysCollision;
+}
+
+XmlNodePtr SysCollisionImpl::capsuleToXml(EntityId) const
+{
+  // TODO
+}
+
+XmlNodePtr SysCollisionImpl::polyhedronToXml(EntityId) const
+{
+  // TODO
 }
 
 XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId) const
@@ -790,40 +962,15 @@ XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId) const
     return nullptr;
   }
 
-  bool isDynamic = m_ecs.componentStore().hasComponentForEntity<CCollisionDynamic>(entityId);
-  bool isBox = m_ecs.componentStore().hasComponentForEntity<CCollisionBox>(entityId);
+  auto type = componentType(entityId);
 
-  if (isBox) {
-    auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
-    auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
-
-    auto xmlSysCollision = createXmlNode("collision");
-
-    auto xmlBox = createXmlNode(isDynamic ? "dynamic_box" : "static_box");
-    xmlBox->setAttribute("restitution", std::to_string(collisionComp.restitution));
-    xmlBox->setAttribute("friction", std::to_string(collisionComp.friction));
-
-    if (isDynamic) {
-      auto& dynaComp = m_ecs.componentStore().component<CCollisionDynamic>(entityId);
-
-      xmlBox->setAttribute("inverse_mass", std::to_string(dynaComp.inverseMass));
-
-      auto xmlCentre = createXmlNode("centre_of_mass");
-      xmlCentre->setAttribute("x", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[0])));
-      xmlCentre->setAttribute("y", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[1])));
-      xmlCentre->setAttribute("z", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[2])));
-
-      xmlBox->addChild(std::move(xmlCentre));
-    }
-
-    xmlBox->addChild(toXml(boxComp.boundingBox));
-    xmlSysCollision->addChild(std::move(xmlBox));
-
-    return xmlSysCollision;
-  }
-  else {
-    // TODO
-    return nullptr;
+  switch (type) {
+    case CollisionComponentType::StaticBox: return staticBoxToXml(entityId);
+    case CollisionComponentType::DynamicBox: return dynamicBoxToXml(entityId);
+    case CollisionComponentType::Capsule: return capsuleToXml(entityId);
+    case CollisionComponentType::Aggregate: return aggregateToXml(entityId);
+    case CollisionComponentType::Polyhedron: return polyhedronToXml(entityId);
+    default: EXCEPTION("Cannot convert component to XML");
   }
 }
 
@@ -837,7 +984,18 @@ void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)
     auto& collision = dynamic_cast<const ComponentDataWrapper<DDynamicBox>&>(data).data();
     addEntity(id, collision);
   }
-  // TODO
+  else if (data.typeId() == typeid(DAggregate).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DAggregate>&>(data).data();
+    addEntity(id, collision);
+  }
+  else if (data.typeId() == typeid(DCapsule).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DCapsule>&>(data).data();
+    addEntity(id, collision);
+  }
+  else if (data.typeId() == typeid(DPolyhedron).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DPolyhedron>&>(data).data();
+    addEntity(id, collision);
+  }
   // ...
   else {
     EXCEPTION("Not implemented")
@@ -859,7 +1017,8 @@ void SysCollisionImpl::removeEntity(EntityId id)
 
 bool SysCollisionImpl::hasEntity(EntityId entityId) const
 {
-  return m_ecs.componentStore().hasComponentForEntity<CCollision>(entityId);
+  return m_aggregates.contains(entityId) ||
+     m_ecs.componentStore().hasComponentForEntity<CCollision>(entityId);
 }
 
 void SysCollisionImpl::applyGravity(CCollisionDynamic& comp)

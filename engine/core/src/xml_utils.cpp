@@ -21,12 +21,12 @@ Aabb constructAabb(const XmlNode& aabbXml)
   };
 }
 
-Mat4x4f constructTransform(const XmlNode& transformXml)
+Mat4x4f constructTransform(const XmlNode& xmlTransform)
 {
-  auto iMatrix = transformXml.child("matrix");
-  if (iMatrix != transformXml.end()) {
-    auto& matrixXml = *iMatrix;
-    std::stringstream ss(matrixXml.value());
+  auto iMatrix = xmlTransform.child("matrix");
+  if (iMatrix != xmlTransform.end()) {
+    auto& xmlMatrix = *iMatrix;
+    std::stringstream ss(xmlMatrix.value());
 
     Mat4x4f m = identityMatrix<4>();
 
@@ -50,15 +50,15 @@ Mat4x4f constructTransform(const XmlNode& transformXml)
     return m;
   }
   else {
-    auto pos = constructVec3f(*transformXml.child("pos"));
-    auto degs = constructVec3f(*transformXml.child("ori"));
+    auto pos = constructVec3f(*xmlTransform.child("pos"));
+    auto degs = constructVec3f(*xmlTransform.child("ori"));
 
     Vec3f ori{ degreesToRadians(degs[0]), degreesToRadians(degs[1]), degreesToRadians(degs[2]) };
 
     Vec3f scale{ 1.f, 1.f, 1.f };
 
-    auto i = transformXml.child("scale");
-    if (i != transformXml.end()) {
+    auto i = xmlTransform.child("scale");
+    if (i != xmlTransform.end()) {
       scale = constructVec3f(*i);
     }
 

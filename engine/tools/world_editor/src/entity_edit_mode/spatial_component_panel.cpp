@@ -4,6 +4,7 @@
 #include "transform_panel.hpp"
 #include <lithic3d/lithic3d.hpp>
 #include <wx/wx.h>
+#include <wx/spinctrl.h>
 
 using namespace lithic3d;
 
@@ -23,12 +24,12 @@ class AabbPanel
     EntityEditMode& m_mode;
     wxPanel* m_panel = nullptr;
     wxCheckBox* m_chkRender = nullptr;
-    wxTextCtrl* m_txtXMin = nullptr;
-    wxTextCtrl* m_txtXMax = nullptr;
-    wxTextCtrl* m_txtYMin = nullptr;
-    wxTextCtrl* m_txtYMax = nullptr;
-    wxTextCtrl* m_txtZMin = nullptr;
-    wxTextCtrl* m_txtZMax = nullptr;
+    wxSpinCtrlDouble* m_spnXMin = nullptr;
+    wxSpinCtrlDouble* m_spnXMax = nullptr;
+    wxSpinCtrlDouble* m_spnYMin = nullptr;
+    wxSpinCtrlDouble* m_spnYMax = nullptr;
+    wxSpinCtrlDouble* m_spnZMin = nullptr;
+    wxSpinCtrlDouble* m_spnZMax = nullptr;
     bool m_hasChanges = false;
 
     void onChange();
@@ -49,34 +50,38 @@ AabbPanel::AabbPanel(wxWindow* parent, EntityEditMode& mode)
   auto grid = new wxFlexGridSizer(4);
 
   auto lblXMin = new wxStaticText(m_panel, wxID_ANY, "Min X");
-  m_txtXMin = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnXMin = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblXMax = new wxStaticText(m_panel, wxID_ANY, "Max X");
-  m_txtXMax = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
-
+  m_spnXMax = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblYMin = new wxStaticText(m_panel, wxID_ANY, "Min Y");
-  m_txtYMin = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnYMin = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblYMax = new wxStaticText(m_panel, wxID_ANY, "Max Y");
-  m_txtYMax = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
-
+  m_spnYMax = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblZMin = new wxStaticText(m_panel, wxID_ANY, "Min Z");
-  m_txtZMin = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnZMin = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
   auto lblZMax = new wxStaticText(m_panel, wxID_ANY, "Max Z");
-  m_txtZMax = new wxTextCtrl(m_panel, wxID_ANY, "0.0");
+  m_spnZMax = new wxSpinCtrlDouble(m_panel, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
 
   grid->Add(lblXMin, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtXMin, wxSizerFlags().Expand());
+  grid->Add(m_spnXMin, wxSizerFlags().Expand());
   grid->Add(lblXMax, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtXMax, wxSizerFlags().Expand());
+  grid->Add(m_spnXMax, wxSizerFlags().Expand());
 
   grid->Add(lblYMin, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtYMin, wxSizerFlags().Expand());
+  grid->Add(m_spnYMin, wxSizerFlags().Expand());
   grid->Add(lblYMax, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtYMax, wxSizerFlags().Expand());
+  grid->Add(m_spnYMax, wxSizerFlags().Expand());
 
   grid->Add(lblZMin, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtZMin, wxSizerFlags().Expand());
+  grid->Add(m_spnZMin, wxSizerFlags().Expand());
   grid->Add(lblZMax, wxSizerFlags().CentreVertical());
-  grid->Add(m_txtZMax, wxSizerFlags().Expand());
+  grid->Add(m_spnZMax, wxSizerFlags().Expand());
 
   grid->AddGrowableCol(1);
   grid->AddGrowableCol(3);
@@ -87,12 +92,12 @@ AabbPanel::AabbPanel(wxWindow* parent, EntityEditMode& mode)
 
   m_chkRender->Bind(wxEVT_CHECKBOX, [this](wxEvent&) { onRenderToggle(); });
 
-  m_txtXMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtXMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtYMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtYMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtZMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
-  m_txtZMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnXMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnXMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnYMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnYMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnZMin->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+  m_spnZMax->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
 }
 
 void AabbPanel::onChange()
@@ -105,14 +110,14 @@ Aabb AabbPanel::getAabb() const
 {
   return {
     .min = metresToWorldUnits(Vec3f{
-      std::stof(m_txtXMin->GetValue().ToStdString()),
-      std::stof(m_txtYMin->GetValue().ToStdString()),
-      std::stof(m_txtZMin->GetValue().ToStdString())
+      static_cast<float>(m_spnXMin->GetValue()),
+      static_cast<float>(m_spnYMin->GetValue()),
+      static_cast<float>(m_spnZMin->GetValue())
     }),
     .max = metresToWorldUnits(Vec3f{
-      std::stof(m_txtXMax->GetValue().ToStdString()),
-      std::stof(m_txtYMax->GetValue().ToStdString()),
-      std::stof(m_txtZMax->GetValue().ToStdString())
+      static_cast<float>(m_spnXMax->GetValue()),
+      static_cast<float>(m_spnYMax->GetValue()),
+      static_cast<float>(m_spnZMax->GetValue())
     })
   };
 }
@@ -134,12 +139,14 @@ wxWindow* AabbPanel::getWxPtr()
 
 void AabbPanel::setAabb(const Aabb& aabb, bool resetDirtyFlag)
 {
-  m_txtXMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[0])));
-  m_txtXMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[0])));
-  m_txtYMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[1])));
-  m_txtYMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[1])));
-  m_txtZMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[2])));
-  m_txtZMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[2])));
+  m_spnXMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[0])));
+  m_spnXMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[0])));
+  m_spnYMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[1])));
+  m_spnYMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[1])));
+  m_spnZMin->SetValue(std::to_string(worldUnitsToMetres(aabb.min[2])));
+  m_spnZMax->SetValue(std::to_string(worldUnitsToMetres(aabb.max[2])));
+
+  m_mode.updateAabb(getAabb());
 
   m_hasChanges = !resetDirtyFlag;
 }

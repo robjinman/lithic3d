@@ -134,6 +134,11 @@ void ComponentsPanelImpl::onEntitySelect(EntityId entityId)
 
   for (SystemId systemId = 0; systemId < ecs.numSystems(); ++systemId) {
     auto& system = ecs.getSystem(systemId);
+
+    if (!system.hasEntity(entityId)) {
+      continue;
+    }
+
     auto panel = createComponentPanel(systemId);
     if (panel != nullptr) {
       panel->populate(m_entityId);

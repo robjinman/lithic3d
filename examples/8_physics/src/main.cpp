@@ -331,8 +331,8 @@ void Demo::constructScenario(size_t i)
         },
         .flags{ bitflag(MeshFeatures::CastsShadow) }
       };
-      Mat4x4f meshTransform = createTransform(metresToWorldUnits(box.position), box.rotation);
-      mesh->transform = meshTransform;
+      // Mesh model space is in metres
+      mesh->transform = createTransform(box.position, box.rotation);
 
       model->submodels.push_back(
         std::unique_ptr<Submodel>(new Submodel{
@@ -343,10 +343,12 @@ void Demo::constructScenario(size_t i)
         })
       );
 
+      auto worldUnitsTransform = createTransform(metresToWorldUnits(box.position), box.rotation);
+
       auto aabb = transformAabb({
         .min = -metresToWorldUnits(box.dimensions) * 0.5f,
         .max = metresToWorldUnits(box.dimensions) * 0.5f
-      }, meshTransform);
+      }, worldUnitsTransform);
 
       if (j == 0) {
         bounds = aabb;
@@ -364,7 +366,7 @@ void Demo::constructScenario(size_t i)
           .transform = identityMatrix<4>()
         }
       });
-      collision.boxTransforms.push_back(meshTransform);
+      collision.boxTransforms.push_back(worldUnitsTransform);
     }
 
     DSpatial spatial{};

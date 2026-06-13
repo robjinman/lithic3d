@@ -24,7 +24,7 @@ class CursorPanelImpl : public CursorPanel
   private:
     void onDistanceChange(wxEvent& e);
     void onScaleChange(wxEvent& e);
-    void onRotationChange(wxEvent& e);
+    void onRotationChange();
     void onCursorMove();
     void onCancelClick();
     void onApplyClick();
@@ -33,7 +33,9 @@ class CursorPanelImpl : public CursorPanel
     EditorCore& m_core;
     wxSpinCtrlDouble* m_spnDistance = nullptr;
     wxSpinCtrlDouble* m_spnScale = nullptr;
+    wxSlider* m_sldEulerX = nullptr;
     wxSlider* m_sldEulerY = nullptr;
+    wxSlider* m_sldEulerZ = nullptr;
     EventHandle m_onCursorMove;
 };
 
@@ -50,18 +52,24 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
 
   wxStaticText* lblDistance = new wxStaticText(staticBox, wxID_ANY, "Distance (metres)");
 
-  m_spnDistance = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString,
-    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 1.0, 100.0, 10.0, 0.1);
+  m_spnDistance = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
+    wxDefaultSize, wxSP_ARROW_KEYS, 1.0, 100.0, 10.0, 0.1);
 
   wxStaticText* lblScale = new wxStaticText(staticBox, wxID_ANY, "Scale");
 
-  m_spnScale = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString,
-    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
+  m_spnScale = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
+    wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
 
   wxStaticText* lblRotation = new wxStaticText(staticBox, wxID_ANY, "Rotation");
 
-  m_sldEulerY = new wxSlider(staticBox, wxID_ANY, 0, -180, 180, wxDefaultPosition,
-    wxDefaultSize, wxSL_LABELS);
+  m_sldEulerX = new wxSlider(staticBox, wxID_ANY, 0, -180, 180, wxDefaultPosition, wxDefaultSize,
+    wxSL_LABELS);
+
+  m_sldEulerY = new wxSlider(staticBox, wxID_ANY, 0, -180, 180, wxDefaultPosition, wxDefaultSize,
+    wxSL_LABELS);
+
+  m_sldEulerZ = new wxSlider(staticBox, wxID_ANY, 0, -180, 180, wxDefaultPosition, wxDefaultSize,
+    wxSL_LABELS);
 
   int border = 10;
 
@@ -74,7 +82,9 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
 
   grid->Add(lblRotation, wxGBPosition(2, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
     border);
-  grid->Add(m_sldEulerY, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  grid->Add(m_sldEulerX, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  grid->Add(m_sldEulerY, wxGBPosition(4, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  grid->Add(m_sldEulerZ, wxGBPosition(5, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
 
   grid->AddGrowableCol(1);
 
@@ -95,7 +105,9 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
 
   m_spnDistance->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onDistanceChange(e); });
   m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
-  m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent& e) { onRotationChange(e); });
+  m_sldEulerX->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
+  m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
+  m_sldEulerZ->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
 
   btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
   btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
@@ -125,10 +137,16 @@ void CursorPanelImpl::onCursorMove()
   m_spnDistance->SetValue(worldUnitsToMetres(m_core.getCursorDistance()));
   m_spnScale->SetValue(m_core.getCursorScale()[0]);
 
-  float radiansY = m_core.getCursorRotation()[1];
-  int degreesY = static_cast<int>(radiansToDegrees(radiansY) + 0.5f);
-  assert(inRange(degreesY, -180, 180));
-  m_sldEulerY->SetValue(degreesY);
+  auto updateSlider = [this](uint32_t dimension, wxSlider* slider) {
+    float radians = m_core.getCursorRotation()[dimension];
+    int degrees = static_cast<int>(radiansToDegrees(radians) + 0.5f);
+    assert(inRange(degrees, -180, 180));
+    slider->SetValue(degrees);
+  };
+
+  updateSlider(0, m_sldEulerX);
+  updateSlider(1, m_sldEulerY);
+  updateSlider(2, m_sldEulerZ);
 }
 
 void CursorPanelImpl::onDistanceChange(wxEvent& e)
@@ -150,12 +168,16 @@ void CursorPanelImpl::onScaleChange(wxEvent& e)
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-void CursorPanelImpl::onRotationChange(wxEvent& e)
+void CursorPanelImpl::onRotationChange()
 {
-  auto event = dynamic_cast<wxCommandEvent&>(e);
+  Vec3f rotation{
+    degreesToRadians(static_cast<float>(m_sldEulerX->GetValue())),
+    degreesToRadians(static_cast<float>(m_sldEulerY->GetValue())),
+    degreesToRadians(static_cast<float>(m_sldEulerZ->GetValue()))
+  };
 
   m_onCursorMove.reset();
-  m_core.setCursorRotation(Vec3f{ 0.f, degreesToRadians(static_cast<float>(event.GetInt())), 0.f });
+  m_core.setCursorRotation(rotation);
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 

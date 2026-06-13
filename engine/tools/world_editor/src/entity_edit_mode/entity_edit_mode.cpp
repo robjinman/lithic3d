@@ -46,16 +46,16 @@ class EntityEditModeImpl : public EntityEditMode
     void setActivePrefab(const std::string& prefab) override;
     EntityId instantiatedPrefabId() const override;
 
-    void renderBoundingBox(bool render) override;
+    void renderBoundingBox(uint32_t index, bool render) override;
     void renderAabb(bool render) override;
 
-    void selectBoundingBox() override;
+    void selectBoundingBox(uint32_t index) override;
 
-    void updateBoundingBox(const BoundingBox& box) override;
+    void updateBoundingBox(const BoundingBox& box, uint32_t index) override;
     void updateAabb(const Aabb& aabb) override;
 
     const Aabb& getAabb() const override;
-    const BoundingBox& getBoundingBox() const override;
+    const BoundingBox& getBoundingBox(uint32_t index) const override;
 
     void applyTransform() override;
     void cancelTransform() override;
@@ -75,13 +75,14 @@ class EntityEditModeImpl : public EntityEditMode
     Vec2f m_prevMousePos;
 
     State m_state = State::None;
-    BoundingBox m_bbox;
+    std::vector<BoundingBox> m_bboxes;
+    uint32_t m_selectedBbox = 0;
     Aabb m_aabb;
     bool m_entityIsPrefab = false;
     std::string m_activePrefab;
     std::vector<XmlNodePtr> m_unusedPrefabXml;
     EntityId m_entityId = NULL_ENTITY_ID;
-    EntityId m_renderedBboxId = NULL_ENTITY_ID;
+    std::vector<EntityId> m_renderedBboxIds;
     EntityId m_renderedAabbId = NULL_ENTITY_ID;
     EntityId m_cursorEntityId = NULL_ENTITY_ID;
 
@@ -91,7 +92,7 @@ class EntityEditModeImpl : public EntityEditMode
     void updateCursorEntity();
 
     void updateRenderedAabb();
-    void updateRenderedBoundingBox();
+    void updateRenderedBoundingBox(uint32_t index);
 };
 
 EntityEditModeImpl::EntityEditModeImpl(EditorCore& core)
@@ -160,12 +161,14 @@ void EntityEditModeImpl::updateAabb(const Aabb& aabb)
   }
 }
 
-void EntityEditModeImpl::updateBoundingBox(const BoundingBox& box)
+void EntityEditModeImpl::updateBoundingBox(const BoundingBox& box, uint32_t index)
 {
-  m_bbox = box;
+  ASSERT(index < m_bboxes.size(), "Index out of range");
 
-  if (m_renderedBboxId != NULL_ENTITY_ID) {
-    updateRenderedBoundingBox();
+  m_bboxes[index] = box;
+
+  if (m_renderedBboxIds[index] != NULL_ENTITY_ID) {
+    updateRenderedBoundingBox(index);
   }
 }
 
@@ -174,23 +177,26 @@ const Aabb& EntityEditModeImpl::getAabb() const
   return m_aabb;
 }
 
-const BoundingBox& EntityEditModeImpl::getBoundingBox() const
+const BoundingBox& EntityEditModeImpl::getBoundingBox(uint32_t index) const
 {
-  return m_bbox;
+  return m_bboxes[index];
 }
 
-void EntityEditModeImpl::renderBoundingBox(bool render)
+void EntityEditModeImpl::renderBoundingBox(uint32_t index, bool render)
 {
+  m_core.engine().logger().debug(STR("Rendering box " << index << ": "
+    << (render ? "true" : "false")));
+
   if (render) {
-    if (m_renderedBboxId == NULL_ENTITY_ID) {
-      m_renderedBboxId = constructBox(BOUNDING_BOX_COLOUR);
-      updateRenderedBoundingBox();
+    if (m_renderedBboxIds[index] == NULL_ENTITY_ID) {
+      m_renderedBboxIds[index] = constructBox(BOUNDING_BOX_COLOUR);
+      updateRenderedBoundingBox(index);
     }
   }
   else {
-    if (m_renderedBboxId != NULL_ENTITY_ID) {
-      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedBboxId});
-      m_renderedBboxId = NULL_ENTITY_ID;
+    if (m_renderedBboxIds[index] != NULL_ENTITY_ID) {
+      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedBboxIds[index]});
+      m_renderedBboxIds[index] = NULL_ENTITY_ID;
     }
   }
 }
@@ -219,23 +225,26 @@ void EntityEditModeImpl::updateRenderedAabb()
   engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedAabbId, m);
 }
 
-void EntityEditModeImpl::updateRenderedBoundingBox()
+void EntityEditModeImpl::updateRenderedBoundingBox(uint32_t index)
 {
   auto& engine = m_core.engine();
+  auto& bbox = m_bboxes[index];
 
-  auto m = m_bbox.transform * unitCubeToBoxTransform(m_bbox.min, m_bbox.max);
-  engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedBboxId, m);
+  auto m = bbox.transform * unitCubeToBoxTransform(bbox.min, bbox.max);
+  engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedBboxIds[index], m);
 }
 
 void EntityEditModeImpl::applyTransform()
 {
   switch (m_state) {
     case State::BoundingBoxTool: {
+      assert(m_selectedBbox < m_bboxes.size());
+
       auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
-      m_bbox.transform = m_core.getCursorTransform();
-      if (m_renderedBboxId != NULL_ENTITY_ID) {
-        updateRenderedBoundingBox();
+      m_bboxes[m_selectedBbox].transform = m_core.getCursorTransform();
+      if (m_renderedBboxIds[m_selectedBbox] != NULL_ENTITY_ID) {
+        updateRenderedBoundingBox(m_selectedBbox);
       }
 
       m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_cursorEntityId});
@@ -278,8 +287,19 @@ void EntityEditModeImpl::applyChangesToEntity()
   componentStore.component<CBoundingBox>(m_entityId).modelSpaceAabb = m_aabb;
   componentStore.component<CSpatialFlags>(m_entityId).flags.set(SpatialFlags::Dirty);
 
-  if (componentStore.hasComponentForEntity<CCollisionBox>(m_entityId)) {
-    componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bbox;
+  auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
+
+  if (sysCollision.hasEntity(m_entityId)) {
+    if (sysCollision.componentType(m_entityId) == CollisionComponentType::Aggregate) {
+      auto& children = sysCollision.getAggregateChildren(m_entityId);
+      for (size_t i = 0; i < children.size(); ++i) {
+        componentStore.component<CCollisionBox>(children[i]).boundingBox = m_bboxes[i];
+      }
+    }
+    else {
+      assert(m_bboxes.size() == 0);
+      componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bboxes[0];
+    }
   }
 
   // TODO: If prefab, update all dependent entities in scene
@@ -287,7 +307,7 @@ void EntityEditModeImpl::applyChangesToEntity()
 
 EntityId EntityEditModeImpl::instantiatedPrefabId() const
 {
-  return m_entityId;
+  return m_entityIsPrefab ? m_entityId : NULL_ENTITY_ID;
 }
 
 void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
@@ -308,10 +328,48 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   m_entityId = engine.entityFactory().constructEntity(m_rootId, *prefabXml, m_unusedPrefabXml);
   m_entityIsPrefab = true;
   m_activePrefab = prefab;
+
+  auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
+  auto& componentStore = m_core.engine().ecs().componentStore();
+  m_aabb = componentStore.component<CBoundingBox>(m_entityId).modelSpaceAabb;
+
+  m_bboxes.clear();
+
+  for (auto id : m_renderedBboxIds) {
+    if (id != NULL_ENTITY_ID) {
+      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{id});
+    }
+  }
+  m_renderedBboxIds.clear();
+
+  if (m_renderedAabbId != NULL_ENTITY_ID) {
+    m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedAabbId});
+  }
+
+  if (sysCollision.hasEntity(m_entityId)) {
+    if (sysCollision.componentType(m_entityId) == CollisionComponentType::Aggregate) {
+      for (auto childId : sysCollision.getAggregateChildren(m_entityId)) {
+        m_bboxes.push_back(componentStore.component<CCollisionBox>(childId).boundingBox);
+        m_renderedBboxIds.push_back(NULL_ENTITY_ID);
+      }
+    }
+    else {
+      m_bboxes = { componentStore.component<CCollisionBox>(m_entityId).boundingBox };
+      m_renderedBboxIds = { NULL_ENTITY_ID };
+    }
+  }
+
+  assert(m_bboxes.size() == m_renderedBboxIds.size());
+
+  m_selectedBbox = 0;
 }
 
-void EntityEditModeImpl::selectBoundingBox()
+void EntityEditModeImpl::selectBoundingBox(uint32_t index)
 {
+  ASSERT(index < m_bboxes.size(), "Index out of range");
+
+  m_selectedBbox = index;
+
   if (m_cursorEntityId == NULL_ENTITY_ID) {
     m_cursorEntityId = constructBox(GHOST_ENTITY_COLOUR);
   }
@@ -321,11 +379,11 @@ void EntityEditModeImpl::selectBoundingBox()
 
   auto& camera = sysRender3d.camera();
   auto& camDir = camera.getDirection();
-  Vec3f entityPos = getTranslation(m_bbox.transform);
+  Vec3f entityPos = getTranslation(m_bboxes[m_selectedBbox].transform);
 
   camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
 
-  m_core.setCursorRotationScale(getRotation3x3(m_bbox.transform));
+  m_core.setCursorRotationScale(getRotation3x3(m_bboxes[m_selectedBbox].transform));
 
   m_state = State::BoundingBoxTool;
   m_core.hideCursor();
@@ -502,9 +560,12 @@ void EntityEditModeImpl::updateCursorEntity()
 
   switch (m_state) {
     case State::BoundingBoxTool: {
+      assert(m_selectedBbox < m_bboxes.size());
 
-      auto m = m_core.getCursorTransform() * unitCubeToBoxTransform(m_bbox.min, m_bbox.max);
+      auto t = unitCubeToBoxTransform(m_bboxes[m_selectedBbox].min, m_bboxes[m_selectedBbox].max);
+      auto m = m_core.getCursorTransform() * t;
       sysSpatial.setLocalTransform(m_cursorEntityId, m);
+
       break;
     }
     default: break;
