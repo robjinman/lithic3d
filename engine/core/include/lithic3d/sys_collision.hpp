@@ -23,7 +23,7 @@ struct BoundingBox
 {
   Vec3f min;
   Vec3f max;
-  Mat4x4f transform;
+  Mat4x4f transform = identityMatrix<4>();
 };
 
 struct CCollision
@@ -241,6 +241,8 @@ class SysCollision : public System
     virtual void addEntity(EntityId id, const DAggregate& data) = 0;
 
     virtual const std::vector<EntityId>& getAggregateChildren(EntityId entityId) const = 0;
+    virtual EntityId addPartToAggregate(EntityId entityId, CollisionComponentType type) = 0;
+
     virtual CollisionComponentType componentType(EntityId entityId) const = 0;
 
     virtual std::vector<Intersection> getIntersecting(const Vec3f& rayStart,

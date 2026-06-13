@@ -52,6 +52,8 @@ class EntityEditModeImpl : public EntityEditMode
     void selectBoundingBox(uint32_t index) override;
 
     void updateBoundingBox(const BoundingBox& box, uint32_t index) override;
+    void addBoundingBox(const BoundingBox& box) override;
+
     void updateAabb(const Aabb& aabb) override;
 
     const Aabb& getAabb() const override;
@@ -159,6 +161,12 @@ void EntityEditModeImpl::updateAabb(const Aabb& aabb)
   if (m_renderedAabbId != NULL_ENTITY_ID) {
     updateRenderedAabb();
   }
+}
+
+void EntityEditModeImpl::addBoundingBox(const BoundingBox& box)
+{
+  m_bboxes.push_back(box);
+  m_renderedBboxIds.push_back(NULL_ENTITY_ID);
 }
 
 void EntityEditModeImpl::updateBoundingBox(const BoundingBox& box, uint32_t index)

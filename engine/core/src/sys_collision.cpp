@@ -346,7 +346,9 @@ class SysCollisionImpl : public SysCollision
     void addEntity(EntityId id, const DAggregate& data) override;
 
     CollisionComponentType componentType(EntityId entityId) const override;
+
     const std::vector<EntityId>& getAggregateChildren(EntityId entityId) const override;
+    EntityId addPartToAggregate(EntityId entityId, CollisionComponentType type) override;
 
     void setInverseMass(EntityId id, float inverseMass) override;
     void applyForce(EntityId id, const Vec3f& force, float seconds) override;
@@ -415,6 +417,46 @@ const std::vector<EntityId>& SysCollisionImpl::getAggregateChildren(EntityId ent
 {
   MAP_GET(i, m_aggregates, entityId);
   return i->second;
+}
+
+EntityId SysCollisionImpl::addPartToAggregate(EntityId entityId, CollisionComponentType type)
+{
+  MAP_GET(i, m_aggregates, entityId);
+  auto& children = i->second;
+
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+
+  auto partId = m_ecs.idGen().getNewEntityId();
+
+  switch (type) {
+    case CollisionComponentType::StaticBox: {
+      m_ecs.componentStore().allocate<DSpatial, DStaticBox>(partId);
+
+      DStaticBox box{};
+
+      DSpatial spatial{
+        .transform = identityMatrix<4>(),
+        .parent = entityId,
+        .enabled = true,
+        .aabb = transformAabb({
+          .min = box.boundingBox.min,
+          .max = box.boundingBox.max
+        }, box.boundingBox.transform)
+      };
+
+      sysSpatial.addEntity(partId, spatial);
+      addEntity(partId, box);
+
+      break;
+    }
+    // TODO: Polyhedron
+    // ...
+    default: EXCEPTION("Cannot add part of that type to aggregate");
+  }
+
+  children.push_back(partId);
+
+  return partId;
 }
 
 CollisionComponentType SysCollisionImpl::componentType(EntityId entityId) const

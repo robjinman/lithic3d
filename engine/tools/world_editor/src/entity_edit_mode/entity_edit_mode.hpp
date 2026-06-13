@@ -37,6 +37,8 @@ class EntityEditMode
     // Update one of the current bounding boxes
     virtual void updateBoundingBox(const lithic3d::BoundingBox& box, uint32_t index) = 0;
 
+    virtual void addBoundingBox(const lithic3d::BoundingBox& box) = 0;
+
     // Update the current AABB
     virtual void updateAabb(const lithic3d::Aabb& aabb) = 0;
 

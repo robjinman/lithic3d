@@ -355,7 +355,9 @@ class AggregatePanel : public CollisionSubtypePanel
   private:
     EditorCore& m_core;
     EntityEditMode& m_mode;
+    EntityId m_entityId;
     wxWindow* m_window = nullptr;
+    wxChoice* m_cboType = nullptr;
     wxPanel* m_partInfoPanel = nullptr;
     std::vector<CollisionSubtypePanelPtr> m_partPanels;
     wxChoicebook* m_chcParts = nullptr;
@@ -364,10 +366,24 @@ class AggregatePanel : public CollisionSubtypePanel
     void onPartSelect();
 };
 
+template<typename T>
+class ClientData : public wxClientData
+{
+  public:
+    ClientData(const T& value)
+      : value(value) {}
+
+    ClientData(T&& value)
+      : value(std::move(value)) {}
+
+    T value;
+};
+
 AggregatePanel::AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& editorCore,
   EntityEditMode& mode)
   : m_core(editorCore)
   , m_mode(mode)
+  , m_entityId(entityId)
 {
   m_window = new wxPanel(parent, wxID_ANY);
 
@@ -375,10 +391,13 @@ AggregatePanel::AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& 
 
   m_chcParts = new wxChoicebook(m_window, wxID_ANY);
 
-  auto cboType = new wxChoice(m_window, wxID_ANY);
+  m_cboType = new wxChoice(m_window, wxID_ANY);
+  m_cboType->Insert("Static box", 0, new ClientData(CollisionComponentType::StaticBox));
+  m_cboType->Insert("Polyhedron", 1, new ClientData(CollisionComponentType::Polyhedron));
+
   auto btnCreate = new wxButton(m_window, wxID_ANY, "Create new");
   auto hbox = new wxBoxSizer(wxHORIZONTAL);
-  hbox->Add(cboType, wxSizerFlags(1).Expand());
+  hbox->Add(m_cboType, wxSizerFlags(1).Expand());
   hbox->Add(btnCreate, wxSizerFlags(1).Expand());
 
   m_partInfoPanel = new wxPanel(m_window, wxID_ANY);
@@ -393,7 +412,7 @@ AggregatePanel::AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& 
   m_chcParts->Bind(wxEVT_CHOICEBOOK_PAGE_CHANGED, [this](wxEvent&) { onPartSelect(); });
 
   auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
-  auto& children = sysCollision.getAggregateChildren(entityId);
+  auto& children = sysCollision.getAggregateChildren(m_entityId);
 
   m_chcParts->DeleteAllPages();
   m_partPanels.clear();
@@ -461,7 +480,41 @@ void AggregatePanel::onPartSelect()
 
 void AggregatePanel::onPartCreate()
 {
-  // TODO
+  auto& componentStore = m_core.engine().ecs().componentStore();
+  auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
+
+  auto clientData = m_cboType->GetClientObject(m_cboType->GetSelection());
+
+  if (clientData == nullptr) {
+    return;
+  }
+
+  auto type = dynamic_cast<const ClientData<CollisionComponentType>*>(clientData)->value;
+
+  size_t n = sysCollision.getAggregateChildren(m_entityId).size();
+
+  CollisionSubtypePanelPtr panel;
+  std::string typeName = "";
+
+  switch (type) {
+    case CollisionComponentType::StaticBox: {
+      typeName = "Static box";
+
+      auto partId = sysCollision.addPartToAggregate(m_entityId, CollisionComponentType::StaticBox);
+      m_mode.addBoundingBox(componentStore.component<CCollisionBox>(partId).boundingBox);
+      panel = std::make_unique<StaticBoxPanel>(m_window, partId, n, m_core, m_mode);
+
+      break;
+    }
+    default: {
+      EXCEPTION("Unexpected component type in aggregate");
+    }
+  }
+
+  m_partPanels.push_back(std::move(panel));
+  m_chcParts->AddPage(m_partPanels.back()->getWxPtr(), STR("[" << n << "] " << typeName));
+
+  m_chcParts->SetSelection(n);
 }
 
 class CollisionComponentPanel : public ComponentPanel
