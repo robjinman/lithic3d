@@ -57,6 +57,8 @@ struct Edge
   Vec3f B;
 };
 
+using Triangle = std::array<Vec3f, 3>;
+
 class HeightMapSampler
 {
   public:
@@ -65,11 +67,11 @@ class HeightMapSampler
       , m_pos(position) {}
 
     inline bool inRange(const Vec2f& p) const;
-    std::array<Vec3f, 3> triangle(const Vec2f& p) const;
+    Triangle triangle(const Vec2f& p) const;
     void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
     void edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const;
     void triangles(const Vec2f& min, const Vec2f& max,
-      std::vector<std::array<Vec3f, 3>>& triangles) const;
+      std::vector<Triangle>& triangles) const;
 
   private:
     const HeightMap& m_map;

@@ -39,7 +39,7 @@ XmlNodePtr toXml(const BoundingBox& bbox)
   return xmlBoundingBox;
 }
 
-std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
+Triangle HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
 
@@ -76,12 +76,12 @@ std::array<Vec3f, 3> HeightMapSampler::triangle(const Vec2f& p) const
   float distanceFromB = (idx - Vec2f{ xIdx1, zIdx1 }).squareMagnitude();
 
   return distanceFromD < distanceFromB ?
-    std::array<Vec3f, 3>{ A, C, D } :
-    std::array<Vec3f, 3>{ A, B, C };
+    Triangle{ A, C, D } :
+    Triangle{ A, B, C };
 }
 
 void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
-  std::vector<std::array<Vec3f, 3>>& triangles) const
+  std::vector<Triangle>& triangles) const
 {
   // TODO: Clip to range?
   if (!inRange(min) || !inRange(max)) {
@@ -1305,6 +1305,26 @@ inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& t
   };
 }
 
+inline std::vector<Triangle> getTriangles(const BoundingBox& box, const Mat4x4f& transform)
+{
+  auto vertices = getVertices(box, transform);
+
+  return {
+    Triangle{ vertices[0], vertices[2], vertices[1] },    // ACB
+    Triangle{ vertices[1], vertices[2], vertices[3] },    // BCD
+    Triangle{ vertices[0], vertices[4], vertices[6] },    // AEG
+    Triangle{ vertices[4], vertices[6], vertices[2] },    // EGC
+    Triangle{ vertices[4], vertices[5], vertices[6] },    // EFG
+    Triangle{ vertices[5], vertices[7], vertices[6] },    // FHG
+    Triangle{ vertices[5], vertices[1], vertices[7] },    // FBH
+    Triangle{ vertices[1], vertices[3], vertices[7] },    // BDH
+    Triangle{ vertices[6], vertices[7], vertices[3] },    // GHD
+    Triangle{ vertices[7], vertices[3], vertices[2] },    // HDC
+    Triangle{ vertices[0], vertices[1], vertices[5] },    // ABF
+    Triangle{ vertices[1], vertices[5], vertices[4] }     // BFE
+  };
+}
+
 // Returns box's inverse tangents at each vertex in world space
 inline std::array<Vec3f, 8> getInverseTangents(const BoundingBox& box, const Mat4x4f& transform)
 {
@@ -1679,7 +1699,7 @@ void generateCapsuleCapsuleContacts(const ObjectComponents&, const ObjectCompone
   // TODO
 }
 
-Vec3f closestPoint(const std::array<Vec3f, 3>& triangle, const Vec3f& P)
+Vec3f closestPoint(const Triangle& triangle, const Vec3f& P)
 {
   auto& A = triangle[0];
   auto& B = triangle[1];
@@ -1761,27 +1781,21 @@ Vec3f closestPoint(const std::array<Vec3f, 3>& triangle, const Vec3f& P)
   return A + AB * st[0] + AC * st[1];
 }
 
-bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents& B,
-  Contact& contact)
+struct Sphere
 {
-  assert(A.capsule != nullptr);
-  assert(B.terrain != nullptr);
+  Vec3f centre;
+  float radius;
+};
 
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
-
-  float radius = A.capsule->capsule.radius;
-
-  // Calculate centre of capsule's bottom sphere
-  auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
-  P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
-
-  std::vector<std::array<Vec3f, 3>> triangles;
-  Vec2f p{ P[0], P[2] };
-  sampler.triangles(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, triangles);
-
-  float maxPenetration = 0.f;
+bool sphereTrianglesContact(const Sphere& sphere, const std::vector<Triangle>& triangles,
+  Vec3f& contact, float& maxPenetration)
+{
+  maxPenetration = 0.f;
   std::vector<Vec3f> points(triangles.size());
   int triangleWithMaxPenetration = -1;
+
+  auto P = sphere.centre;
+  float radius = sphere.radius;
 
   for (size_t i = 0; i < triangles.size(); ++i) {
     auto& triangle = triangles[i];
@@ -1827,9 +1841,43 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
   }
 
   if (triangleWithMaxPenetration != -1) {
+    contact = points[triangleWithMaxPenetration];
+    return true;
+  }
+
+  return false;
+}
+
+bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents& B,
+  Contact& contact)
+{
+  assert(A.capsule != nullptr);
+  assert(B.terrain != nullptr);
+
+  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
+
+  float radius = A.capsule->capsule.radius;
+
+  // Calculate centre of capsule's bottom sphere
+  auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
+  P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
+
+  std::vector<Triangle> triangles;
+  Vec2f p{ P[0], P[2] };
+  sampler.triangles(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, triangles);
+
+  Sphere sphere{
+    .centre = P,
+    .radius = radius
+  };
+
+  Vec3f Q;
+  float maxPenetration = 0.f;
+
+  if (sphereTrianglesContact(sphere, triangles, Q, maxPenetration)) {
     contact.A = A;
     contact.B = B;
-    contact.point = points[triangleWithMaxPenetration];
+    contact.point = Q;
     contact.normal = (P - contact.point).normalise();
     contact.penetration = maxPenetration;
     contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
@@ -1853,13 +1901,56 @@ void generateCapsuleTerrainContacts(const ObjectComponents& A, const ObjectCompo
   }
 }
 
-void generateBoxCapsuleContacts(const ObjectComponents&, const ObjectComponents&,
-  std::vector<Contact>&)
+void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
 {
-  //assert(A.box != nullptr);
-  //assert(B.capsule != nullptr);
+  assert(A.box != nullptr);
+  assert(B.capsule != nullptr);
 
-  // TODO
+  float radius = B.capsule->capsule.radius;
+  auto centre = getTranslation(getTransform(B)) + B.capsule->capsule.translation;
+
+  Sphere bottomSphere{
+    .centre = centre + Vec3f{ 0.f, -B.capsule->capsule.height * 0.5f + radius, 0.f },
+    .radius = radius
+  };
+
+  Sphere topSphere{
+    .centre = centre + Vec3f{ 0.f, B.capsule->capsule.height * 0.5f - radius, 0.f },
+    .radius = radius
+  };
+
+  auto triangles = getTriangles(A.box->boundingBox, getTransform(A));
+
+  Vec3f Q;
+  float maxPenetration = 0.f;
+
+  if (sphereTrianglesContact(bottomSphere, triangles, Q, maxPenetration)) {
+    Contact contact;
+
+    contact.A = A;
+    contact.B = B;
+    contact.point = Q;
+    contact.normal = (bottomSphere.centre - contact.point).normalise();
+    contact.penetration = maxPenetration;
+    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+    contact.toContactSpace = contact.fromContactSpace.t();
+
+    contacts.push_back(contact);
+  }
+  else if (sphereTrianglesContact(topSphere, triangles, Q, maxPenetration)) {
+    Contact contact;
+
+    contact.A = A;
+    contact.B = B;
+    contact.point = Q;
+    contact.normal = (topSphere.centre - contact.point).normalise();
+    contact.penetration = maxPenetration;
+    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+    contact.toContactSpace = contact.fromContactSpace.t();
+
+    contacts.push_back(contact);
+  }
 }
 
 void SysCollisionImpl::generateBoxPolyContacts(const ObjectComponents&, const ObjectComponents&,
