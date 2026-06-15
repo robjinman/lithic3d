@@ -305,7 +305,7 @@ void EntityEditModeImpl::applyChangesToEntity()
       }
     }
     else {
-      assert(m_bboxes.size() == 0);
+      assert(m_bboxes.size() == 1);
       componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bboxes[0];
     }
   }
@@ -324,6 +324,8 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
 
   // TODO: Only delete if the entity is unchanged. If the entity has applied changes, keep it, so
   // it can be restored.
+
+  m_core.loadPrefab(prefab);
 
   if (m_entityId != NULL_ENTITY_ID) {
     engine.eventSystem().raiseEvent(ERequestDeletion{m_entityId});

@@ -1227,37 +1227,40 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
               auto& box1 = boundingBoxes1[i].worldSpaceAabb;
               auto& box2 = boundingBoxes2[j].worldSpaceAabb;
 
-              if (box1.max[0] >= box2.min[0] && box1.min[0] <= box2.max[0] &&
-                box1.max[1] >= box2.min[1] && box1.min[1] <= box2.max[1] &&
-                box1.max[2] >= box2.min[2] && box1.min[2] <= box2.max[2]) {
+              if (box1.min[0] > box2.max[0] || box2.min[0] > box1.max[0] ||
+                box1.min[1] > box2.max[1] || box2.min[1] > box1.max[1] ||
+                box1.min[2] > box2.max[2] || box2.min[2] > box1.max[2]) {
 
-                pairs.push_back({
-                  .A = {
-                    .entityId = entityIds1[i],
-                    .localTransform = &localTs1[i],
-                    .globalTransform = collDynamicComps1.empty() ? &globalTs1[i] : nullptr,
-                    .spatialFlags = &flagsComps1[i],
-                    .collision = &collComps1[i],
-                    .dynamic = collDynamicComps1.empty() ? nullptr : &collDynamicComps1[i],
-                    .rotational = collRotationalComps1.empty() ? nullptr : &collRotationalComps1[i],
-                    .box = collBoxComps1.empty() ? nullptr : &collBoxComps1[i],
-                    .capsule = collCapsuleComps1.empty() ? nullptr : &collCapsuleComps1[i],
-                    .terrain = collTerrainComps1.empty() ? nullptr : &collTerrainComps1[i]
-                  },
-                  .B = {
-                    .entityId = entityIds2[j],
-                    .localTransform = &localTs2[j],
-                    .globalTransform = collDynamicComps2.empty() ? &globalTs2[j] : nullptr,
-                    .spatialFlags = &flagsComps2[j],
-                    .collision = &collComps2[j],
-                    .dynamic = collDynamicComps2.empty() ? nullptr : &collDynamicComps2[j],
-                    .rotational = collRotationalComps2.empty() ? nullptr : &collRotationalComps2[j],
-                    .box = collBoxComps2.empty() ? nullptr : &collBoxComps2[j],
-                    .capsule = collCapsuleComps2.empty() ? nullptr : &collCapsuleComps2[j],
-                    .terrain = collTerrainComps2.empty() ? nullptr : &collTerrainComps2[j]
-                  },
-                });
+                ++innerIdx;
+                continue;
               }
+
+              pairs.push_back({
+                .A = {
+                  .entityId = entityIds1[i],
+                  .localTransform = &localTs1[i],
+                  .globalTransform = collDynamicComps1.empty() ? &globalTs1[i] : nullptr,
+                  .spatialFlags = &flagsComps1[i],
+                  .collision = &collComps1[i],
+                  .dynamic = collDynamicComps1.empty() ? nullptr : &collDynamicComps1[i],
+                  .rotational = collRotationalComps1.empty() ? nullptr : &collRotationalComps1[i],
+                  .box = collBoxComps1.empty() ? nullptr : &collBoxComps1[i],
+                  .capsule = collCapsuleComps1.empty() ? nullptr : &collCapsuleComps1[i],
+                  .terrain = collTerrainComps1.empty() ? nullptr : &collTerrainComps1[i]
+                },
+                .B = {
+                  .entityId = entityIds2[j],
+                  .localTransform = &localTs2[j],
+                  .globalTransform = collDynamicComps2.empty() ? &globalTs2[j] : nullptr,
+                  .spatialFlags = &flagsComps2[j],
+                  .collision = &collComps2[j],
+                  .dynamic = collDynamicComps2.empty() ? nullptr : &collDynamicComps2[j],
+                  .rotational = collRotationalComps2.empty() ? nullptr : &collRotationalComps2[j],
+                  .box = collBoxComps2.empty() ? nullptr : &collBoxComps2[j],
+                  .capsule = collCapsuleComps2.empty() ? nullptr : &collCapsuleComps2[j],
+                  .terrain = collTerrainComps2.empty() ? nullptr : &collTerrainComps2[j]
+                },
+              });
             }
 
             ++innerIdx;
@@ -1309,19 +1312,20 @@ inline std::vector<Triangle> getTriangles(const BoundingBox& box, const Mat4x4f&
 {
   auto vertices = getVertices(box, transform);
 
+  // Triangles in no particular winding order
   return {
     Triangle{ vertices[0], vertices[2], vertices[1] },    // ACB
     Triangle{ vertices[1], vertices[2], vertices[3] },    // BCD
     Triangle{ vertices[0], vertices[4], vertices[6] },    // AEG
-    Triangle{ vertices[4], vertices[6], vertices[2] },    // EGC
+    Triangle{ vertices[0], vertices[6], vertices[2] },    // AGC
     Triangle{ vertices[4], vertices[5], vertices[6] },    // EFG
     Triangle{ vertices[5], vertices[7], vertices[6] },    // FHG
     Triangle{ vertices[5], vertices[1], vertices[7] },    // FBH
     Triangle{ vertices[1], vertices[3], vertices[7] },    // BDH
     Triangle{ vertices[6], vertices[7], vertices[3] },    // GHD
-    Triangle{ vertices[7], vertices[3], vertices[2] },    // HDC
+    Triangle{ vertices[6], vertices[2], vertices[3] },    // GCD
     Triangle{ vertices[0], vertices[1], vertices[5] },    // ABF
-    Triangle{ vertices[1], vertices[5], vertices[4] }     // BFE
+    Triangle{ vertices[0], vertices[5], vertices[4] }     // AFE
   };
 }
 
@@ -1747,7 +1751,7 @@ Vec3f closestPoint(const Triangle& triangle, const Vec3f& P)
   float ACdotAC = AC.dot(AC);
 
   Vec2f st;
-  [[ maybe_unused ]]bool result = solve({ ABdotAB, ABdotAC, -APdotAB },
+  [[ maybe_unused ]] bool result = solve({ ABdotAB, ABdotAC, -APdotAB },
     { ABdotAC, ACdotAC, -APdotAC }, st);
   assert(result);
 
@@ -1801,11 +1805,16 @@ bool sphereTrianglesContact(const Sphere& sphere, const std::vector<Triangle>& t
     auto& triangle = triangles[i];
     float minX = std::min(std::min(triangle[0][0], triangle[1][0]), triangle[2][0]);
     float maxX = std::max(std::max(triangle[0][0], triangle[1][0]), triangle[2][0]);
+    float minY = std::min(std::min(triangle[0][1], triangle[1][1]), triangle[2][1]);
     float maxY = std::max(std::max(triangle[0][1], triangle[1][1]), triangle[2][1]);
     float minZ = std::min(std::min(triangle[0][2], triangle[1][2]), triangle[2][2]);
     float maxZ = std::max(std::max(triangle[0][2], triangle[1][2]), triangle[2][2]);
 
     if (P[1] - radius > maxY) {
+      continue;
+    }
+
+    if (P[1] + radius < minY) {
       continue;
     }
 
@@ -1832,6 +1841,7 @@ bool sphereTrianglesContact(const Sphere& sphere, const std::vector<Triangle>& t
 
     if (sqDistance < radius * radius) {
       float penetration = radius - sqrtf(sqDistance);
+
       if (penetration > maxPenetration) {
         maxPenetration = penetration;
         points[i] = Q;
@@ -1927,7 +1937,6 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
 
   if (sphereTrianglesContact(bottomSphere, triangles, Q, maxPenetration)) {
     Contact contact;
-
     contact.A = B;
     contact.B = A;
     contact.point = Q;
@@ -1951,6 +1960,8 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
 
     contacts.push_back(contact);
   }
+
+  // TODO: Check for collisions against cylindrical section
 }
 
 void SysCollisionImpl::generateBoxPolyContacts(const ObjectComponents&, const ObjectComponents&,

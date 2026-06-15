@@ -45,6 +45,7 @@ class EditorCoreImpl : public EditorCore
     const lithic3d::InputState& inputState() const override;
 
     std::vector<std::string> listPrefabs() const override;
+    void loadPrefab(const std::string& name) override;
 
     void onCanvasResize(uint32_t w, uint32_t h) override;
 
@@ -69,10 +70,10 @@ class EditorCoreImpl : public EditorCore
     EventEmitterPtr m_eventEmitter;
     InputState m_inputState;
     EntityId m_cursorId = NULL_ENTITY_ID;
-  
     Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f };
     Mat3x3f m_activeRotation = identityMatrix<3>();
     float m_activeTranslation = metresToWorldUnits(10.f);
+    std::map<std::string, ResourceHandle> m_prefabs;
 };
 
 EditorCoreImpl::EditorCoreImpl(const fs::path& projectRoot, WindowDelegate& windowDelegate)
@@ -162,6 +163,13 @@ std::vector<std::string> EditorCoreImpl::listPrefabs() const
   }
 
   return prefabNames;
+}
+
+void EditorCoreImpl::loadPrefab(const std::string& name)
+{
+  if (!m_prefabs.contains(name)) {
+    m_prefabs.insert({ name, m_engine->entityFactory().loadPrefabAsync(name).wait() });
+  }
 }
 
 void EditorCoreImpl::setCursorRotationScale(const Mat3x3f& m)

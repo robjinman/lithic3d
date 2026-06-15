@@ -108,7 +108,6 @@ class SceneEditModeImpl : public SceneEditMode
 
     EditorCore& m_core;
     State m_state = State::None;
-    std::map<std::string, ResourceHandle> m_prefabs;
     EventEmitterPtr m_eventEmitter;
     Vec2f m_prevMousePos;
     EntityId m_cursorEntityId = NULL_ENTITY_ID;
@@ -272,20 +271,9 @@ void SceneEditModeImpl::setActivePrefab(const std::string& name)
   m_state = State::PrefabSelected;
   m_core.hideCursor();
 
+  m_core.loadPrefab(name);
+
   auto& factory = m_core.engine().entityFactory();
-  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
-
-  // TODO: Skip already loaded prefabs?
-
-  ResourceHandle handle;
-  auto i = m_prefabs.find(name);
-  if (i == m_prefabs.end()) {
-    handle = factory.loadPrefabAsync(name).wait();
-    m_prefabs.insert(std::make_pair(name, handle));
-  }
-  else {
-    handle = i->second;
-  }
 
   auto transform = m_core.getCursorTransform();
   m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), name,

@@ -29,6 +29,7 @@ struct Capsule
   float height;
   float radius;
   float inverseMass;
+  bool isControllable = false;
 };
 
 struct AggregateBox
@@ -60,7 +61,7 @@ class Demo : public Game
 
     float gameViewportAspectRatio() const override { return 1.4f; }
     void onKeyDown(KeyboardKey) override;
-    void onKeyUp(KeyboardKey) override {}
+    void onKeyUp(KeyboardKey) override;
     void onButtonDown(GamepadButton) override {}
     void onButtonUp(GamepadButton) override {}
     void onMouseButtonDown() override {}
@@ -147,17 +148,18 @@ class Demo : public Game
             .randomRotation = false,
             .dimensions = { 8.f, 0.5f, 4.f },
             .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 25.f },
-            .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .rotation = { degreesToRadians(39.f), degreesToRadians(12.f), degreesToRadians(6.f) },
             .infiniteMass = false,
             .isStatic = true
           }
         },
         .capsules{
           Capsule{
-            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 25.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 1.f, VIEW_Z - 25.f },
             .height = 2.f,
             .radius = 0.6f,
-            .inverseMass = 1.f
+            .inverseMass = 0.1f,
+            .isControllable = true
           }
         },
         .aggregates{}
@@ -274,6 +276,8 @@ class Demo : public Game
     std::vector<EntityId> m_capsules; // TODO: Replace with single m_dynamicEntities vector?
     std::vector<EntityId> m_aggregates;
     bool m_physicsActive = false;
+    EntityId m_controllableEntity = NULL_ENTITY_ID;
+    InputState m_inputState;
 
     EntityId constructLight();
     void constructScenario(size_t i);
@@ -283,6 +287,7 @@ class Demo : public Game
     EntityId constructCaption();
     void resetState();
     void enablePhysics();
+    void processKeyboardInput();
 };
 
 Demo::Demo(Engine& engine)
@@ -384,7 +389,7 @@ void Demo::constructScenario(size_t i)
 
     DCapsule collision{
       .inverseMass = obj.inverseMass,
-      .restitution = 0.2,
+      .restitution = 0.f,
       .friction = 0.4f,
       .capsule = {
         .radius = metresToWorldUnits(obj.radius),
@@ -394,6 +399,11 @@ void Demo::constructScenario(size_t i)
     };
 
     sysCollision.addEntity(id, collision);
+
+    if (obj.isControllable) {
+      ASSERT(m_controllableEntity == NULL_ENTITY_ID, "Only 1 capsule can be controllable");
+      m_controllableEntity = id;
+    }
 
     m_capsules.push_back(id);
   }
@@ -492,6 +502,8 @@ void Demo::destroyScenario()
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
   }
   m_aggregates.clear();
+
+  m_controllableEntity = NULL_ENTITY_ID;
 }
 
 void Demo::constructTerrain()
@@ -669,8 +681,50 @@ void Demo::resetState()
   m_physicsActive = false;
 }
 
+void Demo::processKeyboardInput()
+{
+  if (m_controllableEntity != NULL_ENTITY_ID) {
+    float metresPerSecond = 3.f;
+    float speed = metresToWorldUnits(metresPerSecond) / TICKS_PER_SECOND;
+    Vec3f forward = { 0.f, 0.f, -1.f };
+    Vec3f right = { 1.f, 0.f, 0.f };
+
+    Vec3f direction;
+
+    if (m_inputState.keysPressed.contains(KeyboardKey::W)) {
+      direction += forward;
+    }
+    if (m_inputState.keysPressed.contains(KeyboardKey::S)) {
+      direction -= forward;
+    }
+    if (m_inputState.keysPressed.contains(KeyboardKey::D)) {
+      direction += right;
+    }
+    if (m_inputState.keysPressed.contains(KeyboardKey::A)) {
+      direction -= right;
+    }
+
+    if (direction != Vec3f{}) {
+      direction = direction.normalise();
+      auto delta = direction * speed;
+
+      auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+      sysSpatial.translateEntityLocal(m_controllableEntity, delta);
+    }
+  }
+}
+
+void Demo::onKeyUp(KeyboardKey key)
+{
+  m_inputState.keysPressed.erase(key);
+}
+
 void Demo::onKeyDown(KeyboardKey key)
 {
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+
+  m_inputState.keysPressed.insert(key);
+
   if (key == KeyboardKey::Space) {
     if (m_physicsActive) {
       resetState();
@@ -697,13 +751,25 @@ void Demo::onKeyDown(KeyboardKey key)
   else if (key == KeyboardKey::N) {
     static Tick tick = 0;
     m_engine.logger().info(STR("Tick: " << tick));
-    m_engine.ecs().system<SysCollision>().update(tick++, {});
+    sysCollision.update(tick++, {});
+  }
+  else if (key == KeyboardKey::E) {
+    if (m_controllableEntity != NULL_ENTITY_ID) {
+      sysCollision.applyForce(m_controllableEntity, { 0.f, 1.f, 0.f }, 0.3f);
+    }
   }
 }
 
 bool Demo::update()
 {
+  //if (m_currentScenario == 2) {
+  //  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  //  auto t = sysSpatial.getLocalTransform(m_controllableEntity);
+  //  m_engine.ecs().system<SysRender3d>().camera().setTransform(translationMatrix4x4({ 0.f, 0.5f * 2.f, 0.f }) * t);
+  //}
+
   m_engine.update({});
+  processKeyboardInput();
 
   return true;
 }

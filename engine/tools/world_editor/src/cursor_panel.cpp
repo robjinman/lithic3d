@@ -23,7 +23,7 @@ class CursorPanelImpl : public CursorPanel
 
   private:
     void onDistanceChange(wxEvent& e);
-    void onScaleChange(wxEvent& e);
+    void onScaleChange();
     void onRotationChange();
     void onCursorMove();
     void onCancelClick();
@@ -32,7 +32,10 @@ class CursorPanelImpl : public CursorPanel
     wxWindow* m_window = nullptr;
     EditorCore& m_core;
     wxSpinCtrlDouble* m_spnDistance = nullptr;
-    wxSpinCtrlDouble* m_spnScale = nullptr;
+    // TODO: Lock ratio checkbox
+    wxSpinCtrlDouble* m_spnScaleX = nullptr;
+    wxSpinCtrlDouble* m_spnScaleY = nullptr;
+    wxSpinCtrlDouble* m_spnScaleZ = nullptr;
     wxSlider* m_sldEulerX = nullptr;
     wxSlider* m_sldEulerY = nullptr;
     wxSlider* m_sldEulerZ = nullptr;
@@ -55,9 +58,17 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   m_spnDistance = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
     wxDefaultSize, wxSP_ARROW_KEYS, 1.0, 100.0, 10.0, 0.1);
 
-  wxStaticText* lblScale = new wxStaticText(staticBox, wxID_ANY, "Scale");
+  wxStaticText* lblScaleX = new wxStaticText(staticBox, wxID_ANY, "Scale X");
+  wxStaticText* lblScaleY = new wxStaticText(staticBox, wxID_ANY, "Scale Y");
+  wxStaticText* lblScaleZ = new wxStaticText(staticBox, wxID_ANY, "Scale Z");
 
-  m_spnScale = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
+  m_spnScaleX = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
+    wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
+
+  m_spnScaleY = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
+    wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
+
+  m_spnScaleZ = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
     wxDefaultSize, wxSP_ARROW_KEYS, 0.01, 100.0, 1.0, 0.01);
 
   wxStaticText* lblRotation = new wxStaticText(staticBox, wxID_ANY, "Rotation");
@@ -73,18 +84,39 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
 
   int border = 10;
 
-  grid->Add(lblDistance, wxGBPosition(0, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+  int row = 0;
+  grid->Add(lblDistance, wxGBPosition(row, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
     border);
-  grid->Add(m_spnDistance, wxGBPosition(0, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
+  grid->Add(m_spnDistance, wxGBPosition(row, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
+  ++row;
 
-  grid->Add(lblScale, wxGBPosition(1, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT, border);
-  grid->Add(m_spnScale, wxGBPosition(1, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
-
-  grid->Add(lblRotation, wxGBPosition(2, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+  grid->Add(lblScaleX, wxGBPosition(row, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
     border);
-  grid->Add(m_sldEulerX, wxGBPosition(3, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
-  grid->Add(m_sldEulerY, wxGBPosition(4, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
-  grid->Add(m_sldEulerZ, wxGBPosition(5, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  grid->Add(m_spnScaleX, wxGBPosition(row, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
+  ++row;
+
+  grid->Add(lblScaleY, wxGBPosition(row, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+    border);
+  grid->Add(m_spnScaleY, wxGBPosition(row, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
+  ++row;
+
+  grid->Add(lblScaleZ, wxGBPosition(row, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+    border);
+  grid->Add(m_spnScaleZ, wxGBPosition(row, 1), wxDefaultSpan, wxEXPAND | wxRIGHT, border);
+  ++row;
+
+  grid->Add(lblRotation, wxGBPosition(row, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL | wxLEFT,
+    border);
+  ++row;
+
+  grid->Add(m_sldEulerX, wxGBPosition(row, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  ++row;
+
+  grid->Add(m_sldEulerY, wxGBPosition(row, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  ++row;
+
+  grid->Add(m_sldEulerZ, wxGBPosition(row, 0), wxGBSpan(1, 2), wxEXPAND | wxLEFT | wxRIGHT, border);
+  ++row;
 
   grid->AddGrowableCol(1);
 
@@ -104,7 +136,9 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   m_window->SetSizer(staticBoxSizer);
 
   m_spnDistance->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onDistanceChange(e); });
-  m_spnScale->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent& e) { onScaleChange(e); });
+  m_spnScaleX->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent&) { onScaleChange(); });
+  m_spnScaleY->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent&) { onScaleChange(); });
+  m_spnScaleZ->Bind(wxEVT_SPINCTRLDOUBLE, [this](wxEvent&) { onScaleChange(); });
   m_sldEulerX->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
   m_sldEulerY->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
   m_sldEulerZ->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
@@ -135,7 +169,9 @@ wxWindow* CursorPanelImpl::getWxPtr()
 void CursorPanelImpl::onCursorMove()
 {
   m_spnDistance->SetValue(worldUnitsToMetres(m_core.getCursorDistance()));
-  m_spnScale->SetValue(m_core.getCursorScale()[0]);
+  m_spnScaleX->SetValue(m_core.getCursorScale()[0]);
+  m_spnScaleY->SetValue(m_core.getCursorScale()[1]);
+  m_spnScaleZ->SetValue(m_core.getCursorScale()[2]);
 
   auto updateSlider = [this](uint32_t dimension, wxSlider* slider) {
     float radians = m_core.getCursorRotation()[dimension];
@@ -158,10 +194,13 @@ void CursorPanelImpl::onDistanceChange(wxEvent& e)
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
 }
 
-void CursorPanelImpl::onScaleChange(wxEvent& e)
+void CursorPanelImpl::onScaleChange()
 {
-  auto event = dynamic_cast<wxSpinDoubleEvent&>(e);
-  Vec3f scale = Vec3f{ 1.f, 1.f, 1.f } * event.GetValue();
+  Vec3f scale = {
+    static_cast<float>(m_spnScaleX->GetValue()),
+    static_cast<float>(m_spnScaleY->GetValue()),
+    static_cast<float>(m_spnScaleZ->GetValue())
+  };
 
   m_onCursorMove.reset();
   m_core.setCursorScale(scale);

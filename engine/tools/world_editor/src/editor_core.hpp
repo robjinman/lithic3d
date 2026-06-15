@@ -44,6 +44,7 @@ class EditorCore
     virtual const lithic3d::InputState& inputState() const = 0;
 
     virtual std::vector<std::string> listPrefabs() const = 0;
+    virtual void loadPrefab(const std::string& name) = 0;
 
     virtual void update() = 0;
 
