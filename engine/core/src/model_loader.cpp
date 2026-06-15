@@ -195,14 +195,6 @@ VertexLayout getVertexLayout(const gltf::MeshDesc& meshDesc, bool hasTangents)
 
 void computeMeshTangents(Mesh& mesh)
 {
-  auto getBuffer = [](const std::vector<Buffer>& buffers, BufferUsage usage) -> const Buffer& {
-    auto i = std::find_if(buffers.begin(), buffers.end(), [usage](const Buffer& buffer) {
-      return buffer.usage == usage;
-    });
-    DBG_ASSERT(i != buffers.end(), "Mesh does not contain buffer of that type");
-    return *i;
-  };
-
   auto& posBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrPosition);
   auto& uvBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrTexCoord);
 

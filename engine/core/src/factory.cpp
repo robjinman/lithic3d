@@ -16,6 +16,7 @@ using render::MeshFeatureSet;
 namespace MeshFeatures = render::MeshFeatures;
 using render::MeshHandle;
 using render::BufferUsage;
+using render::MeshPtr;
 
 namespace
 {
@@ -27,6 +28,8 @@ class FactoryImpl : public Factory
 
     // TODO: Use metres, not world units
 
+    EntityId createShape(EntityId parentId, MeshPtr mesh, const Vec4f& colour) override;
+    EntityId createShape(EntityId parentId, MeshPtr mesh, MaterialHandle material) override;
     MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath,
       bool genMipmaps) override;
     EntityId createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
@@ -51,6 +54,76 @@ FactoryImpl::FactoryImpl(Ecs& ecs, ModelLoader& modelLoader,
   , m_modelLoader(modelLoader)
   , m_renderResourceLoader(renderResourceLoader)
 {}
+
+// TODO: Move this
+Aabb computeAabb(const render::Mesh& mesh)
+{
+  auto& posBuffer = getBuffer(mesh.attributeBuffers, BufferUsage::AttrPosition);
+  auto positions = posBuffer.data.data<Vec3f>();
+
+  const float maxf = std::numeric_limits<float>::max();
+  const float minf = std::numeric_limits<float>::lowest();
+
+  Aabb aabb{
+    .min = { maxf, maxf, maxf },
+    .max = { minf, minf, minf }
+  };
+
+  for (auto& pos : positions) {
+    for (size_t i = 0; i < 3; ++i) {
+      if (pos[i] < aabb.min[i]) {
+        aabb.min[i] = pos[i];
+      }
+      if (pos[i] > aabb.max[i]) {
+        aabb.max[i] = pos[i];
+      }
+    }
+  }
+
+  return aabb;
+}
+
+EntityId FactoryImpl::createShape(EntityId parentId, MeshPtr mesh, MaterialHandle material)
+{
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender3d = m_ecs.system<SysRender3d>();
+
+  auto id = m_ecs.idGen().getNewEntityId();
+  m_ecs.componentStore().allocate<DSpatial, DModel>(id);
+
+  DSpatial spatial{};
+  spatial.parent = parentId;
+  spatial.aabb = computeAabb(*mesh);
+
+  sysSpatial.addEntity(id, spatial);
+
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
+    std::unique_ptr<Submodel>(new Submodel{
+      .lods = { m_renderResourceLoader.loadMeshAsync(std::move(mesh)).wait() },
+      .material = material,
+      .skin = nullptr,
+      .jointTransforms{}
+    })
+  );
+
+  auto render = std::make_unique<DModel>();
+  render->model = m_modelLoader.loadModelAsync(std::move(model)).wait();
+
+  sysRender3d.addEntity(id, std::move(render));
+
+  return id;
+}
+
+EntityId FactoryImpl::createShape(EntityId parentId, MeshPtr mesh, const Vec4f& colour)
+{
+  auto material = std::make_unique<Material>();
+  material->colour = colour;
+
+  auto materialHandle = m_renderResourceLoader.loadMaterialAsync(std::move(material));
+
+  return createShape(parentId, std::move(mesh), materialHandle);
+}
 
 MaterialHandle FactoryImpl::createMaterialAsync(const std::filesystem::path& texturePath,
   bool genMipmaps)

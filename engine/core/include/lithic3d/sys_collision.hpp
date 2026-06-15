@@ -39,7 +39,7 @@ struct Capsule
 {
   float radius = 0.f;
   float height = 0.f;
-  Vec3f translation;
+  Vec3f translation;  // TODO: Do we support off-centre capsules?
 };
 
 struct HeightMap
@@ -214,7 +214,6 @@ struct DCapsule
   float inverseMass = 1.f;
   float restitution = 0.2f;
   float friction = 0.4f;
-  Vec3f centreOfMass;
   Capsule capsule;
 };
 

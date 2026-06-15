@@ -57,10 +57,12 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructCube()
 {
-  auto material = m_factory->createMaterialAsync("bricks.png", true);
-  auto size = Vec3f{ 1.f, 1.f, 1.f };
-  auto texSize = Vec2f{ 1.f, 1.f };
-  return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
+  auto material = m_factory->createMaterialAsync("bricks.png", true).wait();
+  //auto size = Vec3f{ 1.f, 1.f, 1.f };
+  //auto texSize = Vec2f{ 1.f, 1.f };
+  //return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
+
+  return m_factory->createShape(m_rootId, render::cylinder(1.f, 0.3f), material);
 }
 
 EntityId Demo::constructLight()

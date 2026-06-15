@@ -23,6 +23,14 @@ struct Box
   bool isStatic;
 };
 
+struct Capsule
+{
+  Vec3f position;
+  float height;
+  float radius;
+  float inverseMass;
+};
+
 struct AggregateBox
 {
   Vec3f dimensions;
@@ -37,9 +45,11 @@ struct Aggregate
   std::vector<AggregateBox> boxes;
 };
 
+// TODO: Refactor into static/dynamic sub-structs?
 struct Scenario
 {
   std::vector<Box> boxes;
+  std::vector<Capsule> capsules;
   std::vector<Aggregate> aggregates;
 };
 
@@ -89,6 +99,7 @@ class Demo : public Game
             .isStatic = false
           }
         },
+        .capsules{},
         .aggregates = {
           Aggregate{
             .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 15.f },
@@ -127,6 +138,28 @@ class Demo : public Game
             .isStatic = true
           }
         },
+        .capsules{},
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = false,
+            .dimensions = { 8.f, 0.5f, 4.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = true
+          }
+        },
+        .capsules{
+          Capsule{
+            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 25.f },
+            .height = 2.f,
+            .radius = 0.6f,
+            .inverseMass = 1.f
+          }
+        },
         .aggregates{}
       },
       Scenario{
@@ -148,6 +181,7 @@ class Demo : public Game
             .isStatic = false
           }
         },
+        .capsules{},
         .aggregates{}
       },
       Scenario{
@@ -177,6 +211,7 @@ class Demo : public Game
             .isStatic = false
           }
         },
+        .capsules{},
         .aggregates{}
       },
       Scenario{
@@ -230,11 +265,13 @@ class Demo : public Game
             .isStatic = false
           },
         },
+        .capsules{},
         .aggregates{}
       }
     };
     size_t m_currentScenario = 1;
-    std::vector<EntityId> m_boxes;
+    std::vector<EntityId> m_boxes;    //
+    std::vector<EntityId> m_capsules; // TODO: Replace with single m_dynamicEntities vector?
     std::vector<EntityId> m_aggregates;
     bool m_physicsActive = false;
 
@@ -288,9 +325,12 @@ Vec3f randomRotation()
 void Demo::constructScenario(size_t i)
 {
   assert(m_boxes.empty());
+  assert(m_capsules.empty());
   assert(m_aggregates.empty());
 
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
 
   auto material = m_factory->createMaterialAsync("bricks.png", true);
   auto texSize = Vec2f{ 1.f, 1.f };
@@ -308,8 +348,55 @@ void Demo::constructScenario(size_t i)
     m_boxes.push_back(id);
   }
 
-  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
-  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+  for (auto& obj : m_scenarios[i].capsules) {
+    auto id = m_engine.ecs().idGen().getNewEntityId();
+    m_engine.ecs().componentStore().allocate<DSpatial, DModel, DCapsule>(id);
+
+    DSpatial spatial{};
+    spatial.parent = sysSpatial.root();
+    spatial.aabb = {
+      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.height * 0.5f, -obj.radius }),
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.height * 0.5f, obj.radius })
+    };
+
+    sysSpatial.addEntity(id, spatial);
+
+    auto mesh = render::capsule(obj.height, obj.radius);
+    mesh->featureSet.flags.set(MeshFeatures::CastsShadow);
+
+    auto material = std::make_unique<Material>();
+    material->colour = { 0.f, 1.f, 0.f, 1.f };
+
+    auto model = std::make_unique<Model>();
+    model->submodels.push_back(
+      std::unique_ptr<Submodel>(new Submodel{
+        .lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait() },
+        .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
+        .skin = nullptr,
+        .jointTransforms{}
+      })
+    );
+
+    auto render = std::make_unique<DModel>();
+    render->model = m_engine.modelLoader().loadModelAsync(std::move(model)).wait();
+
+    sysRender3d.addEntity(id, std::move(render));
+
+    DCapsule collision{
+      .inverseMass = obj.inverseMass,
+      .restitution = 0.2,
+      .friction = 0.4f,
+      .capsule = {
+        .radius = metresToWorldUnits(obj.radius),
+        .height = metresToWorldUnits(obj.height),
+        .translation{}
+      }
+    };
+
+    sysCollision.addEntity(id, collision);
+
+    m_capsules.push_back(id);
+  }
 
   for (auto& obj : m_scenarios[i].aggregates) {
     auto id = m_engine.ecs().idGen().getNewEntityId();
@@ -395,6 +482,11 @@ void Demo::destroyScenario()
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
   }
   m_boxes.clear();
+
+  for (auto id : m_capsules) {
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
+  }
+  m_capsules.clear();
 
   for (auto id : m_aggregates) {
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
@@ -516,6 +608,7 @@ void Demo::enablePhysics()
   auto& sysCollision = m_engine.ecs().system<SysCollision>();
 
   assert(m_boxes.size() == m_scenarios[m_currentScenario].boxes.size());
+  assert(m_capsules.size() == m_scenarios[m_currentScenario].capsules.size());
   assert(m_aggregates.size() == m_scenarios[m_currentScenario].aggregates.size());
 
   for (size_t i = 0; i < m_boxes.size(); ++i) {
@@ -529,6 +622,12 @@ void Demo::enablePhysics()
     }
   }
 
+  for (size_t i = 0; i < m_capsules.size(); ++i) {
+    auto& obj = m_scenarios[m_currentScenario].capsules[i];
+    auto id = m_capsules[i];
+    sysCollision.setInverseMass(id, obj.inverseMass);
+  }
+
   m_physicsActive = true;
 }
 
@@ -538,6 +637,7 @@ void Demo::resetState()
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
   assert(m_boxes.size() == m_scenarios[m_currentScenario].boxes.size());
+  assert(m_capsules.size() == m_scenarios[m_currentScenario].capsules.size());
   assert(m_aggregates.size() == m_scenarios[m_currentScenario].aggregates.size());
 
   for (size_t i = 0; i < m_boxes.size(); ++i) {
@@ -552,6 +652,17 @@ void Demo::resetState()
     auto rotation = obj.randomRotation ? randomRotation() : obj.rotation;
     auto transform = createTransform(metresToWorldUnits(obj.position), rotation);
 
+    sysSpatial.setLocalTransform(id, transform);
+  }
+
+  for (size_t i = 0; i < m_capsules.size(); ++i) {
+    auto& obj = m_scenarios[m_currentScenario].capsules[i];
+    auto id = m_capsules[i];
+
+    sysCollision.setInverseMass(id, 0.f);
+    sysCollision.setStationary(id);
+
+    auto transform = translationMatrix4x4(metresToWorldUnits(obj.position));
     sysSpatial.setLocalTransform(id, transform);
   }
 

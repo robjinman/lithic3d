@@ -708,7 +708,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
 
   CCollisionDynamic dynamic{
     .inverseMass = data.inverseMass,
-    .centreOfMass = data.centreOfMass,
+    .centreOfMass{},
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
@@ -1928,8 +1928,8 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
   if (sphereTrianglesContact(bottomSphere, triangles, Q, maxPenetration)) {
     Contact contact;
 
-    contact.A = A;
-    contact.B = B;
+    contact.A = B;
+    contact.B = A;
     contact.point = Q;
     contact.normal = (bottomSphere.centre - contact.point).normalise();
     contact.penetration = maxPenetration;
@@ -1941,8 +1941,8 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
   else if (sphereTrianglesContact(topSphere, triangles, Q, maxPenetration)) {
     Contact contact;
 
-    contact.A = A;
-    contact.B = B;
+    contact.A = B;
+    contact.B = A;
     contact.point = Q;
     contact.normal = (topSphere.centre - contact.point).normalise();
     contact.penetration = maxPenetration;

@@ -67,6 +67,15 @@ TexturePtr loadGreyscaleTexture(const std::vector<char>& data)
   return loadTexture(data, STBI_grey);
 }
 
+const Buffer& getBuffer(const std::vector<Buffer>& buffers, BufferUsage usage)
+{
+  auto i = std::find_if(buffers.begin(), buffers.end(), [usage](const Buffer& buffer) {
+    return buffer.usage == usage;
+  });
+  DBG_ASSERT(i != buffers.end(), "Mesh does not contain buffer of that type");
+  return *i;
+}
+
 // Size is in metres. Mesh data is in metres and scaled by SysRender3d when sent to the renderer.
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
 {
@@ -225,6 +234,141 @@ MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
   };
 
   return mesh;
+}
+
+MeshPtr capsule(float height, float radius)
+{
+  // TODO
+  return cylinder(height, radius);
+}
+
+MeshPtr sphere(float radius)
+{
+  // TODO
+}
+
+MeshPtr cylinder(float height, float radius, bool withClosedEnds)
+{
+  const int sides = 16;
+
+  MeshPtr mesh = std::make_unique<Mesh>();
+  mesh->featureSet = MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+
+  std::vector<Vec3f> positions;
+  std::vector<Vec3f> normals;
+  std::vector<Vec2f> texCoords;
+  std::vector<uint16_t> indices;
+
+  float y0 = -height * 0.5f;
+  float y1 = height * 0.5;
+
+  for (int i = 0; i < sides; ++i) {
+    float theta0 = 2.f * PIf * (static_cast<float>(i) / sides);
+    float theta1 = 2.f * PIf * (static_cast<float>(i + 1) / sides);
+
+    float x0 = radius * cosf(theta0);
+    float x1 = radius * cosf(theta1);
+
+    float z0 = radius * sinf(theta0);
+    float z1 = radius * sinf(theta1);
+
+    uint16_t idx = static_cast<uint16_t>(positions.size());
+    positions.push_back({ x0, y0, z0 });  // A
+    positions.push_back({ x1, y0, z1 });  // B
+    positions.push_back({ x1, y1, z1 });  // C
+    positions.push_back({ x0, y1, z0 });  // D
+
+    Vec3f N0 = Vec3f{ x0, 0.f, z0 }.normalise();
+    Vec3f N1 = Vec3f{ x1, 0.f, z1 }.normalise();
+    normals.push_back(N0);
+    normals.push_back(N1);
+    normals.push_back(N1);
+    normals.push_back(N0);
+
+    float u0 = static_cast<float>(i) / sides;
+    float u1 = static_cast<float>(i + 1) / sides;
+    float v0 = 0.f;
+    float v1 = 1.f;
+    texCoords.push_back(Vec2f{ u0, v0 });
+    texCoords.push_back(Vec2f{ u1, v0 });
+    texCoords.push_back(Vec2f{ u1, v1 });
+    texCoords.push_back(Vec2f{ u0, v1 });
+
+    indices.push_back(idx + 0);   // A
+    indices.push_back(idx + 3);   // D
+    indices.push_back(idx + 1);   // B
+
+    indices.push_back(idx + 1);   // B
+    indices.push_back(idx + 3);   // D
+    indices.push_back(idx + 2);   // C
+  }
+
+  if (withClosedEnds) {
+    for (int i = 0; i < sides; ++i) {
+      float theta0 = 2.f * PIf * (static_cast<float>(i) / sides);
+      float theta1 = 2.f * PIf * (static_cast<float>(i + 1) / sides);
+
+      float cos0 = cosf(theta0);
+      float cos1 = cosf(theta1);
+      float sin0 = sinf(theta0);
+      float sin1 = sinf(theta1);
+
+      float x0 = radius * cos0;
+      float x1 = radius * cos1;
+
+      float z0 = radius * sin0;
+      float z1 = radius * sin1;
+
+      uint16_t idx = static_cast<uint16_t>(positions.size());
+      positions.push_back({ x0, y0, z0 });    // A
+      positions.push_back({ x1, y0, z1 });    // B
+      positions.push_back({ x1, y1, z1 });    // C
+      positions.push_back({ x0, y1, z0 });    // D
+      positions.push_back({ 0.f, y0, 0.f });  // E
+      positions.push_back({ 0.f, y1, 0.f });  // F
+
+      normals.push_back({ 0.f, -1.f, 0.f });  // A
+      normals.push_back({ 0.f, -1.f, 0.f });  // B
+      normals.push_back({ 0.f, 1.f, 0.f });   // C
+      normals.push_back({ 0.f, 1.f, 0.f });   // D
+      normals.push_back({ 0.f, -1.f, 0.f });  // E
+      normals.push_back({ 0.f, 1.f, 0.f });   // F
+
+      texCoords.push_back({ 0.5f + 0.5f * cos0, 0.5f + 0.5f * sin0 });  // A
+      texCoords.push_back({ 0.5f + 0.5f * cos1, 0.5f + 0.5f * sin1 });  // B
+      texCoords.push_back({ 0.5f + 0.5f * cos1, 0.5f + 0.5f * sin1 });  // C
+      texCoords.push_back({ 0.5f + 0.5f * cos0, 0.5f + 0.5f * sin0 });  // D
+      texCoords.push_back({ 0.5f, 0.5f });                              // E
+      texCoords.push_back({ 0.5f, 0.5f });                              // F
+
+      indices.push_back(idx + 0);   // A
+      indices.push_back(idx + 1);   // B
+      indices.push_back(idx + 4);   // E
+
+      indices.push_back(idx + 2);   // C
+      indices.push_back(idx + 3);   // D
+      indices.push_back(idx + 5);   // F
+    }
+  }
+
+  mesh->attributeBuffers.push_back(Buffer{AlignedBytes{positions}, BufferUsage::AttrPosition});
+  mesh->attributeBuffers.push_back(Buffer{AlignedBytes{normals}, BufferUsage::AttrNormal});
+  mesh->attributeBuffers.push_back(Buffer{AlignedBytes{texCoords}, BufferUsage::AttrTexCoord});
+  mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
+
+  return mesh;
+}
+
+MeshPtr cylinder(float height, float radius)
+{
+  return cylinder(height, radius, true);
 }
 
 std::vector<char> createVertexArray(const Mesh& mesh)
