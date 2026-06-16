@@ -335,7 +335,7 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   auto prefabXml = parseXml(prefabData);
 
   m_unusedPrefabXml.clear();
-  std::array<bool, Systems::NUMBER_OF_SYSTEMS> changedFromPrefab;
+  EntityMask changedFromPrefab;
   m_entityId = engine.entityFactory().constructEntity(m_rootId, *prefabXml, changedFromPrefab,
     m_unusedPrefabXml);
   m_entityIsPrefab = true;
@@ -543,7 +543,7 @@ void EntityEditModeImpl::saveChanges()
 
     for (SystemId systemId = 0; systemId < m_core.engine().ecs().numSystems(); ++systemId) {
       auto& system = m_core.engine().ecs().getSystem(systemId);
-      auto node = system.componentToXml(m_entityId);
+      auto node = system.componentToXml(m_entityId, ComponentMask{}.set());
       if (node != nullptr) {
         xmlEntity->addChild(std::move(node));
       }

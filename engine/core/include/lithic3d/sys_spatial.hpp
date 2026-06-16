@@ -102,6 +102,15 @@ struct DSpatial
   Aabb aabb; // Model-space bounding box
 };
 
+namespace SysSpatialSubcomponent
+{
+  enum : uint32_t
+  {
+    Transform,
+    Aabb
+  };
+}
+
 class SysSpatial : public System
 {
   public:

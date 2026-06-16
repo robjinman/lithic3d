@@ -83,7 +83,7 @@ class SysSpatialImpl : public SysSpatial
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
-    XmlNodePtr componentToXml(EntityId entityId) const override;
+    XmlNodePtr componentToXml(EntityId entityId, ComponentMask mask) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -196,13 +196,19 @@ ComponentDataPtr SysSpatialImpl::constructDSpatial(const XmlNode& xmlSpatial) co
   auto iTransform = xmlSpatial.child("transform");
   auto iAabb = xmlSpatial.child("aabb");
 
+  bool hasTransform = iTransform != xmlSpatial.end();
+  bool hasAabb = iAabb != xmlSpatial.end();
+
+  ComponentMask mask;
+  mask.set(SysSpatialSubcomponent::Transform, hasTransform);
+  mask.set(SysSpatialSubcomponent::Aabb, hasAabb);
+
   return std::make_unique<ComponentDataWrapper<DSpatial>>(DSpatial{
-    .transform = iTransform == xmlSpatial.end() ?
-      identityMatrix<4>() : constructTransform(*iTransform),
+    .transform = hasTransform ? constructTransform(*iTransform) : identityMatrix<4>(),
     .parent = root(),
     .enabled = true,
-    .aabb = iAabb == xmlSpatial.end() ? Aabb{} : constructAabb(*iAabb)
-  });
+    .aabb = hasAabb ? constructAabb(*iAabb) : Aabb{}
+  }, mask);
 }
 
 ComponentDataPtr SysSpatialImpl::constructComponentData(const XmlNode& xmlSysSpatial) const
@@ -226,13 +232,20 @@ ComponentDataPtr SysSpatialImpl::constructComponentDataWithModifications(const C
     auto& baseSpatial = dynamic_cast<const ComponentDataWrapper<DSpatial>&>(base).data();
 
     auto iTransform = xmlComp.child("transform");
+    auto iAabb = xmlComp.child("aabb");
+
+    bool hasTransform = iTransform != xmlComp.end();
+    bool hasAabb = iAabb != xmlComp.end();
+
+    ComponentMask mask;
+    mask.set(SysSpatialSubcomponent::Transform, hasTransform);
+    mask.set(SysSpatialSubcomponent::Aabb, hasAabb);
 
     return std::make_unique<ComponentDataWrapper<DSpatial>>(DSpatial{
-      .transform = iTransform == xmlComp.end() ?
-        baseSpatial.transform : constructTransform(*iTransform),
+      .transform = hasTransform ? constructTransform(*iTransform) : baseSpatial.transform,
       .parent = baseSpatial.parent,   // TODO
-      .enabled = baseSpatial.enabled, // TODO
-      .aabb = baseSpatial.aabb        // TODO
+      .enabled = true,
+      .aabb = hasAabb ? constructAabb(*iAabb) : baseSpatial.aabb
     });
   }
   // ...
@@ -241,7 +254,7 @@ ComponentDataPtr SysSpatialImpl::constructComponentDataWithModifications(const C
   }
 }
 
-XmlNodePtr SysSpatialImpl::componentToXml(EntityId entityId) const
+XmlNodePtr SysSpatialImpl::componentToXml(EntityId entityId, ComponentMask mask) const
 {
   if (!hasEntity(entityId)) {
     return nullptr;
@@ -250,8 +263,12 @@ XmlNodePtr SysSpatialImpl::componentToXml(EntityId entityId) const
   auto xmlSysSpatial = createXmlNode("spatial");
   auto xmlSpatial = createXmlNode("spatial");
 
-  xmlSpatial->addChild(toXml(getLocalTransform(entityId)));
-  xmlSpatial->addChild(toXml(getAabb(entityId)));
+  if (mask.test(SysSpatialSubcomponent::Transform)) {
+    xmlSpatial->addChild(toXml(getLocalTransform(entityId)));
+  }
+  if (mask.test(SysSpatialSubcomponent::Aabb)) {
+    xmlSpatial->addChild(toXml(getAabb(entityId)));
+  }
 
   xmlSysSpatial->addChild(std::move(xmlSpatial));
 

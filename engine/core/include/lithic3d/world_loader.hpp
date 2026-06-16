@@ -29,7 +29,7 @@ struct EntityInfo
 
   EntityId id = NULL_ENTITY_ID;
   std::string type{};
-  std::array<bool, Systems::NUMBER_OF_SYSTEMS> changedFromPrefab{};
+  EntityMask changedFromPrefab{};
   std::vector<XmlNodePtr> unused{};
 };
 

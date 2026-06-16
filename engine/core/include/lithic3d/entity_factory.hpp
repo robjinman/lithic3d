@@ -9,6 +9,8 @@
 namespace lithic3d
 {
 
+using EntityMask = std::array<ComponentMask, Systems::NUMBER_OF_SYSTEMS>;
+
 class EntityFactory
 {
   public:
@@ -17,8 +19,7 @@ class EntityFactory
     virtual EntityId constructEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform) const = 0;
     virtual EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity,
-      std::array<bool, Systems::NUMBER_OF_SYSTEMS>& changedFromPrefab,
-      std::vector<XmlNodePtr>& unused) const = 0;
+      EntityMask& changedFromPrefab, std::vector<XmlNodePtr>& unused) const = 0;
     virtual EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) = 0;
     virtual bool hasPrefab(const std::string& name) const = 0;

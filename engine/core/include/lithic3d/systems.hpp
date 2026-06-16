@@ -8,7 +8,8 @@ namespace lithic3d
 // Systems are updated in order
 namespace Systems
 {
-  enum : uint32_t {
+  enum : uint32_t
+  {
     Animation2d,
     Spatial,
     Collision,
