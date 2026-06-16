@@ -364,7 +364,7 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
-    XmlNodePtr componentToXml(EntityId entityId, ComponentMask mask) const override;
+    XmlNodePtr componentToXml(EntityId entityId, EntityId prefabId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -384,11 +384,11 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructDPolyhedron(const XmlNode& data) const;
     ComponentDataPtr constructDAggregate(const XmlNode& data) const;
 
-    XmlNodePtr staticBoxToXml(EntityId entityId, ComponentMask mask) const;
-    XmlNodePtr dynamicBoxToXml(EntityId entityId, ComponentMask mask) const;
-    XmlNodePtr capsuleToXml(EntityId entityId, ComponentMask mask) const;
-    XmlNodePtr polyhedronToXml(EntityId entityId, ComponentMask mask) const;
-    XmlNodePtr aggregateToXml(EntityId entityId, ComponentMask mask) const;
+    XmlNodePtr staticBoxToXml(EntityId entityId) const;
+    XmlNodePtr dynamicBoxToXml(EntityId entityId) const;
+    XmlNodePtr capsuleToXml(EntityId entityId) const;
+    XmlNodePtr polyhedronToXml(EntityId entityId) const;
+    XmlNodePtr aggregateToXml(EntityId entityId) const;
 
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
@@ -799,16 +799,13 @@ ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode& xmlDynami
   float restitution = std::stof(xmlDynamicBox.attribute("restitution"));
   float friction = std::stof(xmlDynamicBox.attribute("friction"));
 
-  // TODO
-  ComponentMask mask;
-
   return std::make_unique<ComponentDataWrapper<DDynamicBox>>(DDynamicBox{
     .inverseMass = invMass,
     .restitution = restitution,
     .friction = friction,
     .centreOfMass = metresToWorldUnits(constructVec3f(*xmlDynamicBox.child("centre_of_mass"))),
     .boundingBox = constructBoundingBox(*xmlDynamicBox.child("bounding_box"))
-  }, mask);
+  });
 }
 
 ComponentDataPtr SysCollisionImpl::constructDStaticBox(const XmlNode& xmlStaticBox) const
@@ -816,14 +813,11 @@ ComponentDataPtr SysCollisionImpl::constructDStaticBox(const XmlNode& xmlStaticB
   float restitution = std::stof(xmlStaticBox.attribute("restitution"));
   float friction = std::stof(xmlStaticBox.attribute("friction"));
 
-  // TODO
-  ComponentMask mask;
-
   return std::make_unique<ComponentDataWrapper<DStaticBox>>(DStaticBox{
     .restitution = restitution,
     .friction = friction,
     .boundingBox = constructBoundingBox(*xmlStaticBox.child("bounding_box"))
-  }, mask);
+  });
 }
 
 ComponentDataPtr SysCollisionImpl::constructDCapsule(const XmlNode&) const
@@ -859,8 +853,7 @@ ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode& xmlAggrega
     }
   }
 
-  ComponentMask mask; // TODO: Use mask?
-  return std::make_unique<ComponentDataWrapper<DAggregate>>(std::move(aggregate), mask);
+  return std::make_unique<ComponentDataWrapper<DAggregate>>(std::move(aggregate));
 }
 
 ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& xmlSysCollision) const
@@ -911,9 +904,9 @@ ComponentDataPtr SysCollisionImpl::constructComponentDataWithModifications(
   }
 }
 
-XmlNodePtr SysCollisionImpl::staticBoxToXml(EntityId entityId, ComponentMask) const
+XmlNodePtr SysCollisionImpl::staticBoxToXml(EntityId entityId) const
 {
-  // TODO: Use mask?
+  // TODO: Compare with prefab
 
   auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
   auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
@@ -930,9 +923,9 @@ XmlNodePtr SysCollisionImpl::staticBoxToXml(EntityId entityId, ComponentMask) co
   return xmlSysCollision;
 }
 
-XmlNodePtr SysCollisionImpl::dynamicBoxToXml(EntityId entityId, ComponentMask) const
+XmlNodePtr SysCollisionImpl::dynamicBoxToXml(EntityId entityId) const
 {
-  // TODO: Use mask?
+  // TODO: Compare with prefab
 
   auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
   auto& boxComp = m_ecs.componentStore().component<CCollisionBox>(entityId);
@@ -960,10 +953,9 @@ XmlNodePtr SysCollisionImpl::dynamicBoxToXml(EntityId entityId, ComponentMask) c
   return xmlSysCollision;
 }
 
-XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId, ComponentMask mask) const
+XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
 {
-  // TODO: Use mask?
-  // How to use the mask with aggregates?
+  // TODO: Compare with prefab
 
   auto& componentStore = m_ecs.componentStore();
 
@@ -979,11 +971,11 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId, ComponentMask mas
     auto partType = componentType(childId);
     switch (partType) {
       case CollisionComponentType::StaticBox: {
-        xmlChild = staticBoxToXml(childId, ComponentMask{}.set());
+        xmlChild = staticBoxToXml(childId);
         break;
       }
       case CollisionComponentType::Polyhedron: {
-        xmlChild = polyhedronToXml(childId, ComponentMask{}.set());
+        xmlChild = polyhedronToXml(childId);
         break;
       }
       default: EXCEPTION("Error converting to XML; Unexpected component type in aggregate");
@@ -1002,18 +994,20 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId, ComponentMask mas
   return xmlSysCollision;
 }
 
-XmlNodePtr SysCollisionImpl::capsuleToXml(EntityId, ComponentMask) const
+XmlNodePtr SysCollisionImpl::capsuleToXml(EntityId) const
 {
   // TODO
 }
 
-XmlNodePtr SysCollisionImpl::polyhedronToXml(EntityId, ComponentMask) const
+XmlNodePtr SysCollisionImpl::polyhedronToXml(EntityId) const
 {
   // TODO
 }
 
-XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId, ComponentMask mask) const
+XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId, EntityId) const
 {
+  // TODO: Compare with prefab
+
   if (!hasEntity(entityId)) {
     return nullptr;
   }
@@ -1021,11 +1015,11 @@ XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId, ComponentMask mas
   auto type = componentType(entityId);
 
   switch (type) {
-    case CollisionComponentType::StaticBox: return staticBoxToXml(entityId, mask);
-    case CollisionComponentType::DynamicBox: return dynamicBoxToXml(entityId, mask);
-    case CollisionComponentType::Capsule: return capsuleToXml(entityId, mask);
-    case CollisionComponentType::Aggregate: return aggregateToXml(entityId, mask);
-    case CollisionComponentType::Polyhedron: return polyhedronToXml(entityId, mask);
+    case CollisionComponentType::StaticBox: return staticBoxToXml(entityId);
+    case CollisionComponentType::DynamicBox: return dynamicBoxToXml(entityId);
+    case CollisionComponentType::Capsule: return capsuleToXml(entityId);
+    case CollisionComponentType::Aggregate: return aggregateToXml(entityId);
+    case CollisionComponentType::Polyhedron: return polyhedronToXml(entityId);
     default: EXCEPTION("Cannot convert component to XML");
   }
 }

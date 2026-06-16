@@ -158,14 +158,14 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xm
         system.addEntity(id, *c);
 
         if (systemId < Systems::NUMBER_OF_SYSTEMS) {
-          changedFromPrefab[systemId] = c->mask();
+          changedFromPrefab[systemId] = true;
         }
       }
       else {
         system.addEntity(id, *prefab.components[systemId]);
 
         if (systemId < Systems::NUMBER_OF_SYSTEMS) {
-          changedFromPrefab[systemId] = 0;
+          changedFromPrefab[systemId] = false;
         }
       }
     }

@@ -9,7 +9,7 @@
 namespace lithic3d
 {
 
-using EntityMask = std::array<ComponentMask, Systems::NUMBER_OF_SYSTEMS>;
+using EntityMask = std::array<bool, Systems::NUMBER_OF_SYSTEMS>;
 
 class EntityFactory
 {

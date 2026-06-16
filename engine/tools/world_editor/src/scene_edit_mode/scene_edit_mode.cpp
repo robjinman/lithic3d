@@ -97,9 +97,10 @@ class SceneEditModeImpl : public SceneEditMode
     void processKeyboardInput();
     void positionCursorEntity();
     Vec2i cellFromPosition(const Vec3f& pos) const;
-    void saveChangesToSlice(const Vec3f& index, const SliceState& slice);
+    void saveChangesToSlice(const Vec3f& index, const SliceState& slice,
+      std::map<std::string, EntityId>&);
     void saveChangesToSlice(const fs::path& cellDirName, const std::string& sliceFileName,
-      const SliceState& slice);
+      const SliceState& slice, std::map<std::string, EntityId>&);
     void loadCurrentCell();
     void instantiateActivePrefab();
     void cancelActivePrefab();
@@ -299,7 +300,7 @@ void SceneEditModeImpl::instantiateActivePrefab()
   info.id = factory.constructEntity(m_core.engine().worldGrid().root(), m_cursorEntityType,
     transform);
   info.type = m_cursorEntityType;
-  info.changedFromPrefab[Systems::Spatial].set(SysSpatialSubcomponent::Transform);
+  info.changedFromPrefab[Systems::Spatial] = true;
   slice.entities.push_back(std::move(info));
   slice.dirty = true;
 
@@ -412,7 +413,7 @@ void SceneEditModeImpl::applyCurrentTransformToEntity()
     [this](const EntityInfo& info) { return info.id == m_selectedEntityId; });
   assert(i != slice.entities.end());
 
-  i->changedFromPrefab[Systems::Spatial].set(SysSpatialSubcomponent::Transform);
+  i->changedFromPrefab[Systems::Spatial] = true;
 }
 
 void SceneEditModeImpl::cancelCurrentEntityTransform()
@@ -435,16 +436,23 @@ void SceneEditModeImpl::cancelCurrentEntityTransform()
 
 void SceneEditModeImpl::saveChanges()
 {
+  std::map<std::string, EntityId> prefabs;
+
   for (auto& [ index, slice ] : m_worldState.slices) {
     if (slice.dirty) {
-      saveChangesToSlice(index, slice);
+      saveChangesToSlice(index, slice, prefabs);
       slice.dirty = false;
     }
+  }
+
+  for (auto& entry : prefabs) {
+    m_core.engine().eventSystem().raiseEvent(ERequestDeletion{entry.second});
   }
 }
 
 void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
-  const std::string& sliceFileName, const SliceState& slice)
+  const std::string& sliceFileName, const SliceState& slice,
+  std::map<std::string, EntityId>& prefabs)
 {
   auto cellDir = m_core.config().paths.worldsDir->subdirectory(fs::path{"world"} / cellDirName);
 
@@ -453,6 +461,18 @@ void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
   auto xmlCellSlice = createXmlNode("cell-slice");
   auto xmlEntities = createXmlNode("entities");
   for (auto& entity : slice.entities) {
+    auto iPrefab = prefabs.find(entity.type);
+    EntityId prefabId = NULL_ENTITY_ID;
+    if (iPrefab == prefabs.end()) {
+      auto& factory = m_core.engine().entityFactory();
+      auto rootId = m_core.engine().worldGrid().root();
+      prefabId = factory.constructEntity(rootId, entity.type, identityMatrix<4>());
+      prefabs[entity.type] = prefabId;
+    }
+    else {
+      prefabId = iPrefab->second;
+    }
+
     auto xmlEntity = createXmlNode("entity");
     xmlEntity->setAttribute("type", entity.type);
     if (isHashedString(entity.id)) {
@@ -460,9 +480,9 @@ void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
     }
 
     for (SystemId systemId = 0; systemId < m_core.engine().ecs().numSystems(); ++systemId) {
-      if (entity.changedFromPrefab[systemId] != 0) {
+      if (entity.changedFromPrefab[systemId]) {
         auto& system = m_core.engine().ecs().getSystem(systemId);
-        auto node = system.componentToXml(entity.id, entity.changedFromPrefab[systemId]);
+        auto node = system.componentToXml(entity.id, prefabId);
         if (node != nullptr) {
           xmlEntity->addChild(std::move(node));
         }
@@ -484,7 +504,8 @@ void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
   cellDir->writeFile(sliceFileName, xmlString.data(), xmlString.size());
 }
 
-void SceneEditModeImpl::saveChangesToSlice(const Vec3f& index, const SliceState& slice)
+void SceneEditModeImpl::saveChangesToSlice(const Vec3f& index, const SliceState& slice,
+  std::map<std::string, EntityId>& prefabs)
 {
   std::stringstream ss;
   ss << std::setw(3) << std::setfill('0') << index[0]
@@ -494,7 +515,7 @@ void SceneEditModeImpl::saveChangesToSlice(const Vec3f& index, const SliceState&
   ss << std::setw(3) << std::setfill('0') << index[2] << ".xml";
   auto sliceFileName = ss.str();
 
-  saveChangesToSlice(cellDirName, sliceFileName, slice);
+  saveChangesToSlice(cellDirName, sliceFileName, slice, prefabs);
 }
 
 void SceneEditModeImpl::cancelActivePrefab()

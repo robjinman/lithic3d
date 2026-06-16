@@ -1,7 +1,6 @@
 #include "lithic3d/world_loader.hpp"
 #include "lithic3d/xml.hpp"
 #include "lithic3d/game_data_paths.hpp"
-#include "lithic3d/entity_factory.hpp"
 #include "lithic3d/resource_manager.hpp"
 #include "lithic3d/terrain_builder.hpp"
 #include "lithic3d/render_resource_loader.hpp"

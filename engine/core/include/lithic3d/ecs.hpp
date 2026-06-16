@@ -16,13 +16,10 @@ using SystemId = uint32_t;
 class Event;
 struct InputState;
 
-using ComponentMask = std::bitset<32>;
-
 class ComponentData
 {
   public:
     virtual size_t typeId() const = 0;
-    virtual ComponentMask mask() const = 0;
     virtual ~ComponentData() = default;
 };
 
@@ -32,14 +29,12 @@ template<typename T>
 class ComponentDataWrapper : public ComponentData
 {
   public:
-    ComponentDataWrapper(const T& data, ComponentMask mask)
+    ComponentDataWrapper(const T& data)
       : m_data(data)
-      , m_mask(mask)
     {}
 
-    ComponentDataWrapper(T&& data, ComponentMask mask)
+    ComponentDataWrapper(T&& data)
       : m_data(std::move(data))
-      , m_mask(mask)
     {}
 
     size_t typeId() const override
@@ -57,14 +52,8 @@ class ComponentDataWrapper : public ComponentData
       return m_data;
     }
 
-    ComponentMask mask() const override
-    {
-      return m_mask;
-    }
-
   private:
     T m_data;
-    ComponentMask m_mask;
 };
 
 class System
@@ -77,7 +66,9 @@ class System
     virtual ComponentDataPtr constructComponentData(const XmlNode& data) const = 0;
     virtual ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const = 0;
-    virtual XmlNodePtr componentToXml(EntityId entityId, ComponentMask mask) const = 0;
+    // Write differences between entity and prefab to XML. Set prefabId to NULL_ENTITY_ID to write
+    // all data.
+    virtual XmlNodePtr componentToXml(EntityId entityId, EntityId prefabId) const = 0;
     virtual void addEntity(EntityId id, const ComponentData& data) = 0;
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;

@@ -5,6 +5,7 @@
 #include "entity_id.hpp"
 #include "xml.hpp"
 #include "systems.hpp"
+#include "entity_factory.hpp"
 #include <memory>
 
 namespace lithic3d
@@ -54,7 +55,6 @@ using WorldLoaderPtr = std::unique_ptr<WorldLoader>;
 
 class Ecs;
 struct GameDataPaths;
-class EntityFactory;
 class ModelLoader;
 class RenderResourceLoader;
 

@@ -18,7 +18,7 @@ class SysPropertiesImpl : public SysProperties
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
-    XmlNodePtr componentToXml(EntityId entityId, ComponentMask mask) const override;
+    XmlNodePtr componentToXml(EntityId entityId, EntityId prefabId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
@@ -132,8 +132,10 @@ void writeToXml(XmlNode& parent, const std::string& typeName,
   }
 }
 
-XmlNodePtr SysPropertiesImpl::componentToXml(EntityId entityId) const
+XmlNodePtr SysPropertiesImpl::componentToXml(EntityId entityId, EntityId prefabId) const
 {
+  // TODO: Compare with prefab
+
   auto i = m_components.find(entityId);
   if (i == m_components.end()) {
     return nullptr;

@@ -49,7 +49,7 @@ class SysAnimation2dImpl : public SysAnimation2d
     ComponentDataPtr constructComponentData(const XmlNode& data) const override;
     ComponentDataPtr constructComponentDataWithModifications(const ComponentData& base,
       const XmlNode& changes) const override;
-    XmlNodePtr componentToXml(EntityId, ComponentMask) const override { return nullptr; } // TODO
+    XmlNodePtr componentToXml(EntityId, EntityId) const override { return nullptr; } // TODO
     void addEntity(EntityId id, const ComponentData& data) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;

@@ -543,7 +543,7 @@ void EntityEditModeImpl::saveChanges()
 
     for (SystemId systemId = 0; systemId < m_core.engine().ecs().numSystems(); ++systemId) {
       auto& system = m_core.engine().ecs().getSystem(systemId);
-      auto node = system.componentToXml(m_entityId, ComponentMask{}.set());
+      auto node = system.componentToXml(m_entityId, NULL_ENTITY_ID);
       if (node != nullptr) {
         xmlEntity->addChild(std::move(node));
       }
