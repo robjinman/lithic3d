@@ -29,6 +29,7 @@ class EntityFactoryImpl : public EntityFactory
     EntityId constructEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform) const override;
     EntityId constructEntity(EntityId parentId, const XmlNode& xmlEntity,
+      std::array<bool, Systems::NUMBER_OF_SYSTEMS>& changedFromPrefab,
       std::vector<XmlNodePtr>& unused) const override;
     EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) override;
@@ -118,6 +119,7 @@ void setParentIdIfSpatialComponent(ComponentData& c, EntityId parentId)
 }
 
 EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xmlEntity,
+  std::array<bool, Systems::NUMBER_OF_SYSTEMS>& changedFromPrefab,
   std::vector<XmlNodePtr>& unused) const
 {
   std::scoped_lock lock{m_mutex};
@@ -156,9 +158,17 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xm
         auto c = system.constructComponentDataWithModifications(*prefab.components[systemId], *i);
         setParentIdIfSpatialComponent(*c, parentId);
         system.addEntity(id, *c);
+
+        if (systemId < Systems::NUMBER_OF_SYSTEMS) {
+          changedFromPrefab[systemId] = true;
+        }
       }
       else {
         system.addEntity(id, *prefab.components[systemId]);
+
+        if (systemId < Systems::NUMBER_OF_SYSTEMS) {
+          changedFromPrefab[systemId] = false;
+        }
       }
     }
   }

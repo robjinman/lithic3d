@@ -295,9 +295,12 @@ void SceneEditModeImpl::instantiateActivePrefab()
   int sliceIdx = 1; // TODO
   auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
   assert(slice.handle.id() != NULL_RESOURCE_ID);
-  slice.entities.push_back(EntityInfo{
-    factory.constructEntity(m_core.engine().worldGrid().root(), m_cursorEntityType, transform),
-    m_cursorEntityType, {}});
+  EntityInfo info;
+  info.id = factory.constructEntity(m_core.engine().worldGrid().root(), m_cursorEntityType,
+    transform);
+  info.type = m_cursorEntityType;
+  info.changedFromPrefab[Systems::Spatial] = true;
+  slice.entities.push_back(std::move(info));
   slice.dirty = true;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::AddOrRemoveEntity));
@@ -404,6 +407,12 @@ void SceneEditModeImpl::applyCurrentTransformToEntity()
   int sliceIdx = 1; // TODO
   auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
   slice.dirty = true;
+
+  auto i = std::find_if(slice.entities.begin(), slice.entities.end(),
+    [this](const EntityInfo& info) { return info.id == m_selectedEntityId; });
+  assert(i != slice.entities.end());
+
+  i->changedFromPrefab[Systems::Spatial] = true;
 }
 
 void SceneEditModeImpl::cancelCurrentEntityTransform()
@@ -451,10 +460,12 @@ void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
     }
 
     for (SystemId systemId = 0; systemId < m_core.engine().ecs().numSystems(); ++systemId) {
-      auto& system = m_core.engine().ecs().getSystem(systemId);
-      auto node = system.componentToXml(entity.id);
-      if (node != nullptr) {
-        xmlEntity->addChild(std::move(node));
+      if (entity.changedFromPrefab[systemId]) {
+        auto& system = m_core.engine().ecs().getSystem(systemId);
+        auto node = system.componentToXml(entity.id);
+        if (node != nullptr) {
+          xmlEntity->addChild(std::move(node));
+        }
       }
     }
 

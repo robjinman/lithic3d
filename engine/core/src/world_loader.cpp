@@ -137,16 +137,21 @@ std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
     assert(cellSlice.terrain.ready());
     auto terrainIds = m_terrainBuilder->createEntities(m_root, cellSlice.terrain.id());
     for (auto id : terrainIds) {
-      entities.push_back(EntityInfo{id, "terrain", {}});
+      EntityInfo info;
+      info.id = id;
+      info.type = "terrain";
+      entities.push_back(std::move(info));
     }
   }
 
   for (auto& entityXml : cellSlice.pendingEntities) {
     auto type = entityXml->attribute("type");
 
-    std::vector<XmlNodePtr> unused;
-    auto id = m_entityFactory.constructEntity(m_root, *entityXml, unused);
-    entities.push_back(EntityInfo{id, type, std::move(unused)});
+    EntityInfo info;
+    info.id = m_entityFactory.constructEntity(m_root, *entityXml, info.changedFromPrefab,
+      info.unused);
+    info.type = type;
+    entities.push_back(std::move(info));
   }
 
   cellSlice.pendingEntities.clear();

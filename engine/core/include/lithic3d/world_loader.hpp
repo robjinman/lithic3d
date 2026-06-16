@@ -4,6 +4,7 @@
 #include "resource_manager.hpp"
 #include "entity_id.hpp"
 #include "xml.hpp"
+#include "systems.hpp"
 #include <memory>
 
 namespace lithic3d
@@ -22,18 +23,14 @@ struct WorldInfo
 
 struct EntityInfo
 {
-  EntityInfo(EntityId id, const std::string& type, std::vector<XmlNodePtr>&& unused)
-    : id(id)
-    , type(type)
-    , unused(std::move(unused))
-  {}
-
+  EntityInfo() = default;
   EntityInfo(const EntityInfo&) = delete;
   EntityInfo(EntityInfo&&) = default;
 
-  EntityId id;
-  std::string type;
-  std::vector<XmlNodePtr> unused;
+  EntityId id = NULL_ENTITY_ID;
+  std::string type{};
+  std::array<bool, Systems::NUMBER_OF_SYSTEMS> changedFromPrefab{};
+  std::vector<XmlNodePtr> unused{};
 };
 
 class WorldLoader

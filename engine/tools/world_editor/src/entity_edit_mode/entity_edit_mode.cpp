@@ -335,7 +335,9 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   auto prefabXml = parseXml(prefabData);
 
   m_unusedPrefabXml.clear();
-  m_entityId = engine.entityFactory().constructEntity(m_rootId, *prefabXml, m_unusedPrefabXml);
+  std::array<bool, Systems::NUMBER_OF_SYSTEMS> changedFromPrefab;
+  m_entityId = engine.entityFactory().constructEntity(m_rootId, *prefabXml, changedFromPrefab,
+    m_unusedPrefabXml);
   m_entityIsPrefab = true;
   m_activePrefab = prefab;
 
