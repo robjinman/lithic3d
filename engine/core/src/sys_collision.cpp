@@ -7,6 +7,12 @@
 namespace lithic3d
 {
 
+struct Sphere
+{
+  Vec3f centre;
+  float radius;
+};
+
 BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
 {
   return {
@@ -301,6 +307,8 @@ struct ObjectComponents
   CCollisionRotational* rotational = nullptr;
   CCollisionBox* box = nullptr;
   CCollisionCapsule* capsule = nullptr;
+  CCollisionSphere* sphere = nullptr;
+  CCollisionCylinder* cylinder = nullptr;
   CCollisionTerrain* terrain = nullptr;
 };
 
@@ -343,6 +351,8 @@ class SysCollisionImpl : public SysCollision
     void addEntity(EntityId id, const DTerrainChunk& data) override;
     void addEntity(EntityId id, const DPolyhedron& data) override;
     void addEntity(EntityId id, const DCapsule& data) override;
+    void addEntity(EntityId id, const DSphere& data) override;
+    void addEntity(EntityId id, const DCylinder& data) override;
     void addEntity(EntityId id, const DAggregate& data) override;
 
     CollisionComponentType componentType(EntityId entityId) const override;
@@ -381,12 +391,16 @@ class SysCollisionImpl : public SysCollision
     ComponentDataPtr constructDDynamicBox(const XmlNode& data) const;
     ComponentDataPtr constructDStaticBox(const XmlNode& data) const;
     ComponentDataPtr constructDCapsule(const XmlNode& data) const;
+    ComponentDataPtr constructDSphere(const XmlNode& data) const;
+    ComponentDataPtr constructDCylinder(const XmlNode& data) const;
     ComponentDataPtr constructDPolyhedron(const XmlNode& data) const;
     ComponentDataPtr constructDAggregate(const XmlNode& data) const;
 
     XmlNodePtr staticBoxToXml(EntityId entityId) const;
     XmlNodePtr dynamicBoxToXml(EntityId entityId) const;
     XmlNodePtr capsuleToXml(EntityId entityId) const;
+    XmlNodePtr sphereToXml(EntityId entityId) const;
+    XmlNodePtr cylinderToXml(EntityId entityId) const;
     XmlNodePtr polyhedronToXml(EntityId entityId) const;
     XmlNodePtr aggregateToXml(EntityId entityId) const;
 
@@ -695,6 +709,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
   assertHasComponent<CLocalTransform>(componentStore, id);
   assertHasComponent<CCollision>(componentStore, id);
   assertHasComponent<CCollisionDynamic>(componentStore, id);
+  assertHasComponent<CCollisionCapsule>(componentStore, id);
 
   componentStore.instantiate<CCollision>(id) = CCollision{
     .restitution = data.restitution,
@@ -725,11 +740,53 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
   componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
 }
 
+void SysCollisionImpl::addEntity(EntityId id, const DSphere& data)
+{
+  auto& componentStore = m_ecs.componentStore();
+
+  assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CCollision>(componentStore, id);
+  assertHasComponent<CCollisionSphere>(componentStore, id);
+
+  componentStore.instantiate<CCollision>(id) = CCollision{
+    .restitution = data.restitution,
+    .friction = data.friction,
+    .isPolyhedron = false
+  };
+
+  componentStore.instantiate<CCollisionSphere>(id) = CCollisionSphere{
+    .ovoid = data.ovoid
+  };
+}
+
+void SysCollisionImpl::addEntity(EntityId id, const DCylinder& data)
+{
+  auto& componentStore = m_ecs.componentStore();
+
+  assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CBoundingBox>(componentStore, id);
+  assertHasComponent<CLocalTransform>(componentStore, id);
+  assertHasComponent<CCollision>(componentStore, id);
+  assertHasComponent<CCollisionCylinder>(componentStore, id);
+
+  componentStore.instantiate<CCollision>(id) = CCollision{
+    .restitution = data.restitution,
+    .friction = data.friction,
+    .isPolyhedron = false
+  };
+
+  componentStore.instantiate<CCollisionCylinder>(id) = CCollisionCylinder{
+    .cylinder = data.cylinder
+  };
+}
+
 void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 {
   ASSERT(data.boxes.size() == data.boxTransforms.size(), "Incorrect number of box transforms");
-  //ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
-  //  "Incorrect number of polyhedron transforms");
+  ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
+    "Incorrect number of polyhedron transforms");
 
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
@@ -755,7 +812,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 
     m_aggregates[id].push_back(childId);
   }
-/*
+
   for (size_t i = 0; i < data.polyhedra.size(); ++i) {
     auto childId = m_ecs.idGen().getNewEntityId();
     m_ecs.componentStore().allocate<DSpatial, DPolyhedron>(childId);
@@ -764,7 +821,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
       .transform = data.polyhedraTransforms[i],
       .parent = id,
       .enabled = true,
-      .aabb{}
+      .aabb{} // TODO
     };
 
     sysSpatial.addEntity(childId, spatial);
@@ -772,7 +829,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     addEntity(childId, data.polyhedra[i]);
 
     m_aggregates[id].push_back(childId);
-  }*/
+  }
 }
 
 const std::string& SysCollisionImpl::name() const
@@ -787,6 +844,8 @@ void SysCollisionImpl::extractComponentSpecs(const ComponentData& data,
   extractSpecs<DDynamicBox>(data, specs);
   extractSpecs<DStaticBox>(data, specs);
   extractSpecs<DCapsule>(data, specs);
+  extractSpecs<DSphere>(data, specs);
+  extractSpecs<DCylinder>(data, specs);
   extractSpecs<DPolyhedron>(data, specs);
   extractSpecs<DAggregate>(data, specs);
   extractSpecs<DTerrainChunk>(data, specs);
@@ -1196,6 +1255,8 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
     auto collRotationalComps1 = group1.components<CCollisionRotational>();
     auto collTerrainComps1 = group1.components<CCollisionTerrain>();
     auto collCapsuleComps1 = group1.components<CCollisionCapsule>();
+    auto collSphereComps1 = group1.components<CCollisionSphere>();
+    auto collCylinderComps1 = group1.components<CCollisionCylinder>();
     auto entityIds1 = group1.entityIds();
 
     for (size_t i = 0; i < entityIds1.size(); ++i) {
@@ -1215,6 +1276,8 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
           auto collRotationalComps2 = group2.components<CCollisionRotational>();
           auto collTerrainComps2 = group2.components<CCollisionTerrain>();
           auto collCapsuleComps2 = group2.components<CCollisionCapsule>();
+          auto collSphereComps2 = group2.components<CCollisionSphere>();
+          auto collCylinderComps2 = group2.components<CCollisionCylinder>();
           auto entityIds2 = group2.entityIds();
 
           for (size_t j = 0; j < entityIds2.size(); ++j) {
@@ -1254,6 +1317,8 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                   .rotational = collRotationalComps1.empty() ? nullptr : &collRotationalComps1[i],
                   .box = collBoxComps1.empty() ? nullptr : &collBoxComps1[i],
                   .capsule = collCapsuleComps1.empty() ? nullptr : &collCapsuleComps1[i],
+                  .sphere = collSphereComps1.empty() ? nullptr : &collSphereComps1[i],
+                  .cylinder = collCylinderComps1.empty() ? nullptr : &collCylinderComps1[i],
                   .terrain = collTerrainComps1.empty() ? nullptr : &collTerrainComps1[i]
                 },
                 .B = {
@@ -1266,6 +1331,8 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
                   .rotational = collRotationalComps2.empty() ? nullptr : &collRotationalComps2[j],
                   .box = collBoxComps2.empty() ? nullptr : &collBoxComps2[j],
                   .capsule = collCapsuleComps2.empty() ? nullptr : &collCapsuleComps2[j],
+                  .sphere = collSphereComps2.empty() ? nullptr : &collSphereComps2[j],
+                  .cylinder = collCylinderComps2.empty() ? nullptr : &collCylinderComps2[j],
                   .terrain = collTerrainComps2.empty() ? nullptr : &collTerrainComps2[j]
                 },
               });
@@ -1793,12 +1860,6 @@ Vec3f closestPoint(const Triangle& triangle, const Vec3f& P)
   return A + AB * st[0] + AC * st[1];
 }
 
-struct Sphere
-{
-  Vec3f centre;
-  float radius;
-};
-
 bool sphereTrianglesContact(const Sphere& sphere, const std::vector<Triangle>& triangles,
   Vec3f& contact, float& maxPenetration)
 {
@@ -1924,6 +1985,8 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
 {
   assert(A.box != nullptr);
   assert(B.capsule != nullptr);
+
+  // TODO: We need to scale the capsule by object B's transform
 
   float radius = B.capsule->capsule.radius;
   auto centre = getTranslation(getTransform(B)) + B.capsule->capsule.translation;
@@ -2200,46 +2263,168 @@ void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponent
   }
 }
 
+bool boxSpherePointContact(const ObjectComponents& A, const ObjectComponents& B,
+  const Mat4x4f& fromSphereSpace, const Mat4x4f& toSphereSpace, const std::array<Vec3f, 8>& verts,
+  Contact& contact)
+{
+  assert(A.box != nullptr);
+  assert(B.sphere != nullptr);
+
+  float radius = B.sphere->ovoid.radius;
+
+  int vertWithMaxPenetration = -1;
+  float maxPenetration = 0.f;
+
+  for (size_t i = 0; i < verts.size(); ++i) {
+    float sqDistance = verts[i].squareMagnitude();
+
+    if (sqDistance < radius * radius) {
+      float penetration = radius - sqrtf(sqDistance);
+
+      if (penetration > maxPenetration) {
+        maxPenetration = penetration;
+        vertWithMaxPenetration = i;
+      }
+    }
+  }
+
+  if (vertWithMaxPenetration != -1) {
+    Vec3f P = (fromSphereSpace * Vec4f{ verts[vertWithMaxPenetration], { 1.f }}).sub<3>();
+    Vec3f normal = (P - getTranslation(fromSphereSpace)).normalise();
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    contact = {
+      .A = A,
+      .B = B,
+      .point = P,
+      .normal = normal,
+      .penetration = maxPenetration,
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace
+    };
+
+    return true;
+  }
+
+  return false;
+}
+
+void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  assert(A.box != nullptr);
+  assert(B.sphere != nullptr);
+
+  auto fromSphereSpace = getTransform(B);
+  auto toSphereSpace = inverse(fromSphereSpace);
+
+  auto verts = getVertices(A.box->boundingBox, toSphereSpace * getTransform(A));
+
+  Contact contact;
+  if (boxSpherePointContact(A, B, fromSphereSpace, toSphereSpace, verts, contact)) {
+    contacts.push_back(contact);
+  }
+  else {
+    auto edges = getEdges(verts);
+
+    // TODO
+  }
+}
+
+void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  // TODO
+}
+
+void generateCapsuleSphereContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  // TODO
+}
+
+void generateCapsuleCylinderContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
+{
+  // TODO
+}
+
 std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
 {
   std::vector<Contact> contacts;
 
   for (auto& pair : pairs) {
-    if (pair.A.box && pair.B.box) {
-      generateBoxBoxContacts(pair.A, pair.B, contacts);
+    if (pair.A.box) {
+      if (pair.B.box) {
+        generateBoxBoxContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.capsule) {
+        generateBoxCapsuleContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.sphere) {
+        generateBoxSphereContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.cylinder) {
+        generateBoxCylinderContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.collision->isPolyhedron) {
+        generateBoxPolyContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.terrain) {
+        generateBoxTerrainContacts(pair.A, pair.B, contacts);
+      }
     }
-    else if (pair.A.box && pair.B.capsule) {
-      generateBoxCapsuleContacts(pair.A, pair.B, contacts);
+    else if (pair.A.capsule) {
+      if (pair.B.box) {
+        generateBoxCapsuleContacts(pair.B, pair.A, contacts);
+      }
+      else if (pair.B.capsule) {
+        generateCapsuleCapsuleContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.sphere) {
+        generateCapsuleSphereContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.cylinder) {
+        generateCapsuleCylinderContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.collision->isPolyhedron) {
+        generateCapsulePolyContacts(pair.A, pair.B, contacts);
+      }
+      else if (pair.B.terrain) {
+        generateCapsuleTerrainContacts(pair.A, pair.B, contacts);
+      }
     }
-    else if (pair.A.box && pair.B.collision->isPolyhedron) {
-      generateBoxPolyContacts(pair.A, pair.B, contacts);
+    else if (pair.A.sphere) {
+      if (pair.B.box) {
+        generateBoxSphereContacts(pair.B, pair.A, contacts);
+      }
+      else if (pair.B.capsule) {
+        generateCapsuleSphereContacts(pair.B, pair.A, contacts);
+      }
     }
-    else if (pair.A.box && pair.B.terrain) {
-      generateBoxTerrainContacts(pair.A, pair.B, contacts);
+    else if (pair.A.cylinder) {
+      if (pair.B.box) {
+        generateBoxCylinderContacts(pair.B, pair.A, contacts);
+      }
+      else if (pair.B.capsule) {
+        generateCapsuleCylinderContacts(pair.B, pair.A, contacts);
+      }
     }
-    else if (pair.A.capsule && pair.B.box) {
-      generateBoxCapsuleContacts(pair.B, pair.A, contacts);
+    else if (pair.A.collision->isPolyhedron) {
+      if (pair.B.box) {
+        generateBoxPolyContacts(pair.B, pair.A, contacts);
+      }
+      else if (pair.B.capsule) {
+        generateCapsulePolyContacts(pair.B, pair.A, contacts);
+      }
     }
-    else if (pair.A.capsule && pair.B.capsule) {
-      generateCapsuleCapsuleContacts(pair.A, pair.B, contacts);
-    }
-    else if (pair.A.capsule && pair.B.collision->isPolyhedron) {
-      generateCapsulePolyContacts(pair.A, pair.B, contacts);
-    }
-    else if (pair.A.capsule && pair.B.terrain) {
-      generateCapsuleTerrainContacts(pair.A, pair.B, contacts);
-    }
-    else if (pair.A.collision->isPolyhedron && pair.B.box) {
-      generateBoxPolyContacts(pair.B, pair.A, contacts);
-    }
-    else if (pair.A.collision->isPolyhedron && pair.B.capsule) {
-      generateCapsulePolyContacts(pair.B, pair.A, contacts);
-    }
-    else if (pair.A.terrain && pair.B.box) {
-      generateBoxTerrainContacts(pair.B, pair.A, contacts);
-    }
-    else if (pair.A.terrain && pair.B.capsule) {
-      generateCapsuleTerrainContacts(pair.B, pair.A, contacts);
+    else if (pair.A.terrain) {
+      if (pair.B.box) {
+        generateBoxTerrainContacts(pair.B, pair.A, contacts);
+      }
+      else if (pair.B.capsule) {
+        generateCapsuleTerrainContacts(pair.B, pair.A, contacts);
+      }
     }
   }
 

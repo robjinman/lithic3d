@@ -62,7 +62,9 @@ EntityId Demo::constructCube()
   //auto texSize = Vec2f{ 1.f, 1.f };
   //return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
 
-  return m_factory->createShape(m_rootId, render::cylinder(1.f, 0.3f), material);
+  //return m_factory->createShape(m_rootId, render::cylinder(1.f, 0.3f), material);
+
+  return m_factory->createShape(m_rootId, render::sphere(1.f), material);
 }
 
 EntityId Demo::constructLight()

@@ -244,7 +244,104 @@ MeshPtr capsule(float height, float radius)
 
 MeshPtr sphere(float radius)
 {
-  // TODO
+  const int numLats = 16;
+  const int numLongs = 16;
+
+  MeshPtr mesh = std::make_unique<Mesh>();
+  mesh->featureSet = MeshFeatureSet{
+    .vertexLayout = {
+      BufferUsage::AttrPosition,
+      BufferUsage::AttrNormal,
+      BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+
+  std::vector<Vec3f> positions;
+  std::vector<Vec3f> normals;
+  std::vector<Vec2f> texCoords;
+  std::vector<uint16_t> indices;
+
+  float dThetaX = 2.f * PIf / numLongs;
+  float dThetaY = PIf / numLats;
+
+  Mat3x3f nextLat = rotationMatrix3x3({ 0.f, 0.f, dThetaY });
+  Mat3x3f nextLong = rotationMatrix3x3({ 0.f, dThetaX, 0.f });
+
+  Vec3f v{ 0.f, radius, 0.f };
+
+  for (uint16_t j = 0; j < numLats + 1; ++j) {
+    for (uint16_t i = 0; i < numLongs + 1; ++i) {
+      uint16_t idx = static_cast<uint16_t>(positions.size());
+
+      positions.push_back(v);
+      normals.push_back(v.normalise());
+      texCoords.push_back({
+        static_cast<float>(i) / numLongs,
+        static_cast<float>(j) / numLats
+      });
+
+      if (i == numLongs) {
+        continue;
+      }
+
+      if (j == 1) {
+        //    A
+        //  /   \
+        // B --- C
+
+        uint16_t A = idx - numLongs - 1;
+        uint16_t B = idx;
+        uint16_t C = idx + 1;
+
+        indices.push_back(A);
+        indices.push_back(B);
+        indices.push_back(C);
+      }
+      else if (j == numLats) {
+        // A --- B
+        //  \   /
+        //    C
+
+        uint16_t A = idx - numLongs - 1;
+        uint16_t B = A + 1;
+        uint16_t C = idx;
+
+        indices.push_back(A);
+        indices.push_back(C);
+        indices.push_back(B);
+      }
+      else if (j > 0) {
+        // A -- B
+        // |    |
+        // C -- D
+
+        uint16_t A = idx - numLongs - 1;
+        uint16_t B = A + 1;
+        uint16_t C = idx;
+        uint16_t D = idx + 1;
+
+        indices.push_back(A);
+        indices.push_back(C);
+        indices.push_back(D);
+
+        indices.push_back(A);
+        indices.push_back(D);
+        indices.push_back(B);
+      }
+
+      v = nextLong * v;
+    }
+
+    v = nextLat * v;
+  }
+
+  mesh->attributeBuffers.push_back(Buffer{AlignedBytes{positions}, BufferUsage::AttrPosition});
+  mesh->attributeBuffers.push_back(Buffer{AlignedBytes{normals}, BufferUsage::AttrNormal});
+  mesh->attributeBuffers.push_back(Buffer{AlignedBytes{texCoords}, BufferUsage::AttrTexCoord});
+  mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
+
+  return mesh;
 }
 
 MeshPtr cylinder(float height, float radius, bool withClosedEnds)

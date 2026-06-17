@@ -42,6 +42,19 @@ struct Capsule
   Vec3f translation;  // TODO: Do we support off-centre capsules?
 };
 
+struct Ovoid
+{
+  float radius;
+  Mat4x4f transform = identityMatrix<4>();
+};
+
+struct Cylinder
+{
+  float radius = 0.f;
+  float height = 0.f;
+  Mat4x4f transform = identityMatrix<4>();
+};
+
 struct HeightMap
 {
   float width = 0.f;  // World units
@@ -105,6 +118,21 @@ struct CCollisionCapsule
   static constexpr ComponentTypeId TypeId = CCollisionCapsuleTypeId;
 };
 
+// TODO: Rename to ovoid?
+struct CCollisionSphere
+{
+  Ovoid ovoid;
+
+  static constexpr ComponentTypeId TypeId = CCollisionSphereTypeId;
+};
+
+struct CCollisionCylinder
+{
+  Cylinder cylinder;
+
+  static constexpr ComponentTypeId TypeId = CCollisionCylinderTypeId;
+};
+
 struct CCollisionRotational
 {
   Mat3x3f inverseInertialTensor;
@@ -140,7 +168,9 @@ enum class CollisionComponentType
   TerrainChunk,
   Aggregate,
   Capsule,
-  Polyhedron
+  Polyhedron,
+  Sphere,
+  Cylinder
 };
 
 struct DDynamicBox
@@ -179,8 +209,32 @@ struct DTerrainChunk
   HeightMap heightMap;
 };
 
+// For now, spheres are static
+// TODO: Rename to ovoid?
+struct DSphere
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision
+  >;
+
+  float restitution = 0.2f;
+  float friction = 0.4f;
+  Ovoid ovoid;
+};
+
+// For now, cylinders are static
+struct DCylinder
+{
+  using RequiredComponents = type_list<
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision
+  >;
+
+  float restitution = 0.2f;
+  float friction = 0.4f;
+  Cylinder cylinder;
+};
+
 // For now, polyhedra are static
-// TODO: Do we even need polyhedra?
 struct DPolyhedron
 {
   using RequiredComponents = type_list<
@@ -201,8 +255,8 @@ struct DAggregate
 
   std::vector<DStaticBox> boxes;
   std::vector<Mat4x4f> boxTransforms;
-  //std::vector<DPolyhedron> polyhedra;
-  //std::vector<Mat4x4f> polyhedraTransforms;
+  std::vector<DPolyhedron> polyhedra;
+  std::vector<Mat4x4f> polyhedraTransforms;
 };
 
 struct DCapsule
@@ -238,6 +292,8 @@ class SysCollision : public System
     virtual void addEntity(EntityId id, const DDynamicBox& data) = 0;
     virtual void addEntity(EntityId id, const DTerrainChunk& data) = 0;
     virtual void addEntity(EntityId id, const DPolyhedron& data) = 0;
+    virtual void addEntity(EntityId id, const DSphere& data) = 0;
+    virtual void addEntity(EntityId id, const DCylinder& data) = 0;
     virtual void addEntity(EntityId id, const DCapsule& data) = 0;
     virtual void addEntity(EntityId id, const DAggregate& data) = 0;
 
