@@ -32,6 +32,21 @@ struct Capsule
   bool isControllable = false;
 };
 
+struct Cylinder
+{
+  Vec3f position;
+  float height;
+  float radius;
+};
+
+struct Sphere
+{
+  float radius;
+  Vec3f position;
+  Vec3f rotation;
+  Vec3f scale;
+};
+
 struct AggregateBox
 {
   Vec3f dimensions;
@@ -51,6 +66,8 @@ struct Scenario
 {
   std::vector<Box> boxes;
   std::vector<Capsule> capsules;
+  std::vector<Sphere> spheres;
+  std::vector<Cylinder> cylinders;
   std::vector<Aggregate> aggregates;
 };
 
@@ -101,6 +118,8 @@ class Demo : public Game
           }
         },
         .capsules{},
+        .spheres{},
+        .cylinders{},
         .aggregates = {
           Aggregate{
             .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 15.f },
@@ -140,6 +159,8 @@ class Demo : public Game
           }
         },
         .capsules{},
+        .spheres{},
+        .cylinders{},
         .aggregates{}
       },
       Scenario{
@@ -162,6 +183,8 @@ class Demo : public Game
             .isControllable = true
           }
         },
+        .spheres{},
+        .cylinders{},
         .aggregates{}
       },
       Scenario{
@@ -184,6 +207,31 @@ class Demo : public Game
           }
         },
         .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{
+          Sphere{
+            .radius = 1.f,
+            .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(45.f), degreesToRadians(25.f), degreesToRadians(0.f) },
+            .scale = { 1.f, 1.f, 2.f }
+          }
+        },
+        .cylinders{},
         .aggregates{}
       },
       Scenario{
@@ -214,6 +262,8 @@ class Demo : public Game
           }
         },
         .capsules{},
+        .spheres{},
+        .cylinders{},
         .aggregates{}
       },
       Scenario{
@@ -268,12 +318,17 @@ class Demo : public Game
           },
         },
         .capsules{},
+        .spheres{},
+        .cylinders{},
         .aggregates{}
       }
     };
     size_t m_currentScenario = 1;
     std::vector<EntityId> m_boxes;    //
     std::vector<EntityId> m_capsules; // TODO: Replace with single m_dynamicEntities vector?
+    std::vector<EntityId> m_spheres;
+    std::vector<EntityId> m_sphereRenders;
+    std::vector<EntityId> m_cylinders;
     std::vector<EntityId> m_aggregates;
     bool m_physicsActive = false;
     EntityId m_controllableEntity = NULL_ENTITY_ID;
@@ -281,6 +336,11 @@ class Demo : public Game
 
     EntityId constructLight();
     void constructScenario(size_t i);
+    void constructBoxes(size_t scenario, MaterialHandle matertial);
+    void constructCapsules(size_t scenario);
+    void constructAggregates(size_t scenario, MaterialHandle material);
+    void constructSpheres(size_t scenario);
+    void constructCylinders(size_t scenario);
     void destroyScenario();
     void constructGround();
     void constructTerrain();
@@ -327,33 +387,13 @@ Vec3f randomRotation()
   return { dist(gen), dist(gen), dist(gen) };
 }
 
-void Demo::constructScenario(size_t i)
+void Demo::constructCapsules(size_t scenario)
 {
-  assert(m_boxes.empty());
-  assert(m_capsules.empty());
-  assert(m_aggregates.empty());
-
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
   auto& sysCollision = m_engine.ecs().system<SysCollision>();
 
-  auto material = m_factory->createMaterialAsync("bricks.png", true);
-  auto texSize = Vec2f{ 1.f, 1.f };
-
-  for (auto& obj : m_scenarios[i].boxes) {
-    auto size = obj.dimensions;
-    EntityId id = 0;
-    if (obj.isStatic) {
-      id = m_factory->createStaticCuboid(sysSpatial.root(), size, material, texSize, 0.2f, 0.4f);
-    }
-    else {
-      id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
-        0.5f);
-    }
-    m_boxes.push_back(id);
-  }
-
-  for (auto& obj : m_scenarios[i].capsules) {
+  for (auto& obj : m_scenarios[scenario].capsules) {
     auto id = m_engine.ecs().idGen().getNewEntityId();
     m_engine.ecs().componentStore().allocate<DSpatial, DModel, DCapsule>(id);
 
@@ -407,8 +447,119 @@ void Demo::constructScenario(size_t i)
 
     m_capsules.push_back(id);
   }
+}
 
-  for (auto& obj : m_scenarios[i].aggregates) {
+void Demo::constructBoxes(size_t scenario, MaterialHandle material)
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+
+  auto texSize = Vec2f{ 1.f, 1.f };
+
+  for (auto& obj : m_scenarios[scenario].boxes) {
+    auto size = obj.dimensions;
+    EntityId id = 0;
+    if (obj.isStatic) {
+      id = m_factory->createStaticCuboid(sysSpatial.root(), size, material, texSize, 0.2f, 0.4f);
+    }
+    else {
+      id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
+        0.5f);
+    }
+    m_boxes.push_back(id);
+  }
+}
+
+void Demo::constructSpheres(size_t scenario)
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+
+  for (auto& obj : m_scenarios[scenario].spheres) {
+    auto id = m_engine.ecs().idGen().getNewEntityId();
+    m_engine.ecs().componentStore().allocate<DSpatial, DSphere>(id);
+
+    auto entityTransform = translationMatrix4x4(metresToWorldUnits(obj.position));
+    auto collisionTransform = createTransform({}, obj.rotation, obj.scale);
+
+    DSpatial spatial{};
+    spatial.parent = sysSpatial.root();
+    Aabb aabb{
+      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.radius, -obj.radius }),
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.radius, obj.radius })
+    };
+    spatial.aabb = transformAabb(aabb, collisionTransform);
+    spatial.transform = entityTransform;
+
+    sysSpatial.addEntity(id, spatial);
+
+    DSphere collision{
+      .restitution = 0.f,
+      .friction = 0.4f,
+      .ovoid = {
+        .radius = metresToWorldUnits(obj.radius),
+        .transform = collisionTransform
+      }
+    };
+
+    sysCollision.addEntity(id, collision);
+
+    m_spheres.push_back(id);
+
+    // Visualising a collision volume with its own transform requires a separate entity
+    
+    auto renderId = m_engine.ecs().idGen().getNewEntityId();
+    m_engine.ecs().componentStore().allocate<DSpatial, DModel>(renderId);
+
+    DSpatial renderSpatial{};
+    renderSpatial.parent = sysSpatial.root();
+    renderSpatial.aabb = {
+      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.radius, -obj.radius }),
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.radius, obj.radius })
+    };
+    renderSpatial.transform = entityTransform * collisionTransform;
+
+    sysSpatial.addEntity(renderId, renderSpatial);
+
+    auto mesh = render::sphere(obj.radius);
+    mesh->featureSet.flags.set(MeshFeatures::CastsShadow);
+
+    auto material = std::make_unique<Material>();
+    material->colour = { 0.f, 1.f, 0.f, 1.f };
+
+    auto model = std::make_unique<Model>();
+    model->submodels.push_back(
+      std::unique_ptr<Submodel>(new Submodel{
+        .lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait() },
+        .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
+        .skin = nullptr,
+        .jointTransforms{}
+      })
+    );
+
+    auto render = std::make_unique<DModel>();
+    render->model = m_engine.modelLoader().loadModelAsync(std::move(model)).wait();
+
+    sysRender3d.addEntity(renderId, std::move(render));
+
+    m_sphereRenders.push_back(renderId);
+  }
+}
+
+void Demo::constructCylinders(size_t scenario)
+{
+
+}
+
+void Demo::constructAggregates(size_t scenario, MaterialHandle material)
+{
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
+
+  auto texSize = Vec2f{ 1.f, 1.f };
+
+  for (auto& obj : m_scenarios[scenario].aggregates) {
     auto id = m_engine.ecs().idGen().getNewEntityId();
     m_engine.ecs().componentStore().allocate<DSpatial, DModel, DAggregate>(id);
 
@@ -482,6 +633,24 @@ void Demo::constructScenario(size_t i)
 
     m_aggregates.push_back(id);
   }
+}
+
+void Demo::constructScenario(size_t i)
+{
+  assert(m_boxes.empty());
+  assert(m_capsules.empty());
+  assert(m_spheres.empty());
+  assert(m_sphereRenders.empty());
+  assert(m_cylinders.empty());
+  assert(m_aggregates.empty());
+
+  auto material = m_factory->createMaterialAsync("bricks.png", true);
+
+  constructBoxes(i, material);
+  constructCapsules(i);
+  constructSpheres(i);
+  constructCylinders(i);
+  constructAggregates(i, material);
 
   resetState();
 }
@@ -497,6 +666,19 @@ void Demo::destroyScenario()
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
   }
   m_capsules.clear();
+
+  assert(m_spheres.size() == m_sphereRenders.size());
+  for (size_t i = 0; i < m_spheres.size(); ++i) {
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{m_spheres[i]});
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{m_sphereRenders[i]});
+  }
+  m_spheres.clear();
+  m_sphereRenders.clear();
+
+  for (auto id : m_cylinders) {
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
+  }
+  m_cylinders.clear();
 
   for (auto id : m_aggregates) {
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
@@ -621,7 +803,6 @@ void Demo::enablePhysics()
 
   assert(m_boxes.size() == m_scenarios[m_currentScenario].boxes.size());
   assert(m_capsules.size() == m_scenarios[m_currentScenario].capsules.size());
-  assert(m_aggregates.size() == m_scenarios[m_currentScenario].aggregates.size());
 
   for (size_t i = 0; i < m_boxes.size(); ++i) {
     auto& obj = m_scenarios[m_currentScenario].boxes[i];
@@ -650,7 +831,6 @@ void Demo::resetState()
 
   assert(m_boxes.size() == m_scenarios[m_currentScenario].boxes.size());
   assert(m_capsules.size() == m_scenarios[m_currentScenario].capsules.size());
-  assert(m_aggregates.size() == m_scenarios[m_currentScenario].aggregates.size());
 
   for (size_t i = 0; i < m_boxes.size(); ++i) {
     auto& obj = m_scenarios[m_currentScenario].boxes[i];
