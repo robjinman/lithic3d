@@ -57,14 +57,18 @@ Demo::Demo(Engine& engine)
 
 EntityId Demo::constructCube()
 {
-  auto material = m_factory->createMaterialAsync("bricks.png", true).wait();
+  auto material = std::make_unique<Material>();
+  material->colour = { 0.f, 1.f, 0.f, 1.f };
+  auto materialHandle = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material));
+
+  //auto materialHandle = m_factory->createMaterialAsync("bricks.png", true).wait();
   //auto size = Vec3f{ 1.f, 1.f, 1.f };
   //auto texSize = Vec2f{ 1.f, 1.f };
-  //return m_factory->createStaticCuboid(m_rootId, size, material.wait(), texSize, 0.2f, 0.4f);
+  //return m_factory->createStaticCuboid(m_rootId, size, materialHandle.wait(), texSize, 0.2f, 0.4f);
 
-  //return m_factory->createShape(m_rootId, render::cylinder(1.f, 0.3f), material);
+  //return m_factory->createShape(m_rootId, render::cylinder(1.f, 0.3f), materialHandle);
 
-  return m_factory->createShape(m_rootId, render::sphere(1.f), material);
+  return m_factory->createShape(m_rootId, render::sphere(1.f), materialHandle.wait());
 }
 
 EntityId Demo::constructLight()

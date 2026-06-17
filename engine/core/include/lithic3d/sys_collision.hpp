@@ -214,7 +214,7 @@ struct DTerrainChunk
 struct DSphere
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision, CCollisionSphere
   >;
 
   float restitution = 0.2f;
@@ -226,7 +226,7 @@ struct DSphere
 struct DCylinder
 {
   using RequiredComponents = type_list<
-    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision
+    CSpatialFlags, CBoundingBox, CLocalTransform, CGlobalTransform, CCollision, CCollisionCylinder
   >;
 
   float restitution = 0.2f;

@@ -286,9 +286,9 @@ MeshPtr sphere(float radius)
       }
 
       if (j == 1) {
-        //    A
-        //  /   \
-        // B --- C
+        //    A     .
+        //  /   \   .
+        // B --- C  .
 
         uint16_t A = idx - numLongs - 1;
         uint16_t B = idx;
@@ -299,9 +299,9 @@ MeshPtr sphere(float radius)
         indices.push_back(C);
       }
       else if (j == numLats) {
-        // A --- B
-        //  \   /
-        //    C
+        // A --- B  .
+        //  \   /   .
+        //    C     .
 
         uint16_t A = idx - numLongs - 1;
         uint16_t B = A + 1;
@@ -312,9 +312,9 @@ MeshPtr sphere(float radius)
         indices.push_back(B);
       }
       else if (j > 0) {
-        // A -- B
-        // |    |
-        // C -- D
+        // A -- B   .
+        // |    |   .
+        // C -- D   .
 
         uint16_t A = idx - numLongs - 1;
         uint16_t B = A + 1;

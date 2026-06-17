@@ -22,6 +22,29 @@ BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
   };
 }
 
+Ovoid constructOvoid(const XmlNode& xmlOvoid)
+{
+  return {
+    .radius = metresToWorldUnits(std::stof(xmlOvoid.attribute("radius"))),
+    .transform = constructTransform(*xmlOvoid.child("transform"))
+  };
+}
+
+Cylinder constructCylinder(const XmlNode& xmlCylinder)
+{
+  return {
+    .radius = metresToWorldUnits(std::stof(xmlCylinder.attribute("radius"))),
+    .height = metresToWorldUnits(std::stof(xmlCylinder.attribute("height"))),
+    .transform = constructTransform(*xmlCylinder.child("transform"))
+  };
+}
+
+// Calculates how much matrix m scales in the direction of v
+inline float calcScaleFactor(const Mat4x4f& m, const Vec3f& v)
+{
+  return (m * Vec4f{ v, { 0.f }}).sub<3>().magnitude() / v.magnitude();
+}
+
 XmlNodePtr toXml(const BoundingBox& bbox)
 {
   auto xmlBoundingBox = createXmlNode("bounding_box");
@@ -498,6 +521,8 @@ CollisionComponentType SysCollisionImpl::componentType(EntityId entityId) const
   if (m_aggregates.contains(entityId)) {
     return CollisionComponentType::Aggregate;
   }
+
+  EXCEPTION("Error determining type of collision component");
 }
 
 bool boxRayIntersect(const Mat4x4f& transform, const CCollisionBox& boxComp, const Vec3f& rayStart,
@@ -885,6 +910,30 @@ ComponentDataPtr SysCollisionImpl::constructDCapsule(const XmlNode&) const
   EXCEPTION("Not implemented");
 }
 
+ComponentDataPtr SysCollisionImpl::constructDSphere(const XmlNode& xmlSphere) const
+{
+  float restitution = std::stof(xmlSphere.attribute("restitution"));
+  float friction = std::stof(xmlSphere.attribute("friction"));
+
+  return std::make_unique<ComponentDataWrapper<DSphere>>(DSphere{
+    .restitution = restitution,
+    .friction = friction,
+    .ovoid = constructOvoid(*xmlSphere.child("ovoid"))
+  });
+}
+
+ComponentDataPtr SysCollisionImpl::constructDCylinder(const XmlNode& xmlCylinder) const
+{
+  float restitution = std::stof(xmlCylinder.attribute("restitution"));
+  float friction = std::stof(xmlCylinder.attribute("friction"));
+
+  return std::make_unique<ComponentDataWrapper<DCylinder>>(DCylinder{
+    .restitution = restitution,
+    .friction = friction,
+    .cylinder = constructCylinder(*xmlCylinder.child("cylinder"))
+  });
+}
+
 ComponentDataPtr SysCollisionImpl::constructDPolyhedron(const XmlNode&) const
 {
   // TODO
@@ -926,6 +975,12 @@ ComponentDataPtr SysCollisionImpl::constructComponentData(const XmlNode& xmlSysC
   }
   else if (xmlComp.name() == "capsule") {
     return constructDCapsule(xmlComp);
+  }
+  else if (xmlComp.name() == "sphere") {
+    return constructDSphere(xmlComp);
+  }
+  else if (xmlComp.name() == "cylinder") {
+    return constructDCylinder(xmlComp);
   }
   else if (xmlComp.name() == "polyhedron") {
     return constructDPolyhedron(xmlComp);
@@ -1099,6 +1154,14 @@ void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)
   }
   else if (data.typeId() == typeid(DCapsule).hash_code()) {
     auto& collision = dynamic_cast<const ComponentDataWrapper<DCapsule>&>(data).data();
+    addEntity(id, collision);
+  }
+  else if (data.typeId() == typeid(DSphere).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DSphere>&>(data).data();
+    addEntity(id, collision);
+  }
+  else if (data.typeId() == typeid(DCylinder).hash_code()) {
+    auto& collision = dynamic_cast<const ComponentDataWrapper<DCylinder>&>(data).data();
     addEntity(id, collision);
   }
   else if (data.typeId() == typeid(DPolyhedron).hash_code()) {
@@ -1461,6 +1524,8 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   int face = -1; // 0 min-x, 1 max-x, 2 min-y, 3 max-y, 4 min-z, 5 max-z
   float contactPenetration = 0.f;
 
+  // TODO: Can we simplify this?
+
   // min-x (left) face
   float alignment = V.dot({ -1.f, 0.f, 0.f });
   float penetration = Q[0] - box.min[0];
@@ -1469,7 +1534,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 0;
-    contactPenetration = penetration;
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 1.f, 0.f, 0.f });
   }
   // max-x (right) face
   alignment = V.dot({ 1.f, 0.f, 0.f });
@@ -1479,7 +1544,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 1;
-    contactPenetration = penetration;
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 1.f, 0.f, 0.f });
   }
   // min-y (bottom) face
   alignment = V.dot({ 0.f, -1.f, 0.f });
@@ -1489,7 +1554,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 2;
-    contactPenetration = penetration;
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 1.f, 0.f });
   }
   // max-y (top) face
   alignment = V.dot({ 0.f, 1.f, 0.f });
@@ -1499,7 +1564,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 3;
-    contactPenetration = penetration;
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 1.f, 0.f });
   }
   // min-z (far) face
   alignment = V.dot({ 0.f, 0.f, -1.f });
@@ -1509,7 +1574,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 4;
-    contactPenetration = penetration;
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 0.f, 1.f });
   }
   // max-z (near) face
   alignment = V.dot({ 0.f, 0.f, 1.f });
@@ -1519,7 +1584,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 5;
-    contactPenetration = penetration;
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 0.f, 1.f });
   }
 
   // Set w components to zero to ignore translation
@@ -2263,71 +2328,43 @@ void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponent
   }
 }
 
-bool boxSpherePointContact(const ObjectComponents& A, const ObjectComponents& B,
-  const Mat4x4f& fromSphereSpace, const Mat4x4f& toSphereSpace, const std::array<Vec3f, 8>& verts,
-  Contact& contact)
-{
-  assert(A.box != nullptr);
-  assert(B.sphere != nullptr);
-
-  float radius = B.sphere->ovoid.radius;
-
-  int vertWithMaxPenetration = -1;
-  float maxPenetration = 0.f;
-
-  for (size_t i = 0; i < verts.size(); ++i) {
-    float sqDistance = verts[i].squareMagnitude();
-
-    if (sqDistance < radius * radius) {
-      float penetration = radius - sqrtf(sqDistance);
-
-      if (penetration > maxPenetration) {
-        maxPenetration = penetration;
-        vertWithMaxPenetration = i;
-      }
-    }
-  }
-
-  if (vertWithMaxPenetration != -1) {
-    Vec3f P = (fromSphereSpace * Vec4f{ verts[vertWithMaxPenetration], { 1.f }}).sub<3>();
-    Vec3f normal = (P - getTranslation(fromSphereSpace)).normalise();
-    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
-
-    contact = {
-      .A = A,
-      .B = B,
-      .point = P,
-      .normal = normal,
-      .penetration = maxPenetration,
-      .toContactSpace = fromContactSpace.t(),
-      .fromContactSpace = fromContactSpace
-    };
-
-    return true;
-  }
-
-  return false;
-}
-
 void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents& B,
   std::vector<Contact>& contacts)
 {
   assert(A.box != nullptr);
   assert(B.sphere != nullptr);
 
-  auto fromSphereSpace = getTransform(B);
+  auto fromSphereSpace = getTransform(B) * B.sphere->ovoid.transform;
   auto toSphereSpace = inverse(fromSphereSpace);
 
-  auto verts = getVertices(A.box->boundingBox, toSphereSpace * getTransform(A));
+  auto triangles = getTriangles(A.box->boundingBox, toSphereSpace * getTransform(A));
 
-  Contact contact;
-  if (boxSpherePointContact(A, B, fromSphereSpace, toSphereSpace, verts, contact)) {
-    contacts.push_back(contact);
-  }
-  else {
-    auto edges = getEdges(verts);
+  Sphere sphere{
+    .centre = { 0.f, 0.f, 0.f },
+    .radius = B.sphere->ovoid.radius
+  };
 
-    // TODO
+  Vec3f Q;
+  float maxPenetration = 0.f;
+
+  if (sphereTrianglesContact(sphere, triangles, Q, maxPenetration)) {
+    Q = (fromSphereSpace * Vec4f{ Q, { 1.f }}).sub<3>();
+    auto P = getTranslation(fromSphereSpace);
+    auto PQ = Q - P;
+    maxPenetration *= calcScaleFactor(fromSphereSpace, PQ);
+    auto normal = PQ.normalise();
+
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    contacts.push_back({
+      .A = A,
+      .B = B,
+      .point = Q,
+      .normal = normal,
+      .penetration = maxPenetration,
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace,
+    });
   }
 }
 
