@@ -2371,7 +2371,59 @@ void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents
 void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponents& B,
   std::vector<Contact>& contacts)
 {
-  // TODO
+  assert(A.box != nullptr);
+  assert(B.cylinder != nullptr);
+
+  auto fromCylinderSpace = getTransform(B) * B.cylinder->cylinder.transform;
+  auto toCylinderSpace = inverse(fromCylinderSpace);
+
+  float height = B.cylinder->cylinder.height;
+  float radius = B.cylinder->cylinder.radius;
+  float sqRadius = radius * radius;
+
+  auto triangles = getTriangles(A.box->boundingBox, toCylinderSpace * getTransform(A));
+
+  float maxPenetration = 0.f;
+  Vec3f vertOfMaxPenetration;
+
+  for (auto& triangle : triangles) {
+    for (uint32_t i = 0; i < 3; ++i) {
+      Vec3f v = triangle[i];
+
+      if (inRange(v[1], -height * 0.5f, height * 0.5f)) {
+        float sqDistance = v[0] * v[0] + v[2] * v[2];
+
+        if (sqDistance < sqRadius) {
+          float penetration = radius - sqrtf(sqDistance);
+
+          if (penetration > maxPenetration) {
+            maxPenetration = penetration;
+            vertOfMaxPenetration = v;
+          }
+        }
+      }
+    }
+  }
+
+  if (maxPenetration > 0.f) {
+    Vec3f cylinderSpaceNormal{ vertOfMaxPenetration[0], 0.f, vertOfMaxPenetration[2] };
+    auto normal = (fromCylinderSpace * Vec4f{ cylinderSpaceNormal, { 0.f }}).sub<3>().normalise();
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    contacts.push_back({
+      .A = A,
+      .B = B,
+      .point = (fromCylinderSpace * Vec4f{ vertOfMaxPenetration, { 1.f }}).sub<3>(),
+      .normal = normal,
+      .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, cylinderSpaceNormal),
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace
+    });
+  }
+
+  // TODO: Detect collisions between cylinder and box edges
+  // TODO: Detect collisions between cylinder ends and triangle face
+  // TODO: Detect collisions with end caps
 }
 
 void generateCapsuleSphereContacts(const ObjectComponents& A, const ObjectComponents& B,

@@ -37,12 +37,14 @@ struct Cylinder
   Vec3f position;
   float height;
   float radius;
+  Vec3f rotation;
+  Vec3f scale;
 };
 
 struct Sphere
 {
-  float radius;
   Vec3f position;
+  float radius;
   Vec3f rotation;
   Vec3f scale;
 };
@@ -225,13 +227,37 @@ class Demo : public Game
         .capsules{},
         .spheres{
           Sphere{
-            .radius = 1.f,
             .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 20.f },
+            .radius = 1.f,
             .rotation = { degreesToRadians(45.f), degreesToRadians(25.f), degreesToRadians(0.f) },
             .scale = { 1.f, 1.f, 2.f }
           }
         },
         .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{
+          Cylinder{
+            .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 20.f },
+            .height = 4.f,
+            .radius = 1.5f,
+            .rotation = { degreesToRadians(12.f), degreesToRadians(7.f), degreesToRadians(100.f) },
+            .scale = { 1.1f, 1.4f, 1.3f }
+          }
+        },
         .aggregates{}
       },
       Scenario{
@@ -329,6 +355,7 @@ class Demo : public Game
     std::vector<EntityId> m_spheres;
     std::vector<EntityId> m_sphereRenders;
     std::vector<EntityId> m_cylinders;
+    std::vector<EntityId> m_cylinderRenders;
     std::vector<EntityId> m_aggregates;
     bool m_physicsActive = false;
     EntityId m_controllableEntity = NULL_ENTITY_ID;
@@ -548,7 +575,80 @@ void Demo::constructSpheres(size_t scenario)
 
 void Demo::constructCylinders(size_t scenario)
 {
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
+  auto& sysCollision = m_engine.ecs().system<SysCollision>();
 
+  for (auto& obj : m_scenarios[scenario].cylinders) {
+    auto id = m_engine.ecs().idGen().getNewEntityId();
+    m_engine.ecs().componentStore().allocate<DSpatial, DCylinder>(id);
+
+    auto entityTransform = translationMatrix4x4(metresToWorldUnits(obj.position));
+    auto collisionTransform = createTransform({}, obj.rotation, obj.scale);
+
+    DSpatial spatial{};
+    spatial.parent = sysSpatial.root();
+    Aabb aabb{
+      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.height * 0.5f, -obj.radius }),
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.radius * 0.5f, obj.radius })
+    };
+    spatial.aabb = transformAabb(aabb, collisionTransform);
+    spatial.transform = entityTransform;
+
+    sysSpatial.addEntity(id, spatial);
+
+    DCylinder collision{
+      .restitution = 0.f,
+      .friction = 0.4f,
+      .cylinder = {
+        .radius = metresToWorldUnits(obj.radius),
+        .height = metresToWorldUnits(obj.height),
+        .transform = collisionTransform
+      }
+    };
+
+    sysCollision.addEntity(id, collision);
+
+    m_cylinders.push_back(id);
+
+    // Visualising a collision volume with its own transform requires a separate entity
+    
+    auto renderId = m_engine.ecs().idGen().getNewEntityId();
+    m_engine.ecs().componentStore().allocate<DSpatial, DModel>(renderId);
+
+    DSpatial renderSpatial{};
+    renderSpatial.parent = sysSpatial.root();
+    renderSpatial.aabb = {
+      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.radius, -obj.radius }),
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.radius, obj.radius })
+    };
+    renderSpatial.transform = entityTransform * collisionTransform;
+
+    sysSpatial.addEntity(renderId, renderSpatial);
+
+    auto mesh = render::cylinder(obj.height, obj.radius);
+    mesh->featureSet.flags.set(MeshFeatures::CastsShadow);
+
+    auto material = std::make_unique<Material>();
+    material->colour = { 0.f, 1.f, 0.f, 1.f };
+
+    auto model = std::make_unique<Model>();
+    model->submodels.push_back(
+      std::unique_ptr<Submodel>(new Submodel{
+        .lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait() },
+        .material = m_engine.renderResourceLoader().loadMaterialAsync(std::move(material)).wait(),
+        .skin = nullptr,
+        .jointTransforms{}
+      })
+    );
+
+    auto render = std::make_unique<DModel>();
+    render->model = m_engine.modelLoader().loadModelAsync(std::move(model)).wait();
+
+    sysRender3d.addEntity(renderId, std::move(render));
+
+    m_cylinderRenders.push_back(renderId);
+  }
 }
 
 void Demo::constructAggregates(size_t scenario, MaterialHandle material)
@@ -642,6 +742,7 @@ void Demo::constructScenario(size_t i)
   assert(m_spheres.empty());
   assert(m_sphereRenders.empty());
   assert(m_cylinders.empty());
+  assert(m_cylinderRenders.empty());
   assert(m_aggregates.empty());
 
   auto material = m_factory->createMaterialAsync("bricks.png", true);
@@ -675,10 +776,13 @@ void Demo::destroyScenario()
   m_spheres.clear();
   m_sphereRenders.clear();
 
-  for (auto id : m_cylinders) {
-    m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
+  assert(m_cylinders.size() == m_cylinderRenders.size());
+  for (size_t i = 0; i < m_cylinders.size(); ++i) {
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{m_cylinders[i]});
+    m_engine.eventSystem().raiseEvent(ERequestDeletion{m_cylinderRenders[i]});
   }
   m_cylinders.clear();
+  m_cylinderRenders.clear();
 
   for (auto id : m_aggregates) {
     m_engine.eventSystem().raiseEvent(ERequestDeletion{id});
