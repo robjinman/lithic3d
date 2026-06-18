@@ -2389,8 +2389,7 @@ void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents
 
 // boxVertices in cylinder space
 bool boxCylinderPointContact(const ObjectComponents& A, const ObjectComponents& B,
-  const Mat4x4f& fromCylinderSpace, const Mat4x4f& toCylinderSpace,
-  const std::array<Vec3f, 8>& boxVertices, Contact& contact)
+  const Mat4x4f& fromCylinderSpace, const std::array<Vec3f, 8>& boxVertices, Contact& contact)
 {
   assert(A.box != nullptr);
   assert(B.cylinder != nullptr);
@@ -2445,8 +2444,7 @@ bool boxCylinderPointContact(const ObjectComponents& A, const ObjectComponents& 
 }
 
 bool boxCylinderEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
-  const Mat4x4f& fromCylinderSpace, const Mat4x4f& toCylinderSpace,
-  const std::array<Vec3f, 8>& boxVertices, Contact& contact)
+  const Mat4x4f& fromCylinderSpace, const std::array<Vec3f, 8>& boxVertices, Contact& contact)
 {
   assert(A.box != nullptr);
   assert(B.cylinder != nullptr);
@@ -2505,8 +2503,78 @@ bool boxCylinderEdgeContact(const ObjectComponents& A, const ObjectComponents& B
   return false;
 }
 
+// boxVertices in cylinder space
+bool boxCylinderEndsPointContact(const ObjectComponents& A, const ObjectComponents& B,
+  const Mat4x4f& fromCylinderSpace, const std::array<Vec3f, 8>& boxVertices, Contact& contact)
+{
+  assert(A.box != nullptr);
+  assert(B.cylinder != nullptr);
+
+  float height = B.cylinder->cylinder.height;
+  float radius = B.cylinder->cylinder.radius;
+  float sqRadius = radius * radius;
+
+  float maxPenetration = 0.f;
+  int vertOfMaxPenetration = -1;
+  bool penetratingTop = false;
+
+  float y0 = -height * 0.5f;
+  float y1 = -y0;
+
+  for (int i = 0; i < static_cast<int>(boxVertices.size()); ++i) {
+    auto& v = boxVertices[i];
+
+    if (!inRange(v[1], y0, y1)) {
+      continue;
+    }
+
+    if (v[0] * v[0] + v[2] * v[2] > sqRadius) {
+      continue;
+    }
+
+    if (v[1] > 0.f) {
+      float penetration = y1 - v[1];
+      if (penetration > maxPenetration) {
+        maxPenetration = penetration;
+        vertOfMaxPenetration = i;
+        penetratingTop = true;
+      }
+    }
+    else {
+      float penetration = v[1] - y0;
+      if (penetration > maxPenetration) {
+        maxPenetration = penetration;
+        vertOfMaxPenetration = i;
+        penetratingTop = false;
+      }
+    }
+  }
+
+  if (vertOfMaxPenetration != -1) {
+    Vec4f cylinderSpaceNormal{0.f, penetratingTop ? 1.f : -1.f, 0.f, 0.f };
+    auto normal = (fromCylinderSpace * cylinderSpaceNormal).sub<3>().normalise();
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    float scaleFactor = calcScaleFactor(fromCylinderSpace, cylinderSpaceNormal.sub<3>());
+
+    contact = {
+      .A = A,
+      .B = B,
+      .point = (fromCylinderSpace * Vec4f{ boxVertices[vertOfMaxPenetration], { 1.f }}).sub<3>(),
+      .normal = normal,
+      .penetration = maxPenetration * scaleFactor,
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace
+    };
+
+    return true;
+  }
+
+  return false;
+}
+
 void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponents& B,
-  std::vector<Contact>& contacts)
+  std::vector<Contact>& outContacts)
 {
   assert(A.box != nullptr);
   assert(B.cylinder != nullptr);
@@ -2516,21 +2584,38 @@ void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponen
 
   float height = B.cylinder->cylinder.height;
   float radius = B.cylinder->cylinder.radius;
-  float sqRadius = radius * radius;
 
   auto boxTransform = getTransform(A);
   auto vertices = getVertices(A.box->boundingBox, toCylinderSpace * boxTransform);
 
-  Contact contact;
-  if (boxCylinderPointContact(A, B, fromCylinderSpace, toCylinderSpace, vertices, contact)) {
-    contacts.push_back(contact);
-  }
-  else if (boxCylinderEdgeContact(A, B, fromCylinderSpace, toCylinderSpace, vertices, contact)) {
-    contacts.push_back(contact);
+  std::array<Contact, 3> contacts;
+  std::array<bool, 3> contactsExist;
+
+  contactsExist[0] = boxCylinderPointContact(A, B, fromCylinderSpace, vertices, contacts[0]);
+  contactsExist[1] = boxCylinderEdgeContact(A, B, fromCylinderSpace, vertices, contacts[1]);
+  contactsExist[2] = boxCylinderEndsPointContact(A, B, fromCylinderSpace, vertices, contacts[2]);
+
+  // TODO: Cylinder ends edge contacts
+
+  if (!(contactsExist[0] || contactsExist[1] || contactsExist[2])) {
+    return;
   }
 
+  float minPenetration = std::numeric_limits<float>::max();
+  size_t contactWithMinPenetration = 0;
+
+  for (size_t i = 0; i < contacts.size(); ++i) {
+    float penetration = contacts[i].penetration;
+
+    if (contactsExist[i] && penetration < minPenetration) {
+      minPenetration = penetration;
+      contactWithMinPenetration = i;
+    }
+  }
+
+  outContacts.push_back(contacts[contactWithMinPenetration]);
+
   // TODO: Detect collisions between cylinder ends and triangle face
-  // TODO: Detect collisions with end caps
 }
 
 void generateCapsuleSphereContacts(const ObjectComponents& A, const ObjectComponents& B,

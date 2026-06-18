@@ -264,6 +264,30 @@ class Demo : public Game
         .boxes = {
           Box{
             .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X - 0.f, VIEW_Y + 1.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{
+          Cylinder{
+            .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 20.f },
+            .height = 2.f,
+            .radius = 3.f,
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .scale = { 1.f, 1.f, 1.f }
+          }
+        },
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
             .dimensions = { 1.f, 3.f, 0.5f },
             .position = { VIEW_X - 0.f, VIEW_Y + 3.f, VIEW_Z - 20.f },
             .rotation = {},
@@ -521,7 +545,7 @@ void Demo::constructSpheres(size_t scenario)
     sysSpatial.addEntity(id, spatial);
 
     DSphere collision{
-      .restitution = 0.f,
+      .restitution = 0.2f,
       .friction = 0.4f,
       .ovoid = {
         .radius = metresToWorldUnits(obj.radius),
@@ -590,7 +614,7 @@ void Demo::constructCylinders(size_t scenario)
     spatial.parent = sysSpatial.root();
     Aabb aabb{
       .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.height * 0.5f, -obj.radius }),
-      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.radius * 0.5f, obj.radius })
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.height * 0.5f, obj.radius })
     };
     spatial.aabb = transformAabb(aabb, collisionTransform);
     spatial.transform = entityTransform;
@@ -598,7 +622,7 @@ void Demo::constructCylinders(size_t scenario)
     sysSpatial.addEntity(id, spatial);
 
     DCylinder collision{
-      .restitution = 0.f,
+      .restitution = 0.1f,
       .friction = 0.4f,
       .cylinder = {
         .radius = metresToWorldUnits(obj.radius),
@@ -619,8 +643,8 @@ void Demo::constructCylinders(size_t scenario)
     DSpatial renderSpatial{};
     renderSpatial.parent = sysSpatial.root();
     renderSpatial.aabb = {
-      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.radius, -obj.radius }),
-      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.radius, obj.radius })
+      .min = metresToWorldUnits(Vec3f{ -obj.radius, -obj.height * 0.5f, -obj.radius }),
+      .max = metresToWorldUnits(Vec3f{ obj.radius, obj.height * 0.5f, obj.radius })
     };
     renderSpatial.transform = entityTransform * collisionTransform;
 
