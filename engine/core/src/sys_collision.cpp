@@ -1446,10 +1446,8 @@ inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& t
   };
 }
 
-inline std::vector<Triangle> getTriangles(const BoundingBox& box, const Mat4x4f& transform)
+inline std::vector<Triangle> getTriangles(const std::array<Vec3f, 8>& vertices)
 {
-  auto vertices = getVertices(box, transform);
-
   // Triangles in no particular winding order
   return {
     Triangle{ vertices[0], vertices[2], vertices[1] },    // ACB
@@ -1692,6 +1690,46 @@ inline bool solve(const Vec3f& l1, const Vec3f& l2, Vec2f& st)
   return true;
 }
 
+bool closestConnectingEdge(const Edge& edge1, const Edge& edge2, Edge& connecting)
+{
+  // Line: a + sv
+  Vec3f a = edge1.A;
+  Vec3f v = edge1.B - edge1.A;
+
+  // Line: b + tw
+  Vec3f b = edge2.A;
+  Vec3f w = edge2.B - edge2.A;
+
+  Vec2f st;
+  if (!solve({
+    -v.squareMagnitude(),
+    v.dot(w),
+    v.dot(b) - v.dot(a)
+  },
+  {
+    -v.dot(w),
+    w.squareMagnitude(),
+    w.dot(b) - w.dot(a)
+  }, st)) {
+    return false;
+  }
+
+  if (!inRange(st[0], 0.f, 1.f)) {
+    return false;
+  }
+
+  if (!inRange(st[1], 0.f, 1.f)) {
+    return false;
+  }
+
+  connecting = {
+    .A = a + v * st[0],
+    .B = b + w * st[1]
+  };
+
+  return true;
+}
+
 // Returns penetration depth or 0 if there's no penetration
 float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   const Mat4x4f& boxToWorldSpace, const Edge& worldSpaceEdge, Vec3f& point, Vec3f& normal)
@@ -1724,37 +1762,16 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
 
   float minSqPenetration = std::numeric_limits<float>::max();
 
-  for (size_t i = 0; i < 12; ++i) {
+  for (size_t i = 0; i < boxEdges.size(); ++i) {
     auto& boxEdge = boxEdges[i];
 
-    // Line: b + tw
-    Vec3f b = boxEdge.A;
-    Vec3f w = boxEdge.B - boxEdge.A;
-
-    Vec2f st;
-    if (!solve({
-      -v.squareMagnitude(),
-      v.dot(w),
-      v.dot(b) - v.dot(a)
-    },
-    {
-      -v.dot(w),
-      w.squareMagnitude(),
-      w.dot(b) - w.dot(a)
-    }, st)) {
+    Edge connecting;
+    if (!closestConnectingEdge(worldSpaceEdge, boxEdge, connecting)) {
       continue;
     }
 
-    if (!inRange(st[0], 0.f, 1.f)) {
-      continue;
-    }
-
-    if (!inRange(st[1], 0.f, 1.f)) {
-      continue;
-    }
-
-    Vec3f P = a + v * st[0];
-    Vec3f Q = b + w * st[1];
+    Vec3f& P = connecting.A;
+    Vec3f& Q = connecting.B;
 
     auto PQ = Q - P;
     float sqPenetration = PQ.squareMagnitude();
@@ -2066,7 +2083,8 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
     .radius = radius
   };
 
-  auto triangles = getTriangles(A.box->boundingBox, getTransform(A));
+  auto vertices = getVertices(A.box->boundingBox, getTransform(A));
+  auto triangles = getTriangles(vertices);
 
   Vec3f Q;
   float maxPenetration = 0.f;
@@ -2337,7 +2355,8 @@ void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents
   auto fromSphereSpace = getTransform(B) * B.sphere->ovoid.transform;
   auto toSphereSpace = inverse(fromSphereSpace);
 
-  auto triangles = getTriangles(A.box->boundingBox, toSphereSpace * getTransform(A));
+  auto vertices = getVertices(A.box->boundingBox, toSphereSpace * getTransform(A));
+  auto triangles = getTriangles(vertices);
 
   Sphere sphere{
     .centre = { 0.f, 0.f, 0.f },
@@ -2368,6 +2387,124 @@ void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents
   }
 }
 
+// boxVertices in cylinder space
+bool boxCylinderPointContact(const ObjectComponents& A, const ObjectComponents& B,
+  const Mat4x4f& fromCylinderSpace, const Mat4x4f& toCylinderSpace,
+  const std::array<Vec3f, 8>& boxVertices, Contact& contact)
+{
+  assert(A.box != nullptr);
+  assert(B.cylinder != nullptr);
+
+  float height = B.cylinder->cylinder.height;
+  float radius = B.cylinder->cylinder.radius;
+  float sqRadius = radius * radius;
+
+  auto triangles = getTriangles(boxVertices);
+
+  float smallestSqDistance = std::numeric_limits<float>::max();
+  Vec3f vertOfMaxPenetration;
+
+  for (auto& triangle : triangles) {
+    for (uint32_t i = 0; i < 3; ++i) {
+      Vec3f v = triangle[i];
+
+      if (inRange(v[1], -height * 0.5f, height * 0.5f)) {
+        float sqDistance = v[0] * v[0] + v[2] * v[2];
+
+        if (sqDistance < sqRadius) {
+          if (sqDistance < smallestSqDistance) {
+            smallestSqDistance = sqDistance;
+            vertOfMaxPenetration = v;
+          }
+        }
+      }
+    }
+  }
+
+  float maxPenetration = radius - sqrtf(smallestSqDistance);
+
+  if (maxPenetration > 0.f) {
+    Vec3f cylinderSpaceNormal{ vertOfMaxPenetration[0], 0.f, vertOfMaxPenetration[2] };
+    auto normal = (fromCylinderSpace * Vec4f{ cylinderSpaceNormal, { 0.f }}).sub<3>().normalise();
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    contact = {
+      .A = A,
+      .B = B,
+      .point = (fromCylinderSpace * Vec4f{ vertOfMaxPenetration, { 1.f }}).sub<3>(),
+      .normal = normal,
+      .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, cylinderSpaceNormal),
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace
+    };
+
+    return true;
+  }
+
+  return false;
+}
+
+bool boxCylinderEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
+  const Mat4x4f& fromCylinderSpace, const Mat4x4f& toCylinderSpace,
+  const std::array<Vec3f, 8>& boxVertices, Contact& contact)
+{
+  assert(A.box != nullptr);
+  assert(B.cylinder != nullptr);
+
+  float height = B.cylinder->cylinder.height;
+  float radius = B.cylinder->cylinder.radius;
+  float sqRadius = radius * radius;
+
+  // In cylinder space
+  auto edges = getEdges(boxVertices);
+
+  Edge centreLine{
+    .A{ 0.f, -height * 0.5f, 0.f },
+    .B{ 0.f, height * 0.5f, 0.f }
+  };
+
+  float smallestSqDistance = std::numeric_limits<float>::max();
+  Vec3f pointOfMaxPenetration;
+  Vec3f pqOfMaxPenetration;
+
+  for (auto& edge : edges) {
+    Edge connecting;
+    if (closestConnectingEdge(centreLine, edge, connecting)) {
+      auto PQ = connecting.B - connecting.A;
+      auto sqDistance = PQ.squareMagnitude();
+
+      if (sqDistance < sqRadius) {
+        if (sqDistance < smallestSqDistance) {
+          smallestSqDistance = sqDistance;
+          pointOfMaxPenetration = connecting.B;
+          pqOfMaxPenetration = PQ;
+        }
+      }
+    }
+  }
+
+  float maxPenetration = radius - sqrtf(smallestSqDistance);
+
+  if (maxPenetration > 0.f) {
+    auto normal = (fromCylinderSpace * Vec4f{ pqOfMaxPenetration, { 0.f }}).sub<3>().normalise();
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    contact = {
+      .A = A,
+      .B = B,
+      .point = (fromCylinderSpace * Vec4f{ pointOfMaxPenetration, { 1.f }}).sub<3>(),
+      .normal = normal,
+      .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, pqOfMaxPenetration),
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace
+    };
+
+    return true;
+  }
+
+  return false;
+}
+
 void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponents& B,
   std::vector<Contact>& contacts)
 {
@@ -2381,47 +2518,17 @@ void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponen
   float radius = B.cylinder->cylinder.radius;
   float sqRadius = radius * radius;
 
-  auto triangles = getTriangles(A.box->boundingBox, toCylinderSpace * getTransform(A));
+  auto boxTransform = getTransform(A);
+  auto vertices = getVertices(A.box->boundingBox, toCylinderSpace * boxTransform);
 
-  float maxPenetration = 0.f;
-  Vec3f vertOfMaxPenetration;
-
-  for (auto& triangle : triangles) {
-    for (uint32_t i = 0; i < 3; ++i) {
-      Vec3f v = triangle[i];
-
-      if (inRange(v[1], -height * 0.5f, height * 0.5f)) {
-        float sqDistance = v[0] * v[0] + v[2] * v[2];
-
-        if (sqDistance < sqRadius) {
-          float penetration = radius - sqrtf(sqDistance);
-
-          if (penetration > maxPenetration) {
-            maxPenetration = penetration;
-            vertOfMaxPenetration = v;
-          }
-        }
-      }
-    }
+  Contact contact;
+  if (boxCylinderPointContact(A, B, fromCylinderSpace, toCylinderSpace, vertices, contact)) {
+    contacts.push_back(contact);
+  }
+  else if (boxCylinderEdgeContact(A, B, fromCylinderSpace, toCylinderSpace, vertices, contact)) {
+    contacts.push_back(contact);
   }
 
-  if (maxPenetration > 0.f) {
-    Vec3f cylinderSpaceNormal{ vertOfMaxPenetration[0], 0.f, vertOfMaxPenetration[2] };
-    auto normal = (fromCylinderSpace * Vec4f{ cylinderSpaceNormal, { 0.f }}).sub<3>().normalise();
-    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
-
-    contacts.push_back({
-      .A = A,
-      .B = B,
-      .point = (fromCylinderSpace * Vec4f{ vertOfMaxPenetration, { 1.f }}).sub<3>(),
-      .normal = normal,
-      .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, cylinderSpaceNormal),
-      .toContactSpace = fromContactSpace.t(),
-      .fromContactSpace = fromContactSpace
-    });
-  }
-
-  // TODO: Detect collisions between cylinder and box edges
   // TODO: Detect collisions between cylinder ends and triangle face
   // TODO: Detect collisions with end caps
 }
