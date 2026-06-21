@@ -15,25 +15,30 @@ class WorkQueue
   public:
     std::future<void> addWorkItem(std::function<void()>&& task)
     {
-      std::scoped_lock lock{m_mutex};
-
       auto packagedTask = std::make_shared<std::packaged_task<void()>>(std::move(task));
       std::future<void> future = packagedTask->get_future();
 
-      m_tasks.push_back([packagedTask]() { (*packagedTask)(); });
+      {
+        std::scoped_lock lock{m_mutex};
+        m_tasks.push_back([packagedTask]() { (*packagedTask)(); });
+      }
 
       return future;
     }
 
     void runAll()
     {
-      std::scoped_lock lock{m_mutex};
+      std::vector<std::function<void()>> tasks;
 
-      for (auto& task : m_tasks) {
-        task();
+      {
+        std::scoped_lock lock{m_mutex};
+        tasks = m_tasks;
+        m_tasks.clear();
       }
 
-      m_tasks.clear();
+      for (auto& task : tasks) {
+        task();
+      }
     }
 
   private:

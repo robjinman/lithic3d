@@ -71,6 +71,7 @@ struct Scenario
   std::vector<Sphere> spheres;
   std::vector<Cylinder> cylinders;
   std::vector<Aggregate> aggregates;
+  bool special = false;
 };
 
 class Demo : public Game
@@ -99,7 +100,24 @@ class Demo : public Game
     EntityId m_light;
     EntityId m_caption;
     ResourceHandle m_terrain;
+    MaterialHandle m_bricksMaterial;
     std::vector<Scenario> m_scenarios = {
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 1.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(45.f), degreesToRadians(180.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
       Scenario{
         .boxes = {
           Box{
@@ -159,6 +177,38 @@ class Demo : public Game
             .infiniteMass = false,
             .isStatic = true
           }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 2.f, 1.f, 2.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(45.f), degreesToRadians(180.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 6.f, 2.f, 3.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          }/*,
+          Box{
+            .randomRotation = false,
+            .dimensions = { 8.f, 0.5f, 4.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 8.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = true
+          }*/
         },
         .capsules{},
         .spheres{},
@@ -365,15 +415,23 @@ class Demo : public Game
             .rotation = {},
             .infiniteMass = false,
             .isStatic = false
-          },
+          }
         },
         .capsules{},
         .spheres{},
         .cylinders{},
         .aggregates{}
+      },
+      Scenario{
+        .boxes{},
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{},
+        .special = true
       }
     };
-    size_t m_currentScenario = 1;
+    size_t m_currentScenario = 11;
     std::vector<EntityId> m_boxes;    //
     std::vector<EntityId> m_capsules; // TODO: Replace with single m_dynamicEntities vector?
     std::vector<EntityId> m_spheres;
@@ -387,11 +445,12 @@ class Demo : public Game
 
     EntityId constructLight();
     void constructScenario(size_t i);
-    void constructBoxes(size_t scenario, MaterialHandle matertial);
+    void constructBoxes(const std::vector<Box>& boxes);
     void constructCapsules(size_t scenario);
-    void constructAggregates(size_t scenario, MaterialHandle material);
+    void constructAggregates(size_t scenario);
     void constructSpheres(size_t scenario);
     void constructCylinders(size_t scenario);
+    void constructSpecialScenario(size_t index);
     void destroyScenario();
     void constructGround();
     void constructTerrain();
@@ -407,6 +466,8 @@ Demo::Demo(Engine& engine)
   m_factory = createFactory(m_engine.ecs(), m_engine.modelLoader(),
     m_engine.renderResourceLoader());
 
+  m_bricksMaterial = m_factory->createMaterialAsync("bricks.png", true).wait();
+
   m_light = constructLight();
   //constructGround();
   constructTerrain();
@@ -419,15 +480,15 @@ Demo::Demo(Engine& engine)
   constructScenario(m_currentScenario);
 
   // TODO: Delete
-  //for (size_t i = 0; i < 6; ++i) {
-  //  resetState();
-  //}
+  for (size_t i = 0; i < 6; ++i) {
+    //resetState();
+  }
 
   //enablePhysics();
 
-  //for (size_t i = 0; i < 115; ++i) {
-  //  onKeyDown(KeyboardKey::N);
-  //}
+  for (size_t i = 0; i < 68; ++i) {
+    //onKeyDown(KeyboardKey::N);
+  }
 }
 
 Vec3f randomRotation()
@@ -500,20 +561,18 @@ void Demo::constructCapsules(size_t scenario)
   }
 }
 
-void Demo::constructBoxes(size_t scenario, MaterialHandle material)
+void Demo::constructBoxes(const std::vector<Box>& boxes)
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
 
-  auto texSize = Vec2f{ 1.f, 1.f };
-
-  for (auto& obj : m_scenarios[scenario].boxes) {
+  for (auto& obj : boxes) {
     auto size = obj.dimensions;
     EntityId id = 0;
     if (obj.isStatic) {
-      id = m_factory->createStaticCuboid(sysSpatial.root(), size, material, texSize, 0.2f, 0.4f);
+      id = m_factory->createStaticCuboid(sysSpatial.root(), size, m_bricksMaterial, 0.2f, 0.4f);
     }
     else {
-      id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
+      id = m_factory->createDynamicCuboid(sysSpatial.root(), size, m_bricksMaterial, 0.f, 0.2f,
         0.5f);
     }
     m_boxes.push_back(id);
@@ -675,7 +734,7 @@ void Demo::constructCylinders(size_t scenario)
   }
 }
 
-void Demo::constructAggregates(size_t scenario, MaterialHandle material)
+void Demo::constructAggregates(size_t scenario)
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
   auto& sysRender3d = m_engine.ecs().system<SysRender3d>();
@@ -709,7 +768,7 @@ void Demo::constructAggregates(size_t scenario, MaterialHandle material)
       model->submodels.push_back(
         std::unique_ptr<Submodel>(new Submodel{
           .lods = { m_engine.renderResourceLoader().loadMeshAsync(std::move(mesh)).wait() },
-          .material = material.wait(),
+          .material = m_bricksMaterial,
           .skin = nullptr,
           .jointTransforms{}
         })
@@ -769,15 +828,64 @@ void Demo::constructScenario(size_t i)
   assert(m_cylinderRenders.empty());
   assert(m_aggregates.empty());
 
-  auto material = m_factory->createMaterialAsync("bricks.png", true);
-
-  constructBoxes(i, material);
-  constructCapsules(i);
-  constructSpheres(i);
-  constructCylinders(i);
-  constructAggregates(i, material);
+  if (m_scenarios[i].special) {
+    constructSpecialScenario(i);
+  }
+  else {
+    constructBoxes(m_scenarios[i].boxes);
+    constructCapsules(i);
+    constructSpheres(i);
+    constructCylinders(i);
+    constructAggregates(i);
+  }
 
   resetState();
+}
+
+void Demo::constructSpecialScenario(size_t index)
+{
+  size_t numBoxesX = 10;
+  size_t numBoxesY = 10;
+  size_t numBoxesZ = 10;
+
+  Vec3f boxSize{ 0.5f, 0.5f, 0.5f };
+  Vec3f centre{ VIEW_X - 1.f, VIEW_Y + 2.f, VIEW_Z - 25.f };
+  float margin = 0.5f;
+
+  float dx = (boxSize[0] + margin);
+  float dy = (boxSize[1] + margin);
+  float dz = (boxSize[2] + margin);
+
+  float w = numBoxesX * dx;
+  float h = numBoxesY * dy;
+  float d = numBoxesZ * dz;
+
+  float xMin = centre[0] - 0.5f * w;
+  float yMin = centre[1] - 0.5f * h;
+  float zMin = centre[2] - 0.5f * d;
+
+  m_scenarios[index].boxes.clear();
+
+  for (size_t k = 0; k < numBoxesZ; ++k) {
+    for (size_t j = 0; j < numBoxesY; ++j) {
+      for (size_t i = 0; i < numBoxesX; ++i) {
+        float x = xMin + i * dx;
+        float y = yMin + j * dy;
+        float z = zMin + k * dz;
+
+        m_scenarios[index].boxes.push_back({
+          .randomRotation = true,
+          .dimensions = boxSize,
+          .position = { x, y, z },
+          .rotation = {},
+          .infiniteMass = false,
+          .isStatic = false
+        });
+      }
+    }
+  }
+
+  constructBoxes(m_scenarios[index].boxes);
 }
 
 void Demo::destroyScenario()
@@ -848,11 +956,8 @@ void Demo::constructTerrain()
 void Demo::constructGround()
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto material = m_factory->createMaterialAsync("grass.png", true);
-  auto size = Vec3f{ 200.f, 4.f, 200.f };
-  auto texSize = Vec2f{ 10.f, 10.f };
-  auto id = m_factory->createDynamicCuboid(sysSpatial.root(), size, material, texSize, 0.f, 0.2f,
-    0.4f); // TODO: Use static
+  auto size = Vec3f{ 100.f, 2.f, 100.f };
+  auto id = m_factory->createStaticCuboid(sysSpatial.root(), size, m_bricksMaterial, 0.f, 0.4f);
   sysSpatial.setLocalTransform(id, translationMatrix4x4(metresToWorldUnits(size * 0.5f)));
 }
 
@@ -970,8 +1075,12 @@ void Demo::resetState()
     }
 
     auto rotation = obj.randomRotation ? randomRotation() : obj.rotation;
-    auto transform = createTransform(metresToWorldUnits(obj.position), rotation);
+    auto position = metresToWorldUnits(obj.position);
+    auto scale = obj.dimensions;
+    auto transform = createTransform(position, rotation, scale);
 
+    //sysSpatial.rotateEntityLocal(id, rotationMatrix3x3(rotation));
+    //sysSpatial.setLocalTranslation(id, position);
     sysSpatial.setLocalTransform(id, transform);
   }
 
@@ -1058,8 +1167,11 @@ void Demo::onKeyDown(KeyboardKey key)
   }
   else if (key == KeyboardKey::N) {
     static Tick tick = 0;
+    auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
     m_engine.logger().info(STR("Tick: " << tick));
-    sysCollision.update(tick++, {});
+    sysSpatial.update(tick, {});
+    sysCollision.update(tick, {});
+    ++tick;
   }
   else if (key == KeyboardKey::E) {
     if (m_controllableEntity != NULL_ENTITY_ID) {
@@ -1076,7 +1188,8 @@ bool Demo::update()
   //  m_engine.ecs().system<SysRender3d>().camera().setTransform(translationMatrix4x4({ 0.f, 0.5f * 2.f, 0.f }) * t);
   //}
 
-  m_engine.update({});
+  //m_engine.update({}, { Systems::Spatial, Systems::Collision });
+  m_engine.update({}, {});
   processKeyboardInput();
 
   return true;
@@ -1090,8 +1203,8 @@ GameConfig getGameConfig()
     .appDisplayName = "Lithic3D Demo - Physics",
     .appShortName = "physics",
     .vendorShortName = "freeholdapps",
-    .windowW = 640,
-    .windowH = 480,
+    .windowW = 800,
+    .windowH = 600,
     .fullscreenResolutionW = 1920,
     .fullscreenResolutionH = 1080,
     .aspectRatio = 64.f / 48.f,

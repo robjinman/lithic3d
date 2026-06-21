@@ -53,6 +53,11 @@ Aabb transformAabb(const Aabb& aabb, const Mat4x4f& m);
 
 struct CLocalTransform
 {
+  // TODO
+  //Vec3f translation;
+  //Vec3f scale;
+  //Mat3x3f rotation; // TODO: Replace with quaternion
+
   Mat4x4f transform = identityMatrix<4>();
 
   static constexpr ComponentTypeId TypeId = CLocalTransformTypeId;

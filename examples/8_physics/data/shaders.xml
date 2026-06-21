@@ -49,7 +49,7 @@
         <joint_weights>false</joint_weights>
       </vertex_layout>
       <flags>
-        <is_instanced>false</is_instanced>
+        <is_instanced>*</is_instanced>
         <is_skybox>false</is_skybox>
         <is_animated>false</is_animated>
         <!--<has_tangents>*</has_tangents>-->
@@ -192,7 +192,7 @@
         <joint_weights>false</joint_weights>
       </vertex_layout>
       <flags>
-        <is_instanced>false</is_instanced>
+        <is_instanced>*</is_instanced>
         <is_skybox>false</is_skybox>
         <is_animated>false</is_animated>
         <!--<has_tangents>*</has_tangents>-->

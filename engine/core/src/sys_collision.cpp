@@ -284,11 +284,18 @@ Mat3x3f skewSymmetricMatrix(const Vec3f& v)
   };
 }
 
-Mat3x3f computeInverseInertialTensor(const BoundingBox& box, float inverseMass)
+inline Mat3x3f computeInverseInertialTensor(const Mat4x4f& transform, const BoundingBox& box,
+  float inverseMass)
 {
+  auto m = transform * box.transform;
+
   float w = box.max[0] - box.min[0];
   float h = box.max[1] - box.min[1];
   float d = box.max[2] - box.min[2];
+
+  w *= calcScaleFactor(m, { 1.f, 0.f, 0.f });
+  h *= calcScaleFactor(m, { 0.f, 1.f, 0.f });
+  d *= calcScaleFactor(m, { 0.f, 0.f, 1.f });
 
   return {
     12.f * inverseMass / (h * h + d * d), 0.f, 0.f,
@@ -658,8 +665,11 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
 
   componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
 
+  // TODO: Support changes of scale?
+  auto& m = componentStore.component<CLocalTransform>(id).transform;
+
   componentStore.instantiate<CCollisionRotational>(id) = CCollisionRotational{
-    .inverseInertialTensor = computeInverseInertialTensor(data.boundingBox, data.inverseMass),
+    .inverseInertialTensor = computeInverseInertialTensor(m, data.boundingBox, data.inverseMass),
     .torques{},
     .angularAcceleration{},
     .angularVelocity{},
@@ -1285,8 +1295,9 @@ void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
   if (m_ecs.componentStore().hasComponentForEntity<CCollisionRotational>(id)) {
     auto& rotational = m_ecs.componentStore().component<CCollisionRotational>(id);
     auto& box = m_ecs.componentStore().component<CCollisionBox>(id);
+    auto& m = m_ecs.componentStore().component<CLocalTransform>(id).transform;
 
-    rotational.inverseInertialTensor = computeInverseInertialTensor(box.boundingBox,
+    rotational.inverseInertialTensor = computeInverseInertialTensor(m, box.boundingBox,
       dynamic.inverseMass);
   }
 
@@ -1532,7 +1543,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 0;
-    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 1.f, 0.f, 0.f });
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { -1.f, 0.f, 0.f });
   }
   // max-x (right) face
   alignment = V.dot({ 1.f, 0.f, 0.f });
@@ -1552,7 +1563,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 2;
-    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 1.f, 0.f });
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, -1.f, 0.f });
   }
   // max-y (top) face
   alignment = V.dot({ 0.f, 1.f, 0.f });
@@ -1572,7 +1583,7 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   if (score > maxScore) {
     maxScore = score;
     face = 4;
-    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 0.f, 1.f });
+    contactPenetration = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 0.f, -1.f });
   }
   // max-z (near) face
   alignment = V.dot({ 0.f, 0.f, 1.f });
@@ -1666,6 +1677,7 @@ bool boxBoxPointContact(const ObjectComponents& A, const ObjectComponents& B, Co
   if (boxXBoxPointContact(A, B, contact)) {
     return true;
   }
+
   return boxXBoxPointContact(B, A, contact);
 }
 
@@ -1801,6 +1813,7 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
 
 bool boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Contact& contact)
 {
+  const float maxMaxPenetration = 2.f;
   float maxPenetration = 0.f;
   int edgeWithMaxPenetration = -1;
   std::array<Vec3f, 12> points;
@@ -1810,11 +1823,12 @@ bool boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B, Con
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
   auto edges = getEdges(getVertices(A.box->boundingBox, getTransform(A)));
+
   for (size_t i = 0; i < 12; ++i) {
     float penetration = edgeBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
       edges[i], points[i], normals[i]);
 
-    if (penetration > maxPenetration) {
+    if (penetration > maxPenetration && penetration <= maxMaxPenetration) {
       edgeWithMaxPenetration = i;
       maxPenetration = penetration;
     }
@@ -1846,7 +1860,8 @@ void generateBoxBoxContacts(const ObjectComponents& A, const ObjectComponents& B
   if (boxBoxPointContact(A, B, contact)) {
     contacts.push_back(contact);
   }
-  else if (boxBoxEdgeContact(A, B, contact)) {
+
+  if (boxBoxEdgeContact(A, B, contact)) {
     contacts.push_back(contact);
   }
 }

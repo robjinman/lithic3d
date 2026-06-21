@@ -16,11 +16,9 @@ class Factory
     virtual render::MaterialHandle createMaterialAsync(const std::filesystem::path& texturePath,
       bool genMipmaps) = 0;
     virtual EntityId createStaticCuboid(EntityId parentId, const Vec3f& sizeInMetres,
-      render::MaterialHandle material, const Vec2f& textureSizeInMetres, float restitution,
-      float friction) = 0;
+      render::MaterialHandle material, float restitution, float friction) = 0;
     virtual EntityId createDynamicCuboid(EntityId parentId, const Vec3f& sizeInMetres,
-      render::MaterialHandle material, const Vec2f& textureSizeInMetres, float inverseMass,
-      float restitution, float friction) = 0;
+      render::MaterialHandle material, float inverseMass, float restitution, float friction) = 0;
 
     virtual ~Factory() = default;
 };
