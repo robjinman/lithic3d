@@ -9,8 +9,8 @@ using namespace lithic3d::render;
 namespace
 {
 
-float VIEW_X = 90.f;
-float VIEW_Y = 14.f;
+float VIEW_X = 150.f;
+float VIEW_Y = 20.f;
 float VIEW_Z = 175.f;
 
 struct Box
@@ -176,6 +176,38 @@ class Demo : public Game
             .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = true
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(45.f), degreesToRadians(180.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 5.f, 1.f, 4.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 8.f, 1.f, 6.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 25.f },
+            .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
           }
         },
         .capsules{},
@@ -423,6 +455,102 @@ class Demo : public Game
         .aggregates{}
       },
       Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 1.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 1.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 0.5f, 0.5f, 0.5f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 4.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 2.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 0.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
         .boxes{},
         .capsules{},
         .spheres{},
@@ -431,7 +559,7 @@ class Demo : public Game
         .special = true
       }
     };
-    size_t m_currentScenario = 11;
+    size_t m_currentScenario = 0;
     std::vector<EntityId> m_boxes;    //
     std::vector<EntityId> m_capsules; // TODO: Replace with single m_dynamicEntities vector?
     std::vector<EntityId> m_spheres;
@@ -486,7 +614,7 @@ Demo::Demo(Engine& engine)
 
   //enablePhysics();
 
-  for (size_t i = 0; i < 68; ++i) {
+  for (size_t i = 0; i < 86; ++i) {
     //onKeyDown(KeyboardKey::N);
   }
 }
@@ -929,9 +1057,9 @@ void Demo::constructTerrain()
   TerrainConfig terrainConfig{
     .world = "world",
     .minHeight = 0.f,
-    .maxHeight = 8.f,
-    .cellWidth = 400.f,
-    .cellHeight = 400.f,
+    .maxHeight = 20.f,
+    .cellWidth = 800.f,
+    .cellHeight = 800.f,
     .waterLevel = 0.f
   };
 
@@ -956,9 +1084,9 @@ void Demo::constructTerrain()
 void Demo::constructGround()
 {
   auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
-  auto size = Vec3f{ 100.f, 2.f, 100.f };
+  auto size = Vec3f{ 200.f, 10.f, 200.f };
   auto id = m_factory->createStaticCuboid(sysSpatial.root(), size, m_bricksMaterial, 0.f, 0.4f);
-  sysSpatial.setLocalTransform(id, translationMatrix4x4(metresToWorldUnits(size * 0.5f)));
+  sysSpatial.translateEntityLocal(id, metresToWorldUnits(size * 0.5f));
 }
 
 EntityId Demo::constructLight()
