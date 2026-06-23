@@ -8,67 +8,6 @@
 namespace lithic3d
 {
 
-struct Sphere
-{
-  Vec3f centre;
-  float radius;
-};
-
-BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
-{
-  return {
-    .min = metresToWorldUnits(constructVec3f(*xmlBoundingBox.child("min"))),
-    .max = metresToWorldUnits(constructVec3f(*xmlBoundingBox.child("max"))),
-    .transform = constructTransform(*xmlBoundingBox.child("transform"))
-  };
-}
-
-Ovoid constructOvoid(const XmlNode& xmlOvoid)
-{
-  return {
-    .radius = metresToWorldUnits(std::stof(xmlOvoid.attribute("radius"))),
-    .transform = constructTransform(*xmlOvoid.child("transform"))
-  };
-}
-
-Cylinder constructCylinder(const XmlNode& xmlCylinder)
-{
-  return {
-    .radius = metresToWorldUnits(std::stof(xmlCylinder.attribute("radius"))),
-    .height = metresToWorldUnits(std::stof(xmlCylinder.attribute("height"))),
-    .transform = constructTransform(*xmlCylinder.child("transform"))
-  };
-}
-
-// Calculates how much matrix m scales in the direction of v
-inline float calcScaleFactor(const Mat4x4f& m, const Vec3f& v)
-{
-  return (m * Vec4f{ v, { 0.f }}).sub<3>().magnitude() / v.magnitude();
-}
-
-XmlNodePtr toXml(const BoundingBox& bbox)
-{
-  auto xmlBoundingBox = createXmlNode("bounding_box");
-
-  auto xmlMin = createXmlNode("min");
-  xmlMin->setAttribute("x", std::to_string(worldUnitsToMetres(bbox.min[0])));
-  xmlMin->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.min[1])));
-  xmlMin->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.min[2])));
-
-  auto xmlMax = createXmlNode("max");
-  xmlMax->setAttribute("x", std::to_string(worldUnitsToMetres(bbox.max[0])));
-  xmlMax->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.max[1])));
-  xmlMax->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.max[2])));
-
-  auto xmlTransform = toXml(bbox.transform);
-
-  xmlBoundingBox->addChild(std::move(xmlMin));
-  xmlBoundingBox->addChild(std::move(xmlMax));
-  xmlBoundingBox->addChild(std::move(xmlTransform));
-
-  return xmlBoundingBox;
-}
-
 Triangle HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
@@ -251,6 +190,95 @@ void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edg
 namespace
 {
 
+struct Sphere
+{
+  Vec3f centre;
+  float radius;
+};
+
+BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
+{
+  return {
+    .min = metresToWorldUnits(constructVec3f(*xmlBoundingBox.child("min"))),
+    .max = metresToWorldUnits(constructVec3f(*xmlBoundingBox.child("max"))),
+    .transform = constructTransform(*xmlBoundingBox.child("transform"))
+  };
+}
+
+Ovoid constructOvoid(const XmlNode& xmlOvoid)
+{
+  return {
+    .radius = metresToWorldUnits(std::stof(xmlOvoid.attribute("radius"))),
+    .transform = constructTransform(*xmlOvoid.child("transform"))
+  };
+}
+
+Cylinder constructCylinder(const XmlNode& xmlCylinder)
+{
+  return {
+    .radius = metresToWorldUnits(std::stof(xmlCylinder.attribute("radius"))),
+    .height = metresToWorldUnits(std::stof(xmlCylinder.attribute("height"))),
+    .transform = constructTransform(*xmlCylinder.child("transform"))
+  };
+}
+
+// Calculates how much matrix m scales in the direction of v
+inline float calcScaleFactor(const Mat4x4f& m, const Vec3f& v)
+{
+  return (m * Vec4f{ v, { 0.f }}).sub<3>().magnitude() / v.magnitude();
+}
+
+XmlNodePtr toXml(const BoundingBox& bbox)
+{
+  auto xmlBoundingBox = createXmlNode("bounding_box");
+
+  auto xmlMin = createXmlNode("min");
+  xmlMin->setAttribute("x", std::to_string(worldUnitsToMetres(bbox.min[0])));
+  xmlMin->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.min[1])));
+  xmlMin->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.min[2])));
+
+  auto xmlMax = createXmlNode("max");
+  xmlMax->setAttribute("x", std::to_string(worldUnitsToMetres(bbox.max[0])));
+  xmlMax->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.max[1])));
+  xmlMax->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.max[2])));
+
+  auto xmlTransform = toXml(bbox.transform);
+
+  xmlBoundingBox->addChild(std::move(xmlMin));
+  xmlBoundingBox->addChild(std::move(xmlMax));
+  xmlBoundingBox->addChild(std::move(xmlTransform));
+
+  return xmlBoundingBox;
+}
+
+inline Matrix<float, 4, 4> operator*(const Matrix<float, 4, 4>& lhs, const Matrix<float, 4, 4>& rhs)
+{
+  Matrix<float, 4, 4> m;
+
+  const float* A = lhs.data();
+  const float* B = rhs.data();
+  float* M = m.data();
+
+  M[0] = A[0] * B[0] + A[4] * B[1] + A[8] * B[2];
+  M[4] = A[0] * B[4] + A[4] * B[5] + A[8] * B[6];
+  M[8] = A[0] * B[8] + A[4] * B[9] + A[8] * B[10];
+  M[12] = A[0] * B[12] + A[4] * B[13] + A[8] * B[14] + A[12];
+
+  M[1] = A[1] * B[0] + A[5] * B[1] + A[9] * B[2];
+  M[5] = A[1] * B[4] + A[5] * B[5] + A[9] * B[6];
+  M[9] = A[1] * B[8] + A[5] * B[9] + A[9] * B[10];
+  M[13] = A[1] * B[12] + A[5] * B[13] + A[9] * B[14] + A[13];
+
+  M[2] = A[2] * B[0] + A[6] * B[1] + A[10] * B[2];
+  M[6] = A[2] * B[4] + A[6] * B[5] + A[10] * B[6];
+  M[10] = A[2] * B[8] + A[6] * B[9] + A[10] * B[10];
+  M[14] = A[2] * B[12] + A[6] * B[13] + A[10] * B[14] + A[14];
+
+  M[15] = 1.f;
+
+  return m;
+}
+
 const float G = -metresToWorldUnits(9.8f) / (TICKS_PER_SECOND * TICKS_PER_SECOND);
 
 uint32_t findFreeIndex(const std::array<Force, MAX_FORCES>& array)
@@ -333,6 +361,7 @@ struct ObjectComponents
   CLocalTransform* localTransform = nullptr;
   CGlobalTransform* globalTransform = nullptr;
   CSpatialFlags* spatialFlags = nullptr;
+  CBoundingBox* aabb = nullptr;
   CCollision* collision = nullptr;
   CCollisionDynamic* dynamic = nullptr;
   CCollisionRotational* rotational = nullptr;
@@ -418,6 +447,8 @@ class SysCollisionImpl : public SysCollision
     Ecs& m_ecs;
     std::unordered_map<EntityId, std::vector<EntityId>> m_aggregates;
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
+    bool m_shouldRebuildSortList = true;
+    std::vector<ObjectComponents> m_sortList;
 
     ComponentDataPtr constructDDynamicBox(const XmlNode& data) const;
     ComponentDataPtr constructDStaticBox(const XmlNode& data) const;
@@ -435,6 +466,8 @@ class SysCollisionImpl : public SysCollision
     XmlNodePtr polyhedronToXml(EntityId entityId) const;
     XmlNodePtr aggregateToXml(EntityId entityId) const;
 
+    void rebuildSortList();
+    void updateSortList();
     void applyForce(CCollisionDynamic& comp, const Force& force);
     void applyTorque(CCollisionDynamic& dynamic, CCollisionRotational& rotational,
       const Force& torque);
@@ -624,6 +657,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DStaticBox& data)
   componentStore.instantiate<CCollisionBox>(id) = CCollisionBox{
     .boundingBox = data.boundingBox
   };
+
+  m_shouldRebuildSortList = true;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
@@ -654,8 +689,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
-    .resolverDeltaLinearV{},
-    .resolverNumAdjustments = 0,
     .framesIdle = 0,
     .idle = false
   };
@@ -673,9 +706,10 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
     .inverseInertialTensor = computeInverseInertialTensor(m, data.boundingBox, data.inverseMass),
     .torques{},
     .angularAcceleration{},
-    .angularVelocity{},
-    .resolverDeltaAngularV{}
+    .angularVelocity{}
   };
+
+  m_shouldRebuildSortList = true;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
@@ -698,6 +732,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
   componentStore.instantiate<CCollisionTerrain>(id) = CCollisionTerrain{
     .heightMap = data.heightMap
   };
+
+  m_shouldRebuildSortList = true;
 }
 
 std::vector<PolyEdge> computePolyhedronEdges(const DPolyhedron& data)
@@ -734,6 +770,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
   // TODO: Create component for polyhedron data?
 
   m_polyhedra[id] = std::move(poly);
+
+  m_shouldRebuildSortList = true;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
@@ -763,8 +801,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
-    .resolverDeltaLinearV{},
-    .resolverNumAdjustments = 0,
     .framesIdle = 0,
     .idle = false
   };
@@ -774,6 +810,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
   }
 
   componentStore.instantiate<CCollisionDynamic>(id) = dynamic;
+
+  m_shouldRebuildSortList = true;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DSphere& data)
@@ -795,6 +833,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DSphere& data)
   componentStore.instantiate<CCollisionSphere>(id) = CCollisionSphere{
     .ovoid = data.ovoid
   };
+
+  m_shouldRebuildSortList = true;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DCylinder& data)
@@ -816,6 +856,8 @@ void SysCollisionImpl::addEntity(EntityId id, const DCylinder& data)
   componentStore.instantiate<CCollisionCylinder>(id) = CCollisionCylinder{
     .cylinder = data.cylinder
   };
+
+  m_shouldRebuildSortList = true;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
@@ -1196,6 +1238,8 @@ void SysCollisionImpl::removeEntity(EntityId id)
     }
     m_aggregates.erase(i);
   }
+
+  m_shouldRebuildSortList = true;
 }
 
 bool SysCollisionImpl::hasEntity(EntityId entityId) const
@@ -1307,6 +1351,49 @@ void SysCollisionImpl::setInverseMass(EntityId id, float inverseMass)
   }
 }
 
+std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
+{
+  std::vector<CollisionPair> pairs;
+
+  float margin = 0.f;//metresToWorldUnits(0.1f);
+
+  for (size_t i = 0; i < m_sortList.size(); ++i) {
+    auto& A = m_sortList[i];
+    auto& aAabb = A.aabb->worldSpaceAabb;
+    bool aIsInactive = A.dynamic == nullptr || A.dynamic->idle;
+
+    for (size_t j = i + 1; j < m_sortList.size(); ++j) {
+      auto& B = m_sortList[j];
+      auto& bAabb = B.aabb->worldSpaceAabb;
+
+      if (bAabb.min[0] - margin > aAabb.max[0] + margin) {
+        break;
+      }
+
+      if (aAabb.min[1] - margin > bAabb.max[1] + margin ||
+        bAabb.min[1] - margin > aAabb.max[1] + margin ||
+        aAabb.min[2] - margin > bAabb.max[2] + margin ||
+        bAabb.min[2] - margin > aAabb.max[2] + margin) {
+
+        continue;
+      }
+
+      bool bIsInactive = B.dynamic == nullptr || B.dynamic->idle;
+
+      if (aIsInactive && bIsInactive) {
+        continue;
+      }
+
+      pairs.push_back({
+        .A = A,
+        .B = B
+      });
+    }
+  }
+
+  return pairs;
+}
+/*
 std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
 {
   // Extremely naive collision algorithm
@@ -1423,7 +1510,7 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
   }
 
   return pairs;
-}
+}*/
 
 inline bool isInside(const BoundingBox& box, const Vec3f& P, float epsilon = 0.f)
 {
@@ -1755,7 +1842,7 @@ bool closestConnectingEdge(const Edge& edge1, const Edge& edge2, Edge& connectin
 
 // Returns penetration depth or 0 if there's no penetration
 float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
-  const Mat4x4f& boxToWorldSpace, const Edge& worldSpaceEdge, Vec3f& point, Vec3f& normal)
+  const std::array<Edge, 12>& boxEdges, const Edge& worldSpaceEdge, Vec3f& point, Vec3f& normal)
 {
   Edge edge{
     .A = (worldToBoxSpace * Vec4f{ worldSpaceEdge.A, { 1.f }}).sub<3>(),
@@ -1773,15 +1860,11 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     return 0.f;
   }
 
-  // Line: a + sv
-  Vec3f a = worldSpaceEdge.A;
-  Vec3f v = worldSpaceEdge.B - worldSpaceEdge.A;
+  //auto boxEdges = getEdges(getVertices(box, boxToWorldSpace));
 
-  auto boxEdges = getEdges(getVertices(box, boxToWorldSpace));
-
-  std::array<Vec3f, 12> normals;
-  std::array<Vec3f, 12> points;
-  int indexOfMinPenetration = -1;
+  Vec3f contactNormal;
+  Vec3f contactPoint;
+  bool contactFound = false;
 
   float minSqPenetration = std::numeric_limits<float>::max();
 
@@ -1799,22 +1882,22 @@ float edgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
     auto PQ = Q - P;
     float sqPenetration = PQ.squareMagnitude();
 
-    // TODO: Replace with distance to centre test
+    // TODO: Replace with distance to centre test?
     if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>(), 0.002f)) {
       continue;
     }
 
     if (sqPenetration < minSqPenetration) {
       minSqPenetration = sqPenetration;
-      indexOfMinPenetration = i;
-      points[i] = P + PQ * 0.5f;
-      normals[i] = PQ.normalise();
+      contactFound = true;
+      contactPoint = P + PQ * 0.5f;
+      contactNormal = PQ.normalise();
     }
   }
 
-  if (indexOfMinPenetration != -1) {
-    normal = normals[indexOfMinPenetration];
-    point = points[indexOfMinPenetration];
+  if (contactFound) {
+    normal = contactNormal;
+    point = contactPoint;
 
     return sqrtf(minSqPenetration);
   }
@@ -1830,14 +1913,15 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
   auto boxBToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-  auto edges = getEdges(getVertices(A.box->boundingBox, getTransform(A)));
+  auto boxAEdges = getEdges(getVertices(A.box->boundingBox, getTransform(A)));
+  auto boxBEdges = getEdges(getVertices(B.box->boundingBox, getTransform(B)));
 
   for (size_t i = 0; i < 12; ++i) {
     Vec3f normal;
     Vec3f point;
 
-    float penetration = edgeBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
-      edges[i], point, normal);
+    float penetration = edgeBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBEdges,
+      boxAEdges[i], point, normal);
 
     if (penetration > 0.f && penetration <= maxMaxPenetration) {
       Contact contact;
@@ -1846,7 +1930,8 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
       contact.normal = normal;
       contact.penetration = penetration;
       contact.point = point;
-      contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+      contact.fromContactSpace = changeOfBasisMatrix(contact.normal,
+        differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
       contacts.push_back(contact);
     }
@@ -2279,8 +2364,10 @@ bool boxTerrainEdgeContact(const ObjectComponents& A, const Vec2f& boxMin, const
   auto boxToWorldSpace = getTransform(A) * A.box->boundingBox.transform;
   auto worldToBoxSpace = inverse(boxToWorldSpace);
 
+  auto boxEdges = getEdges(getVertices(A.box->boundingBox, getTransform(A)));
+
   for (size_t i = 0; i < terrainEdges.size(); ++i) {
-    float penetration = edgeBoxPenetration(A.box->boundingBox, worldToBoxSpace, boxToWorldSpace,
+    float penetration = edgeBoxPenetration(A.box->boundingBox, worldToBoxSpace, boxEdges,
       terrainEdges[i], points[i], normals[i]);
 
     if (penetration > maxPenetration && penetration <= maxMaxPenetration) {
@@ -2901,23 +2988,17 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   reapplyLateralImpulse(impulse, friction);
 
   if (A.dynamic) {
-    //A.dynamic->resolverDeltaLinearV += impulse * A.dynamic->inverseMass;
     A.dynamic->linearVelocity += impulse * A.dynamic->inverseMass;
     if (A.rotational) {
-      //A.rotational->resolverDeltaAngularV += aI * aPointRel.cross(impulse);
       A.rotational->angularVelocity += aI * aPointRel.cross(impulse);
     }
-    //++A.dynamic->resolverNumAdjustments;
   }
 
   if (B.dynamic) {
-    //B.dynamic->resolverDeltaLinearV += -impulse * B.dynamic->inverseMass;
     B.dynamic->linearVelocity += -impulse * B.dynamic->inverseMass;
     if (B.rotational) {
-      //B.rotational->resolverDeltaAngularV += bI * bPointRel.cross(-impulse);
       B.rotational->angularVelocity += bI * bPointRel.cross(-impulse);
     }
-    //++B.dynamic->resolverNumAdjustments;
   }
 
   reapplyGravity();
@@ -2942,17 +3023,6 @@ void SysCollisionImpl::integrate()
 
       if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
-/*
-        if (dynamic.resolverNumAdjustments > 0) {
-          dynamic.linearVelocity += dynamic.resolverDeltaLinearV / dynamic.resolverNumAdjustments;
-          if (!rotationalComps.empty()) {
-            rotationalComps[i].angularVelocity +=
-              rotationalComps[i].resolverDeltaAngularV / dynamic.resolverNumAdjustments;
-            rotationalComps[i].resolverDeltaAngularV = {};
-          }
-          dynamic.resolverDeltaLinearV = {};
-          dynamic.resolverNumAdjustments = 0;
-        }*/
 
         // Tweak these idle thresholds
         const float idleMaxLinearV = 0.11f;
@@ -3024,9 +3094,94 @@ void SysCollisionImpl::integrate()
   }
 }
 
+void SysCollisionImpl::rebuildSortList()
+{
+  m_sortList.clear();
+
+  auto groups = m_ecs.componentStore().components<
+    CSpatialFlags, CLocalTransform, CGlobalTransform, CBoundingBox, CCollision
+  >();
+
+  for (auto& group : groups) {
+    auto flagsComps = group.components<CSpatialFlags>();
+    auto localTs = group.components<CLocalTransform>();
+    auto globalTs = group.components<CGlobalTransform>();
+    auto boundingBoxes = group.components<CBoundingBox>();
+    auto collComps = group.components<CCollision>();
+    auto collBoxComps = group.components<CCollisionBox>();
+    auto collDynamicComps = group.components<CCollisionDynamic>();
+    auto collRotationalComps = group.components<CCollisionRotational>();
+    auto collTerrainComps = group.components<CCollisionTerrain>();
+    auto collCapsuleComps = group.components<CCollisionCapsule>();
+    auto collSphereComps = group.components<CCollisionSphere>();
+    auto collCylinderComps = group.components<CCollisionCylinder>();
+    auto entityIds = group.entityIds();
+
+    for (size_t i = 0; i < entityIds.size(); ++i) {
+      auto& flags = flagsComps[i].flags;
+
+      if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)) {
+        m_sortList.push_back({
+          .entityId = entityIds[i],
+          .localTransform = &localTs[i],
+          .globalTransform = collDynamicComps.empty() ? &globalTs[i] : nullptr,
+          .spatialFlags = &flagsComps[i],
+          .aabb = &boundingBoxes[i],
+          .collision = &collComps[i],
+          .dynamic = collDynamicComps.empty() ? nullptr : &collDynamicComps[i],
+          .rotational = collRotationalComps.empty() ? nullptr : &collRotationalComps[i],
+          .box = collBoxComps.empty() ? nullptr : &collBoxComps[i],
+          .capsule = collCapsuleComps.empty() ? nullptr : &collCapsuleComps[i],
+          .sphere = collSphereComps.empty() ? nullptr : &collSphereComps[i],
+          .cylinder = collCylinderComps.empty() ? nullptr : &collCylinderComps[i],
+          .terrain = collTerrainComps.empty() ? nullptr : &collTerrainComps[i]
+        });
+      }
+    }
+  }
+
+  auto sortFn = [](const ObjectComponents& A, const ObjectComponents& B) {
+    return A.aabb->worldSpaceAabb.min[0] < B.aabb->worldSpaceAabb.min[0];
+  };
+
+  std::sort(m_sortList.begin(), m_sortList.end(), sortFn);
+
+  m_shouldRebuildSortList = false;
+}
+
+void insertionSort(std::vector<ObjectComponents>& arr)
+{
+  int n = arr.size();
+  for (int i = 1; i < n; ++i) {
+    auto copy = arr[i];
+    float value = copy.aabb->worldSpaceAabb.min[0];
+
+    int j = i - 1;
+
+    while (j >= 0 && value < arr[j].aabb->worldSpaceAabb.min[0]) {
+      arr[j + 1] = arr[j];
+      --j;
+    }
+
+    arr[j + 1] = copy;
+  }
+}
+
+void SysCollisionImpl::updateSortList()
+{
+  insertionSort(m_sortList);
+}
+
 void SysCollisionImpl::update(Tick, const InputState&)
 {
   const size_t maxIterations = 4;
+
+  if (m_shouldRebuildSortList) {
+    rebuildSortList();
+  }
+  else {
+    updateSortList();
+  }
 
   auto pairs = findPossibleCollisions();
 
