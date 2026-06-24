@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <set>
+#include <string>
 
 namespace lithic3d
 {

@@ -395,7 +395,7 @@ XmlNodePtr SysRender3dImpl::componentToXml(EntityId entityId, EntityId) const
 
     auto xmlModel = createXmlNode("model");
     xmlModel->setAttribute("is_instanced", comp.isInstanced ? "true" : "false");
-    xmlModel->setAttribute("file", model.filePath);
+    xmlModel->setAttribute("file", model.filePath.string());
 
     xmlSysRender3d->addChild(std::move(xmlModel));
 

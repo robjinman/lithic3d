@@ -738,12 +738,20 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
 
 std::vector<PolyEdge> computePolyhedronEdges(const DPolyhedron& data)
 {
+  std::vector<PolyEdge> edges;
+
   // TODO
+
+  return edges;
 }
 
 std::vector<PolyFace> computePolyhedronFaces(const DPolyhedron& data)
 {
+  std::vector<PolyFace> faces;
+
   // TODO
+
+  return faces;
 }
 
 void SysCollisionImpl::addEntity(EntityId id, const DPolyhedron& data)
@@ -1164,11 +1172,13 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
 XmlNodePtr SysCollisionImpl::capsuleToXml(EntityId) const
 {
   // TODO
+  return createXmlNode("collision");
 }
 
 XmlNodePtr SysCollisionImpl::polyhedronToXml(EntityId) const
 {
   // TODO
+  return createXmlNode("collision");
 }
 
 XmlNodePtr SysCollisionImpl::componentToXml(EntityId entityId, EntityId) const
