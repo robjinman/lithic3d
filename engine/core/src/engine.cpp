@@ -170,6 +170,8 @@ void EngineImpl::update(const InputState& inputState, const std::set<SystemId>& 
   try {
     m_renderer->beginFrame(m_clearColour);
 
+    //m_logger->info(STR("Tick " << m_currentTick));
+
     m_ecs->update(m_currentTick, inputState, skip);
     measureTickRate();
     ++m_currentTick;

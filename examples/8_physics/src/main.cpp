@@ -559,7 +559,7 @@ class Demo : public Game
         .special = true
       }
     };
-    size_t m_currentScenario = 0;
+    size_t m_currentScenario = 14;
     std::vector<EntityId> m_boxes;    //
     std::vector<EntityId> m_capsules; // TODO: Replace with single m_dynamicEntities vector?
     std::vector<EntityId> m_spheres;
@@ -597,8 +597,8 @@ Demo::Demo(Engine& engine)
   m_bricksMaterial = m_factory->createMaterialAsync("bricks.png", true).wait();
 
   m_light = constructLight();
-  //constructGround();
-  constructTerrain();
+  constructGround();
+  //constructTerrain();
   m_caption = constructCaption();
 
   auto& camera = m_engine.ecs().system<SysRender3d>().camera();
@@ -608,13 +608,13 @@ Demo::Demo(Engine& engine)
   constructScenario(m_currentScenario);
 
   // TODO: Delete
-  for (size_t i = 0; i < 6; ++i) {
+  for (size_t i = 0; i < 1; ++i) {
     //resetState();
   }
 
   //enablePhysics();
 
-  for (size_t i = 0; i < 86; ++i) {
+  for (size_t i = 0; i < 237; ++i) {
     //onKeyDown(KeyboardKey::N);
   }
 }
@@ -701,7 +701,7 @@ void Demo::constructBoxes(const std::vector<Box>& boxes)
     }
     else {
       id = m_factory->createDynamicCuboid(sysSpatial.root(), size, m_bricksMaterial, 0.f, 0.2f,
-        0.5f);
+        0.4f);
     }
     m_boxes.push_back(id);
   }
