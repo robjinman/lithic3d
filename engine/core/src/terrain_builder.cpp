@@ -173,7 +173,7 @@ EntityId TerrainBuilderImpl::createLandEntity(EntityId parentId, ResourceId regi
   sysRender3d.addEntity(id, std::move(render));
 
   DTerrainChunk collision{
-    .restitution = 0.f,   // TODO
+    .restitution = 0.1f,   // TODO
     .friction = 0.5f,     // TODO
     .heightMap = region.heightMap
   };
