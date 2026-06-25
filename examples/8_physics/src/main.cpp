@@ -184,7 +184,7 @@ class Demo : public Game
         .aggregates{}
       },
       Scenario{
-        .boxes = {
+        .boxes = {/*
           Box{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
@@ -192,19 +192,19 @@ class Demo : public Game
             .rotation = { degreesToRadians(0.f), degreesToRadians(45.f), degreesToRadians(180.f) },
             .infiniteMass = false,
             .isStatic = false
-          },
+          },*/
           Box{
             .randomRotation = false,
             .dimensions = { 5.f, 1.f, 4.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 25.f },
+            .position = { VIEW_X + 0.f, VIEW_Y + 4.f, VIEW_Z - 25.f },
             .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = false
           },
           Box{
-            .randomRotation = false,
+            .randomRotation = true,
             .dimensions = { 8.f, 1.f, 6.f },
-            .position = { VIEW_X + 0.f, VIEW_Y - 7.f, VIEW_Z - 25.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 25.f },
             .rotation = { degreesToRadians(30.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = false
@@ -232,7 +232,7 @@ class Demo : public Game
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = false
-          }/*,
+          },/*
           Box{
             .randomRotation = false,
             .dimensions = { 8.f, 0.5f, 4.f },
@@ -608,13 +608,13 @@ Demo::Demo(Engine& engine)
   constructScenario(m_currentScenario);
 
   // TODO: Delete
-  for (size_t i = 0; i < 13; ++i) {
+  for (size_t i = 0; i < 16; ++i) {
     resetState();
   }
 
   enablePhysics();
 
-  for (size_t i = 0; i < 27; ++i) {
+  for (size_t i = 0; i < 209; ++i) {
     //onKeyDown(KeyboardKey::N);
   }
 }
@@ -1280,6 +1280,7 @@ void Demo::onKeyDown(KeyboardKey key)
   }
   else if (key == KeyboardKey::F) {
     m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
+    m_engine.logger().info(STR("Renderer frame rate: " << m_engine.renderer().frameRate()));
   }
   else if (key == KeyboardKey::Left) {
     if (m_currentScenario > 0) {
