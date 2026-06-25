@@ -148,7 +148,6 @@ struct CCollisionRotational
 struct CCollisionDynamic
 {
   float inverseMass = 1.f;
-  Vec3f centreOfMass;
   std::array<Force, MAX_FORCES> linearForces;
   Vec3f linearAcceleration;
   Vec3f linearVelocity;
@@ -183,7 +182,6 @@ struct DDynamicBox
   float inverseMass = 1.f;
   float restitution = 0.2f;
   float friction = 0.4f;
-  Vec3f centreOfMass;
   BoundingBox boundingBox;
 };
 

@@ -228,7 +228,6 @@ EntityId FactoryImpl::createDynamicCuboid(EntityId parentId, const Vec3f& sizeIn
     .inverseMass = inverseMass,
     .restitution = restitution,
     .friction = friction,
-    .centreOfMass = { 0.f, 0.f, 0.f },
     .boundingBox{
       .min = metresToWorldUnits(Vec3f{ -0.5f, -0.5f, -0.5f }),
       .max = metresToWorldUnits(Vec3f{ 0.5f, 0.5f, 0.5f }),

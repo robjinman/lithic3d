@@ -690,7 +690,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DDynamicBox& data)
 
   CCollisionDynamic dynamic{
     .inverseMass = data.inverseMass,
-    .centreOfMass = data.centreOfMass,
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
@@ -810,7 +809,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DCapsule& data)
 
   CCollisionDynamic dynamic{
     .inverseMass = data.inverseMass,
-    .centreOfMass{},
     .linearForces{},
     .linearAcceleration{},
     .linearVelocity{},
@@ -953,7 +951,6 @@ ComponentDataPtr SysCollisionImpl::constructDDynamicBox(const XmlNode& xmlDynami
     .inverseMass = invMass,
     .restitution = restitution,
     .friction = friction,
-    .centreOfMass = metresToWorldUnits(constructVec3f(*xmlDynamicBox.child("centre_of_mass"))),
     .boundingBox = constructBoundingBox(*xmlDynamicBox.child("bounding_box"))
   });
 }
@@ -1119,13 +1116,6 @@ XmlNodePtr SysCollisionImpl::dynamicBoxToXml(EntityId entityId) const
   auto& dynaComp = m_ecs.componentStore().component<CCollisionDynamic>(entityId);
 
   xmlBox->setAttribute("inverse_mass", std::to_string(dynaComp.inverseMass));
-
-  auto xmlCentre = createXmlNode("centre_of_mass");
-  xmlCentre->setAttribute("x", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[0])));
-  xmlCentre->setAttribute("y", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[1])));
-  xmlCentre->setAttribute("z", std::to_string(worldUnitsToMetres(dynaComp.centreOfMass[2])));
-
-  xmlBox->addChild(std::move(xmlCentre));
 
   xmlBox->addChild(toXml(boxComp.boundingBox));
   xmlSysCollision->addChild(std::move(xmlBox));
@@ -1725,39 +1715,34 @@ bool closestConnectingEdge(const Edge& edge1, const Edge& edge2, Edge& connectin
   return true;
 }
 
-void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
-  const std::array<Edge, 12>& boxEdges, const Edge& worldSpaceEdge,
-  const std::function<bool(const Vec3f&, const Vec3f&)>& isPenetratingFn,
-  std::vector<Contact>& contacts)
+size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
+  const BoundingBox& boxB, const Mat4x4f& worldToBoxBSpace, const Vec3f& boxBCentre,
+  const std::array<Edge, 12>& boxBEdges, std::array<Contact, 12>& contacts)
 {
   Edge edge{
-    .A = (worldToBoxSpace * Vec4f{ worldSpaceEdge.A, { 1.f }}).sub<3>(),
-    .B = (worldToBoxSpace * Vec4f{ worldSpaceEdge.B, { 1.f }}).sub<3>()
+    .A = (worldToBoxBSpace * Vec4f{ boxAEdge.A, { 1.f }}).sub<3>(),
+    .B = (worldToBoxBSpace * Vec4f{ boxAEdge.B, { 1.f }}).sub<3>()
   };
 
   if (
-    (edge.A[0] < box.min[0] && edge.B[0] < box.min[0]) ||
-    (edge.A[1] < box.min[1] && edge.B[1] < box.min[1]) ||
-    (edge.A[2] < box.min[2] && edge.B[2] < box.min[2]) ||
-    (edge.A[0] > box.max[0] && edge.B[0] > box.max[0]) ||
-    (edge.A[1] > box.max[1] && edge.B[1] > box.max[1]) ||
-    (edge.A[2] > box.max[2] && edge.B[2] > box.max[2])
+    (edge.A[0] < boxB.min[0] && edge.B[0] < boxB.min[0]) ||
+    (edge.A[1] < boxB.min[1] && edge.B[1] < boxB.min[1]) ||
+    (edge.A[2] < boxB.min[2] && edge.B[2] < boxB.min[2]) ||
+    (edge.A[0] > boxB.max[0] && edge.B[0] > boxB.max[0]) ||
+    (edge.A[1] > boxB.max[1] && edge.B[1] > boxB.max[1]) ||
+    (edge.A[2] > boxB.max[2] && edge.B[2] > boxB.max[2])
   ) {
-    return;
+    return 0;
   }
-
-  Vec3f contactNormal;
-  Vec3f contactPoint;
-  bool contactFound = false;
-  int edgeIndex = -1;
 
   float minSqPenetration = std::numeric_limits<float>::max();
 
-  for (size_t i = 0; i < boxEdges.size(); ++i) {
-    auto& boxEdge = boxEdges[i];
+  size_t n = 0;
+  for (size_t i = 0; i < 12; ++i) {
+    auto& boxBEdge = boxBEdges[i];
 
     Edge connecting;
-    if (!closestConnectingEdge(worldSpaceEdge, boxEdge, connecting)) {
+    if (!closestConnectingEdge(boxAEdge, boxBEdge, connecting)) {
       continue;
     }
 
@@ -1771,7 +1756,9 @@ void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpa
       continue;
     }
   
-    if (!isPenetratingFn(P, Q)) {
+    auto QA = boxACentre - Q;
+    auto PB = boxBCentre - P;
+    if (PQ.dot(PB) > 0.f || PQ.dot(QA) < 0.f) {
       continue;
     }
 
@@ -1779,14 +1766,17 @@ void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpa
     contact.penetration = sqrtf(sqPenetration);
     contact.point = P + PQ * 0.5f;
     contact.normal = PQ.normalise();
-    contacts.push_back(contact);
+    contacts[n] = contact;
+
+    ++n;
   }
+
+  return n;
 }
 
-float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
-  const std::array<Edge, 12>& boxEdges, const Edge& worldSpaceEdge,
-  const std::function<bool(const Vec3f&, const Vec3f&)>& isPenetratingFn, Vec3f& point,
-  Vec3f& normal)
+float terrainEdgeBoxPenetration(const BoundingBox& box, const Vec3f& boxCentre,
+  const Mat4x4f& worldToBoxSpace, const std::array<Edge, 12>& boxEdges,
+  const HeightMapSampler& sampler, const Edge& worldSpaceEdge, Vec3f& point, Vec3f& normal)
 {
   Edge edge{
     .A = (worldToBoxSpace * Vec4f{ worldSpaceEdge.A, { 1.f }}).sub<3>(),
@@ -1807,7 +1797,6 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
   Vec3f contactNormal;
   Vec3f contactPoint;
   bool contactFound = false;
-  int edgeIndex = -1;
 
   float minSqPenetration = std::numeric_limits<float>::max();
 
@@ -1829,7 +1818,19 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
       continue;
     }
 
-    if (!isPenetratingFn(P, Q)) {
+    auto PB = boxCentre - P;
+
+    if (PQ.dot(PB) >= 0.f) {
+      continue;
+    }
+
+    if (PQ.dot({ 0.f, 1.f, 0.f }) >= 0.f) {
+      continue;
+    }
+
+    auto [ A, B, C ] = sampler.triangle({ Q[0], Q[2] });
+    auto n = (B - A).cross(C - A);
+    if ((Q - A).dot(n) > 0.f) {
       continue;
     }
 
@@ -1838,7 +1839,6 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
       contactFound = true;
       contactPoint = P + PQ * 0.5f;
       contactNormal = PQ.normalise();
-      edgeIndex = i;
     }
   }
 
@@ -1870,25 +1870,24 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
   auto boxACentre = calcCentre(A.box->boundingBox.min, A.box->boundingBox.max, boxAToWorldSpace);
   auto boxBCentre = calcCentre(B.box->boundingBox.min, B.box->boundingBox.max, boxBToWorldSpace);
 
-  auto isPenetratingFn = [&](const Vec3f& P, const Vec3f& Q) {
-    auto PQ = (Q - P).normalise();
-    auto QP = (P - Q).normalise();
-    auto QA = (boxACentre - Q).normalise();
-    auto PB = (boxBCentre - P).normalise();
-    return PQ.dot(PB) < 0.f && QP.dot(QA) < 0.f;
-  };
+  std::array<Contact, 12> newContacts;
 
   for (size_t i = 0; i < 12; ++i) {
-    std::vector<Contact> newContacts;
-    allEdgeBoxPenetrations(B.box->boundingBox, worldToBoxBSpace, boxBEdges, boxAEdges[i],
-      isPenetratingFn, newContacts);
+    auto n = allEdgeBoxPenetrations(boxACentre, boxAEdges[i], B.box->boundingBox, worldToBoxBSpace,
+      boxBCentre, boxBEdges, newContacts);
+
+    if (n == 0) {
+      continue;
+    }
 
     // TODO: Need this?
-    std::sort(newContacts.begin(), newContacts.end(), [](const Contact& A, const Contact& B) {
+    std::sort(newContacts.begin(), newContacts.begin() + n - 1,
+      [](const Contact& A, const Contact& B) {
+
       return A.penetration < B.penetration;
     });
 
-    for (size_t j = 0; j < newContacts.size(); ++j) {
+    for (size_t j = 0; j < n; ++j) {
       Contact& contact = newContacts[j];
       contact.A = A;
       contact.B = B;
@@ -1906,7 +1905,6 @@ void generateBoxBoxContacts(const ObjectComponents& A, const ObjectComponents& B
   assert(A.box != nullptr);
   assert(B.box != nullptr);
 
-  size_t n = contacts.size();
   boxBoxPointContacts(A, B, contacts);
   boxBoxEdgeContact(A, B, contacts);
 }
@@ -2336,45 +2334,26 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
   auto boxCentre = calcCentre(A.box->boundingBox.min, A.box->boundingBox.max, boxToWorldSpace);
 
   for (size_t i = 0; i < terrainEdges.size(); ++i) {
-      auto isPenetratingFn = [&sampler, boxCentre](const Vec3f& P, const Vec3f& Q) {
-        auto PQ = Q - P;
-        auto QP = P - Q;
-        auto PB = boxCentre - P;
+    auto& edge = terrainEdges[i];
 
-        if (PQ.dot(PB) >= 0.f) {
-          return false;
-        }
+    Vec3f point;
+    Vec3f normal;
 
-        if (PQ.dot({ 0.f, 1.f, 0.f }) >= 0.f) {
-          return false;
-        }
+    auto penetration = terrainEdgeBoxPenetration(A.box->boundingBox, boxCentre, worldToBoxSpace,
+      boxEdges, sampler, edge, point, normal);
 
-        auto [ A, B, C ] = sampler.triangle({ Q[0], Q[2] });
-        auto n = (B - A).cross(C - A);
-        return (Q - A).dot(n) < 0.f;
-      };
-
-      auto& edge = terrainEdges[i];
-
-
-      Vec3f point;
-      Vec3f normal;
-
-      auto penetration = smallestEdgeBoxPenetration(A.box->boundingBox, worldToBoxSpace, boxEdges,
-        edge, isPenetratingFn, point, normal);
-
-      if (penetration > 0.f && penetration < maxPenetration) {
-        Contact contact;
-        contact.A = A;
-        contact.B = B;
-        contact.normal = -normal;
-        contact.penetration = penetration;
-        contact.point = point;
-        contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
-        contact.toContactSpace = contact.fromContactSpace.t();
-        contacts.push_back(contact);
-      }
-   // }
+    if (penetration > 0.f && penetration < maxPenetration) {
+      Contact contact;
+      contact.A = A;
+      contact.B = B;
+      contact.normal = -normal;
+      contact.penetration = penetration;
+      contact.point = point;
+      contact.fromContactSpace = changeOfBasisMatrix(contact.normal,
+        differentVector(contact.normal));
+      contact.toContactSpace = contact.fromContactSpace.t();
+      contacts.push_back(contact);
+    }
   }
 }
 
@@ -2804,7 +2783,7 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
     Mat3x3f I = transformTensor(obj.rotational->inverseInertialTensor, getTransform(obj));
 
     auto origin = getTranslation(getTransform(obj));
-    auto pointRel = point - (origin + obj.dynamic->centreOfMass);
+    auto pointRel = point - origin;
     Mat3x3f velocityMatrix = computeVelocityMatrix(obj.dynamic->inverseMass, I, pointRel);
     Mat3x3f impulseMatrix = inverse(velocityMatrix);
     Vec3f impulse = impulseMatrix * delta;
@@ -2843,18 +2822,15 @@ void resolveInterpenetration(const Contact& contact)
   float rMin = 0.05f;
   float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
 
-
-  float margin = 0.f;
-
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
-    float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r) + margin;
+    float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
     auto outDir = contact.normal;
 
     applyPositionDelta(A, contact.point, outDir * a);
   }
 
   if (B.dynamic && B.dynamic->inverseMass != 0.f) {
-    float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration * r) + margin;
+    float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
     auto outDir = -contact.normal;
 
     applyPositionDelta(B, contact.point, outDir * b);
@@ -2910,7 +2886,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   Vec3f aContactSpaceV;
   if (A.dynamic) {
     auto aOrigin = getTranslation(getTransform(A));
-    aPointRel = contact.point - (aOrigin + A.dynamic->centreOfMass);
+    aPointRel = contact.point - aOrigin;
     auto aTotalWorldSpaceV = A.dynamic->linearVelocity;
     if (A.rotational) {
       aTotalWorldSpaceV += A.rotational->angularVelocity.cross(aPointRel);
@@ -2921,7 +2897,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   Vec3f bContactSpaceV;
   if (B.dynamic) {
     auto bOrigin = getTranslation(getTransform(B));
-    bPointRel = contact.point - (bOrigin + B.dynamic->centreOfMass);
+    bPointRel = contact.point - bOrigin;
     auto bTotalWorldSpaceV = B.dynamic->linearVelocity;
     if (B.rotational) {
       bTotalWorldSpaceV += B.rotational->angularVelocity.cross(bPointRel);
