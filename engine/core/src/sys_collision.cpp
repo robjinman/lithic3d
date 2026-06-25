@@ -8,10 +8,6 @@
 namespace lithic3d
 {
 
-const float POINT_CONTACT_RESOLVE_RATE = 123.f;
-const float EDGE_CONTACT_RESOLVE_RATE = 0.2f;
-const float DEFAULT_RESOLVE_RATE = 0.2f;
-
 Triangle HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
@@ -199,6 +195,11 @@ struct Sphere
   Vec3f centre;
   float radius;
 };
+
+inline Vec3f calcCentre(const Vec3f& min, const Vec3f& max, const Mat4x4f& transform)
+{
+  return (transform * Vec4f{ min + (max - min) * 0.5f, { 1.f }}).sub<3>();
+}
 
 BoundingBox constructBoundingBox(const XmlNode& xmlBoundingBox)
 {
@@ -391,7 +392,6 @@ struct Contact
   float penetration = 0.f;
   Mat3x3f toContactSpace;
   Mat3x3f fromContactSpace;
-  float resolveRate = 1.f;
 };
 
 using PolyEdge = std::array<uint16_t, 2>;
@@ -1408,124 +1408,6 @@ std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
 
   return pairs;
 }
-/*
-std::vector<CollisionPair> SysCollisionImpl::findPossibleCollisions()
-{
-  // Extremely naive collision algorithm
-  // TODO: Use something like sweep & prune instead: https://leanrada.com/notes/sweep-and-prune/
-
-  std::vector<CollisionPair> pairs;
-
-  auto groups = m_ecs.componentStore().components<
-    CSpatialFlags, CLocalTransform, CGlobalTransform, CBoundingBox, CCollision
-  >();
-
-  size_t outerIdx = 0;
-  for (auto& group1 : groups) {
-    auto flagsComps1 = group1.components<CSpatialFlags>();
-    auto localTs1 = group1.components<CLocalTransform>();
-    auto globalTs1 = group1.components<CGlobalTransform>();
-    auto boundingBoxes1 = group1.components<CBoundingBox>();
-    auto collComps1 = group1.components<CCollision>();
-    auto collBoxComps1 = group1.components<CCollisionBox>();
-    auto collDynamicComps1 = group1.components<CCollisionDynamic>();
-    auto collRotationalComps1 = group1.components<CCollisionRotational>();
-    auto collTerrainComps1 = group1.components<CCollisionTerrain>();
-    auto collCapsuleComps1 = group1.components<CCollisionCapsule>();
-    auto collSphereComps1 = group1.components<CCollisionSphere>();
-    auto collCylinderComps1 = group1.components<CCollisionCylinder>();
-    auto entityIds1 = group1.entityIds();
-
-    for (size_t i = 0; i < entityIds1.size(); ++i) {
-      auto& flags = flagsComps1[i].flags;
-      bool aIsInactive = collDynamicComps1.empty() || collDynamicComps1[i].idle;
-
-      if (flags.test(SpatialFlags::ParentEnabled) && flags.test(SpatialFlags::Enabled)) {
-        size_t innerIdx = 0;
-        for (auto& group2 : groups) {
-          auto flagsComps2 = group2.components<CSpatialFlags>();
-          auto localTs2 = group2.components<CLocalTransform>();
-          auto globalTs2 = group2.components<CGlobalTransform>();
-          auto boundingBoxes2 = group2.components<CBoundingBox>();
-          auto collComps2 = group2.components<CCollision>();
-          auto collBoxComps2 = group2.components<CCollisionBox>();
-          auto collDynamicComps2 = group2.components<CCollisionDynamic>();
-          auto collRotationalComps2 = group2.components<CCollisionRotational>();
-          auto collTerrainComps2 = group2.components<CCollisionTerrain>();
-          auto collCapsuleComps2 = group2.components<CCollisionCapsule>();
-          auto collSphereComps2 = group2.components<CCollisionSphere>();
-          auto collCylinderComps2 = group2.components<CCollisionCylinder>();
-          auto entityIds2 = group2.entityIds();
-
-          for (size_t j = 0; j < entityIds2.size(); ++j) {
-            if (innerIdx <= outerIdx) {
-              ++innerIdx;
-              continue;
-            }
-
-            auto& flagsJ = flagsComps2[j].flags;
-            bool bIsInactive = collDynamicComps2.empty() || collDynamicComps2[j].idle;
-
-            if (flagsJ.test(SpatialFlags::ParentEnabled) && flagsJ.test(SpatialFlags::Enabled)) {
-              if (aIsInactive && bIsInactive) {
-                ++innerIdx;
-                continue;
-              }
-
-              auto& box1 = boundingBoxes1[i].worldSpaceAabb;
-              auto& box2 = boundingBoxes2[j].worldSpaceAabb;
-
-              if (box1.min[0] > box2.max[0] || box2.min[0] > box1.max[0] ||
-                box1.min[1] > box2.max[1] || box2.min[1] > box1.max[1] ||
-                box1.min[2] > box2.max[2] || box2.min[2] > box1.max[2]) {
-
-                ++innerIdx;
-                continue;
-              }
-
-              pairs.push_back({
-                .A = {
-                  .entityId = entityIds1[i],
-                  .localTransform = &localTs1[i],
-                  .globalTransform = collDynamicComps1.empty() ? &globalTs1[i] : nullptr,
-                  .spatialFlags = &flagsComps1[i],
-                  .collision = &collComps1[i],
-                  .dynamic = collDynamicComps1.empty() ? nullptr : &collDynamicComps1[i],
-                  .rotational = collRotationalComps1.empty() ? nullptr : &collRotationalComps1[i],
-                  .box = collBoxComps1.empty() ? nullptr : &collBoxComps1[i],
-                  .capsule = collCapsuleComps1.empty() ? nullptr : &collCapsuleComps1[i],
-                  .sphere = collSphereComps1.empty() ? nullptr : &collSphereComps1[i],
-                  .cylinder = collCylinderComps1.empty() ? nullptr : &collCylinderComps1[i],
-                  .terrain = collTerrainComps1.empty() ? nullptr : &collTerrainComps1[i]
-                },
-                .B = {
-                  .entityId = entityIds2[j],
-                  .localTransform = &localTs2[j],
-                  .globalTransform = collDynamicComps2.empty() ? &globalTs2[j] : nullptr,
-                  .spatialFlags = &flagsComps2[j],
-                  .collision = &collComps2[j],
-                  .dynamic = collDynamicComps2.empty() ? nullptr : &collDynamicComps2[j],
-                  .rotational = collRotationalComps2.empty() ? nullptr : &collRotationalComps2[j],
-                  .box = collBoxComps2.empty() ? nullptr : &collBoxComps2[j],
-                  .capsule = collCapsuleComps2.empty() ? nullptr : &collCapsuleComps2[j],
-                  .sphere = collSphereComps2.empty() ? nullptr : &collSphereComps2[j],
-                  .cylinder = collCylinderComps2.empty() ? nullptr : &collCylinderComps2[j],
-                  .terrain = collTerrainComps2.empty() ? nullptr : &collTerrainComps2[j]
-                },
-              });
-            }
-
-            ++innerIdx;
-          }
-        }
-      }
-
-      ++outerIdx;
-    }
-  }
-
-  return pairs;
-}*/
 
 inline bool isInside(const BoundingBox& box, const Vec3f& P, float epsilon = 0.f)
 {
@@ -1557,49 +1439,6 @@ inline std::array<Vec3f, 8> getVertices(const BoundingBox& box, const Mat4x4f& t
     (t * Vec4f{ box.max[0], box.min[1], box.max[2], 1.f }).sub<3>(),  // F
     (t * Vec4f{ box.min[0], box.max[1], box.max[2], 1.f }).sub<3>(),  // G
     (t * Vec4f{ box.max[0], box.max[1], box.max[2], 1.f }).sub<3>()   // H
-  };
-}
-
-inline std::array<Vec3f, 6> getFaceMidpoints(const std::array<Vec3f, 8>& verts)
-{
-  const uint16_t A = 0;
-  const uint16_t B = 1;
-  const uint16_t C = 2;
-  const uint16_t D = 3;
-  const uint16_t E = 4;
-  const uint16_t F = 5;
-  const uint16_t G = 6;
-  const uint16_t H = 7;
-
-  auto halfway = [&verts](uint16_t P, uint16_t Q) {
-    return verts[P] + (verts[Q] - verts[P]) * 0.5f;
-  };
-
-  return {
-    halfway(A, D),   // 0 ABDC
-    halfway(F, D),   // 1 FBDH
-    halfway(E, H),   // 2 EFHG
-    halfway(A, G),   // 3 AEGC
-    halfway(A, F),   // 4 ABFE
-    halfway(C, H)    // 5 CGHD
-  };
-}
-
-constexpr std::array<std::array<uint16_t, 2>, 12> faceMidpointsByEdge()
-{
-  return {
-    std::array<uint16_t, 2>{ 0, 4 }, // AB
-    std::array<uint16_t, 2>{ 0, 1 }, // BD
-    std::array<uint16_t, 2>{ 0, 5 }, // DC
-    std::array<uint16_t, 2>{ 0, 3 }, // CA
-    std::array<uint16_t, 2>{ 2, 4 }, // EF
-    std::array<uint16_t, 2>{ 1, 2 }, // FH
-    std::array<uint16_t, 2>{ 2, 5 }, // HG
-    std::array<uint16_t, 2>{ 2, 3 }, // GE
-    std::array<uint16_t, 2>{ 3, 4 }, // AE
-    std::array<uint16_t, 2>{ 1, 4 }, // BF
-    std::array<uint16_t, 2>{ 3, 5 }, // CG
-    std::array<uint16_t, 2>{ 1, 5 }  // DH
   };
 }
 
@@ -1665,8 +1504,6 @@ inline std::array<Edge, 12> getEdges(const std::array<Vec3f, 8>& vertices)
 float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
   const Mat4x4f& boxToWorldSpace, const Vec3f& P, const Vec3f& invTangent, Vec3f& normal)
 {
-  const float maxPenetration = 99999.f;//metresToWorldUnits(0.5f);
-
   auto Q = (worldToBoxSpace * Vec4f{ P, { 1.f }}).sub<3>();
   auto V = (worldToBoxSpace * Vec4f{ invTangent, { 0.f }}).sub<3>();
 
@@ -1690,11 +1527,9 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   float score = alignment / proximity;
   if (score > maxScore) {
     float worldSpacePen = penetration * calcScaleFactor(boxToWorldSpace, { -1.f, 0.f, 0.f });
-    if (worldSpacePen <= maxPenetration) {
-      maxScore = score;
-      face = 0;
-      contactPenetration = worldSpacePen;
-    }
+    maxScore = score;
+    face = 0;
+    contactPenetration = worldSpacePen;
   }
   // max-x (right) face
   alignment = V.dot({ 1.f, 0.f, 0.f });
@@ -1703,11 +1538,9 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   score = alignment / proximity;
   if (score > maxScore) {
     float worldSpacePen = penetration * calcScaleFactor(boxToWorldSpace, { 1.f, 0.f, 0.f });
-    if (worldSpacePen <= maxPenetration) {
-      maxScore = score;
-      face = 1;
-      contactPenetration = worldSpacePen;
-    }
+    maxScore = score;
+    face = 1;
+    contactPenetration = worldSpacePen;
   }
   // min-y (bottom) face
   alignment = V.dot({ 0.f, -1.f, 0.f });
@@ -1716,11 +1549,9 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   score = alignment / proximity;
   if (score > maxScore) {
     float worldSpacePen = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, -1.f, 0.f });
-    if (worldSpacePen <= maxPenetration) {
-      maxScore = score;
-      face = 2;
-      contactPenetration = worldSpacePen;
-    }
+    maxScore = score;
+    face = 2;
+    contactPenetration = worldSpacePen;
   }
   // max-y (top) face
   alignment = V.dot({ 0.f, 1.f, 0.f });
@@ -1729,11 +1560,9 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   score = alignment / proximity;
   if (score > maxScore) {
     float worldSpacePen = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 1.f, 0.f });
-    if (worldSpacePen <= maxPenetration) {
-      maxScore = score;
-      face = 3;
-      contactPenetration = worldSpacePen;
-    }
+    maxScore = score;
+    face = 3;
+    contactPenetration = worldSpacePen;
   }
   // min-z (far) face
   alignment = V.dot({ 0.f, 0.f, -1.f });
@@ -1742,11 +1571,9 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   score = alignment / proximity;
   if (score > maxScore) {
     float worldSpacePen = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 0.f, -1.f });
-    if (worldSpacePen <= maxPenetration) {
-      maxScore = score;
-      face = 4;
-      contactPenetration = worldSpacePen;
-    }
+    maxScore = score;
+    face = 4;
+    contactPenetration = worldSpacePen;
   }
   // max-z (near) face
   alignment = V.dot({ 0.f, 0.f, 1.f });
@@ -1755,11 +1582,9 @@ float pointBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToBoxSpace
   score = alignment / proximity;
   if (score > maxScore) {
     float worldSpacePen = penetration * calcScaleFactor(boxToWorldSpace, { 0.f, 0.f, 1.f });
-    if (worldSpacePen <= maxPenetration) {
-      maxScore = score;
-      face = 5;
-      contactPenetration = worldSpacePen;
-    }
+    maxScore = score;
+    face = 5;
+    contactPenetration = worldSpacePen;
   }
 
   // Set w components to zero to ignore translation
@@ -1825,13 +1650,13 @@ void boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B,
       contact.point = verts[i];
       contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
-      contact.resolveRate = POINT_CONTACT_RESOLVE_RATE;
       contacts.push_back(contact);
     }
   }
 }
 
-void boxBoxPointContacts(const ObjectComponents& A, const ObjectComponents& B, std::vector<Contact>& contacts)
+void boxBoxPointContacts(const ObjectComponents& A, const ObjectComponents& B,
+  std::vector<Contact>& contacts)
 {
   boxXBoxPointContact(A, B, contacts);
   boxXBoxPointContact(B, A, contacts);
@@ -1883,7 +1708,6 @@ bool closestConnectingEdge(const Edge& edge1, const Edge& edge2, Edge& connectin
   }
 
   const float epsilon = 0.0001f;
-  //const float epsilon = -0.02f;
 
   if (!inRange(st[0], 0.f - epsilon, 1.f + epsilon)) {
     return false;
@@ -1899,19 +1723,6 @@ bool closestConnectingEdge(const Edge& edge1, const Edge& edge2, Edge& connectin
   };
 
   return true;
-}
-
-void dbg_printEdge(const Edge& edge)
-{
-  //std::cout << "(" << edge.A << "), (" << edge.B << "), ";
-}
-
-void dbg_printEdges(const std::array<Edge, 12>& edges)
-{
-  for (auto& edge : edges) {
-    dbg_printEdge(edge);
-  }
-  //std::cout << "\n";
 }
 
 void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpace,
@@ -1945,10 +1756,6 @@ void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpa
   for (size_t i = 0; i < boxEdges.size(); ++i) {
     auto& boxEdge = boxEdges[i];
 
-    //std::cout << "Box B edge " << i << ":\n";
-    dbg_printEdge(boxEdge);
-    //std::cout << "\n";
-
     Edge connecting;
     if (!closestConnectingEdge(worldSpaceEdge, boxEdge, connecting)) {
       continue;
@@ -1956,9 +1763,6 @@ void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpa
 
     Vec3f& P = connecting.A;
     Vec3f& Q = connecting.B;
-
-    //std::cout << "P = " << P << "\n";
-    //std::cout << "Q = " << Q << "\n";
 
     auto PQ = Q - P;
     float sqPenetration = PQ.squareMagnitude();
@@ -1968,12 +1772,8 @@ void allEdgeBoxPenetrations(const BoundingBox& box, const Mat4x4f& worldToBoxSpa
     }
   
     if (!isPenetratingFn(P, Q)) {
-      //std::cout << "isPenetratingFn returned false\n";
       continue;
     }
-
-    //std::cout << "Contact!\n";
-    //std::cout << "penetration = " << sqrtf(sqPenetration) << "\n";
 
     Contact contact;
     contact.penetration = sqrtf(sqPenetration);
@@ -1988,9 +1788,6 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
   const std::function<bool(const Vec3f&, const Vec3f&)>& isPenetratingFn, Vec3f& point,
   Vec3f& normal)
 {
-  //const float maxMaxPenetration = metresToWorldUnits(0.2);
-  //const float maxMaxSqPenetration = maxMaxPenetration * maxMaxPenetration;
-
   Edge edge{
     .A = (worldToBoxSpace * Vec4f{ worldSpaceEdge.A, { 1.f }}).sub<3>(),
     .B = (worldToBoxSpace * Vec4f{ worldSpaceEdge.B, { 1.f }}).sub<3>()
@@ -2017,10 +1814,6 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
   for (size_t i = 0; i < boxEdges.size(); ++i) {
     auto& boxEdge = boxEdges[i];
 
-    //std::cout << "Box B edge " << i << ":\n";
-    dbg_printEdge(boxEdge);
-    //std::cout << "\n";
-
     Edge connecting;
     if (!closestConnectingEdge(worldSpaceEdge, boxEdge, connecting)) {
       continue;
@@ -2029,9 +1822,6 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
     Vec3f& P = connecting.A;
     Vec3f& Q = connecting.B;
 
-    //std::cout << "P = " << P << "\n";
-    //std::cout << "Q = " << Q << "\n";
-
     auto PQ = Q - P;
     float sqPenetration = PQ.squareMagnitude();
 
@@ -2039,57 +1829,22 @@ float smallestEdgeBoxPenetration(const BoundingBox& box, const Mat4x4f& worldToB
       continue;
     }
 
-    //if (sqPenetration > maxMaxSqPenetration) {
-      //continue;
-    //}
-
-    // TODO: Replace with distance to centre test?
-    //if (!isInside(box, (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>(), metresToWorldUnits(0.001f))) {
-      ////std::cout << "P (" << P << ") not inside B!\n";
-      ////std::cout << "In box space: " << (worldToBoxSpace * Vec4f{ P[0], P[1], P[2], 1.f }).sub<3>() << "\n";
-      ////std::cout << "Box: min " << box.min << ", max " << box.max << "\n";
-      //continue;
-    //}
     if (!isPenetratingFn(P, Q)) {
-      ////std::cout << "Q (" << Q << ") not inside A!\n";
-      //std::cout << "isPenetratingFn returned false\n";
       continue;
     }
 
-    ////std::cout << "Contact!\n";
-    ////std::cout << "penetration = " << sqrtf(sqPenetration) << "\n";
-    ////std::cout << "P = " << P << "\n";
-    ////std::cout << "Q = " << Q << "\n";
-
-    //penetrations.push_back(sqrtf(sqPenetration));
-    //points.push_back(P + PQ * 0.5f);
-    //normals.push_back(PQ.normalise());
-
-    //if (!((boxCentre - P).squareMagnitude() < (boxCentre - Q).squareMagnitude() &&
-    //  (shapeCentre - Q).squareMagnitude() < (shapeCentre - P).squareMagnitude())) {
-
-    //  continue;
-    //}
-
     if (sqPenetration < minSqPenetration) {
-      ////std::cout << "P = (" << P << ")\n";
-      ////std::cout << "Q = (" << Q << ")\n";
-
       minSqPenetration = sqPenetration;
       contactFound = true;
       contactPoint = P + PQ * 0.5f;
       contactNormal = PQ.normalise();
       edgeIndex = i;
     }
-    else {
-      //std::cout << "sqPenetration (" << sqPenetration << ") not less than min (" << minSqPenetration << ")\n";
-    }
   }
 
   if (contactFound) {
     normal = contactNormal;
     point = contactPoint;
-    //std::cout << "Contact made with box B edge " << edgeIndex << "\n";
 
     return sqrtf(minSqPenetration);
   }
@@ -2112,16 +1867,8 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
   auto boxAEdges = getEdges(boxAVertices);
   auto boxBEdges = getEdges(boxBVertices);
 
-  auto boxAFaceMidpoints = getFaceMidpoints(boxAVertices);
-  auto boxBFaceMidpoints = getFaceMidpoints(boxBVertices);
-
-  //std::cout << "Box A\n";
-  dbg_printEdges(boxAEdges);
-  //std::cout << "Box B\n";
-  dbg_printEdges(boxBEdges);
-
-  auto boxACentre = (boxAToWorldSpace * Vec4f{ A.box->boundingBox.min + (A.box->boundingBox.max - A.box->boundingBox.min) * 0.5f, { 1.f }}).sub<3>();
-  auto boxBCentre = (boxBToWorldSpace * Vec4f{ B.box->boundingBox.min + (B.box->boundingBox.max - B.box->boundingBox.min) * 0.5f, { 1.f }}).sub<3>();
+  auto boxACentre = calcCentre(A.box->boundingBox.min, A.box->boundingBox.max, boxAToWorldSpace);
+  auto boxBCentre = calcCentre(B.box->boundingBox.min, B.box->boundingBox.max, boxBToWorldSpace);
 
   auto isPenetratingFn = [&](const Vec3f& P, const Vec3f& Q) {
     auto PQ = (Q - P).normalise();
@@ -2130,77 +1877,26 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
     auto PB = (boxBCentre - P).normalise();
     return PQ.dot(PB) < 0.f && QP.dot(QA) < 0.f;
   };
-/*
-  auto isPenetratingFn = [&](const Vec3f& P, const Vec3f& Q) {
-    return (boxACentre - Q).squareMagnitude() < (boxACentre - P).squareMagnitude() &&
-      (boxBCentre - P).squareMagnitude() < (boxBCentre - Q).squareMagnitude();
-  };*/
 
   for (size_t i = 0; i < 12; ++i) {
-
-    //std::cout << "Box A Edge " << i << ": ";
-    dbg_printEdge(boxAEdges[i]);
-    //std::cout << "\n";
-/*
-    auto isPenetratingFn = [&boxAFaceMidpoints, &boxBFaceMidpoints, i](const Vec3f& P, const Vec3f& Q, uint32_t boxBEdgeIndex) {
-      auto PQ = (Q - P).normalise();
-      auto QP = (P - Q).normalise();
-
-      auto midA1 = boxAFaceMidpoints[faceMidpointsByEdge()[i][0]];
-      auto midA2 = boxAFaceMidpoints[faceMidpointsByEdge()[i][1]];
-      auto midB1 = boxBFaceMidpoints[faceMidpointsByEdge()[boxBEdgeIndex][0]];
-      auto midB2 = boxBFaceMidpoints[faceMidpointsByEdge()[boxBEdgeIndex][1]];
-
-      return PQ.dot(midA1 - P) >= 0.f;
-    };*/
-
     std::vector<Contact> newContacts;
     allEdgeBoxPenetrations(B.box->boundingBox, worldToBoxBSpace, boxBEdges, boxAEdges[i],
       isPenetratingFn, newContacts);
 
+    // TODO: Need this?
     std::sort(newContacts.begin(), newContacts.end(), [](const Contact& A, const Contact& B) {
       return A.penetration < B.penetration;
     });
 
-    const size_t maxContacts = 999;
-
-    for (size_t j = 0; j < std::min(maxContacts, newContacts.size()); ++j) {
+    for (size_t j = 0; j < newContacts.size(); ++j) {
       Contact& contact = newContacts[j];
       contact.A = A;
       contact.B = B;
-      //contact.normal = normals[j];
-      //contact.penetration = penetrations[j];
-      //contact.point = points[j];
       contact.fromContactSpace = changeOfBasisMatrix(contact.normal,
         differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
-      contact.resolveRate = EDGE_CONTACT_RESOLVE_RATE;
       contacts.push_back(contact);
     }
-/*
-    Vec3f normal;
-    Vec3f point;
-
-    auto penetration = smallestEdgeBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBEdges,
-      boxAEdges[i], isPenetratingFn, point, normal);
-
-    if (penetration > 0.f) {
-      //std::cout << "Contact!\n";
-      //std::cout << "Penetration = " << penetration << "\n";
-      //std::cout << "Point: (" << point << ")\n";
-
-      Contact contact;
-      contact.A = A;
-      contact.B = B;
-      contact.normal = normal;
-      contact.penetration = penetration;
-      contact.point = point;
-      contact.fromContactSpace = changeOfBasisMatrix(contact.normal,
-        differentVector(contact.normal));
-      contact.toContactSpace = contact.fromContactSpace.t();
-      contact.resolveRate = EDGE_CONTACT_RESOLVE_RATE;
-      contacts.push_back(contact);
-    }*/
   }
 }
 
@@ -2212,11 +1908,7 @@ void generateBoxBoxContacts(const ObjectComponents& A, const ObjectComponents& B
 
   size_t n = contacts.size();
   boxBoxPointContacts(A, B, contacts);
-
-  //if (n == contacts.size()) {
-    //std::cout << "Generating box-box edge contacts\n";
-    boxBoxEdgeContact(A, B, contacts);
-  //}
+  boxBoxEdgeContact(A, B, contacts);
 }
 
 void generateCapsuleCapsuleContacts(const ObjectComponents&, const ObjectComponents&,
@@ -2226,29 +1918,6 @@ void generateCapsuleCapsuleContacts(const ObjectComponents&, const ObjectCompone
   //assert(B.capsule != nullptr);
 
   // TODO
-}
-
-inline std::array<float, 3> calcBarycentricCoords(const std::array<Vec2f, 3>& triangle, const Vec2f& P)
-{
-  auto [ A, B, C ] = triangle;
-
-  auto AB = B - A;
-  auto AC = C - A;
-  auto AP = P - A;
-
-  // Point expressed in triangle basis
-  // P = A + s * AB + t * AC
-  // => AP = s * AB + t * AC
-
-  Vec2f st;
-  [[ maybe_unused ]] bool result = solve({ AB[0], AC[0], -AP[0] }, { AB[1], AC[1], -AP[1] }, st);
-  assert(result);
-
-  float beta = st[0];
-  float gamma = st[1];
-  float alpha = 1.f - gamma - beta;
-
-  return { alpha, beta, gamma };
 }
 
 inline std::array<float, 3> calcBarycentricCoords(const Triangle& triangle, const Vec3f& P)
@@ -2447,7 +2116,6 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
     contact.penetration = maxPenetration;
     contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
     contact.toContactSpace = contact.fromContactSpace.t();
-    contact.resolveRate = DEFAULT_RESOLVE_RATE;
 
     return true;
   }
@@ -2503,7 +2171,6 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
     contact.penetration = maxPenetration;
     contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
     contact.toContactSpace = contact.fromContactSpace.t();
-    contact.resolveRate = DEFAULT_RESOLVE_RATE;
     contacts.push_back(contact);
   }
   else if (sphereTrianglesContact(topSphere, triangles, Q, maxPenetration)) {
@@ -2516,7 +2183,6 @@ void generateBoxCapsuleContacts(const ObjectComponents& A, const ObjectComponent
     contact.penetration = maxPenetration;
     contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
     contact.toContactSpace = contact.fromContactSpace.t();
-    contact.resolveRate = DEFAULT_RESOLVE_RATE;
     contacts.push_back(contact);
   }
 
@@ -2598,10 +2264,7 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
         differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
       contact.penetration = penetration;
-      contact.resolveRate = POINT_CONTACT_RESOLVE_RATE;
       contacts.push_back(contact);
-
-      //std::cout << "Terrain point contact! Penetration = " << contact.penetration << "\n";
     }
   }
 }
@@ -2638,7 +2301,6 @@ void terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
         differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
       contact.penetration = penetration;
-      contact.resolveRate = POINT_CONTACT_RESOLVE_RATE;
       contacts.push_back(contact);
     }
   }
@@ -2660,124 +2322,48 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
-  const float maxPenetration = metresToWorldUnits(0.1f);
+  const float maxPenetration = metresToWorldUnits(0.1f);  // Magic number
 
   HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
 
   std::vector<Edge> terrainEdges;
   sampler.edges(boxMin, boxMax, terrainEdges);
 
-  //std::vector<Triangle> triangles;
-  //sampler.triangles(boxMin, boxMax, triangles);
-
   auto boxToWorldSpace = getTransform(A) * A.box->boundingBox.transform;
   auto worldToBoxSpace = inverse(boxToWorldSpace);
 
   auto boxEdges = getEdges(getVertices(A.box->boundingBox, getTransform(A)));
-
-  auto boxCentre = (boxToWorldSpace * Vec4f{ A.box->boundingBox.min + (A.box->boundingBox.max - A.box->boundingBox.min) * 0.5f, { 1.f }}).sub<3>();
-
-  //float minPenetration = std::numeric_limits<float>::max();
-  //Vec3f contactPoint;
-  //Vec3f contactNormal;
-  //bool contactFound = false;
-
-  //std::cout << "Box:\n";
-  dbg_printEdges(boxEdges);
-/*
-  auto isPenetratingFn = [&boxCentre](const Vec3f& P, const Vec3f& Q) {
-    auto PQ = (Q - P).normalise();
-    auto PB = (boxCentre - P).normalise();
-
-    return PQ.dot(PB) < 0.f && PQ.dot({ 0.f, 1.f, 0.f }) < 0.f;
-  };*/
+  auto boxCentre = calcCentre(A.box->boundingBox.min, A.box->boundingBox.max, boxToWorldSpace);
 
   for (size_t i = 0; i < terrainEdges.size(); ++i) {
-  //for (auto& triangle : triangles) {
-/*
-    auto isPenetratingFn = [&sampler](const Vec3f& P) {
-      auto [ A, B, C ] = sampler.triangle({ P[0], P[2] });
-      auto n = (B - A).cross(C - A);
-      return (P - A).dot(n) < 0.f;
-    };*/
+      auto isPenetratingFn = [&sampler, boxCentre](const Vec3f& P, const Vec3f& Q) {
+        auto PQ = Q - P;
+        auto QP = P - Q;
+        auto PB = boxCentre - P;
 
-    ////std::cout << "Triangle: (" << triangle[0] << "),(" << triangle[1] << "),(" << triangle[2] << ")\n";
+        if (PQ.dot(PB) >= 0.f) {
+          return false;
+        }
 
-    //auto triangleCentre = (triangle[0] + triangle[1] + triangle[2]) / 3.f;
+        if (PQ.dot({ 0.f, 1.f, 0.f }) >= 0.f) {
+          return false;
+        }
 
-    auto isPenetratingFn = [&sampler, boxCentre/*, triangleCentre*/](const Vec3f& P, const Vec3f& Q) {
-      auto PQ = Q - P;
-      auto QP = P - Q;
-      auto PB = boxCentre - P;
-
-      if (PQ.dot(PB) >= 0.f) {
-        return false;
-      }
-
-      if (PQ.dot({ 0.f, 1.f, 0.f }) >= 0.f) {
-        return false;
-      }
-
-      auto [ A, B, C ] = sampler.triangle({ Q[0], Q[2] });
-      auto n = (B - A).cross(C - A);
-      return (Q - A).dot(n) < 0.f;
-
-      //if (QP.dot(triangleCentre - Q) < 0.f) {
-      //  return false;
-     // }
-
-      //return true;
-/*
-      auto [ A, B, C ] = triangle;
-      auto n = (B - A).cross(C - A);
-      if ((Q - A).dot(n) >= 0.f) {
-        return false;
-      }
-
-      std::array<Vec2f, 3> tri2d{
-        Vec2f{ triangle[0][0], triangle[0][2] },
-        Vec2f{ triangle[1][0], triangle[1][2] },
-        Vec2f{ triangle[2][0], triangle[2][2] },
+        auto [ A, B, C ] = sampler.triangle({ Q[0], Q[2] });
+        auto n = (B - A).cross(C - A);
+        return (Q - A).dot(n) < 0.f;
       };
-
-      auto [ alpha, beta, gamma ] = calcBarycentricCoords(triangle, Q);
-      //auto [ alpha, beta, gamma ] = calcBarycentricCoords(tri2d, { Q[0], Q[2] });
-      return alpha >= 0.f && beta >= 0.f && gamma >= 0.f;*/
-    };
-
-    //for (uint32_t i = 0; i < 3; ++i) {
-      //Edge edge{
-       // .A = triangle[i],
-      //  .B = triangle[(i + 1) % 3]
-      //};
 
       auto& edge = terrainEdges[i];
 
-      //std::cout << "Terrain edge " << i << ":\n";
-      dbg_printEdge(edge);
-      //std::cout << "\n";
 
-      //std::vector<float> penetrations;
-      //std::vector<Vec3f> points;
-      //std::vector<Vec3f> normals;
       Vec3f point;
       Vec3f normal;
 
-      auto penetration = smallestEdgeBoxPenetration(A.box->boundingBox, worldToBoxSpace, boxEdges, edge,
-        isPenetratingFn, point, normal);
+      auto penetration = smallestEdgeBoxPenetration(A.box->boundingBox, worldToBoxSpace, boxEdges,
+        edge, isPenetratingFn, point, normal);
 
-      //if (penetration > 0.f && penetration < minPenetration) {
-      //  minPenetration = penetration;
-      //  contactPoint = point;
-      //  contactNormal = normal;
-      //  contactFound = true;
-     // }
-
-      //for (size_t j = 0; j < penetrations.size(); ++j) {
       if (penetration > 0.f && penetration < maxPenetration) {
-        //std::cout << "Contact!\n";
-        //std::cout << "Penetration = " << penetration << "\n";
-
         Contact contact;
         contact.A = A;
         contact.B = B;
@@ -2786,24 +2372,10 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
         contact.point = point;
         contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
         contact.toContactSpace = contact.fromContactSpace.t();
-        contact.resolveRate = EDGE_CONTACT_RESOLVE_RATE;
         contacts.push_back(contact);
       }
    // }
   }
-/*
-  if (contactFound) {
-    Contact contact;
-    contact.A = A;
-    contact.B = B;
-    contact.normal = -contactNormal;
-    contact.penetration = minPenetration;
-    contact.point = contactPoint;
-    contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
-    contact.toContactSpace = contact.fromContactSpace.t();
-
-    contacts.push_back(contact);
-  }*/
 }
 
 void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponents& B,
@@ -2831,11 +2403,8 @@ void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponent
     }
   }
 
-  size_t i = contacts.size();
   boxTerrainPointContact(A, boxMin, boxMax, B, contacts);
-  //if (i == contacts.size()) {
-    boxTerrainEdgeContacts(A, boxMin, boxMax, B, contacts);
-  //}
+  boxTerrainEdgeContacts(A, boxMin, boxMax, B, contacts);
 }
 
 void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents& B,
@@ -2874,8 +2443,7 @@ void generateBoxSphereContacts(const ObjectComponents& A, const ObjectComponents
       .normal = normal,
       .penetration = maxPenetration,
       .toContactSpace = fromContactSpace.t(),
-      .fromContactSpace = fromContactSpace,
-      .resolveRate = DEFAULT_RESOLVE_RATE
+      .fromContactSpace = fromContactSpace
     });
   }
 }
@@ -2927,8 +2495,7 @@ bool boxCylinderPointContact(const ObjectComponents& A, const ObjectComponents& 
       .normal = normal,
       .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, cylinderSpaceNormal),
       .toContactSpace = fromContactSpace.t(),
-      .fromContactSpace = fromContactSpace,
-      .resolveRate = DEFAULT_RESOLVE_RATE
+      .fromContactSpace = fromContactSpace
     };
 
     return true;
@@ -2988,8 +2555,7 @@ bool boxCylinderEdgeContact(const ObjectComponents& A, const ObjectComponents& B
       .normal = normal,
       .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, pqOfMaxPenetration),
       .toContactSpace = fromContactSpace.t(),
-      .fromContactSpace = fromContactSpace,
-      .resolveRate = DEFAULT_RESOLVE_RATE
+      .fromContactSpace = fromContactSpace
     };
 
     return true;
@@ -3059,8 +2625,7 @@ bool boxCylinderEndsPointContact(const ObjectComponents& A, const ObjectComponen
       .normal = normal,
       .penetration = maxPenetration * scaleFactor,
       .toContactSpace = fromContactSpace.t(),
-      .fromContactSpace = fromContactSpace,
-      .resolveRate = DEFAULT_RESOLVE_RATE
+      .fromContactSpace = fromContactSpace
     };
 
     return true;
@@ -3276,14 +2841,10 @@ void resolveInterpenetration(const Contact& contact)
   DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
   float rMin = 0.05f;
-  float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));// 0.2f;//contact.resolveRate;
-  if (contact.resolveRate == 123.f) {
-   // r = 1.f;
-  }
+  float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
 
-  //r = 0.2f;
 
-  float margin = 0.f;// metresToWorldUnits(0.001);
+  float margin = 0.f;
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r) + margin;
@@ -3452,7 +3013,7 @@ void SysCollisionImpl::integrate()
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
 
         // Tweak these idle thresholds
-        const float idleMaxLinearV = 0.11f;
+        const float idleMaxLinearV = 0.11f;     // Magic number
         const float idleMaxAngularV = 0.0007f;
         const size_t idleSeconds = 3;
 
@@ -3620,24 +3181,9 @@ void SysCollisionImpl::update(Tick, const InputState&)
       break;
     }
 
-    uint32_t numProcessed = 0;
     for (auto& contact : contacts) {
-      if (contact.penetration < metresToWorldUnits(0.002)) {
-        //continue;
-      }
-
-      //if (contact.penetration > metresToWorldUnits(0.5f)) {
-      //  DBG_LOG(m_logger, "Skipping contact with large penetration");
-      //  continue;
-     // }
-
       resolveInterpenetration(contact);
       resolveVelocities(contact);
-      ++numProcessed;
-    }
-
-    if (numProcessed == 0) {
-      break;
     }
   }
 
