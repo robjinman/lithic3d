@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <set>
+#include <vector>
 #include <string>
 
 namespace lithic3d
@@ -11,7 +11,7 @@ using EntityId = uint64_t;
 
 constexpr EntityId NULL_ENTITY_ID = 0;
 
-using EntityIdSet = std::set<EntityId>;
+using EntityIdSet = std::vector<EntityId>;
 
 class EntityIdAllocator
 {

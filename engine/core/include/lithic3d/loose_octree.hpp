@@ -3,8 +3,6 @@
 #include "component_store.hpp"
 #include "math.hpp"
 #include <memory>
-#include <set>
-#include <array>
 
 namespace lithic3d
 {
@@ -23,7 +21,7 @@ struct OctreeNode
   OctreeCell looseBounds;
   uint8_t numChildren = 0;
   std::array<std::unique_ptr<OctreeNode>, 8> children;
-  std::set<EntityId> objects;
+  std::vector<EntityId> objects;
 };
 
 class LooseOctree
@@ -32,8 +30,8 @@ class LooseOctree
     virtual void insert(EntityId entityId, const Vec3f& pos, float radius) = 0;
     virtual void move(EntityId entityId, const Vec3f& pos, float radius) = 0;
     virtual void remove(EntityId entityId) = 0;
-    virtual std::set<EntityId> getIntersecting(const Frustum& volume) const = 0;
-    virtual std::set<EntityId> getIntersecting(const Vec3f& rayStart,
+    virtual std::vector<EntityId> getIntersecting(const Frustum& volume) const = 0;
+    virtual std::vector<EntityId> getIntersecting(const Vec3f& rayStart,
       const Vec3f& rayEnd) const = 0;
 
     virtual ~LooseOctree() = default;

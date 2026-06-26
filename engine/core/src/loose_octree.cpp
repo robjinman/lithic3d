@@ -25,8 +25,8 @@ class LooseOctreeImpl : public LooseOctree
     void insert(EntityId entityId, const Vec3f& pos, float radius) override;
     void move(EntityId entityId, const Vec3f& pos, float radius) override;
     void remove(EntityId entityId) override;
-    std::set<EntityId> getIntersecting(const Frustum& volume) const override;
-    std::set<EntityId> getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const override;
+    std::vector<EntityId> getIntersecting(const Frustum& volume) const override;
+    std::vector<EntityId> getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const override;
 
     const OctreeNode& test_root() const override;
 
@@ -37,7 +37,7 @@ class LooseOctreeImpl : public LooseOctree
     void insert(OctreeNode& node, EntityId id, const Vec3f& pos, float radius);
     void collapseOctreeNode(OctreeNode& node);
     void getIntersecting(const OctreeNode& node, const Frustum& frustum,
-      std::set<EntityId>& entities) const;
+      std::vector<EntityId>& entities) const;
 };
 
 LooseOctreeImpl::LooseOctreeImpl(const Vec3f& min, float size)
@@ -124,7 +124,7 @@ void LooseOctreeImpl::insert(OctreeNode& node, EntityId entityId, const Vec3f& p
   else {
     // Otherwise, just insert the item at this level
 
-    node.objects.insert(entityId);
+    node.objects.push_back(entityId);
     m_entities[entityId] = &node;
   }
 }
@@ -164,7 +164,8 @@ void LooseOctreeImpl::remove(EntityId entityId)
   auto i = m_entities.find(entityId);
   if (i != m_entities.end()) {
     auto& objects = i->second->objects;
-    objects.erase(entityId);
+
+    objects.erase(std::find(objects.begin(), objects.end(), entityId));
 
     if (objects.empty() && i->second->numChildren == 0) {
       collapseOctreeNode(*i->second);
@@ -184,9 +185,9 @@ bool intersectsFrustum(const OctreeNode& node, const Frustum& frustum)
 }
 
 void LooseOctreeImpl::getIntersecting(const OctreeNode& node, const Frustum& frustum,
-  std::set<EntityId>& entities) const
+  std::vector<EntityId>& entities) const
 {
-  entities.insert(node.objects.cbegin(), node.objects.cend());
+  entities.insert(entities.end(), node.objects.cbegin(), node.objects.cend());
 
   for (auto& child : node.children) {
     if (child == nullptr) {
@@ -199,23 +200,23 @@ void LooseOctreeImpl::getIntersecting(const OctreeNode& node, const Frustum& fru
   }
 }
 
-std::set<EntityId> LooseOctreeImpl::getIntersecting(const Frustum& frustum) const
+std::vector<EntityId> LooseOctreeImpl::getIntersecting(const Frustum& frustum) const
 {
-  std::set<EntityId> entities;
+  std::vector<EntityId> entities;
 
   getIntersecting(*m_root, frustum, entities);
 
   return entities;
 }
 
-std::set<EntityId> LooseOctreeImpl::getIntersecting(const Vec3f&, const Vec3f&) const
+std::vector<EntityId> LooseOctreeImpl::getIntersecting(const Vec3f&, const Vec3f&) const
 {
   // TODO: Do this properly
 
-  std::set<EntityId> entities;
+  std::vector<EntityId> entities;
 
   for (auto entry : m_entities) {
-    entities.insert(entry.first);
+    entities.push_back(entry.first);
   }
 
   return entities;

@@ -72,6 +72,16 @@ XmlNodePtr toXml(const Aabb& aabb)
 namespace
 {
 
+struct Node
+{
+  CLocalTransform* localT = nullptr;
+  CGlobalTransform* globalT = nullptr;
+};
+
+using SceneGraph = Graph<EntityId, Node, NULL_ENTITY_ID>;
+
+using SceneGraphPtr = std::unique_ptr<SceneGraph>;
+
 class SysSpatialImpl : public SysSpatial
 {
   public:
@@ -115,10 +125,12 @@ class SysSpatialImpl : public SysSpatial
     Logger& m_logger;
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
-    GraphPtr<EntityId, NULL_ENTITY_ID> m_sceneGraph;
+    SceneGraphPtr m_sceneGraph;
     LooseOctreePtr m_octree;
+    bool m_shouldRewriteComponentPointers = false;
 
     ComponentDataPtr constructDSpatial(const XmlNode& xmlSpatial) const;
+    void rewriteComponentPointers();
     void updateBoundingBox(EntityId entityId, const Mat4x4f& m);
 };
 
@@ -130,11 +142,16 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logge
   EntityId root = m_ecs.idGen().getNewEntityId();
 
   m_ecs.componentStore().allocate<DSpatial>(root);
-  m_ecs.componentStore().instantiate<CLocalTransform>(root);
-  m_ecs.componentStore().instantiate<CGlobalTransform>(root);
+  auto& localT = m_ecs.componentStore().instantiate<CLocalTransform>(root);
+  auto& globalT = m_ecs.componentStore().instantiate<CGlobalTransform>(root);
   m_ecs.componentStore().instantiate<CSpatialFlags>(root);
 
-  m_sceneGraph = std::make_unique<Graph<EntityId, NULL_ENTITY_ID>>(root);
+  Node rootNode{
+    .localT = &localT,
+    .globalT = &globalT
+  };
+
+  m_sceneGraph = std::make_unique<SceneGraph>(root, rootNode);
   m_octree = createLooseOctree({ -1000.f, -1000.f, -1000.f }, 17000.f); // TODO
 }
 
@@ -160,14 +177,34 @@ EntityIdSet SysSpatialImpl::getIntersecting(const Vec3f& rayStart, const Vec3f& 
 
 EntityId SysSpatialImpl::root() const
 {
-  return m_sceneGraph->dfs[0];
+  return m_sceneGraph->dfs[0].key;
+}
+
+void SysSpatialImpl::rewriteComponentPointers()
+{
+  for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
+    auto& entity = m_sceneGraph->dfs[i];
+    auto& localT = m_ecs.componentStore().component<CLocalTransform>(entity.key);
+    auto& globalT = m_ecs.componentStore().component<CGlobalTransform>(entity.key);
+    entity.value.localT = &localT;
+    entity.value.globalT = &globalT;
+  }
+
+  m_shouldRewriteComponentPointers = false;
 }
 
 void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
   auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(data.parent).flags;
+  auto& localT = m_ecs.componentStore().component<CLocalTransform>(entityId);
+  auto& globalT = m_ecs.componentStore().component<CGlobalTransform>(entityId);
 
-  m_sceneGraph->addItem(entityId, data.parent);
+  Node node{
+    .localT = &localT,
+    .globalT = &globalT
+  };
+
+  m_sceneGraph->addItem(entityId, node, data.parent);
   m_ecs.componentStore().instantiate<CLocalTransform>(entityId).transform = data.transform;
   auto& flags = m_ecs.componentStore().instantiate<CSpatialFlags>(entityId).flags;
   flags.set(SpatialFlags::Enabled, data.enabled);
@@ -176,6 +213,8 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 
   m_ecs.componentStore().instantiate<CGlobalTransform>(entityId);
   m_ecs.componentStore().instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
+
+  m_shouldRewriteComponentPointers = true;
 }
 
 const std::string& SysSpatialImpl::name() const
@@ -301,7 +340,7 @@ std::vector<EntityId> SysSpatialImpl::getDescendents(EntityId entityId) const
   std::vector<EntityId> descendents;
 
   for (size_t i = 0; i < n; ++i) {
-    descendents.push_back(m_sceneGraph->dfs[idx + 1 + i]);
+    descendents.push_back(m_sceneGraph->dfs[idx + 1 + i].key);
   }
 
   return descendents;
@@ -322,6 +361,8 @@ void SysSpatialImpl::removeEntity(EntityId entityId)
 
   // Also removes all descendents
   m_sceneGraph->removeItem(entityId);
+
+  m_shouldRewriteComponentPointers = true;
 }
 
 bool SysSpatialImpl::hasEntity(EntityId entityId) const
@@ -395,6 +436,10 @@ void SysSpatialImpl::updateBoundingBox(EntityId entityId, const Mat4x4f& m)
 
 void SysSpatialImpl::update(Tick, const InputState&)
 {
+  if (m_shouldRewriteComponentPointers) {
+    rewriteComponentPointers();
+  }
+
   Mat4x4f I = identityMatrix<4>();
 
   Mat4x4f* parentT = &I;
@@ -402,7 +447,7 @@ void SysSpatialImpl::update(Tick, const InputState&)
 
   // Skip the root
   for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
-    auto entityId = m_sceneGraph->dfs[i];
+    auto& entity = m_sceneGraph->dfs[i];
     auto parentId = m_sceneGraph->parents[i];
 
     if (parentId != prevParentId) {
@@ -410,15 +455,11 @@ void SysSpatialImpl::update(Tick, const InputState&)
       prevParentId = parentId;
     }
 
-    // TODO: Possibly slow std::map lookups, negates benefit of compact buffer
-    auto& localT = m_ecs.componentStore().component<CLocalTransform>(entityId);
-    auto& globalT = m_ecs.componentStore().component<CGlobalTransform>(entityId);
-
     // TODO: Skip if entity is static or local transform is non-dirty
 
-    globalT.transform = *parentT * localT.transform;
+    entity.value.globalT->transform = *parentT * entity.value.localT->transform;
 
-    updateBoundingBox(entityId, globalT.transform);
+    updateBoundingBox(entity.key, entity.value.globalT->transform);
   }
 }
 
@@ -439,7 +480,7 @@ void SysSpatialImpl::setEnabled(EntityId entityId, bool enabled)
 
   // Propagate flags to descendents
   for (size_t i = node.index + 1; i <= node.index + node.numDescendents; ++i) {
-    auto entityId = m_sceneGraph->dfs[i];
+    auto entityId = m_sceneGraph->dfs[i].key;
     auto parentId = m_sceneGraph->parents[i];
 
     if (parentId != prevParentId) {

@@ -190,6 +190,28 @@ void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edg
 namespace
 {
 
+inline Mat4x4f operator*(const Mat4x4f& lhs, const Mat4x4f& rhs)
+{
+  Mat4x4f m;
+
+  const float* A = lhs.data();
+  const float* B = rhs.data();
+  float* M = m.data();
+
+  for (uint8_t j = 0; j < 3; ++j) {
+    for (uint8_t i = 0; i < 4; ++i) {
+      M[i * 4 + j] =
+        A[0 * 4 + j] * B[i * 4 + 0] +
+        A[1 * 4 + j] * B[i * 4 + 1] +
+        A[2 * 4 + j] * B[i * 4 + 2] +
+        A[3 * 4 + j] * B[i * 4 + 3];
+    }
+  }
+  M[15] = 1.f;
+
+  return m;
+}
+
 struct Sphere
 {
   Vec3f centre;
@@ -254,34 +276,6 @@ XmlNodePtr toXml(const BoundingBox& bbox)
   xmlBoundingBox->addChild(std::move(xmlTransform));
 
   return xmlBoundingBox;
-}
-
-inline Matrix<float, 4, 4> operator*(const Matrix<float, 4, 4>& lhs, const Matrix<float, 4, 4>& rhs)
-{
-  Matrix<float, 4, 4> m;
-
-  const float* A = lhs.data();
-  const float* B = rhs.data();
-  float* M = m.data();
-
-  M[0] = A[0] * B[0] + A[4] * B[1] + A[8] * B[2];
-  M[4] = A[0] * B[4] + A[4] * B[5] + A[8] * B[6];
-  M[8] = A[0] * B[8] + A[4] * B[9] + A[8] * B[10];
-  M[12] = A[0] * B[12] + A[4] * B[13] + A[8] * B[14] + A[12];
-
-  M[1] = A[1] * B[0] + A[5] * B[1] + A[9] * B[2];
-  M[5] = A[1] * B[4] + A[5] * B[5] + A[9] * B[6];
-  M[9] = A[1] * B[8] + A[5] * B[9] + A[9] * B[10];
-  M[13] = A[1] * B[12] + A[5] * B[13] + A[9] * B[14] + A[13];
-
-  M[2] = A[2] * B[0] + A[6] * B[1] + A[10] * B[2];
-  M[6] = A[2] * B[4] + A[6] * B[5] + A[10] * B[6];
-  M[10] = A[2] * B[8] + A[6] * B[9] + A[10] * B[10];
-  M[14] = A[2] * B[12] + A[6] * B[13] + A[10] * B[14] + A[14];
-
-  M[15] = 1.f;
-
-  return m;
 }
 
 const float G = -metresToWorldUnits(9.8f) / (TICKS_PER_SECOND * TICKS_PER_SECOND);
