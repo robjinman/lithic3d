@@ -14,7 +14,7 @@ class OctreeTest : public testing::Test
 
 TEST_F(OctreeTest, single_large_item_doesnt_split_root)
 {
-  LooseOctreePtr octree = createLooseOctree({ -10.f, -10.f, -10.f }, 20.f);
+  LooseOctreePtr octree = std::make_unique<LooseOctree>(Vec3f{ -10.f, -10.f, -10.f }, 20.f);
 
   octree->insert(123, { 1.f, 1.f, 1.f }, 18.f);
 
@@ -23,7 +23,7 @@ TEST_F(OctreeTest, single_large_item_doesnt_split_root)
 
 TEST_F(OctreeTest, single_item_causing_single_split)
 {
-  LooseOctreePtr octree = createLooseOctree({ -10.f, -10.f, -10.f }, 20.f);
+  LooseOctreePtr octree = std::make_unique<LooseOctree>(Vec3f{ -10.f, -10.f, -10.f }, 20.f);
 
   octree->insert(123, { 5.f, 5.f, 5.f }, 4.5f);
 
@@ -33,7 +33,7 @@ TEST_F(OctreeTest, single_item_causing_single_split)
 
 TEST_F(OctreeTest, single_item_causing_double_split)
 {
-  LooseOctreePtr octree = createLooseOctree({ -10.f, -10.f, -10.f }, 20.f);
+  LooseOctreePtr octree = std::make_unique<LooseOctree>(Vec3f{ -10.f, -10.f, -10.f }, 20.f);
 
   octree->insert(123, { 2.1f, 2.1f, 2.1f }, 2.f);
 

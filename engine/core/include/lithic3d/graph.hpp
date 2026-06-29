@@ -49,9 +49,9 @@ class Graph
       return nodes.contains(itemKey);
     }
 
-    void addItem(T_KEY itemKey, T_VAL item, T_KEY parent)
+    size_t addItem(T_KEY itemKey, T_KEY parentKey, T_VAL item)
     {
-      auto& parentNode = *nodes.at(parent);
+      auto& parentNode = *nodes.at(parentKey);
 
       incrementDescendentCount(parentNode);
       size_t index = parentNode.index + parentNode.numDescendents;
@@ -67,9 +67,9 @@ class Graph
       }
 
       dfs[index] = Entry{itemKey, item};
-      parents[index] = parent;
+      parents[index] = parentKey;
 
-      auto node = std::make_unique<TNode>(parent, index, 0);
+      auto node = std::make_unique<TNode>(parentKey, index, 0);
       nodes.insert({ itemKey, std::move(node) });
 
       for (size_t i = index; i < dfs.size(); ++i) {
@@ -78,6 +78,8 @@ class Graph
 
       assert(dfs.size() == parents.size());
       assert(nodes.size() == dfs.size());
+
+      return index;
     }
 
     void removeItem(T_KEY itemKey)

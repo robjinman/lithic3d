@@ -74,8 +74,11 @@ namespace
 
 struct Node
 {
+  CSpatialFlags* flags = nullptr;
   CLocalTransform* localT = nullptr;
   CGlobalTransform* globalT = nullptr;
+  CGlobalTransform* parentGlobalT = nullptr;
+  CBoundingBox* box = nullptr;
 };
 
 using SceneGraph = Graph<EntityId, Node, NULL_ENTITY_ID>;
@@ -111,7 +114,12 @@ class SysSpatialImpl : public SysSpatial
     void translateEntityLocal(EntityId id, const Vec3f& t) override;
     void setLocalTransform(EntityId id, const Mat4x4f& m) override;
 
-    EntityIdSet getIntersecting(const Frustum& frustum) const override;
+    void updateMainFrustum(const Frustum& main) override;
+
+    void updateShadowFrustums(const Frustum& shadow0, const Frustum& shadow1,
+      const Frustum& shadow2) override;
+
+    //EntityIdSet getIntersecting(const Frustum& frustum) const override;
     EntityIdSet getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const override;
 
     void addEntity(EntityId entityId, const DSpatial& data) override;
@@ -119,19 +127,25 @@ class SysSpatialImpl : public SysSpatial
     std::vector<EntityId> getDescendents(EntityId entityId) const override;
     void setEnabled(EntityId entityId, bool enabled) override;
 
-    const LooseOctree& dbg_getOctree() const override;
+    const SpatialContainer& dbg_getOctree() const override;
 
   private:
     Logger& m_logger;
     Ecs& m_ecs;
     EventSystem& m_eventSystem;
     SceneGraphPtr m_sceneGraph;
-    LooseOctreePtr m_octree;
+    SpatialContainerPtr m_octree;
     bool m_shouldRewriteComponentPointers = false;
+    std::vector<SpatialContainer::Entry> m_mainVisible;
+    std::vector<SpatialContainer::Entry> m_shadow0Visible;
+    std::vector<SpatialContainer::Entry> m_shadow1Visible;
+    std::vector<SpatialContainer::Entry> m_shadow2Visible;
 
     ComponentDataPtr constructDSpatial(const XmlNode& xmlSpatial) const;
     void rewriteComponentPointers();
-    void updateBoundingBox(EntityId entityId, const Mat4x4f& m);
+    void updateBoundingBox(EntityId entityId, Node& node);
+    void getAndSortIntersecting(const Frustum& frustum,
+      std::vector<SpatialContainer::Entry>& items);
 };
 
 SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logger)
@@ -142,20 +156,26 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logge
   EntityId root = m_ecs.idGen().getNewEntityId();
 
   m_ecs.componentStore().allocate<DSpatial>(root);
+
   auto& localT = m_ecs.componentStore().instantiate<CLocalTransform>(root);
   auto& globalT = m_ecs.componentStore().instantiate<CGlobalTransform>(root);
-  m_ecs.componentStore().instantiate<CSpatialFlags>(root);
+
+  auto& flags = m_ecs.componentStore().instantiate<CSpatialFlags>(root);
 
   Node rootNode{
+    .flags = &flags,
     .localT = &localT,
-    .globalT = &globalT
+    .globalT = &globalT,
+    .parentGlobalT = nullptr,
+    .box = nullptr
   };
 
   m_sceneGraph = std::make_unique<SceneGraph>(root, rootNode);
-  m_octree = createLooseOctree({ -1000.f, -1000.f, -1000.f }, 17000.f); // TODO
+  // TODO: Don't hard-code bounds
+  m_octree = std::make_unique<SpatialContainer>(Vec3f{ -1000.f, -1000.f, -1000.f }, 17000.f);
 }
 
-const LooseOctree& SysSpatialImpl::dbg_getOctree() const
+const LooseOctree<EntityId, uint32_t>& SysSpatialImpl::dbg_getOctree() const
 {
   return *m_octree;
 }
@@ -165,14 +185,46 @@ const Aabb& SysSpatialImpl::getAabb(EntityId entityId) const
   return m_ecs.componentStore().component<CBoundingBox>(entityId).modelSpaceAabb;
 }
 
-EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const
+//EntityIdSet SysSpatialImpl::getIntersecting(const Frustum& frustum) const
+//{
+//  return m_octree->getIntersecting(frustum);
+//}
+
+void SysSpatialImpl::getAndSortIntersecting(const Frustum& frustum,
+  std::vector<SpatialContainer::Entry>& items)
 {
-  return m_octree->getIntersecting(frustum);
+  items = m_octree->getIntersecting(frustum);
+
+  auto sortFn = [](const SpatialContainer::Entry& A, const SpatialContainer::Entry& B) {
+    return A.value < B.value;
+  };
+
+  std::sort(items.begin(), items.end(), sortFn);
+}
+
+void SysSpatialImpl::updateMainFrustum(const Frustum& main)
+{
+  getAndSortIntersecting(main, m_mainVisible);
+}
+
+void SysSpatialImpl::updateShadowFrustums(const Frustum& shadow0, const Frustum& shadow1,
+  const Frustum& shadow2)
+{
+  getAndSortIntersecting(shadow0, m_shadow0Visible);
+  getAndSortIntersecting(shadow1, m_shadow1Visible);
+  getAndSortIntersecting(shadow2, m_shadow2Visible);
 }
 
 EntityIdSet SysSpatialImpl::getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const
 {
-  return m_octree->getIntersecting(rayStart, rayEnd);
+  EntityIdSet entities;
+  auto entries = m_octree->getIntersecting(rayStart, rayEnd);
+
+  for (auto& entry : entries) {
+    entities.push_back(entry.key);
+  }
+
+  return entities;
 }
 
 EntityId SysSpatialImpl::root() const
@@ -182,12 +234,23 @@ EntityId SysSpatialImpl::root() const
 
 void SysSpatialImpl::rewriteComponentPointers()
 {
+  auto& componentStore = m_ecs.componentStore();
+
   for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
-    auto& entity = m_sceneGraph->dfs[i];
-    auto& localT = m_ecs.componentStore().component<CLocalTransform>(entity.key);
-    auto& globalT = m_ecs.componentStore().component<CGlobalTransform>(entity.key);
-    entity.value.localT = &localT;
-    entity.value.globalT = &globalT;
+    auto& node = m_sceneGraph->dfs[i];
+    auto& flags = componentStore.component<CSpatialFlags>(node.key);
+    auto& localT = componentStore.component<CLocalTransform>(node.key);
+    auto& globalT = componentStore.component<CGlobalTransform>(node.key);
+    auto& box = componentStore.component<CBoundingBox>(node.key);
+    auto& parentGlobalT = componentStore.component<CGlobalTransform>(m_sceneGraph->parents[i]);
+
+    node.value.flags = &flags;
+    node.value.localT = &localT;
+    node.value.globalT = &globalT;
+    node.value.box = &box;
+    node.value.parentGlobalT = &parentGlobalT;
+
+    m_octree->item(node.key) = i;
   }
 
   m_shouldRewriteComponentPointers = false;
@@ -195,24 +258,27 @@ void SysSpatialImpl::rewriteComponentPointers()
 
 void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
-  auto& parentFlags = m_ecs.componentStore().component<CSpatialFlags>(data.parent).flags;
-  auto& localT = m_ecs.componentStore().component<CLocalTransform>(entityId);
-  auto& globalT = m_ecs.componentStore().component<CGlobalTransform>(entityId);
+  auto& componentStore = m_ecs.componentStore();
 
-  Node node{
-    .localT = &localT,
-    .globalT = &globalT
-  };
+  auto& flags = componentStore.instantiate<CSpatialFlags>(entityId).flags;
+  auto& parentFlags = componentStore.component<CSpatialFlags>(data.parent).flags;
 
-  m_sceneGraph->addItem(entityId, node, data.parent);
-  m_ecs.componentStore().instantiate<CLocalTransform>(entityId).transform = data.transform;
-  auto& flags = m_ecs.componentStore().instantiate<CSpatialFlags>(entityId).flags;
+  // Will get written during update()
+  Node node{};
+  auto index = m_sceneGraph->addItem(entityId, data.parent, node);
+
+  componentStore.instantiate<CLocalTransform>(entityId).transform = data.transform;
+
   flags.set(SpatialFlags::Enabled, data.enabled);
   flags.set(SpatialFlags::ParentEnabled,
-    parentFlags.test(SpatialFlags::ParentEnabled) && parentFlags.test(SpatialFlags::Enabled));  
+    parentFlags.test(SpatialFlags::ParentEnabled) && parentFlags.test(SpatialFlags::Enabled));
+  flags.set(SpatialFlags::Dirty);
 
-  m_ecs.componentStore().instantiate<CGlobalTransform>(entityId);
-  m_ecs.componentStore().instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
+  componentStore.instantiate<CGlobalTransform>(entityId);
+  componentStore.instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
+
+  // Use dummy position/radius. Will be updated later
+  m_octree->insert(entityId, index, { 0.f, 0.f, 0.f }, 1000.f);
 
   m_shouldRewriteComponentPointers = true;
 }
@@ -422,9 +488,10 @@ void SysSpatialImpl::setLocalTransform(EntityId id, const Mat4x4f& m)
   flags.flags.set(SpatialFlags::Dirty);
 }
 
-void SysSpatialImpl::updateBoundingBox(EntityId entityId, const Mat4x4f& m)
+void SysSpatialImpl::updateBoundingBox(EntityId entityId, Node& node)
 {
-  auto& box = m_ecs.componentStore().component<CBoundingBox>(entityId);
+  auto& m = node.globalT->transform;
+  auto& box = *node.box;
 
   box.worldSpaceAabb = transformAabb(box.modelSpaceAabb, m);
 
@@ -445,21 +512,45 @@ void SysSpatialImpl::update(Tick, const InputState&)
   Mat4x4f* parentT = &I;
   EntityId prevParentId = NULL_ENTITY_ID;
 
+  uint32_t mainVisibleIdx = 0;
+  uint32_t shadow0VisibleIdx = 0;
+  uint32_t shadow1VisibleIdx = 0;
+  uint32_t shadow2VisibleIdx = 0;
+
   // Skip the root
   for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
-    auto& entity = m_sceneGraph->dfs[i];
+    auto& entry = m_sceneGraph->dfs[i];
     auto parentId = m_sceneGraph->parents[i];
 
     if (parentId != prevParentId) {
-      parentT = &m_ecs.componentStore().component<CGlobalTransform>(parentId).transform;
+      parentT = &entry.value.parentGlobalT->transform;
       prevParentId = parentId;
     }
 
     // TODO: Skip if entity is static or local transform is non-dirty
 
-    entity.value.globalT->transform = *parentT * entity.value.localT->transform;
+    entry.value.globalT->transform = *parentT * entry.value.localT->transform;
 
-    updateBoundingBox(entity.key, entity.value.globalT->transform);
+    updateBoundingBox(entry.key, entry.value);
+
+    auto& flags = entry.value.flags->flags;
+
+    auto setVisibility = [&flags, i](uint32_t& index,
+      const std::vector<SpatialContainer::Entry>& array, uint64_t flag) {
+
+      if (index < array.size() && i == array[index].value) {
+        ++index;
+        flags.set(flag, true);
+      }
+      else {
+        flags.set(flag, false);
+      }
+    };
+
+    setVisibility(mainVisibleIdx, m_mainVisible, SpatialFlags::Visible0);
+    setVisibility(shadow0VisibleIdx, m_shadow0Visible, SpatialFlags::Visible1);
+    setVisibility(shadow1VisibleIdx, m_shadow1Visible, SpatialFlags::Visible2);
+    setVisibility(shadow2VisibleIdx, m_shadow2Visible, SpatialFlags::Visible3);
   }
 }
 

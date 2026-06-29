@@ -9,9 +9,38 @@
 namespace lithic3d
 {
 
+struct LodMeshData
+{
+  ResourceId id = NULL_RESOURCE_ID;
+  render::MeshFeatureSet features;
+};
+
+struct SubmodelData
+{
+  std::array<LodMeshData, 3> lods;
+  uint32_t numLods = 0;
+  ResourceId material = NULL_RESOURCE_ID;       // TODO: Can we use real handles?
+  render::MaterialFeatureSet materialFeatures;
+  bool hasSkin = false;
+  //SkinPtr skin;
+  //bool jointTransformsDirty = false;
+  //std::vector<Mat4x4f> jointTransforms;
+};
+
+struct CDrawListItem
+{
+  ResourceId model = NULL_RESOURCE_ID;
+  bool isInstanced = false;
+  Vec4f colour = { 1.f, 1.f, 1.f, 1.f };
+  std::array<SubmodelData, 12> submodels;
+  uint32_t numSubmodels = 0;
+
+  static constexpr ComponentTypeId TypeId = CDrawListItemTypeId;
+};
+
 struct DModel
 {
-  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform>;
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform, CDrawListItem>;
 
   ResourceHandle model;
   bool isInstanced = false;
@@ -78,6 +107,8 @@ class SysRender3d : public System
     virtual Camera3d& camera() = 0;
     virtual const Camera3d& camera() const = 0;
 
+    virtual void preupdate() = 0;
+
     virtual render::Renderer& renderer() = 0;
 
     // TODO: Const references instead of pointers?
@@ -116,7 +147,7 @@ LightProjection computeLightProjection(const std::array<Vec3f, 8>& corners,
 class Logger;
 class EventSystem;
 
-SysRender3dPtr createSysRender3d(float drawDistance, const Ecs& ecs, ModelLoader& modelLoader,
+SysRender3dPtr createSysRender3d(float drawDistance, Ecs& ecs, ModelLoader& modelLoader,
   render::Renderer& renderer, EventSystem& eventSystem, Logger& logger);
 
 } // namespace lithic3d

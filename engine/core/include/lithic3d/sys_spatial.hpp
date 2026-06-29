@@ -72,11 +72,15 @@ struct CGlobalTransform
 
 namespace SpatialFlags
 {
-  enum : size_t
+  enum : uint64_t
   {
     Enabled,
     ParentEnabled,
-    Dirty
+    Dirty,            // Whether the entity has been moved
+    Visible0,         // Whether the entity is within the main view frustum
+    Visible1,         // Whether the entity is within the shadow pass frustums
+    Visible2,
+    Visible3
   };
 }
 
@@ -116,6 +120,9 @@ namespace SysSpatialSubcomponent
   };
 }
 
+using SpatialContainer = LooseOctree<EntityId, uint32_t>;
+using SpatialContainerPtr = std::unique_ptr<SpatialContainer>;
+
 class SysSpatial : public System
 {
   public:
@@ -140,12 +147,17 @@ class SysSpatial : public System
     virtual void translateEntityLocal(EntityId id, const Vec3f& t) = 0;
     virtual void setLocalTransform(EntityId id, const Mat4x4f& m) = 0;
 
-    virtual EntityIdSet getIntersecting(const Frustum& frustum) const = 0;
+    virtual void updateMainFrustum(const Frustum& main) = 0;
+
+    virtual void updateShadowFrustums(const Frustum& shadow0, const Frustum& shadow1,
+      const Frustum& shadow2) = 0;
+
+    //virtual EntityIdSet getIntersecting(const Frustum& frustum) const = 0;
     virtual EntityIdSet getIntersecting(const Vec3f& rayStart, const Vec3f& rayEnd) const = 0;
 
     virtual ~SysSpatial() = default;
 
-    virtual const LooseOctree& dbg_getOctree() const = 0;
+    virtual const SpatialContainer& dbg_getOctree() const = 0;
 
     static const SystemId id = Systems::Spatial;
 };

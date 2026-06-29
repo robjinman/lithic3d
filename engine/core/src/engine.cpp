@@ -159,8 +159,8 @@ float EngineImpl::measuredTickRate() const
 
 void EngineImpl::measureTickRate()
 {
-  if (m_currentTick % 10 == 0) {
-    m_measuredTickRate = 10.f / m_timer.elapsed();
+  if (m_currentTick % 60 == 0) {
+    m_measuredTickRate = 60.f / m_timer.elapsed();
     m_timer.reset();
   }
 }
@@ -171,6 +171,9 @@ void EngineImpl::update(const InputState& inputState, const std::set<SystemId>& 
     m_renderer->beginFrame(m_clearColour);
 
     //m_logger->info(STR("Tick " << m_currentTick));
+
+    // TODO: Think of nicer solution
+    m_ecs->system<SysRender3d>().preupdate();
 
     m_ecs->update(m_currentTick, inputState, skip);
     measureTickRate();

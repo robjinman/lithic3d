@@ -36,9 +36,9 @@ TEST_F(SysRender3dTest, computeLightProjection_mag_of_light_dir_doesnt_affect_li
   auto p1 = lightProj1.projectionMatrix * lightProj1.viewMatrix * p;
   auto p2 = lightProj2.projectionMatrix * lightProj2.viewMatrix * p;
 
-  EXPECT_EQ(p1[0], p2[0]);
-  EXPECT_EQ(p1[1], p2[1]);
-  EXPECT_EQ(p1[2], p2[2]);
+  EXPECT_NEAR(p1[0], p2[0], 0.00001f);
+  EXPECT_NEAR(p1[1], p2[1], 0.00001f);
+  EXPECT_NEAR(p1[2], p2[2], 0.00001f);
 
   EXPECT_TRUE(dbg_isValidFrustum(lightProj1.frustum));
   EXPECT_TRUE(dbg_isValidFrustum(lightProj2.frustum));

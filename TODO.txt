@@ -16,3 +16,7 @@ PERFORMANCE
 * Compute mipmaps offline
 * LOD mesh shading
 * Use KTX instead of PNG for textures
+
+27/06/26
+- Implement octree move() properly
+- Skip update of global transforms for non-dirty entities
