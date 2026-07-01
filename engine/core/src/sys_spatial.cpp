@@ -260,7 +260,7 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
   auto& componentStore = m_ecs.componentStore();
 
-  auto& flags = componentStore.instantiate<CSpatialFlags>(entityId).flags;
+  auto& flags = componentStore.instantiate<CSpatialFlags>(entityId);
   auto& parentFlags = componentStore.component<CSpatialFlags>(data.parent).flags;
 
   // Will get written during update()
@@ -269,10 +269,12 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 
   componentStore.instantiate<CLocalTransform>(entityId).transform = data.transform;
 
-  flags.set(SpatialFlags::Enabled, data.enabled);
-  flags.set(SpatialFlags::ParentEnabled,
+  flags.flags.set(SpatialFlags::Enabled, data.enabled);
+  flags.flags.set(SpatialFlags::ParentEnabled,
     parentFlags.test(SpatialFlags::ParentEnabled) && parentFlags.test(SpatialFlags::Enabled));
-  flags.set(SpatialFlags::Dirty);
+  flags.flags.set(SpatialFlags::Dirty);
+
+  //flags.prevFlags = flags.flags;
 
   componentStore.instantiate<CGlobalTransform>(entityId);
   componentStore.instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
@@ -521,6 +523,8 @@ void SysSpatialImpl::update(Tick, const InputState&)
   for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
     auto& entry = m_sceneGraph->dfs[i];
     auto parentId = m_sceneGraph->parents[i];
+
+    //entry.value.flags->prevFlags = entry.value.flags->flags;
 
     if (parentId != prevParentId) {
       parentT = &entry.value.parentGlobalT->transform;

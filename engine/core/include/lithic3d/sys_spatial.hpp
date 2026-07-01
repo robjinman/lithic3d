@@ -86,6 +86,7 @@ namespace SpatialFlags
 
 struct CSpatialFlags
 {
+  //std::bitset<32> prevFlags{bitflag(SpatialFlags::Enabled) | bitflag(SpatialFlags::ParentEnabled)};
   std::bitset<32> flags{bitflag(SpatialFlags::Enabled) | bitflag(SpatialFlags::ParentEnabled)};
 
   static constexpr ComponentTypeId TypeId = CSpatialFlagsTypeId;

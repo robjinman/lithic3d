@@ -1,8 +1,8 @@
 #pragma once
 
 #include "vulkan/render_resources.hpp"
-#include "lithic3d/tree_set.hpp"
 #include <optional>
+#include <map>
 
 namespace lithic3d
 {
@@ -36,9 +36,81 @@ struct RenderNode
   virtual ~RenderNode() = default;
 };
 
-using RenderGraphKey = long;
 using RenderNodePtr = std::unique_ptr<RenderNode>;
-using RenderGraph = TreeSet<RenderGraphKey, RenderNodePtr>; // TODO: Store by value?
+
+// For now, this is just a wrapper around std::map
+class RenderGraph
+{
+  public:
+    using KeyPart = long;
+    using Key = std::array<KeyPart, 6>; // TODO: Try to reduce key size
+    using Map = std::map<Key, RenderNodePtr>;
+
+    inline void insert(const Key& key, RenderNodePtr value);
+    inline void remove(const Key& key);
+
+    class Iterator
+    {
+      public:
+        explicit Iterator(Map::const_iterator i)
+          : m_i(i) {}
+
+        bool operator==(const Iterator& rhs) const
+        {
+          return m_i == rhs.m_i;
+        }
+
+        const Map::mapped_type& operator*() const
+        {
+          return m_i->second;
+        }
+
+        const Map::mapped_type* operator->() const
+        {
+          return &(**this);
+        }
+
+        void next()
+        {
+          ++m_i;
+        }
+
+        Iterator& operator++()
+        {
+          next();
+          return *this;
+        }
+
+      private:
+        Map::const_iterator m_i;
+    };
+
+    inline Iterator begin() const;
+    inline Iterator end() const;
+
+  private:
+    Map m_map;
+};
+
+inline void RenderGraph::insert(const Key& key, RenderNodePtr value)
+{
+  m_map[key] = std::move(value);
+}
+
+inline void RenderGraph::remove(const Key& key)
+{
+  m_map.erase(key);
+}
+
+inline RenderGraph::Iterator RenderGraph::begin() const
+{
+  return Iterator{m_map.cbegin()};
+}
+
+inline RenderGraph::Iterator RenderGraph::end() const
+{
+  return Iterator{m_map.cend()};
+}
 
 // TODO: Replace inheritance
 

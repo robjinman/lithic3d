@@ -2811,9 +2811,12 @@ void resolveInterpenetration(const Contact& contact)
   if (B.dynamic) {
     totalInvMass += B.dynamic->inverseMass;
   }
-  DBG_ASSERT(totalInvMass != 0.f, "Cannot collide two objects of infinite mass");
 
-  float rMin = 0.05f;
+  if (totalInvMass == 0.f) {
+    return;
+  }
+
+  float rMin = 0.05f; // TODO: Magic number
   float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
@@ -2985,7 +2988,7 @@ void SysCollisionImpl::integrate()
         // Tweak these idle thresholds
         const float idleMaxLinearV = 0.11f;     // Magic number
         const float idleMaxAngularV = 0.0007f;
-        const size_t idleSeconds = 3;
+        const float idleSeconds = 0.5f;
 
         if (!rotationalComps.empty()) {
           if (dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
