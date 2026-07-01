@@ -8,7 +8,6 @@
 #include "functor.hpp"
 #include "sys_spatial.hpp"
 #include "xml_utils.hpp"
-#include "tree_set.hpp"
 #include "systems.hpp"
 #include "world_loader.hpp"
 #include "work_queue.hpp"

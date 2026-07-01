@@ -159,7 +159,8 @@ struct LightingState
 
 struct FrameState
 {
-  std::map<RenderPass, RenderPassState> renderPasses;
+  std::array<RenderPassState, 6> renderPasses; // TODO: Remove hard-coded 6
+  std::array<bool, 6> activeRenderPasses;      //
   LightingState lighting;
   Vec4f clearColour;
   std::optional<RenderPass> currentRenderPass;
@@ -387,8 +388,6 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
 
   m_logger.info(STR("Lithic3D " << getVersionString()));
 
-  m_frameStates.getReadable().renderPasses[RenderPass::Main] = RenderPassState{};
-
   DBG_LOG(m_logger, STR("Main thread: " << std::this_thread::get_id()));
 
   m_thread.run<void>([this]() {
@@ -592,44 +591,44 @@ bool RendererImpl::hasCompiledShader(const ShaderProgramSpec& spec) const
 
 RenderGraph::Key RendererImpl::generateRenderGraphKey(uint32_t orderKey, ResourceId mesh,
   const MeshFeatureSet& meshFeatures, ResourceId material,
-  const MaterialFeatureSet& materialFeatures) const
+  const MaterialFeatureSet& matFeatures) const
 {
-  static RenderGraphKey nextId = 0;
+  static RenderGraph::KeyPart nextId = 0;
 
   PipelineKey pipelineKey{
     .renderPass = RenderPass::Main,
     .meshFeatures = meshFeatures,
-    .materialFeatures = materialFeatures
+    .materialFeatures = matFeatures
   };
   auto pipelineHash = std::hash<PipelineKey>{}(pipelineKey);
 
   if (meshFeatures.flags.test(MeshFeatures::IsInstanced)) {
-    auto key = RenderGraph::Key{
-      static_cast<RenderGraphKey>(orderKey),
-      static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
-      static_cast<RenderGraphKey>(pipelineHash),
-      static_cast<RenderGraphKey>(mesh),
-      static_cast<RenderGraphKey>(material)
+    return {
+      static_cast<RenderGraph::KeyPart>(orderKey),
+      static_cast<RenderGraph::KeyPart>(matFeatures.flags.test(MaterialFeatures::HasTransparency)),
+      static_cast<RenderGraph::KeyPart>(pipelineHash),
+      static_cast<RenderGraph::KeyPart>(mesh),
+      static_cast<RenderGraph::KeyPart>(material),
+      meshFeatures.flags.test(MeshFeatures::IsParticles) ? nextId++ : 0
     };
-    if (meshFeatures.flags.test(MeshFeatures::IsParticles)) {
-      key.push_back(nextId++);
-    }
-    return key;
   }
   else if (meshFeatures.flags.test(MeshFeatures::IsSkybox)) {
-    return RenderGraph::Key{
-      static_cast<RenderGraphKey>(orderKey),
-      static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
-      static_cast<RenderGraphKey>(pipelineHash),
+    return {
+      static_cast<RenderGraph::KeyPart>(orderKey),
+      static_cast<RenderGraph::KeyPart>(matFeatures.flags.test(MaterialFeatures::HasTransparency)),
+      static_cast<RenderGraph::KeyPart>(pipelineHash),
+      0,
+      0,
+      0
     };
   }
   else {
-    return RenderGraph::Key{
-      static_cast<RenderGraphKey>(orderKey),
-      static_cast<RenderGraphKey>(materialFeatures.flags.test(MaterialFeatures::HasTransparency)),
-      static_cast<RenderGraphKey>(pipelineHash),
-      static_cast<RenderGraphKey>(mesh),
-      static_cast<RenderGraphKey>(material),
+    return {
+      static_cast<RenderGraph::KeyPart>(orderKey),
+      static_cast<RenderGraph::KeyPart>(matFeatures.flags.test(MaterialFeatures::HasTransparency)),
+      static_cast<RenderGraph::KeyPart>(pipelineHash),
+      static_cast<RenderGraph::KeyPart>(mesh),
+      static_cast<RenderGraph::KeyPart>(material),
       nextId++
     };
   }
@@ -641,8 +640,7 @@ void RendererImpl::drawInstance(ResourceId mesh, const MeshFeatureSet& meshFeatu
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
   auto key = generateRenderGraphKey(frameState.currentOrderKey, mesh, meshFeatures, material,
@@ -674,13 +672,10 @@ void RendererImpl::drawSprite(ResourceId mesh, const MeshFeatureSet& meshFeature
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
-  auto node = std::unique_ptr<SpriteNode>(new SpriteNode{
-    
-  });
+  auto node = std::make_unique<SpriteNode>();
   node->mesh = mesh;
   node->meshFeatures = meshFeatures;
   node->material = material;
@@ -703,8 +698,7 @@ void RendererImpl::drawQuad(ResourceId mesh, const MeshFeatureSet& meshFeatures,
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<QuadNode>();
@@ -745,8 +739,7 @@ void RendererImpl::drawModelInternal(ResourceId mesh, const MeshFeatureSet& mesh
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DefaultModelNode>();
@@ -808,8 +801,7 @@ void RendererImpl::drawDynamicText(ResourceId mesh, const MeshFeatureSet& meshFe
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<DynamicTextNode>();
@@ -835,8 +827,7 @@ void RendererImpl::drawSkybox(ResourceId mesh, const MeshFeatureSet& meshFeature
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<SkyboxNode>();
@@ -858,8 +849,7 @@ void RendererImpl::drawParticles(ResourceId material, const Mat4x4f& transform)
   DBG_TRACE(m_logger);
 
   FrameState& frameState = m_frameStates.getWritable();
-  MAP_GET(iState, frameState.renderPasses, frameState.currentRenderPass.value());
-  RenderPassState& state = iState->second;
+  auto& state = frameState.renderPasses[static_cast<int>(frameState.currentRenderPass.value())];
   RenderGraph& renderGraph = state.graph;
 
   auto node = std::make_unique<ParticlesNode>();
@@ -896,7 +886,8 @@ void RendererImpl::beginFrame(const Vec4f& clearColour)
   state.lighting = LightingState{};
   state.clearColour = clearColour;
   state.currentRenderPass = std::nullopt;
-  state.renderPasses.clear();
+  state.renderPasses = {};
+  state.activeRenderPasses = {};
   state.scissors.clear();
   state.scissors.push_back(defaultScissor);
   state.currentScissor = 0;
@@ -934,10 +925,12 @@ void RendererImpl::beginPass(RenderPass renderPass, const Vec3f& viewPos, const 
   auto& state = m_frameStates.getWritable();
   state.currentRenderPass = renderPass;
 
-  auto& renderPassState = state.renderPasses[renderPass];
+  auto& renderPassState = state.renderPasses[static_cast<int>(renderPass)];
   renderPassState.viewPos = viewPos;
   renderPassState.viewMatrix = viewMatrix;
   renderPassState.projectionMatrix = projectionMatrix;
+
+  state.activeRenderPasses[static_cast<int>(renderPass)] = true;
 }
 
 void RendererImpl::doComputePass()
@@ -1028,25 +1021,25 @@ void RendererImpl::renderLoop()
 
       auto& frameState = m_frameStates.getReadable();
 
-      if (frameState.renderPasses.contains(RenderPass::Shadow0)) {
+      if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Shadow0)]) {
         updateLightTransformsUbo();
         doShadowPass(commandBuffer, 0);
       }
-      if (frameState.renderPasses.contains(RenderPass::Shadow1)) {
+      if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Shadow1)]) {
         doShadowPass(commandBuffer, 1);
       }
-      if (frameState.renderPasses.contains(RenderPass::Shadow2)) {
+      if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Shadow2)]) {
         doShadowPass(commandBuffer, 2);
       }
-      if (frameState.renderPasses.contains(RenderPass::Main)) {
+      if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Main)]) {
         updateCameraTransformsUbo(RenderPass::Main);
         updateLightingUbo();
         doMainPass(commandBuffer);
       }
-      if (frameState.renderPasses.contains(RenderPass::Ssr)) {
+      if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Ssr)]) {
         doSsrPass(commandBuffer);
       }
-      if (frameState.renderPasses.contains(RenderPass::Overlay)) {
+      if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Overlay)]) {
         updateCameraTransformsUbo(RenderPass::Overlay);
         doOverlayPass(commandBuffer);
       }
@@ -1099,8 +1092,7 @@ void RendererImpl::updateCameraTransformsUbo(RenderPass renderPass)
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
-  MAP_GET(iState, frameState.renderPasses, renderPass);
-  auto& renderPassState = iState->second;
+  auto& renderPassState = frameState.renderPasses[static_cast<int>(renderPass)];
 
   CameraTransformsUbo cameraTransformsUbo{
     .viewMatrix = renderPassState.viewMatrix,
@@ -1120,12 +1112,9 @@ void RendererImpl::updateLightTransformsUbo()
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
-  MAP_GET(iShPass0, frameState.renderPasses, RenderPass::Shadow0);
-  auto& shadowPass0State = iShPass0->second;
-  MAP_GET(iShPass1, frameState.renderPasses, RenderPass::Shadow1);
-  auto& shadowPass1State = iShPass1->second;
-  MAP_GET(iShPass2, frameState.renderPasses, RenderPass::Shadow2);
-  auto& shadowPass2State = iShPass2->second;
+  auto& shadowPass0State = frameState.renderPasses[static_cast<int>(RenderPass::Shadow0)];
+  auto& shadowPass1State = frameState.renderPasses[static_cast<int>(RenderPass::Shadow1)];
+  auto& shadowPass2State = frameState.renderPasses[static_cast<int>(RenderPass::Shadow2)];
 
   LightTransformsUbo lightTransformsUbo{
     .viewMatrix = {
@@ -1147,8 +1136,7 @@ void RendererImpl::updateLightingUbo()
   DBG_TRACE(m_logger);
 
   auto& frameState = m_frameStates.getReadable();
-  MAP_GET(iState, frameState.renderPasses, RenderPass::Main);
-  auto& renderPassState = iState->second;
+  auto& renderPassState = frameState.renderPasses[static_cast<int>(RenderPass::Main)];
 
   LightingUbo lightingUbo{
     .viewPos = renderPassState.viewPos,
@@ -2139,8 +2127,7 @@ void RendererImpl::doShadowPass(VkCommandBuffer commandBuffer, uint32_t cascade)
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   auto& frameState = m_frameStates.getReadable();
-  MAP_GET(iState, frameState.renderPasses, shadowPass(cascade));
-  auto& renderPassState = iState->second;
+  auto& renderPassState = frameState.renderPasses[static_cast<int>(shadowPass(cascade))];
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(shadowPass(cascade), renderGraph, frameState.scissors, commandBuffer,
@@ -2223,8 +2210,7 @@ void RendererImpl::doMainPass(VkCommandBuffer commandBuffer)
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-  MAP_GET(iState, frameState.renderPasses, RenderPass::Main);
-  auto& renderPassState = iState->second;
+  auto& renderPassState = frameState.renderPasses[static_cast<int>(RenderPass::Main)];
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(RenderPass::Main, renderGraph, frameState.scissors, commandBuffer, 0);
@@ -2262,8 +2248,7 @@ void RendererImpl::doOverlayPass(VkCommandBuffer commandBuffer)
 
   vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-  MAP_GET(iState, frameState.renderPasses, RenderPass::Overlay);
-  auto& renderPassState = iState->second;
+  auto& renderPassState = frameState.renderPasses[static_cast<int>(RenderPass::Overlay)];
   const auto& renderGraph = renderPassState.graph;
 
   recordCommandBuffer(RenderPass::Overlay, renderGraph, frameState.scissors, commandBuffer, 0);

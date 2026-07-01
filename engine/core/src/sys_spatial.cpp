@@ -260,7 +260,7 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 {
   auto& componentStore = m_ecs.componentStore();
 
-  auto& flags = componentStore.instantiate<CSpatialFlags>(entityId).flags;
+  auto& flags = componentStore.instantiate<CSpatialFlags>(entityId);
   auto& parentFlags = componentStore.component<CSpatialFlags>(data.parent).flags;
 
   // Will get written during update()
@@ -269,10 +269,12 @@ void SysSpatialImpl::addEntity(EntityId entityId, const DSpatial& data)
 
   componentStore.instantiate<CLocalTransform>(entityId).transform = data.transform;
 
-  flags.set(SpatialFlags::Enabled, data.enabled);
-  flags.set(SpatialFlags::ParentEnabled,
+  flags.flags.set(SpatialFlags::Enabled, data.enabled);
+  flags.flags.set(SpatialFlags::ParentEnabled,
     parentFlags.test(SpatialFlags::ParentEnabled) && parentFlags.test(SpatialFlags::Enabled));
-  flags.set(SpatialFlags::Dirty);
+  flags.flags.set(SpatialFlags::Dirty);
+
+  //flags.prevFlags = flags.flags;
 
   componentStore.instantiate<CGlobalTransform>(entityId);
   componentStore.instantiate<CBoundingBox>(entityId).modelSpaceAabb = data.aabb;
@@ -517,10 +519,24 @@ void SysSpatialImpl::update(Tick, const InputState&)
   uint32_t shadow1VisibleIdx = 0;
   uint32_t shadow2VisibleIdx = 0;
 
+  auto setVisibility = [](uint32_t& index, const std::vector<SpatialContainer::Entry>& array,
+    std::bitset<32>& flags, uint64_t flag, size_t i) {
+
+    if (index < array.size() && i == array[index].value) {
+      ++index;
+      flags.set(flag, true);
+    }
+    else {
+      flags.set(flag, false);
+    }
+  };
+
   // Skip the root
   for (size_t i = 1; i < m_sceneGraph->dfs.size(); ++i) {
     auto& entry = m_sceneGraph->dfs[i];
     auto parentId = m_sceneGraph->parents[i];
+
+    //entry.value.flags->prevFlags = entry.value.flags->flags;
 
     if (parentId != prevParentId) {
       parentT = &entry.value.parentGlobalT->transform;
@@ -535,22 +551,10 @@ void SysSpatialImpl::update(Tick, const InputState&)
 
     auto& flags = entry.value.flags->flags;
 
-    auto setVisibility = [&flags, i](uint32_t& index,
-      const std::vector<SpatialContainer::Entry>& array, uint64_t flag) {
-
-      if (index < array.size() && i == array[index].value) {
-        ++index;
-        flags.set(flag, true);
-      }
-      else {
-        flags.set(flag, false);
-      }
-    };
-
-    setVisibility(mainVisibleIdx, m_mainVisible, SpatialFlags::Visible0);
-    setVisibility(shadow0VisibleIdx, m_shadow0Visible, SpatialFlags::Visible1);
-    setVisibility(shadow1VisibleIdx, m_shadow1Visible, SpatialFlags::Visible2);
-    setVisibility(shadow2VisibleIdx, m_shadow2Visible, SpatialFlags::Visible3);
+    setVisibility(mainVisibleIdx, m_mainVisible, flags, SpatialFlags::Visible0, i);
+    setVisibility(shadow0VisibleIdx, m_shadow0Visible, flags, SpatialFlags::Visible1, i);
+    setVisibility(shadow1VisibleIdx, m_shadow1Visible, flags, SpatialFlags::Visible2, i);
+    setVisibility(shadow2VisibleIdx, m_shadow2Visible, flags, SpatialFlags::Visible3, i);
   }
 }
 

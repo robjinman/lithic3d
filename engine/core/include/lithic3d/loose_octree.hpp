@@ -19,13 +19,14 @@ class LooseOctree
       T_VAL value;
     };
 
-  private:
+    // Exposed for testing
     struct OctreeCell
     {
       Vec3f min;
       float size = 0.f;
     };
 
+    // Exposed for testing
     struct OctreeNode
     {
       OctreeNode* parent = nullptr;

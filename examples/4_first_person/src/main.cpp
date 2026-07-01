@@ -52,7 +52,7 @@ class Demo : public Game
     void processMouseInput();
     void processKeyboardInput();
     void gravity();
-    void analyseOctreeNode(const OctreeNode& node, size_t depth) const;
+    void analyseOctreeNode(const SpatialContainer::OctreeNode& node, size_t depth) const;
 };
 
 Demo::Demo(Engine& engine)
@@ -201,10 +201,10 @@ EntityId Demo::constructGround()
   auto material = m_factory->createMaterialAsync("ground.png", true).wait();
 
   auto id = m_factory->createStaticCuboid(m_engine.ecs().system<SysSpatial>().root(),
-    Vec3f{ 200.f, 1.f, 200.f }, material, Vec2f{ 5.f, 5.f }, 0.f, 0.4);
+    { 200.f, 1.f, 200.f }, material, 0.f, 0.4);
 
-  m_engine.ecs().componentStore().component<CLocalTransform>(id).transform =
-    translationMatrix4x4(metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));
+  auto& sysSpatial = m_engine.ecs().system<SysSpatial>();
+  sysSpatial.translateEntityLocal(id, metresToWorldUnits(Vec3f{100.f, -1.f, 100.f }));
 
   return id;
 }
@@ -291,10 +291,10 @@ bool Demo::update()
   return true;
 }
 
-void Demo::analyseOctreeNode(const OctreeNode& node, size_t depth) const
+void Demo::analyseOctreeNode(const SpatialContainer::OctreeNode& node, size_t depth) const
 {
   std::string tabs(depth, ' ');
-  m_engine.logger().info(STR(tabs << "Node contains " << node.objects.size() << " objects"));
+  m_engine.logger().info(STR(tabs << "Node contains " << node.items.size() << " items"));
   for (auto& child : node.children) {
     if (child != nullptr) {
       analyseOctreeNode(*child, depth + 1);
@@ -308,6 +308,7 @@ void Demo::onKeyDown(KeyboardKey key)
 
   if (key == KeyboardKey::F) {
     m_engine.logger().info(STR("Simulation tick rate: " << m_engine.measuredTickRate()));
+    m_engine.logger().info(STR("Renderer frame rate: " << m_engine.renderer().frameRate()));
   }
   else if (key == KeyboardKey::P) {
     auto& root = m_engine.ecs().system<SysSpatial>().dbg_getOctree().test_root();

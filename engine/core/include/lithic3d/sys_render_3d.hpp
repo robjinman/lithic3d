@@ -19,28 +19,28 @@ struct SubmodelData
 {
   std::array<LodMeshData, 3> lods;
   uint32_t numLods = 0;
-  ResourceId material = NULL_RESOURCE_ID;       // TODO: Can we use real handles?
-  render::MaterialFeatureSet materialFeatures;
+  render::MaterialHandle material;
   bool hasSkin = false;
   //SkinPtr skin;
   //bool jointTransformsDirty = false;
   //std::vector<Mat4x4f> jointTransforms;
 };
 
-struct CDrawListItem
+struct CModel
 {
-  ResourceId model = NULL_RESOURCE_ID;
+  ResourceHandle model;
   bool isInstanced = false;
   Vec4f colour = { 1.f, 1.f, 1.f, 1.f };
   std::array<SubmodelData, 12> submodels;
   uint32_t numSubmodels = 0;
+  //render::RenderItemKey renderItemKey = 0;
 
-  static constexpr ComponentTypeId TypeId = CDrawListItemTypeId;
+  static constexpr ComponentTypeId TypeId = CModelTypeId;
 };
 
 struct DModel
 {
-  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform, CDrawListItem>;
+  using RequiredComponents = type_list<CSpatialFlags, CGlobalTransform, CModel>;
 
   ResourceHandle model;
   bool isInstanced = false;

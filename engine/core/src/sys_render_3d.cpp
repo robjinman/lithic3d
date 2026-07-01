@@ -149,8 +149,6 @@ class SysRender3dImpl : public SysRender3d
     ModelLoader& m_modelLoader;
     Renderer& m_renderer;
     float m_drawDistance;
-    // TODO: Use component store
-    std::unordered_map<EntityId, DModelPtr> m_models;
     std::map<EntityId, DPointLightPtr> m_pointLights;
     std::map<EntityId, DParticleEmitterPtr> m_particleEmitters;
     std::pair<EntityId, DDirectionalLightPtr> m_directionalLight = { NULL_ENTITY_ID, nullptr };
@@ -388,13 +386,12 @@ XmlNodePtr SysRender3dImpl::componentToXml(EntityId entityId, EntityId) const
 
   auto xmlSysRender3d = createXmlNode("render_3d");
 
-  auto i = m_models.find(entityId);
-  if (i != m_models.end()) {
-    auto& comp = *i->second;
-    auto& model = m_modelLoader.getModel(comp.model.id());
+  if (m_ecs.componentStore().hasComponentForEntity<CModel>(entityId)) {
+    auto& modelData = m_ecs.componentStore().component<CModel>(entityId);
+    auto& model = m_modelLoader.getModel(modelData.model.id());
 
     auto xmlModel = createXmlNode("model");
-    xmlModel->setAttribute("is_instanced", comp.isInstanced ? "true" : "false");
+    xmlModel->setAttribute("is_instanced", modelData.isInstanced ? "true" : "false");
     xmlModel->setAttribute("file", model.filePath.string());
 
     xmlSysRender3d->addChild(std::move(xmlModel));
@@ -424,7 +421,6 @@ void SysRender3dImpl::addEntity(EntityId id, const ComponentData& data)
 void SysRender3dImpl::removeEntity(EntityId entityId)
 {
   m_pointLights.erase(entityId);
-  m_models.erase(entityId);
   m_animationStates.erase(entityId);
   m_particleEmitters.erase(entityId);
   if (m_skybox.first == entityId) {
@@ -437,24 +433,25 @@ void SysRender3dImpl::removeEntity(EntityId entityId)
 
 bool SysRender3dImpl::hasEntity(EntityId entityId) const
 {
-  return m_models.contains(entityId) || m_pointLights.contains(entityId) ||
-    m_skybox.first == entityId || m_directionalLight.first == entityId;
+  return m_ecs.componentStore().hasComponentForEntity<CModel>(entityId) ||
+    m_pointLights.contains(entityId) || m_skybox.first == entityId ||
+    m_directionalLight.first == entityId;
 }
 
 void SysRender3dImpl::addEntity(EntityId id, DModelPtr modelData)
 {
   assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
   assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
-  assertHasComponent<CDrawListItem>(m_ecs.componentStore(), id);
+  assertHasComponent<CModel>(m_ecs.componentStore(), id);
 
   auto& model = m_modelLoader.getModel(modelData->model.id());
 
-  CDrawListItem item{
-    .model = modelData->model.id(),
+  CModel item{
+    .model = modelData->model,
     .isInstanced = modelData->isInstanced,
     .colour = modelData->colour,
     .submodels{},
-    .numSubmodels = model.submodels.size()
+    .numSubmodels = static_cast<uint32_t>(model.submodels.size())
   };
 
   ASSERT(item.numSubmodels <= item.submodels.size(), "Max submodels exceeded");
@@ -464,8 +461,7 @@ void SysRender3dImpl::addEntity(EntityId id, DModelPtr modelData)
 
     auto numLods = submodel.lods.size();
 
-    item.submodels[i].material = submodel.material.resource.id();
-    item.submodels[i].materialFeatures = submodel.material.features;
+    item.submodels[i].material = submodel.material;
     item.submodels[i].numLods = numLods;
     item.submodels[i].hasSkin = submodel.skin != nullptr;
 
@@ -481,9 +477,7 @@ void SysRender3dImpl::addEntity(EntityId id, DModelPtr modelData)
     }
   }
 
-  m_ecs.componentStore().instantiate<CDrawListItem>(id) = item;
-
-  m_models.insert({ id, std::move(modelData) });
+  m_ecs.componentStore().instantiate<CModel>(id) = item;
 }
 
 void SysRender3dImpl::addEntity(EntityId id, DPointLightPtr light)
@@ -506,7 +500,6 @@ void SysRender3dImpl::addEntity(EntityId id, DSkyboxPtr skybox)
 {
   assertHasComponent<CGlobalTransform>(m_ecs.componentStore(), id);
   assertHasComponent<CSpatialFlags>(m_ecs.componentStore(), id);
-  //assertHasComponent<CDrawListItem>(m_ecs.componentStore(), id);
 
   m_skybox = { id, std::move(skybox) };
 }
@@ -521,8 +514,8 @@ void SysRender3dImpl::addEntity(EntityId id, DParticleEmitterPtr particleEmitter
 
 void SysRender3dImpl::setEntityColour(EntityId id, const Vec4f& colour)
 {
-  MAP_GET(it, m_models, id);
-  it->second->colour = colour;
+  auto& model = m_ecs.componentStore().component<CModel>(id);
+  model.colour = colour;
 }
 
 void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name, bool repeat)
@@ -553,8 +546,9 @@ void SysRender3dImpl::drawSkybox()
 
     auto& skybox = *m_skybox.second;
 
-    m_renderer.drawSkybox(skybox.model->lods[0].resource.id(), skybox.model->lods[0].features,
-      skybox.model->material.resource.id(), skybox.model->material.features);
+    m_renderer.drawSkybox(skybox.model->lods[0].resource.id(),
+      skybox.model->lods[0].features, skybox.model->material.resource.id(),
+      skybox.model->material.features);
   }
 }
 
@@ -566,7 +560,7 @@ size_t SysRender3dImpl::selectLod(float z, size_t lodLevels) const
 void SysRender3dImpl::drawModels(uint32_t visibilityFlag)
 {
   auto groups = m_ecs.componentStore().components<
-    CSpatialFlags, CGlobalTransform, CDrawListItem
+    CSpatialFlags, CGlobalTransform, CModel
   >();
 
   bool isShadowPass = visibilityFlag >= SpatialFlags::Visible1 &&
@@ -575,20 +569,32 @@ void SysRender3dImpl::drawModels(uint32_t visibilityFlag)
   for (auto& group : groups) {
     auto flagsComps = group.components<CSpatialFlags>();
     auto globalTs = group.components<CGlobalTransform>();
-    auto items = group.components<CDrawListItem>();
+    auto items = group.components<CModel>();
     auto entityIds = group.entityIds();
 
     for (size_t i = 0; i < flagsComps.size(); ++i) {
       auto& flags = flagsComps[i].flags;
+      //auto& prevFlags = flagsComps[i].prevFlags;
+
       if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
         continue;
       }
+
+      //if (flags.test(visibilityFlag) == prevFlags.test(visibilityFlag)) {
+      //  continue;
+      //}
 
       if (!flags.test(visibilityFlag)) {
         continue;
       }
 
       auto& item = items[i];
+
+      //if (prevFlags.test(visibilityFlag)) {
+      //  m_renderer.unstage(item.renderItemKey);
+      //  continue;
+      //}
+
       auto& globalTransform = globalTs[i].transform;
 
       Mat4x4f m = globalTransform * m_metresToWorld;
@@ -607,81 +613,35 @@ void SysRender3dImpl::drawModels(uint32_t visibilityFlag)
         }
 
         if (item.isInstanced) {
-          m_renderer.drawInstance(lod.id, lod.features, submodelData.material,
-            submodelData.materialFeatures, m);
+          m_renderer.drawInstance(lod.id, lod.features, submodelData.material.resource.id(),
+            submodelData.material.features, m);
         }
         else {
           if (submodelData.hasSkin) {
             // The skin and joint transforms are still on the actual submodel, so we need this slow
             // lookup.
             // TODO: Find a solution to this
-            auto& submodel = *m_modelLoader.getModel(item.model).submodels[submodelIdx];
+            auto& submodel = *m_modelLoader.getModel(item.model.id()).submodels[submodelIdx];
 
             if (submodel.jointTransformsDirty) {
-              m_renderer.drawModel(lod.id, lod.features, submodelData.material,
-                submodelData.materialFeatures, item.colour, m, submodel.jointTransforms);
+              m_renderer.drawModel(lod.id, lod.features, submodelData.material.resource.id(),
+                submodelData.material.features, item.colour, m, submodel.jointTransforms);
 
               submodel.jointTransformsDirty = false;
             }
             else {
-              m_renderer.drawModel(lod.id, lod.features, submodelData.material,
-                submodelData.materialFeatures, item.colour, m);
+              m_renderer.drawModel(lod.id, lod.features, submodelData.material.resource.id(),
+                submodelData.material.features, item.colour, m);
             }
           }
           else {
-            m_renderer.drawModel(lod.id, lod.features, submodelData.material,
-              submodelData.materialFeatures, item.colour, m);
+            m_renderer.drawModel(lod.id, lod.features, submodelData.material.resource.id(),
+              submodelData.material.features, item.colour, m);
           }
         }
       }
     }
   }
-/*
-  for (EntityId id : entities) {
-    auto& flags = m_ecs.componentStore().component<CSpatialFlags>(id).flags;
-    if (!(flags.test(SpatialFlags::Enabled) && flags.test(SpatialFlags::ParentEnabled))) {
-      continue;
-    }
-
-    auto entry = m_models.find(id); // TODO: Insanely inefficient!
-    if (entry == m_models.end()) {
-      continue;
-    }
-
-    auto& modelData = *entry->second;
-    auto& globalTransform = m_ecs.componentStore().component<CGlobalTransform>(id).transform;
-    auto& model = m_modelLoader.getModel(modelData.model.id());
-
-    Mat4x4f m = globalTransform * m_metresToWorld;
-
-    auto worldSpacePos = Vec4f{ getTranslation(globalTransform), { 1.f }};
-    auto viewSpacePos = m_camera->getViewMatrix() * worldSpacePos;
-    float z = std::max(-viewSpacePos[2], 0.f);
-
-    for (auto& submodel : model.submodels) {
-      size_t lod = selectLod(z, submodel->lods.size());
-
-      if (filter(*submodel)) {
-        if (modelData.isInstanced) {
-          m_renderer.drawInstance(submodel->lods[lod].resource.id(), submodel->lods[lod].features,
-            submodel->material.resource.id(), submodel->material.features, m);
-        }
-        else {
-          if (submodel->jointTransformsDirty) {
-            m_renderer.drawModel(submodel->lods[lod].resource.id(), submodel->lods[lod].features,
-              submodel->material.resource.id(), submodel->material.features, modelData.colour, m,
-              submodel->jointTransforms);
-
-            submodel->jointTransformsDirty = false;
-          }
-          else {
-            m_renderer.drawModel(submodel->lods[lod].resource.id(), submodel->lods[lod].features,
-              submodel->material.resource.id(), submodel->material.features, modelData.colour, m);
-          }
-        }
-      }
-    }
-  }*/
 }
 
 void SysRender3dImpl::doShadowPass()
@@ -689,10 +649,6 @@ void SysRender3dImpl::doShadowPass()
   if (m_directionalLight.first == NULL_ENTITY_ID) {
     return;
   }
-
-  const auto& sysSpatial = m_ecs.system<SysSpatial>();
-
-  // TODO: Check CSpatialFlags
 
   const auto& transform =
     m_ecs.componentStore().component<CGlobalTransform>(m_directionalLight.first).transform;
@@ -742,7 +698,8 @@ void SysRender3dImpl::drawParticles()
 
     // TODO: Visibility check?
 
-    m_renderer.drawParticles(entry.second->material.resource.id(), transform);
+    auto& emitter = *entry.second;
+    m_renderer.drawParticles(emitter.material.resource.id(), transform);
   }
 }
 
@@ -760,15 +717,6 @@ void SysRender3dImpl::drawDirectionalLight()
 
 void SysRender3dImpl::doMainPass()
 {
-  const auto& sysSpatial = m_ecs.system<SysSpatial>();
-
-  // TODO: Check CSpatialFlags
-
-  //static long i = 0;
-  //if (i++ % 60 == 0) {
-  //  std::cout << visible.size() << "\n";
-  //}
-
   m_renderer.beginPass(RenderPass::Main, m_camera->getPosition(), m_camera->getViewMatrix(),
     m_camera->getProjectionMatrix());
 
@@ -945,7 +893,7 @@ std::vector<Mat4x4f> computeJointTransforms(const Skeleton& skeleton, const Skin
 void SysRender3dImpl::updateAnimations()
 {
   for (auto i = m_animationStates.begin(); i != m_animationStates.end();) {
-    auto& modelData = *m_models.at(i->first);
+    auto& modelData = m_ecs.componentStore().component<CModel>(i->first);
     auto& model = m_modelLoader.getModel(modelData.model.id());
     auto& state = i->second;
     auto& animationSet = *model.animations;
@@ -984,8 +932,6 @@ void SysRender3dImpl::preupdate()
   auto& sysSpatial = m_ecs.system<SysSpatial>();
   
   if (m_directionalLight.first != NULL_ENTITY_ID) {
-    // TODO: Check CSpatialFlags
-
     const auto& transform =
       m_ecs.componentStore().component<CGlobalTransform>(m_directionalLight.first).transform;
     auto lightDir = getDirection(transform);
