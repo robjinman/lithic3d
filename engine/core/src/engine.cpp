@@ -39,7 +39,7 @@ class EngineImpl : public Engine
     void update(const InputState& inputState, const std::set<SystemId>& skip) override;
     void onWindowResize(uint32_t w, uint32_t h) override;
     Tick currentTick() const override;
-    float measuredTickRate() const override;
+    double measuredTickRate() const override;
 
     const GameDataPaths& dataPaths() const override;
     Logger& logger() override;
@@ -73,7 +73,7 @@ class EngineImpl : public Engine
     EcsPtr m_ecs;
     Vec4f m_clearColour = { 0.f, 0.f, 0.f, 1.f };
     Tick m_currentTick = 0;
-    float m_measuredTickRate = 0.f;
+    double m_measuredTickRate = 0.0;
     Timer m_timer;
 
     void measureTickRate();
@@ -152,15 +152,16 @@ Tick EngineImpl::currentTick() const
   return m_currentTick;
 }
 
-float EngineImpl::measuredTickRate() const
+double EngineImpl::measuredTickRate() const
 {
   return m_measuredTickRate;
 }
 
 void EngineImpl::measureTickRate()
 {
-  if (m_currentTick % 60 == 0) {
-    m_measuredTickRate = 60.f / m_timer.elapsed();
+  Tick n = 30;
+  if (m_currentTick % n == 0) {
+    m_measuredTickRate = static_cast<double>(n) / m_timer.elapsed();
     m_timer.reset();
   }
 }

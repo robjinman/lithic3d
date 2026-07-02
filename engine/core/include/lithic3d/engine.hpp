@@ -34,7 +34,7 @@ class Engine
     virtual void update(const InputState& inputState, const std::set<SystemId>& skip = {}) = 0;
     virtual void onWindowResize(uint32_t w, uint32_t h) = 0;
     virtual Tick currentTick() const = 0;
-    virtual float measuredTickRate() const = 0;
+    virtual double measuredTickRate() const = 0;
 
     virtual const GameDataPaths& dataPaths() const = 0;
     virtual Logger& logger() = 0;

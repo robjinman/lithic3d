@@ -608,7 +608,7 @@ Demo::Demo(Engine& engine)
   constructScenario(m_currentScenario);
 
   // TODO: Delete
-  for (size_t i = 0; i < 16; ++i) {
+  for (size_t i = 0; i < 18; ++i) {
     resetState();
   }
 

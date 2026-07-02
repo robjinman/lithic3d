@@ -8,6 +8,19 @@
 namespace lithic3d
 {
 
+void dbg_printEdge(const Edge& edge)
+{
+  //std::cout << "(" << edge.A << "), (" << edge.B << "), ";
+}
+
+void dbg_printEdges(const std::array<Edge, 12>& edges)
+{
+  for (auto& edge : edges) {
+    dbg_printEdge(edge);
+  }
+  //std::cout << "\n";
+}
+
 Triangle HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
@@ -448,6 +461,7 @@ class SysCollisionImpl : public SysCollision
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
     bool m_shouldRebuildSortList = true;
     std::vector<ObjectComponents> m_sortList;
+    std::vector<std::thread> m_threads;
 
     ComponentDataPtr constructDDynamicBox(const XmlNode& data) const;
     ComponentDataPtr constructDStaticBox(const XmlNode& data) const;
@@ -472,7 +486,8 @@ class SysCollisionImpl : public SysCollision
       const Force& torque);
     void applyGravity(CCollisionDynamic& comp);
     std::vector<CollisionPair> findPossibleCollisions();
-    std::vector<Contact> generateContacts(const std::vector<CollisionPair>& pairs);
+    void generateContacts(const std::vector<CollisionPair>& pairs, size_t from, size_t to,
+      std::vector<Contact>& contacts);
     void integrate();
     void resolveVelocities(const Contact& contact);
 
@@ -488,6 +503,7 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem&, Logger& logger)
   //, m_eventSystem(eventSystem)
   , m_ecs(ecs)
 {
+  m_threads.resize(std::thread::hardware_concurrency() - 1);
 }
 
 const std::vector<EntityId>& SysCollisionImpl::getAggregateChildren(EntityId entityId) const
@@ -1610,20 +1626,19 @@ inline Mat4x4f& getTransform(const ObjectComponents& obj)
   return obj.globalTransform ? obj.globalTransform->transform : obj.localTransform->transform;
 }
 
-void boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B,
-  std::vector<Contact>& contacts)
+void boxXBoxPointContact(const ObjectComponents& A, const std::array<Vec3f, 8>& boxAVertices,
+  const ObjectComponents& B, std::vector<Contact>& contacts)
 {
   auto boxBToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-  auto verts = getVertices(A.box->boundingBox, getTransform(A));
   auto invTangents = getInverseTangents(A.box->boundingBox, getTransform(A));
 
   for (size_t i = 0; i < 8; ++i) {
     Vec3f normal;
 
     float penetration = pointBoxPenetration(B.box->boundingBox, worldToBoxBSpace, boxBToWorldSpace,
-      verts[i], invTangents[i], normal);
+      boxAVertices[i], invTangents[i], normal);
 
     if (penetration > 0.f) {
       Contact contact;
@@ -1631,7 +1646,7 @@ void boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B,
       contact.B = B;
       contact.normal = normal;
       contact.penetration = penetration;
-      contact.point = verts[i];
+      contact.point = boxAVertices[i];
       contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
       contacts.push_back(contact);
@@ -1639,11 +1654,12 @@ void boxXBoxPointContact(const ObjectComponents& A, const ObjectComponents& B,
   }
 }
 
-void boxBoxPointContacts(const ObjectComponents& A, const ObjectComponents& B,
+void boxBoxPointContacts(const ObjectComponents& A, const std::array<Vec3f, 8>& boxAVertices,
+  const ObjectComponents& B, const std::array<Vec3f, 8>& boxBVertices,
   std::vector<Contact>& contacts)
 {
-  boxXBoxPointContact(A, B, contacts);
-  boxXBoxPointContact(B, A, contacts);
+  boxXBoxPointContact(A, boxAVertices, B, contacts);
+  boxXBoxPointContact(B, boxBVertices, A, contacts);
 }
 
 // Solve system of equations for s and t:
@@ -1726,6 +1742,7 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     (edge.A[1] > boxB.max[1] && edge.B[1] > boxB.max[1]) ||
     (edge.A[2] > boxB.max[2] && edge.B[2] > boxB.max[2])
   ) {
+    //std::cout << "Failed bounds check\n";
     return 0;
   }
 
@@ -1735,8 +1752,13 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
   for (size_t i = 0; i < 12; ++i) {
     auto& boxBEdge = boxBEdges[i];
 
+    //std::cout << "Box B edge " << i << ": \n";
+    dbg_printEdge(boxBEdge);
+    //std::cout << "\n";
+
     Edge connecting;
     if (!closestConnectingEdge(boxAEdge, boxBEdge, connecting)) {
+      //std::cout << "No connecting edge\n";
       continue;
     }
 
@@ -1747,12 +1769,14 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     float sqPenetration = PQ.squareMagnitude();
 
     if (sqPenetration == 0.f) {
+      //std::cout << "Zero penetration\n";
       continue;
     }
   
     auto QA = boxACentre - Q;
     auto PB = boxBCentre - P;
     if (PQ.dot(PB) > 0.f || PQ.dot(QA) < 0.f) {
+      //std::cout << "Failed normal direction check\n";
       continue;
     }
 
@@ -1761,6 +1785,9 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     contact.point = P + PQ * 0.5f;
     contact.normal = PQ.normalise();
     contacts[n] = contact;
+
+    //std::cout << "Contact!\n";
+    //std::cout << "Penetration = " << contact.penetration << "\n";
 
     ++n;
   }
@@ -1846,7 +1873,8 @@ float terrainEdgeBoxPenetration(const BoundingBox& box, const Vec3f& boxCentre,
   return 0.f;
 }
 
-void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
+void boxBoxEdgeContact(const ObjectComponents& A, const std::array<Vec3f, 8>& boxAVertices,
+  const ObjectComponents& B, const std::array<Vec3f, 8>& boxBVertices,
   std::vector<Contact>& contacts)
 {
   auto boxAToWorldSpace = getTransform(A) * A.box->boundingBox.transform;
@@ -1855,11 +1883,14 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
   auto boxBToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
 
-  auto boxAVertices = getVertices(A.box->boundingBox, getTransform(A));
-  auto boxBVertices = getVertices(B.box->boundingBox, getTransform(B));
-
   auto boxAEdges = getEdges(boxAVertices);
   auto boxBEdges = getEdges(boxBVertices);
+
+  //std::cout << "Box A:\n";
+  dbg_printEdges(boxAEdges);
+
+  //std::cout << "Box B:\n";
+  dbg_printEdges(boxBEdges);
 
   auto boxACentre = calcCentre(A.box->boundingBox.min, A.box->boundingBox.max, boxAToWorldSpace);
   auto boxBCentre = calcCentre(B.box->boundingBox.min, B.box->boundingBox.max, boxBToWorldSpace);
@@ -1867,6 +1898,10 @@ void boxBoxEdgeContact(const ObjectComponents& A, const ObjectComponents& B,
   std::array<Contact, 12> newContacts;
 
   for (size_t i = 0; i < 12; ++i) {
+    //std::cout << "Testing edge " << i << " of box A: \n";
+    dbg_printEdge(boxAEdges[i]);
+    //std::cout << "\n";
+
     auto n = allEdgeBoxPenetrations(boxACentre, boxAEdges[i], B.box->boundingBox, worldToBoxBSpace,
       boxBCentre, boxBEdges, newContacts);
 
@@ -1899,8 +1934,11 @@ void generateBoxBoxContacts(const ObjectComponents& A, const ObjectComponents& B
   assert(A.box != nullptr);
   assert(B.box != nullptr);
 
-  boxBoxPointContacts(A, B, contacts);
-  boxBoxEdgeContact(A, B, contacts);
+  auto boxAVertices = getVertices(A.box->boundingBox, getTransform(A));
+  auto boxBVertices = getVertices(B.box->boundingBox, getTransform(B));
+
+  boxBoxPointContacts(A, boxAVertices, B, boxBVertices, contacts);
+  boxBoxEdgeContact(A, boxAVertices, B, boxBVertices, contacts);
 }
 
 void generateCapsuleCapsuleContacts(const ObjectComponents&, const ObjectComponents&,
@@ -2664,11 +2702,12 @@ void generateCapsuleCylinderContacts(const ObjectComponents& A, const ObjectComp
   // TODO
 }
 
-std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs)
+void SysCollisionImpl::generateContacts(const std::vector<CollisionPair>& pairs, size_t from,
+  size_t to, std::vector<Contact>& contacts)
 {
-  std::vector<Contact> contacts;
+  for (size_t i = from; i < to; ++i) {
+    auto& pair = pairs[i];
 
-  for (auto& pair : pairs) {
     if (pair.A.box) {
       if (pair.B.box) {
         generateBoxBoxContacts(pair.A, pair.B, contacts);
@@ -2742,8 +2781,6 @@ std::vector<Contact> SysCollisionImpl::generateContacts(const std::vector<Collis
       }
     }
   }
-
-  return contacts;
 }
 
 void updateTransform(Mat4x4f& T, const Vec3f& linearV, const Vec3f& angularV)
@@ -2799,7 +2836,7 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   obj.spatialFlags->flags.set(SpatialFlags::Dirty);
 }
 
-void resolveInterpenetration(const Contact& contact)
+void resolveInterpenetration(const Contact& contact, uint32_t maxIterations)
 {
   auto& A = contact.A;
   auto& B = contact.B;
@@ -2816,8 +2853,13 @@ void resolveInterpenetration(const Contact& contact)
     return;
   }
 
-  float rMin = 0.05f; // TODO: Magic number
-  float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
+  //float rMin = 0.05f; // TODO: Magic number
+  //float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
+
+  float rMin = 0.4f / maxIterations; // TODO: Magic number
+  float penetration = worldUnitsToMetres(contact.penetration);
+  float r = rMin + (1.f - rMin) / (1.f + 800.f * penetration / maxIterations);
+  //float r = 1.f;
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
@@ -2986,8 +3028,8 @@ void SysCollisionImpl::integrate()
         && !dynamic.idle && dynamic.inverseMass != 0.f) {
 
         // Tweak these idle thresholds
-        const float idleMaxLinearV = 0.11f;     // Magic number
-        const float idleMaxAngularV = 0.0007f;
+        const float idleMaxLinearV = metresToWorldUnits(0.011f);     // Magic number
+        const float idleMaxAngularV = 0.00005f;
         const float idleSeconds = 0.5f;
 
         if (!rotationalComps.empty()) {
@@ -3135,7 +3177,7 @@ void SysCollisionImpl::updateSortList()
 
 void SysCollisionImpl::update(Tick, const InputState&)
 {
-  const size_t maxIterations = 4;
+  const uint32_t maxIterations = 1;
 
   if (m_shouldRebuildSortList) {
     rebuildSortList();
@@ -3146,17 +3188,44 @@ void SysCollisionImpl::update(Tick, const InputState&)
 
   auto pairs = findPossibleCollisions();
 
-  size_t i = 0;
-  for (; i < maxIterations; ++i) {
-    auto contacts = generateContacts(pairs);
+  std::vector<std::vector<Contact>> contacts(m_threads.size() + 1);
 
-    if (contacts.empty()) {
-      break;
+  uint32_t i = 0;
+  for (; i < maxIterations; ++i) {
+    size_t perThread = pairs.size() / (m_threads.size() + 1);
+    size_t remainder = pairs.size() % (m_threads.size() + 1);
+
+    for (size_t i = 0; i < m_threads.size(); ++i) {
+      size_t from = i * perThread;
+      size_t to = from + perThread;
+
+      m_threads[i] = std::thread{&SysCollisionImpl::generateContacts, this, std::ref(pairs), from,
+        to, std::ref(contacts[i])};
     }
 
-    for (auto& contact : contacts) {
-      resolveInterpenetration(contact);
-      resolveVelocities(contact);
+    size_t from = m_threads.size() * perThread;
+    size_t to = from + perThread + remainder;
+    generateContacts(pairs, from, to, contacts[m_threads.size()]);
+
+    for (auto& t : m_threads) {
+      t.join();
+    }
+
+    uint32_t n = 0;
+    for (auto& threadContacts : contacts) {
+      if (threadContacts.empty()) {
+        continue;
+      }
+
+      for (auto& contact : threadContacts) {
+        resolveInterpenetration(contact, maxIterations);
+        resolveVelocities(contact);
+        ++n;
+      }
+    }
+
+    if (n == 0) {
+      break;
     }
   }
 
