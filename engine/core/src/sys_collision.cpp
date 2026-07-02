@@ -3,23 +3,10 @@
 #include "lithic3d/input.hpp"
 #include "lithic3d/xml.hpp"
 #include "lithic3d/xml_utils.hpp"
-#include <iostream>
+#include "lithic3d/thread.hpp"
 
 namespace lithic3d
 {
-
-void dbg_printEdge(const Edge& edge)
-{
-  //std::cout << "(" << edge.A << "), (" << edge.B << "), ";
-}
-
-void dbg_printEdges(const std::array<Edge, 12>& edges)
-{
-  for (auto& edge : edges) {
-    dbg_printEdge(edge);
-  }
-  //std::cout << "\n";
-}
 
 Triangle HeightMapSampler::triangle(const Vec2f& p) const
 {
@@ -461,7 +448,7 @@ class SysCollisionImpl : public SysCollision
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
     bool m_shouldRebuildSortList = true;
     std::vector<ObjectComponents> m_sortList;
-    std::vector<std::thread> m_threads;
+    std::vector<std::unique_ptr<Thread>> m_threads;
 
     ComponentDataPtr constructDDynamicBox(const XmlNode& data) const;
     ComponentDataPtr constructDStaticBox(const XmlNode& data) const;
@@ -503,7 +490,10 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem&, Logger& logger)
   //, m_eventSystem(eventSystem)
   , m_ecs(ecs)
 {
-  m_threads.resize(std::thread::hardware_concurrency() - 1);
+  size_t numThreads = std::thread::hardware_concurrency() - 1;
+  for (size_t i = 0; i < numThreads; ++i) {
+    m_threads.push_back(std::make_unique<Thread>());
+  }
 }
 
 const std::vector<EntityId>& SysCollisionImpl::getAggregateChildren(EntityId entityId) const
@@ -1742,7 +1732,6 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     (edge.A[1] > boxB.max[1] && edge.B[1] > boxB.max[1]) ||
     (edge.A[2] > boxB.max[2] && edge.B[2] > boxB.max[2])
   ) {
-    //std::cout << "Failed bounds check\n";
     return 0;
   }
 
@@ -1752,13 +1741,8 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
   for (size_t i = 0; i < 12; ++i) {
     auto& boxBEdge = boxBEdges[i];
 
-    //std::cout << "Box B edge " << i << ": \n";
-    dbg_printEdge(boxBEdge);
-    //std::cout << "\n";
-
     Edge connecting;
     if (!closestConnectingEdge(boxAEdge, boxBEdge, connecting)) {
-      //std::cout << "No connecting edge\n";
       continue;
     }
 
@@ -1769,14 +1753,12 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     float sqPenetration = PQ.squareMagnitude();
 
     if (sqPenetration == 0.f) {
-      //std::cout << "Zero penetration\n";
       continue;
     }
   
     auto QA = boxACentre - Q;
     auto PB = boxBCentre - P;
     if (PQ.dot(PB) > 0.f || PQ.dot(QA) < 0.f) {
-      //std::cout << "Failed normal direction check\n";
       continue;
     }
 
@@ -1785,9 +1767,6 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     contact.point = P + PQ * 0.5f;
     contact.normal = PQ.normalise();
     contacts[n] = contact;
-
-    //std::cout << "Contact!\n";
-    //std::cout << "Penetration = " << contact.penetration << "\n";
 
     ++n;
   }
@@ -1886,22 +1865,12 @@ void boxBoxEdgeContact(const ObjectComponents& A, const std::array<Vec3f, 8>& bo
   auto boxAEdges = getEdges(boxAVertices);
   auto boxBEdges = getEdges(boxBVertices);
 
-  //std::cout << "Box A:\n";
-  dbg_printEdges(boxAEdges);
-
-  //std::cout << "Box B:\n";
-  dbg_printEdges(boxBEdges);
-
   auto boxACentre = calcCentre(A.box->boundingBox.min, A.box->boundingBox.max, boxAToWorldSpace);
   auto boxBCentre = calcCentre(B.box->boundingBox.min, B.box->boundingBox.max, boxBToWorldSpace);
 
   std::array<Contact, 12> newContacts;
 
   for (size_t i = 0; i < 12; ++i) {
-    //std::cout << "Testing edge " << i << " of box A: \n";
-    dbg_printEdge(boxAEdges[i]);
-    //std::cout << "\n";
-
     auto n = allEdgeBoxPenetrations(boxACentre, boxAEdges[i], B.box->boundingBox, worldToBoxBSpace,
       boxBCentre, boxBEdges, newContacts);
 
@@ -2836,7 +2805,7 @@ void applyPositionDelta(const ObjectComponents& obj, const Vec3f& point, const V
   obj.spatialFlags->flags.set(SpatialFlags::Dirty);
 }
 
-void resolveInterpenetration(const Contact& contact, uint32_t maxIterations)
+void resolveInterpenetration(const Contact& contact)
 {
   auto& A = contact.A;
   auto& B = contact.B;
@@ -2853,12 +2822,9 @@ void resolveInterpenetration(const Contact& contact, uint32_t maxIterations)
     return;
   }
 
-  //float rMin = 0.05f; // TODO: Magic number
-  //float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
-
-  float rMin = 0.4f / maxIterations; // TODO: Magic number
+  float rMin = 0.4f; // TODO: Magic number
   float penetration = worldUnitsToMetres(contact.penetration);
-  float r = rMin + (1.f - rMin) / (1.f + 800.f * penetration / maxIterations);
+  float r = rMin + (1.f - rMin) / (1.f + 800.f * penetration);
   //float r = 1.f;
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
@@ -3029,8 +2995,8 @@ void SysCollisionImpl::integrate()
 
         // Tweak these idle thresholds
         const float idleMaxLinearV = metresToWorldUnits(0.011f);     // Magic number
-        const float idleMaxAngularV = 0.00005f;
-        const float idleSeconds = 0.5f;
+        const float idleMaxAngularV = 0.00001f;
+        const float idleSeconds = 1.f;
 
         if (!rotationalComps.empty()) {
           if (dynamic.linearVelocity.squareMagnitude() < idleMaxLinearV &&
@@ -3177,7 +3143,7 @@ void SysCollisionImpl::updateSortList()
 
 void SysCollisionImpl::update(Tick, const InputState&)
 {
-  const uint32_t maxIterations = 1;
+  const uint32_t maxIterations = 2;
 
   if (m_shouldRebuildSortList) {
     rebuildSortList();
@@ -3195,30 +3161,31 @@ void SysCollisionImpl::update(Tick, const InputState&)
     size_t perThread = pairs.size() / (m_threads.size() + 1);
     size_t remainder = pairs.size() % (m_threads.size() + 1);
 
-    for (size_t i = 0; i < m_threads.size(); ++i) {
-      size_t from = i * perThread;
-      size_t to = from + perThread;
+    if (perThread > 0) {
+      for (size_t i = 0; i < m_threads.size(); ++i) {
+        size_t from = i * perThread;
+        size_t to = from + perThread;
 
-      m_threads[i] = std::thread{&SysCollisionImpl::generateContacts, this, std::ref(pairs), from,
-        to, std::ref(contacts[i])};
+        m_threads[i]->run<void>([this, &pairs, &contacts, from, to, i]() {
+          generateContacts(pairs, from, to, contacts[i]);
+        });
+      }
     }
 
-    size_t from = m_threads.size() * perThread;
-    size_t to = from + perThread + remainder;
-    generateContacts(pairs, from, to, contacts[m_threads.size()]);
+    if (remainder > 0) {
+      size_t from = m_threads.size() * perThread;
+      size_t to = from + perThread + remainder;
+      generateContacts(pairs, from, to, contacts[m_threads.size()]);
+    }
 
     for (auto& t : m_threads) {
-      t.join();
+      t->waitAll();
     }
 
     uint32_t n = 0;
     for (auto& threadContacts : contacts) {
-      if (threadContacts.empty()) {
-        continue;
-      }
-
       for (auto& contact : threadContacts) {
-        resolveInterpenetration(contact, maxIterations);
+        resolveInterpenetration(contact);
         resolveVelocities(contact);
         ++n;
       }

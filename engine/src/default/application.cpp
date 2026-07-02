@@ -221,7 +221,7 @@ void Application::run()
       processGamepadInput();
     }
 
-    //frameRateLimiter.wait();
+    frameRateLimiter.wait();
   }
 }
 
