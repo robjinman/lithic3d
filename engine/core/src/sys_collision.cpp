@@ -4,6 +4,7 @@
 #include "lithic3d/xml.hpp"
 #include "lithic3d/xml_utils.hpp"
 #include "lithic3d/thread.hpp"
+#include <iostream>
 
 namespace lithic3d
 {
@@ -1857,7 +1858,6 @@ void boxBoxEdgeContact(const ObjectComponents& A, const std::array<Vec3f, 8>& bo
   std::vector<Contact>& contacts)
 {
   auto boxAToWorldSpace = getTransform(A) * A.box->boundingBox.transform;
-  auto worldToBoxASpace = inverse(boxAToWorldSpace);
 
   auto boxBToWorldSpace = getTransform(B) * B.box->boundingBox.transform;
   auto worldToBoxBSpace = inverse(boxBToWorldSpace);
@@ -2822,10 +2822,8 @@ void resolveInterpenetration(const Contact& contact)
     return;
   }
 
-  float rMin = 0.4f; // TODO: Magic number
-  float penetration = worldUnitsToMetres(contact.penetration);
-  float r = rMin + (1.f - rMin) / (1.f + 800.f * penetration);
-  //float r = 1.f;
+  float rMin = 0.1f; // TODO: Magic number
+  float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
 
   if (A.dynamic && A.dynamic->inverseMass != 0.f) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
@@ -3162,12 +3160,12 @@ void SysCollisionImpl::update(Tick, const InputState&)
     size_t remainder = pairs.size() % (m_threads.size() + 1);
 
     if (perThread > 0) {
-      for (size_t i = 0; i < m_threads.size(); ++i) {
-        size_t from = i * perThread;
+      for (size_t t = 0; t < m_threads.size(); ++t) {
+        size_t from = t * perThread;
         size_t to = from + perThread;
 
-        m_threads[i]->run<void>([this, &pairs, &contacts, from, to, i]() {
-          generateContacts(pairs, from, to, contacts[i]);
+        m_threads[t]->run<void>([this, &pairs, &contacts, from, to, t]() {
+          generateContacts(pairs, from, to, contacts[t]);
         });
       }
     }
@@ -3189,6 +3187,7 @@ void SysCollisionImpl::update(Tick, const InputState&)
         resolveVelocities(contact);
         ++n;
       }
+      threadContacts.clear();
     }
 
     if (n == 0) {
