@@ -308,7 +308,7 @@ void GfxDefaultPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, cons
 {
   DBG_TRACE(m_logger);
 
-  auto buffers = m_renderResources.getMeshBuffers(node.mesh);
+  auto buffers = m_renderResources.getMeshBuffers(node.mesh, currentFrame);
 
   if (m_pipeline != bindState.pipeline) {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);

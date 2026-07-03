@@ -158,9 +158,10 @@ class RenderResources
     virtual void updateJointTransforms(ResourceId meshId, const std::vector<Mat4x4f>& joints,
       size_t currentFrame) = 0;
     // Threads: render
-    virtual MeshBuffers getMeshBuffers(ResourceId id) const = 0;
+    virtual MeshBuffers getMeshBuffers(ResourceId id, size_t currentFrame) const = 0;
     // Threads: render
-    virtual void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances) = 0;
+    virtual void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances,
+      size_t currentFrame) = 0;
 
     // Particles
     //

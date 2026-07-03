@@ -35,7 +35,7 @@ struct MeshData
   MeshPtr mesh = nullptr;
   GpuBufferPtr vertexBuffer;
   GpuBufferPtr indexBuffer;
-  GpuBufferPtr instanceBuffer;
+  std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> instanceBuffer;
   uint32_t numInstances = 0;
   std::vector<VkDescriptorSet> objectDescriptorSets;
   std::array<GpuBufferPtr, MAX_FRAMES_IN_FLIGHT> jointTransformsUbo;
@@ -127,8 +127,9 @@ class RenderResourcesImpl : public RenderResources
     void removeMesh(ResourceId id) override;
     void updateJointTransforms(ResourceId meshId, const std::vector<Mat4x4f>& joints,
       size_t currentFrame) override;
-    MeshBuffers getMeshBuffers(ResourceId id) const override;
-    void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances) override;
+    MeshBuffers getMeshBuffers(ResourceId id, size_t currentFrame) const override;
+    void updateMeshInstances(ResourceId id, const std::vector<MeshInstance>& instances,
+      size_t currentFrame) override;
 
     // Particles
     //
@@ -420,8 +421,10 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
   data->indexBuffer = m_bufferManager.createIndexBuffer(data->mesh->indexBuffer.data.rawBytes(),
     data->mesh->indexBuffer.data.sizeInBytes());
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsInstanced)) {
-    data->instanceBuffer =
-      m_bufferManager.createInstanceBuffer(data->mesh->maxInstances * sizeof(MeshInstance));
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+      data->instanceBuffer[i] =
+        m_bufferManager.createInstanceBuffer(data->mesh->maxInstances * sizeof(MeshInstance));
+    }
   }
 
   if (data->mesh->featureSet.flags.test(MeshFeatures::IsAnimated)) {
@@ -502,7 +505,7 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
   });
 }
 
-MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
+MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id, size_t currentFrame) const
 {
   std::scoped_lock lock{m_mutex};
 
@@ -514,8 +517,8 @@ MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id) const
       mesh->vertexBuffer->vkBuffer() : VK_NULL_HANDLE,
     .indexBuffer = mesh->indexBuffer!= nullptr ?
       mesh->indexBuffer->vkBuffer() : VK_NULL_HANDLE,
-    .instanceBuffer = mesh->instanceBuffer != nullptr ?
-      mesh->instanceBuffer->vkBuffer() : VK_NULL_HANDLE,
+    .instanceBuffer = mesh->instanceBuffer[currentFrame] != nullptr ?
+      mesh->instanceBuffer[currentFrame]->vkBuffer() : VK_NULL_HANDLE,
     .numIndices = static_cast<uint32_t>(mesh->mesh->indexBuffer.data.numElements()),
     .numInstances = mesh->numInstances,
     .transform = mesh->mesh->transform
@@ -529,7 +532,7 @@ const ParticleBuffers& RenderResourcesImpl::getParticleBuffers() const
 
 // TODO: This is far too slow
 void RenderResourcesImpl::updateMeshInstances(ResourceId id,
-  const std::vector<MeshInstance>& instances)
+  const std::vector<MeshInstance>& instances, size_t currentFrame)
 {
   DBG_TRACE(m_logger);
 
@@ -542,7 +545,7 @@ void RenderResourcesImpl::updateMeshInstances(ResourceId id,
   ASSERT(instances.size() <= mesh.mesh->maxInstances, "Max instances exceeded for this mesh");
 
   mesh.numInstances = static_cast<uint32_t>(instances.size());
-  m_bufferManager.writeToBuffer(*mesh.instanceBuffer,
+  m_bufferManager.writeToBuffer(*mesh.instanceBuffer[currentFrame],
     reinterpret_cast<const char*>(instances.data()), instances.size() * sizeof(MeshInstance));
 }
 

@@ -2051,7 +2051,8 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
       }
       case RenderNodeType::InstancedModel: {
         auto& instancedNode = dynamic_cast<const InstancedModelNode&>(*node);
-        m_resources->updateMeshInstances(instancedNode.mesh, instancedNode.instances);
+        m_resources->updateMeshInstances(instancedNode.mesh, instancedNode.instances,
+          m_currentFrame);
         break;
       }
       default: break;
