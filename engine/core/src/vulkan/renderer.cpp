@@ -1021,6 +1021,8 @@ void RendererImpl::renderLoop()
 
       auto& frameState = m_frameStates.getReadable();
 
+      bool colourAttachmentWritten = false;
+
       if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Shadow0)]) {
         updateLightTransformsUbo();
         doShadowPass(commandBuffer, 0);
@@ -1035,6 +1037,7 @@ void RendererImpl::renderLoop()
         updateCameraTransformsUbo(RenderPass::Main);
         updateLightingUbo();
         doMainPass(commandBuffer);
+        colourAttachmentWritten = true;
       }
       if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Ssr)]) {
         doSsrPass(commandBuffer);
@@ -1042,6 +1045,7 @@ void RendererImpl::renderLoop()
       if (frameState.activeRenderPasses[static_cast<int>(RenderPass::Overlay)]) {
         updateCameraTransformsUbo(RenderPass::Overlay);
         doOverlayPass(commandBuffer);
+        colourAttachmentWritten = true;
       }
 
       VkImageMemoryBarrier barrier{
@@ -1049,7 +1053,8 @@ void RendererImpl::renderLoop()
         .pNext = nullptr,
         .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
         .dstAccessMask = 0,
-        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .oldLayout = colourAttachmentWritten ?
+          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
         .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -1538,7 +1543,7 @@ void RendererImpl::createOverlayRenderPass()
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
     .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-    .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
   };
 

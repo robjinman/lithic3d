@@ -23,6 +23,11 @@ GamepadButton eventCodeToButton(int code)
     case BTN_EAST: return GamepadButton::B;
     case BTN_SOUTH: return GamepadButton::A;
     case BTN_WEST: return GamepadButton::Y;
+    case BTN_START: return GamepadButton::Start;
+    case BTN_TL: return GamepadButton::L1;
+    case BTN_TL2: return GamepadButton::L2;
+    case BTN_TR: return GamepadButton::R1;
+    case BTN_TR2: return GamepadButton::R2;
     // TODO
     // ...
     default: return GamepadButton::Unknown;
@@ -202,6 +207,8 @@ void Application::handleEvent(const input_event& event)
     case EV_KEY: {
       if (event.value == 1) {
         auto key = eventCodeToKey(event.code);
+        m_engine->logger().info(STR("Key " << std::hex << event.code << " pressed"));
+
         if (key != KeyboardKey::Unknown) {
           m_game->onKeyDown(key);
         }
