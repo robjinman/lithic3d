@@ -492,6 +492,9 @@ SysCollisionImpl::SysCollisionImpl(Ecs& ecs, EventSystem&, Logger& logger)
   , m_ecs(ecs)
 {
   size_t numThreads = std::thread::hardware_concurrency() - 1;
+
+  m_logger.info(STR("Spawning " << numThreads << " worker threads for collision system"));
+
   for (size_t i = 0; i < numThreads; ++i) {
     m_threads.push_back(std::make_unique<Thread>());
   }
@@ -3156,8 +3159,8 @@ void SysCollisionImpl::update(Tick, const InputState&)
 
   uint32_t i = 0;
   for (; i < maxIterations; ++i) {
-    size_t perThread = pairs.size() / (m_threads.size() + 1);
-    size_t remainder = pairs.size() % (m_threads.size() + 1);
+    size_t perThread = pairs.size() / m_threads.size();
+    size_t remainder = pairs.size() % m_threads.size();
 
     if (perThread > 0) {
       for (size_t t = 0; t < m_threads.size(); ++t) {
@@ -3172,7 +3175,7 @@ void SysCollisionImpl::update(Tick, const InputState&)
 
     if (remainder > 0) {
       size_t from = m_threads.size() * perThread;
-      size_t to = from + perThread + remainder;
+      size_t to = from + remainder;
       generateContacts(pairs, from, to, contacts[m_threads.size()]);
     }
 
