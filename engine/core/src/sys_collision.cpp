@@ -1645,7 +1645,8 @@ void boxXBoxPointContact(const ObjectComponents& A, const std::array<Vec3f, 8>& 
       contact.normal = normal;
       contact.penetration = penetration;
       contact.point = boxAVertices[i];
-      contact.fromContactSpace = changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
+      contact.fromContactSpace =
+        changeOfBasisMatrix(contact.normal, differentVector(contact.normal));
       contact.toContactSpace = contact.fromContactSpace.t();
       contacts.push_back(contact);
     }
@@ -3209,9 +3210,11 @@ void SysCollisionImpl::update(Tick, const InputState&)
   integrate();
 }
 
-void SysCollisionImpl::processEvent(const Event&)
+void SysCollisionImpl::processEvent(const Event& event)
 {
-  // TODO
+  if (event.name == g_strEntityEnable) {
+    m_shouldRebuildSortList = true;
+  }
 }
 
 } // namespace
