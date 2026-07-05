@@ -4,7 +4,6 @@
 #include "lithic3d/xml.hpp"
 #include "lithic3d/xml_utils.hpp"
 #include "lithic3d/thread.hpp"
-#include <iostream>
 
 namespace lithic3d
 {
@@ -2895,7 +2894,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   Vec3f bPointRel;
 
   Vec3f aContactSpaceV;
-  if (A.dynamic) {
+  if (aIsDynamic) {
     auto aOrigin = getTranslation(getTransform(A));
     aPointRel = contact.point - aOrigin;
     auto aTotalWorldSpaceV = A.dynamic->linearVelocity;
@@ -2906,7 +2905,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   }
 
   Vec3f bContactSpaceV;
-  if (B.dynamic) {
+  if (bIsDynamic) {
     auto bOrigin = getTranslation(getTransform(B));
     bPointRel = contact.point - bOrigin;
     auto bTotalWorldSpaceV = B.dynamic->linearVelocity;
@@ -2931,7 +2930,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   Mat3x3f aI;
   Mat3x3f bI;
 
-  if (A.dynamic) {
+  if (aIsDynamic) {
     if (A.rotational) {
       aI = transformTensor(A.rotational->inverseInertialTensor, getTransform(A));
       velocityMatrix += computeVelocityMatrix(A.dynamic->inverseMass, aI, aPointRel);
@@ -2941,7 +2940,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
     }
   }
 
-  if (B.dynamic) {
+  if (bIsDynamic) {
     if (B.rotational) {
       bI = transformTensor(B.rotational->inverseInertialTensor, getTransform(B));
       velocityMatrix += computeVelocityMatrix(B.dynamic->inverseMass, bI, bPointRel);
@@ -2962,14 +2961,14 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
 
   auto impulse = contact.fromContactSpace * contactSpaceImpulse;
 
-  if (A.dynamic) {
+  if (aIsDynamic) {
     A.dynamic->linearVelocity += impulse * A.dynamic->inverseMass;
     if (A.rotational) {
       A.rotational->angularVelocity += aI * aPointRel.cross(impulse);
     }
   }
 
-  if (B.dynamic) {
+  if (bIsDynamic) {
     B.dynamic->linearVelocity += -impulse * B.dynamic->inverseMass;
     if (B.rotational) {
       B.rotational->angularVelocity += bI * bPointRel.cross(-impulse);
