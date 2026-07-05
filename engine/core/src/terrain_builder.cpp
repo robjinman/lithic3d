@@ -47,18 +47,19 @@ std::string cellName(uint32_t x, uint32_t y)
   return ss.str();
 }
 
-void constructHeightMap(const Mesh& mesh, std::array<float, TERRAIN_CHUNK_NUM_VERTS>& heightMap)
+std::vector<float> constructHeightMap(const Mesh& mesh)
 {
   size_t n = mesh.attributeBuffers[0].data.numElements();
   auto positions = mesh.attributeBuffers[0].data.data<Vec3f>();
 
-  ASSERT(n == TERRAIN_CHUNK_NUM_VERTS, "Terrain chunk contains " << n << " vertices; expected "
-    << TERRAIN_CHUNK_NUM_VERTS);
+  std::vector<float> heightMap(n);
 
   for (size_t i = 0; i < n; ++i) {
     // Mesh data is in metres
     heightMap[i] = metresToWorldUnits(positions[i][1]);
   }
+
+  return heightMap;
 }
 
 class TerrainBuilderImpl : public TerrainBuilder
@@ -358,7 +359,7 @@ ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellP
   heightMap.heightPx = heightMapTexture->height;
   heightMap.width = metresToWorldUnits(m_config.cellWidth);
   heightMap.height = metresToWorldUnits(m_config.cellHeight);
-  constructHeightMap(*mesh, heightMap.data);
+  heightMap.data = constructHeightMap(*mesh);
 
   render::MaterialFeatureSet materialFeatures{
     .flags = bitflag(render::MaterialFeatures::HasTexture)

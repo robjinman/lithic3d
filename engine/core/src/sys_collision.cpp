@@ -445,6 +445,7 @@ class SysCollisionImpl : public SysCollision
     Logger& m_logger;
     //EventSystem& m_eventSystem;
     Ecs& m_ecs;
+    std::unordered_map<EntityId, HeightMap> m_heightMaps;
     std::unordered_map<EntityId, std::vector<EntityId>> m_aggregates;
     std::unordered_map<EntityId, PolyhedronDataPtr> m_polyhedra;
     bool m_shouldRebuildSortList = true;
@@ -737,8 +738,11 @@ void SysCollisionImpl::addEntity(EntityId id, const DTerrainChunk& data)
     .isPolyhedron = false
   };
 
+  auto result = m_heightMaps.insert({ id, std::move(data.heightMap) });
+  assert(result.second);
+
   componentStore.instantiate<CCollisionTerrain>(id) = CCollisionTerrain{
-    .heightMap = data.heightMap
+    .heightMap = &result.first->second
   };
 
   m_shouldRebuildSortList = true;
@@ -1238,6 +1242,7 @@ void SysCollisionImpl::addEntity(EntityId id, const ComponentData& data)
 
 void SysCollisionImpl::removeEntity(EntityId id)
 {
+  m_heightMaps.erase(id);
   m_polyhedra.erase(id);
 
   auto i = m_aggregates.find(id);
@@ -2090,7 +2095,7 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
   assert(A.capsule != nullptr);
   assert(B.terrain != nullptr);
 
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
+  HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
 
   float radius = A.capsule->capsule.radius;
 
@@ -2219,7 +2224,7 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
+  HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
 
   auto verts = getVertices(A.box->boundingBox, getTransform(A));
 
@@ -2277,7 +2282,7 @@ void terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(A.terrain != nullptr);
   assert(B.box != nullptr);
 
-  HeightMapSampler sampler{A.terrain->heightMap, getTranslation(getTransform(A))};
+  HeightMapSampler sampler{*A.terrain->heightMap, getTranslation(getTransform(A))};
 
   std::vector<Vec3f> terrainVerts;
   sampler.vertices(boxMin, boxMax, terrainVerts);
@@ -2326,7 +2331,7 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
 
   const float maxPenetration = metresToWorldUnits(0.1f);  // Magic number
 
-  HeightMapSampler sampler{B.terrain->heightMap, getTranslation(getTransform(B))};
+  HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
 
   std::vector<Edge> terrainEdges;
   sampler.edges(boxMin, boxMax, terrainEdges);

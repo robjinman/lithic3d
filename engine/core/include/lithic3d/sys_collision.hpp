@@ -57,16 +57,13 @@ struct Cylinder
   Mat4x4f transform = identityMatrix<4>();
 };
 
-// TODO
-const size_t TERRAIN_CHUNK_NUM_VERTS = 16641;
-
 struct HeightMap
 {
   float width = 0.f;  // World units
   float height = 0.f;
   uint32_t widthPx = 0;
   uint32_t heightPx = 0;
-  std::array<float, TERRAIN_CHUNK_NUM_VERTS> data;
+  std::vector<float> data;
 };
 
 struct Edge
@@ -104,7 +101,7 @@ inline bool HeightMapSampler::inRange(const Vec2f& p) const
 
 struct CCollisionTerrain
 {
-  HeightMap heightMap;
+  HeightMap* heightMap = nullptr;
 
   static constexpr ComponentTypeId TypeId = CCollisionTerrainTypeId;
 };
