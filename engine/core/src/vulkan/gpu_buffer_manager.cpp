@@ -6,6 +6,8 @@
 #include "lithic3d/strings.hpp"
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+//#define VMA_DEBUG_MARGIN 16
+//#define VMA_DEBUG_DETECT_CORRUPTION 1
 #include <vk_mem_alloc.h>
 #include <cstring>
 
@@ -891,7 +893,7 @@ void GpuBufferManagerImpl::dbg_printMemUsageInfo(std::ostream& stream) const
   for (size_t i = 0; i < m_numMemoryHeaps; ++i) {
     stream << "HEAP " << i << std::endl;
 
-    stream << "My heap currently has " << budgets[i].statistics.allocationCount
+    stream << "Heap currently has " << budgets[i].statistics.allocationCount
       << " allocations taking " << budgets[i].statistics.allocationBytes / 1000000 << " MB"
       << std::endl;
 

@@ -288,9 +288,9 @@ template<typename T, size_t ROWS, size_t COLS>
 class Matrix
 {
   public:
-    Matrix() : m_data{}
-    {
-    }
+    Matrix() : m_data{} {}
+    Matrix(const Matrix<T, ROWS, COLS>& cp) = default;
+    Matrix<T, ROWS, COLS>& operator=(const Matrix<T, ROWS, COLS>& rhs) = default;
 
     Matrix(const std::initializer_list<T>& data)
     {
@@ -304,17 +304,6 @@ class Matrix
         set(i / COLS, i % COLS, x);
         ++i;
       }
-    }
-
-    Matrix(const Matrix<T, ROWS, COLS>& cp)
-    {
-      std::copy(std::begin(cp.m_data), std::end(cp.m_data), std::begin(m_data));
-    }
-
-    Matrix<T, ROWS, COLS>& operator=(const Matrix<T, ROWS, COLS>& rhs)
-    {
-      std::copy(std::begin(rhs.m_data), std::end(rhs.m_data), std::begin(m_data));
-      return *this;
     }
 
     void assign(const std::array<T, ROWS * COLS>& data)

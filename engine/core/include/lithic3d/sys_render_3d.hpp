@@ -19,7 +19,8 @@ struct SubmodelData
 {
   std::array<LodMeshData, 3> lods;
   uint32_t numLods = 0;
-  render::MaterialHandle material;
+  ResourceId materialId = NULL_RESOURCE_ID;
+  render::MaterialFeatureSet materialFeatures;
   bool hasSkin = false;
   //SkinPtr skin;
   //bool jointTransformsDirty = false;
@@ -28,7 +29,7 @@ struct SubmodelData
 
 struct CModel
 {
-  ResourceHandle model;
+  ResourceId modelId = NULL_RESOURCE_ID;
   bool isInstanced = false;
   Vec4f colour = { 1.f, 1.f, 1.f, 1.f };
   std::array<SubmodelData, 12> submodels;
@@ -37,6 +38,8 @@ struct CModel
 
   static constexpr ComponentTypeId TypeId = CModelTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CModel>);
 
 struct DModel
 {

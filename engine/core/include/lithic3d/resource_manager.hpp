@@ -66,16 +66,13 @@ class [[nodiscard]] ResourceHandle
     ResourceHandle(ResourceId id, const std::shared_ptr<Resource>& pointer)
       : m_id(id)
       , m_resource(pointer)
-    {}
+    {
+    }
 
     ResourceHandle(const ResourceHandle& cpy)
       : m_id(cpy.m_id)
       , m_resource(cpy.m_resource)
-    {}
-
-    ResourceId id() const
     {
-      return m_id;
     }
 
     ResourceHandle& operator=(const ResourceHandle& rhs)
@@ -83,6 +80,11 @@ class [[nodiscard]] ResourceHandle
       m_id = rhs.m_id;
       m_resource = rhs.m_resource;
       return *this;
+    }
+
+    ResourceId id() const
+    {
+      return m_id;
     }
 
     bool operator==(const ResourceHandle& rhs) const

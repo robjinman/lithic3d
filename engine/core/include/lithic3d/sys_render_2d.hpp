@@ -24,6 +24,8 @@ struct CRender2d
   static constexpr ComponentTypeId TypeId = CRender2dTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CRender2d>);
+
 struct CMesh2d
 {
   ResourceId id = NULL_RESOURCE_ID;
@@ -31,6 +33,8 @@ struct CMesh2d
 
   static constexpr ComponentTypeId TypeId = CMesh2dTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CMesh2d>);
 
 struct CMaterial2d
 {
@@ -40,6 +44,8 @@ struct CMaterial2d
   static constexpr ComponentTypeId TypeId = CMaterial2dTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CMaterial2d>);
+
 struct CSprite
 {
   Rectf textureRect;
@@ -48,6 +54,8 @@ struct CSprite
   static constexpr ComponentTypeId TypeId = CSpriteTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CSprite>);
+
 struct CDynamicText
 {
   char text[DYNAMIC_TEXT_MAX_LEN + 1];  // Null-terminated
@@ -55,12 +63,16 @@ struct CDynamicText
   static constexpr ComponentTypeId TypeId = CDynamicTextTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CDynamicText>);
+
 struct CQuad
 {
   float radius = 0.f; // For rounded corners
 
   static constexpr ComponentTypeId TypeId = CQuadTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CQuad>);
 
 struct DSprite
 {

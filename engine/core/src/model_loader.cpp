@@ -442,9 +442,9 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(ModelPtr model)
     m_models.insert({ id, std::move(model) });
 
     return ManagedResource{
-      .unloader = [this](ResourceId id) {
+      .unloader = [this, id](ResourceId id2) {
         std::scoped_lock lock{m_mutex};
-        m_models.erase(id);
+        m_models.erase(id2);
       }
     };
   });

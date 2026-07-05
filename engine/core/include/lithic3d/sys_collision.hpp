@@ -35,6 +35,8 @@ struct CCollision
   static constexpr ComponentTypeId TypeId = CCollisionTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CCollision>);
+
 struct Capsule
 {
   float radius = 0.f;
@@ -55,13 +57,16 @@ struct Cylinder
   Mat4x4f transform = identityMatrix<4>();
 };
 
+// TODO
+const size_t TERRAIN_CHUNK_NUM_VERTS = 16641;
+
 struct HeightMap
 {
   float width = 0.f;  // World units
   float height = 0.f;
   uint32_t widthPx = 0;
   uint32_t heightPx = 0;
-  std::vector<float> data;
+  std::array<float, TERRAIN_CHUNK_NUM_VERTS> data;
 };
 
 struct Edge
@@ -104,6 +109,8 @@ struct CCollisionTerrain
   static constexpr ComponentTypeId TypeId = CCollisionTerrainTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CCollisionTerrain>);
+
 struct CCollisionBox
 {
   BoundingBox boundingBox;
@@ -111,12 +118,16 @@ struct CCollisionBox
   static constexpr ComponentTypeId TypeId = CCollisionBoxTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CCollisionBox>);
+
 struct CCollisionCapsule
 {
   Capsule capsule;
 
   static constexpr ComponentTypeId TypeId = CCollisionCapsuleTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CCollisionCapsule>);
 
 // TODO: Rename to ovoid?
 struct CCollisionSphere
@@ -126,12 +137,16 @@ struct CCollisionSphere
   static constexpr ComponentTypeId TypeId = CCollisionSphereTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CCollisionSphere>);
+
 struct CCollisionCylinder
 {
   Cylinder cylinder;
 
   static constexpr ComponentTypeId TypeId = CCollisionCylinderTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CCollisionCylinder>);
 
 struct CCollisionRotational
 {
@@ -143,6 +158,8 @@ struct CCollisionRotational
 
   static constexpr ComponentTypeId TypeId = CCollisionRotationalTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CCollisionRotational>);
 
 // TODO: Separate out rotation related fields
 struct CCollisionDynamic
@@ -159,6 +176,8 @@ struct CCollisionDynamic
 
   static constexpr ComponentTypeId TypeId = CCollisionDynamicTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CCollisionDynamic>);
 
 enum class CollisionComponentType
 {

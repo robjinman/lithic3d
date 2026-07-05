@@ -8,6 +8,7 @@
 #include "lithic3d/units.hpp"
 #include "lithic3d/ecs.hpp"
 #include "lithic3d/sys_spatial.hpp"
+#include "lithic3d/logger.hpp"
 #include <map>
 #include <cassert>
 #include <mutex>
@@ -65,8 +66,7 @@ class WorldLoaderImpl : public WorldLoader
     TerrainBuilderPtr m_terrainBuilder;
     std::string m_worldName = "world"; // TODO
     WorldInfo m_worldInfo;
-    // TODO: Protect m_cellSlices with mutex
-    //mutable std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::map<ResourceId, CellSlice> m_cellSlices;
     std::vector<ResourceId> m_pendingSlices;
 
@@ -127,14 +127,17 @@ EntityId WorldLoaderImpl::root() const
 
 std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
-  //std::scoped_lock lock{m_mutex};
+  CellSlice* cellSlice = nullptr;
+  {
+    std::scoped_lock lock{m_mutex};
+    cellSlice = &m_cellSlices.at(cellSliceId);
+  }
 
-  auto& cellSlice = m_cellSlices.at(cellSliceId);
   std::vector<EntityInfo> entities;
 
-  if (cellSlice.terrain) {
-    assert(cellSlice.terrain.ready());
-    auto terrainIds = m_terrainBuilder->createEntities(m_root, cellSlice.terrain.id());
+  if (cellSlice->terrain) {
+    assert(cellSlice->terrain.ready());
+    auto terrainIds = m_terrainBuilder->createEntities(m_root, cellSlice->terrain.id());
     for (auto id : terrainIds) {
       EntityInfo info;
       info.id = id;
@@ -143,7 +146,7 @@ std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
     }
   }
 
-  for (auto& entityXml : cellSlice.pendingEntities) {
+  for (auto& entityXml : cellSlice->pendingEntities) {
     auto type = entityXml->attribute("type");
 
     EntityInfo info;
@@ -153,7 +156,7 @@ std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
     entities.push_back(std::move(info));
   }
 
-  cellSlice.pendingEntities.clear();
+  cellSlice->pendingEntities.clear();
 
   return entities;
 }
@@ -166,7 +169,6 @@ const WorldInfo& WorldLoaderImpl::worldInfo() const
 ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx)
 { 
   auto handle = m_resourceManager.loadResource([this, x, y, sliceIdx](ResourceId id) {
-    //std::scoped_lock lock{m_mutex};
     const auto cellSliceFilePath = fs::path{m_worldName} / cellSlicePath(x, y, sliceIdx);
 
     auto cellSliceXmlFileData = m_paths.worldsDir->readFile(cellSliceFilePath);
@@ -174,27 +176,33 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 
     ASSERT(cellSliceXml->name() == "cell-slice", "Expected <cell-slice> element");
 
+    CellSlice* cellSlice = nullptr;
+    {
+      std::scoped_lock lock{m_mutex};
+      cellSlice = &m_cellSlices[id];
+    }
+
     auto i = cellSliceXml->child("entities");
     if (i != cellSliceXml->end()) {
       for (auto& entityXml : *i) {
         auto type = entityXml.attribute("type");
 
         if (!m_entityFactory.hasPrefab(type)) {
-          m_cellSlices[id].prefabs.push_back(m_entityFactory.loadPrefabAsync(type));
+          cellSlice->prefabs.push_back(m_entityFactory.loadPrefabAsync(type));
         }
 
-        m_cellSlices[id].pendingEntities.push_back(entityXml.clone());
+        cellSlice->pendingEntities.push_back(entityXml.clone());
       }
     }
 
     i = cellSliceXml->child("terrain");
     if (i != cellSliceXml->end()) {
-      m_cellSlices[id].terrain = m_terrainBuilder->loadTerrainRegionAsync(x, y, i->clone());
+      cellSlice->terrain = m_terrainBuilder->loadTerrainRegionAsync(x, y, i->clone());
     }
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {
-        //std::scoped_lock lock{m_mutex};
+        std::scoped_lock lock{m_mutex};
         m_cellSlices.erase(id);
       }
     };

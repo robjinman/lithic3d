@@ -149,7 +149,8 @@ class SysRender3dImpl : public SysRender3d
     ModelLoader& m_modelLoader;
     Renderer& m_renderer;
     float m_drawDistance;
-    std::map<EntityId, DPointLightPtr> m_pointLights;
+    std::unordered_map<EntityId, ResourceHandle> m_modelHandles;
+    std::map<EntityId, DPointLightPtr> m_pointLights; // TODO: Use unordered_map?
     std::map<EntityId, DParticleEmitterPtr> m_particleEmitters;
     std::pair<EntityId, DDirectionalLightPtr> m_directionalLight = { NULL_ENTITY_ID, nullptr };
     std::pair<EntityId, DSkyboxPtr> m_skybox = { NULL_ENTITY_ID, nullptr };
@@ -388,7 +389,7 @@ XmlNodePtr SysRender3dImpl::componentToXml(EntityId entityId, EntityId) const
 
   if (m_ecs.componentStore().hasComponentForEntity<CModel>(entityId)) {
     auto& modelData = m_ecs.componentStore().component<CModel>(entityId);
-    auto& model = m_modelLoader.getModel(modelData.model.id());
+    auto& model = m_modelLoader.getModel(modelData.modelId);
 
     auto xmlModel = createXmlNode("model");
     xmlModel->setAttribute("is_instanced", modelData.isInstanced ? "true" : "false");
@@ -420,6 +421,7 @@ void SysRender3dImpl::addEntity(EntityId id, const ComponentData& data)
 
 void SysRender3dImpl::removeEntity(EntityId entityId)
 {
+  m_modelHandles.erase(entityId);
   m_pointLights.erase(entityId);
   m_animationStates.erase(entityId);
   m_particleEmitters.erase(entityId);
@@ -446,8 +448,10 @@ void SysRender3dImpl::addEntity(EntityId id, DModelPtr modelData)
 
   auto& model = m_modelLoader.getModel(modelData->model.id());
 
+  m_modelHandles.insert({ id, modelData->model });
+
   CModel item{
-    .model = modelData->model,
+    .modelId = modelData->model.id(),
     .isInstanced = modelData->isInstanced,
     .colour = modelData->colour,
     .submodels{},
@@ -461,7 +465,8 @@ void SysRender3dImpl::addEntity(EntityId id, DModelPtr modelData)
 
     auto numLods = submodel.lods.size();
 
-    item.submodels[i].material = submodel.material;
+    item.submodels[i].materialId = submodel.material.resource.id();
+    item.submodels[i].materialFeatures = submodel.material.features;
     item.submodels[i].numLods = numLods;
     item.submodels[i].hasSkin = submodel.skin != nullptr;
 
@@ -613,30 +618,30 @@ void SysRender3dImpl::drawModels(uint32_t visibilityFlag)
         }
 
         if (item.isInstanced) {
-          m_renderer.drawInstance(lod.id, lod.features, submodelData.material.resource.id(),
-            submodelData.material.features, m);
+          m_renderer.drawInstance(lod.id, lod.features, submodelData.materialId,
+            submodelData.materialFeatures, m);
         }
         else {
           if (submodelData.hasSkin) {
             // The skin and joint transforms are still on the actual submodel, so we need this slow
             // lookup.
             // TODO: Find a solution to this
-            auto& submodel = *m_modelLoader.getModel(item.model.id()).submodels[submodelIdx];
+            auto& submodel = *m_modelLoader.getModel(item.modelId).submodels[submodelIdx];
 
             if (submodel.jointTransformsDirty) {
-              m_renderer.drawModel(lod.id, lod.features, submodelData.material.resource.id(),
-                submodelData.material.features, item.colour, m, submodel.jointTransforms);
+              m_renderer.drawModel(lod.id, lod.features, submodelData.materialId,
+                submodelData.materialFeatures, item.colour, m, submodel.jointTransforms);
 
               submodel.jointTransformsDirty = false;
             }
             else {
-              m_renderer.drawModel(lod.id, lod.features, submodelData.material.resource.id(),
-                submodelData.material.features, item.colour, m);
+              m_renderer.drawModel(lod.id, lod.features, submodelData.materialId,
+                submodelData.materialFeatures, item.colour, m);
             }
           }
           else {
-            m_renderer.drawModel(lod.id, lod.features, submodelData.material.resource.id(),
-              submodelData.material.features, item.colour, m);
+            m_renderer.drawModel(lod.id, lod.features, submodelData.materialId,
+              submodelData.materialFeatures, item.colour, m);
           }
         }
       }
@@ -894,7 +899,7 @@ void SysRender3dImpl::updateAnimations()
 {
   for (auto i = m_animationStates.begin(); i != m_animationStates.end();) {
     auto& modelData = m_ecs.componentStore().component<CModel>(i->first);
-    auto& model = m_modelLoader.getModel(modelData.model.id());
+    auto& model = m_modelLoader.getModel(modelData.modelId);
     auto& state = i->second;
     auto& animationSet = *model.animations;
     auto& animation = *animationSet.animations.at(state.animationName); // TODO: Slow?

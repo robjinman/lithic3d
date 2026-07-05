@@ -63,12 +63,16 @@ struct CLocalTransform
   static constexpr ComponentTypeId TypeId = CLocalTransformTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CLocalTransform>);
+
 struct CGlobalTransform
 {
   Mat4x4f transform = identityMatrix<4>();
 
   static constexpr ComponentTypeId TypeId = CGlobalTransformTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CGlobalTransform>);
 
 namespace SpatialFlags
 {
@@ -92,6 +96,8 @@ struct CSpatialFlags
   static constexpr ComponentTypeId TypeId = CSpatialFlagsTypeId;
 };
 
+static_assert(std::is_trivially_copyable_v<CSpatialFlags>);
+
 struct CBoundingBox
 {
   Aabb modelSpaceAabb;
@@ -99,6 +105,8 @@ struct CBoundingBox
 
   static constexpr ComponentTypeId TypeId = CBoundingBoxTypeId;
 };
+
+static_assert(std::is_trivially_copyable_v<CBoundingBox>);
 
 struct DSpatial
 {

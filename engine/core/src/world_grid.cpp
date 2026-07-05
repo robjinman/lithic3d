@@ -101,8 +101,8 @@ void CellSlice::update()
 void CellSlice::stateUnloadedUpdate()
 {
   if (m_desiredState == SliceState::Loaded) {
-    m_logger.info(STR("Loading cell " << m_coords[0] << ", " << m_coords[1]
-      << ", slice " << m_coords[2]));
+    m_logger.info(STR("Loading cell " << m_coords[0] << ", " << m_coords[1] << ", slice "
+      << m_coords[2]));
 
     m_handle = m_worldLoader.loadCellSliceAsync(m_coords[0], m_coords[1], m_coords[2]);
 
@@ -167,6 +167,9 @@ void CellSlice::statePendingResourceUnloadUpdate()
     if (--m_resourcesTimeToLive == 0) {
       m_handle.reset();
       m_state = SliceState::Unloaded;
+
+      m_logger.info(STR("Unloading cell " << m_coords[0] << ", " << m_coords[1] << ", slice "
+        << m_coords[2]));
     }
   }
 }

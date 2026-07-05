@@ -48,6 +48,9 @@ class RenderResourceLoaderImpl : public RenderResourceLoader
     std::unordered_map<std::string, ResourceId> m_materials;
     std::unordered_map<std::filesystem::path, ResourceId> m_textures;
     mutable std::mutex m_mutex;
+
+    ResourceHandle loadTextureAsync(const fs::path& path, bool genMipmaps, DirectoryPtr directory,
+      bool isNormalMap);
 };
 
 RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceManager,
@@ -93,12 +96,42 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, 
 {
   DBG_TRACE(m_logger);
 
-  return m_resourceManager.loadResource([this, path, directory, genMipmaps](ResourceId id) {
+  return loadTextureAsync(path, genMipmaps, directory, false);
+}
+
+ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const fs::path& path, bool genMipmaps)
+{
+  DBG_TRACE(m_logger);
+
+  return loadTextureAsync(path, genMipmaps, nullptr, true);
+}
+
+ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, bool genMipmaps,
+  DirectoryPtr directory, bool isNormalMap)
+{
+  DBG_TRACE(m_logger);
+
+  {
+    std::scoped_lock lock{m_mutex};
+    auto i = m_textures.find(path);
+    if (i != m_textures.end()) {
+      m_logger.info(STR("Texture " << path << " already loaded"));
+      return m_resourceManager.getHandle(i->second);
+    }
+  }
+
+  auto loaderFn = [this, path, directory, genMipmaps, isNormalMap](ResourceId id) {
     DBG_TRACE(m_logger);
 
     auto data = (directory ? directory : m_paths.texturesDir)->readFile(path);
     auto texture = render::loadRgbaTexture(data);
-    m_renderer.addTexture(id, std::move(texture), genMipmaps);
+
+    if (isNormalMap) {
+      m_renderer.addNormalMap(id, std::move(texture), genMipmaps);
+    }
+    else {
+      m_renderer.addTexture(id, std::move(texture), genMipmaps);
+    }
 
     {
       std::scoped_lock lock{m_mutex};
@@ -116,27 +149,9 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, 
         }
       }
     };
-  });
-}
+  };
 
-ResourceHandle RenderResourceLoaderImpl::loadNormalMapAsync(const fs::path& path, bool genMipmaps)
-{
-  DBG_TRACE(m_logger);
-
-  return m_resourceManager.loadResource([this, path, genMipmaps](ResourceId id) {
-    DBG_TRACE(m_logger);
-
-    auto data = m_paths.texturesDir->readFile(path);
-    auto texture = render::loadRgbaTexture(data);
-    m_renderer.addNormalMap(id, std::move(texture), genMipmaps);
-
-    return ManagedResource{
-      .unloader = [this](ResourceId id) {
-        DBG_TRACE(m_logger);
-        m_renderer.removeTexture(id); // There's no removeNormalMap
-      }
-    };
-  });
+  return m_resourceManager.loadResource(std::move(loaderFn));
 }
 
 ResourceHandle RenderResourceLoaderImpl::loadCubeMapAsync(

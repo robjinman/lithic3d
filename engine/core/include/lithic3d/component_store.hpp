@@ -27,8 +27,8 @@ struct ComponentSpec
 
 template<typename T>
 concept ComponentType = requires {
-  std::integral_constant<ComponentTypeId, T::TypeId>{};
-};
+  typename std::integral_constant<ComponentTypeId, T::TypeId>;
+} && std::is_trivially_copyable_v<T>;
 
 template<typename... Ts>
 requires (ComponentType<Ts> && ...)
