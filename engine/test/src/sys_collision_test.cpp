@@ -20,11 +20,12 @@ TEST_F(SysCollisionTest, HeightMapSampler_smallest_map)
     .heightPx = 2,
     .data{
       1.f, 2.f, 3.f, 4.f
-    }
+    },
+    .mask{ true, true, true, true }
   };
   HeightMapSampler sampler{heightMap, {}};
 
-  auto t = sampler.triangle({ 0.25f, 0.25f });
+  auto t = sampler.triangle({ 0.25f, 0.25f }).value();
 
   Vec3f A{ 0.f, 3.f, 1.f };
   Vec3f B{ 1.f, 4.f, 1.f };
@@ -35,7 +36,7 @@ TEST_F(SysCollisionTest, HeightMapSampler_smallest_map)
   EXPECT_EQ(C, t[1]);
   EXPECT_EQ(D, t[2]);
 
-  t = sampler.triangle({ 0.75f, 0.75f });
+  t = sampler.triangle({ 0.75f, 0.75f }).value();
 
   EXPECT_EQ(A, t[0]);
   EXPECT_EQ(B, t[1]);

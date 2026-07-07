@@ -64,6 +64,7 @@ struct HeightMap
   uint32_t widthPx = 0;
   uint32_t heightPx = 0;
   std::vector<float> data;
+  std::vector<bool> mask;
 };
 
 struct Edge
@@ -82,7 +83,7 @@ class HeightMapSampler
       , m_pos(position) {}
 
     inline bool inRange(const Vec2f& p) const;
-    Triangle triangle(const Vec2f& p) const;
+    std::optional<Triangle> triangle(const Vec2f& p) const;
     void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
     void edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const;
     void triangles(const Vec2f& min, const Vec2f& max,

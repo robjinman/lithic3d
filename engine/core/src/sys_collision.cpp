@@ -8,7 +8,7 @@
 namespace lithic3d
 {
 
-Triangle HeightMapSampler::triangle(const Vec2f& p) const
+std::optional<Triangle> HeightMapSampler::triangle(const Vec2f& p) const
 {
   DBG_ASSERT(inRange(p), "Value out of range");
 
@@ -30,23 +30,44 @@ Triangle HeightMapSampler::triangle(const Vec2f& p) const
     ++zIdx1;
   }
 
-  auto getVertex = [this, dx, dz](float xIdx, float zIdx) {
-    size_t i = static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
+  auto getIndex = [this](float xIdx, float zIdx) {
+    return static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
+  };
+
+  size_t AIdx = getIndex(xIdx0, zIdx1);
+  size_t BIdx = getIndex(xIdx1, zIdx1);
+  size_t CIdx = getIndex(xIdx1, zIdx0);
+  size_t DIdx = getIndex(xIdx0, zIdx0);
+
+  auto getVertex = [this, dx, dz](float xIdx, float zIdx, size_t i) {
     return m_pos + Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
   };
 
-  Vec3f A = getVertex(xIdx0, zIdx1);
-  Vec3f B = getVertex(xIdx1, zIdx1);
-  Vec3f C = getVertex(xIdx1, zIdx0);
-  Vec3f D = getVertex(xIdx0, zIdx0);
+  Vec3f A = getVertex(xIdx0, zIdx1, AIdx);
+  Vec3f B = getVertex(xIdx1, zIdx1, BIdx);
+  Vec3f C = getVertex(xIdx1, zIdx0, CIdx);
+  Vec3f D = getVertex(xIdx0, zIdx0, DIdx);
 
   Vec2f idx = Vec2f{ xIdx, zIdx };
   float distanceFromD = (idx - Vec2f{ xIdx0, zIdx0 }).squareMagnitude();
   float distanceFromB = (idx - Vec2f{ xIdx1, zIdx1 }).squareMagnitude();
 
-  return distanceFromD < distanceFromB ?
-    Triangle{ A, C, D } :
-    Triangle{ A, B, C };
+  if (distanceFromD < distanceFromB) {
+    if (!m_map.mask.at(AIdx) && !m_map.mask.at(CIdx) && !m_map.mask.at(DIdx)) {
+      return std::nullopt;
+    }
+    else {
+      return Triangle{ A, C, D };
+    }
+  }
+  else {
+    if (!m_map.mask.at(AIdx) && !m_map.mask.at(BIdx) && !m_map.mask.at(CIdx)) {
+      return std::nullopt;
+    }
+    else {
+      return Triangle{ A, B, C };
+    }
+  }
 }
 
 void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
@@ -77,20 +98,33 @@ void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
   float dx = m_map.width / w;
   float dz = m_map.height / h;
 
-  auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
-    size_t i = zIdx * m_map.widthPx + xIdx;
+  auto getIndex = [this](float xIdx, float zIdx) {
+    return static_cast<size_t>(zIdx) * m_map.widthPx + static_cast<size_t>(xIdx);
+  };
+
+  auto getVertex = [this, dx, dz](float xIdx, float zIdx, size_t i) {
     return m_pos + Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
   };
 
   for (size_t j = zIdx0; j < zIdx1; ++j) {
     for (size_t i = xIdx0; i < xIdx1; ++i) {
-      Vec3f A = getVertex(i, j + 1);
-      Vec3f B = getVertex(i + 1, j + 1);
-      Vec3f C = getVertex(i + 1, j);
-      Vec3f D = getVertex(i, j);
+      size_t AIdx = getIndex(i, j + 1);
+      size_t BIdx = getIndex(i + 1, j + 1);
+      size_t CIdx = getIndex(i + 1, j);
+      size_t DIdx = getIndex(i, j);
 
-      triangles.push_back({ A, C, D });
-      triangles.push_back({ A, B, C });
+      Vec3f A = getVertex(i, j + 1, AIdx);
+      Vec3f B = getVertex(i + 1, j + 1, BIdx);
+      Vec3f C = getVertex(i + 1, j, CIdx);
+      Vec3f D = getVertex(i, j, DIdx);
+
+      if (m_map.mask.at(AIdx) || m_map.mask.at(CIdx) || m_map.mask.at(DIdx)) {
+        triangles.push_back({ A, C, D });
+      }
+
+      if (m_map.mask.at(AIdx) || m_map.mask.at(BIdx) || m_map.mask.at(CIdx)) {
+        triangles.push_back({ A, B, C });
+      }
     }
   }
 }
@@ -120,6 +154,8 @@ void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
   DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
   DBG_ASSERT(zIdx0 < zIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
 
+  // TODO: Detect holes?
+
   float dx = m_map.width / w;
   float dz = m_map.height / h;
 
@@ -141,6 +177,8 @@ void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edg
   if (!inRange(min) || !inRange(max)) {
     return;
   }
+
+  // TODO: Detect holes?
 
   size_t w = m_map.widthPx - 1;
   size_t h = m_map.heightPx - 1;
@@ -1837,7 +1875,12 @@ float terrainEdgeBoxPenetration(const BoundingBox& box, const Vec3f& boxCentre,
       continue;
     }
 
-    auto [ A, B, C ] = sampler.triangle({ Q[0], Q[2] });
+    auto triangle = sampler.triangle({ Q[0], Q[2] });
+    if (!triangle.has_value()) {
+      continue;
+    }
+
+    auto [ A, B, C ] = triangle.value();
     auto n = (B - A).cross(C - A);
     if ((Q - A).dot(n) > 0.f) {
       continue;
@@ -2236,7 +2279,11 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
       continue;
     }
 
-    auto triangle = sampler.triangle(p);
+    auto triangleOpt = sampler.triangle(p);
+    if (!triangleOpt.has_value()) {
+      continue;
+    }
+    auto& triangle = triangleOpt.value();
     float maxY = std::max(std::max(triangle[0][1], triangle[1][1]), triangle[2][1]);
 
     if (vert[1] > maxY) {
@@ -2261,7 +2308,9 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
     float penetration = Vec3f{ 0.f, y - vert[1], 0.f }.dot(n);
     assert(penetration >= 0.f);
 
-    if (penetration > 0.f) {
+    const float maxTerrainPenetration = metresToWorldUnits(0.5f); // TODO: Magic number
+
+    if (penetration > 0.f && penetration < maxTerrainPenetration) {
       Contact contact;
       contact.A = A;
       contact.B = B;

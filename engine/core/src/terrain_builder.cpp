@@ -47,21 +47,6 @@ std::string cellName(uint32_t x, uint32_t y)
   return ss.str();
 }
 
-std::vector<float> constructHeightMap(const Mesh& mesh)
-{
-  size_t n = mesh.attributeBuffers[0].data.numElements();
-  auto positions = mesh.attributeBuffers[0].data.data<Vec3f>();
-
-  std::vector<float> heightMap(n);
-
-  for (size_t i = 0; i < n; ++i) {
-    // Mesh data is in metres
-    heightMap[i] = metresToWorldUnits(positions[i][1]);
-  }
-
-  return heightMap;
-}
-
 class TerrainBuilderImpl : public TerrainBuilder
 {
   public:
@@ -83,7 +68,8 @@ class TerrainBuilderImpl : public TerrainBuilder
     std::mutex m_mutex;
     std::unordered_map<ResourceId, TerrainRegion> m_regions;
 
-    MeshPtr constructLandMesh(const Texture& heightMap) const;
+    MeshPtr constructLandMesh(const Texture& heightMap, std::vector<float>& heights,
+      std::vector<bool>& mask) const;
     ResourceHandle constructLandModelAsync(const fs::path& cellPath, const XmlNode& terrainXml,
       HeightMap& heightMap) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize, float level) const;
@@ -203,7 +189,8 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
   };
 }
 
-MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
+MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
+  std::vector<float>& heights, std::vector<bool>& mask) const
 {
   // TODO: Break into smaller chunks
 
@@ -229,6 +216,9 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
   std::vector<Vec2f> texCoords(numVertices);
   std::vector<uint16_t> indices(numIndices);
 
+  heights.resize(numVertices);
+  mask.resize(numVertices);
+
   MeshPtr mesh = std::make_unique<Mesh>();
 
   mesh->featureSet = render::MeshFeatureSet{
@@ -240,6 +230,10 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
     .flags = bitflag(render::MeshFeatures::IsTerrain) | bitflag(render::MeshFeatures::CastsShadow)
   };
 
+  auto calcHeight = [minHeight, heightRange](uint32_t pixelValue) {
+    return minHeight + (static_cast<float>(pixelValue) / 255.f) * heightRange;
+  };
+
   for (uint32_t i = 0; i < numVertices; ++i) {
     uint32_t pixelX = i % heightMap.width;
     uint32_t pixelY = i / heightMap.width;
@@ -249,11 +243,13 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
     float x = uvX * cellWidth;
     float z = uvY * cellHeight;
 
-    uint32_t pixelValue = heightMap.data.at(i);
-    float height = minHeight + (static_cast<float>(pixelValue) / 255.f) * heightRange;
+    float height = calcHeight(heightMap.data.at(i));
 
     positions[i] = { x, height, z };
     texCoords[i] = { uvX, uvY };
+
+    heights[i] = metresToWorldUnits(height);
+    mask[i] = true;
   }
 
   size_t indexIdx = 0;
@@ -266,25 +262,67 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap) const
       uint32_t D = i - heightMap.width - 1;
       uint32_t C = D + 1;
 
-      indices[indexIdx++] = A;
-      indices[indexIdx++] = B;
-      indices[indexIdx++] = C;
+      uint32_t Ay = heightMap.data.at(A);
+      uint32_t By = heightMap.data.at(B);
+      uint32_t Cy = heightMap.data.at(C);
+      uint32_t Dy = heightMap.data.at(D);
 
-      indices[indexIdx++] = A;
-      indices[indexIdx++] = C;
-      indices[indexIdx++] = D;
+      if (Ay == 0 && By == 0 && Cy == 0 && Dy == 0) {
+        uint32_t E = A + heightMap.width;
+        uint32_t F = E + 1;
+        uint32_t G = B + 1;
+        uint32_t H = C + 1;
+        uint32_t I = C - heightMap.width;
+        uint32_t J = I - 1;
+        uint32_t K = D - 1;
+        uint32_t L = A - 1;
+
+        positions[A][1] = 0.5f * (positions[E][1] + positions[L][1]);
+        positions[B][1] = 0.5f * (positions[F][1] + positions[G][1]);
+        positions[C][1] = 0.5f * (positions[H][1] + positions[I][1]);
+        positions[D][1] = 0.5f * (positions[J][1] + positions[K][1]);
+
+        heights[A] = metresToWorldUnits(positions[A][1]);
+        heights[B] = metresToWorldUnits(positions[B][1]);
+        heights[C] = metresToWorldUnits(positions[C][1]);
+        heights[D] = metresToWorldUnits(positions[D][1]);
+
+        mask[A] = false;
+        mask[B] = false;
+        mask[C] = false;
+        mask[D] = false;
+
+        // TODO: Remove vertex data?
+      }
+      else {
+        indices[indexIdx++] = A;
+        indices[indexIdx++] = B;
+        indices[indexIdx++] = C;
+
+        indices[indexIdx++] = A;
+        indices[indexIdx++] = C;
+        indices[indexIdx++] = D;
+      }
 
       Vec3f AB = positions[B] - positions[A];
       Vec3f AC = positions[C] - positions[A];
       Vec3f AD = positions[D] - positions[A];
 
-      auto abcNormal = AB.cross(AC);
-      auto acdNormal = AC.cross(AD);
+      if (Ay != 0 && Cy != 0) {
+        auto abcNormal = AB.cross(AC);
+        auto acdNormal = AC.cross(AD);
 
-      normals[A] += abcNormal + acdNormal;
-      normals[B] += abcNormal;
-      normals[C] += abcNormal + acdNormal;
-      normals[D] += acdNormal;
+        if (By != 0 && Dy != 0) {
+          normals[A] += abcNormal + acdNormal;
+          normals[C] += abcNormal + acdNormal;
+        }
+        if (By != 0) {
+          normals[B] += abcNormal;
+        }
+        if (Dy != 0) {
+          normals[D] += acdNormal;
+        }
+      }
     }
   }
 
@@ -354,12 +392,11 @@ ResourceHandle TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellP
   auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / "height_map.png");
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
 
-  auto mesh = constructLandMesh(*heightMapTexture);
   heightMap.widthPx = heightMapTexture->width;
   heightMap.heightPx = heightMapTexture->height;
   heightMap.width = metresToWorldUnits(m_config.cellWidth);
   heightMap.height = metresToWorldUnits(m_config.cellHeight);
-  heightMap.data = constructHeightMap(*mesh);
+  auto mesh = constructLandMesh(*heightMapTexture, heightMap.data, heightMap.mask);
 
   render::MaterialFeatureSet materialFeatures{
     .flags = bitflag(render::MaterialFeatures::HasTexture)
