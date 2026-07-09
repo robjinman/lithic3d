@@ -92,16 +92,9 @@ WorldLoaderImpl::WorldLoaderImpl(Ecs& ecs, const GameDataPaths& paths, EntityFac
 
   loadWorldInfo(*worldXml);
 
-  TerrainConfig terrainConfig{
-    .world = m_worldName,
-    .minHeight = worldUnitsToMetres(m_worldInfo.minElevation),
-    .maxHeight = worldUnitsToMetres(m_worldInfo.maxElevation),
-    .cellWidth = worldUnitsToMetres(m_worldInfo.cellWidth),
-    .cellHeight = worldUnitsToMetres(m_worldInfo.cellHeight),
-    .waterLevel = worldUnitsToMetres(m_worldInfo.waterLevel)
-  };
+  Vec2f cellSize = worldUnitsToMetres(Vec2f{ m_worldInfo.cellWidth, m_worldInfo.cellHeight });
 
-  m_terrainBuilder = createTerrainBuilder(terrainConfig, m_ecs, modelLoader, renderResourceLoader,
+  m_terrainBuilder = createTerrainBuilder(cellSize, m_ecs, modelLoader, renderResourceLoader,
     m_resourceManager, m_paths, m_logger);
 }
 
@@ -225,13 +218,13 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
 {
   m_worldInfo = WorldInfo{
-    .gridWidth = static_cast<uint32_t>(std::stoi(node.attribute("grid-width"))),
-    .gridHeight = static_cast<uint32_t>(std::stoi(node.attribute("grid-height"))),
-    .cellWidth = metresToWorldUnits(std::stof(node.attribute("cell-width"))),
-    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell-height"))),
-    .minElevation = metresToWorldUnits(std::stof(node.attribute("min-elevation"))),
-    .maxElevation = metresToWorldUnits(std::stof(node.attribute("max-elevation"))),
-    .waterLevel = metresToWorldUnits(std::stof(node.attribute("water-level")))
+    .gridWidth = static_cast<uint32_t>(std::stoi(node.attribute("grid_width"))),
+    .gridHeight = static_cast<uint32_t>(std::stoi(node.attribute("grid_height"))),
+    .cellWidth = metresToWorldUnits(std::stof(node.attribute("cell_width"))),
+    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell_height"))),
+    //.minElevation = metresToWorldUnits(std::stof(node.attribute("min-elevation"))),
+    //.maxElevation = metresToWorldUnits(std::stof(node.attribute("max-elevation"))),
+    //.waterLevel = metresToWorldUnits(std::stof(node.attribute("water-level")))
   };
 }
 

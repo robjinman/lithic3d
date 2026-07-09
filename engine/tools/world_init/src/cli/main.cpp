@@ -25,6 +25,7 @@ po::variables_map parseProgramArgs(po::options_description& desc, int argc, cons
     ("a-texture", po::value<std::string>()->required(), "Splat map's alpha channel texture")
     ("min-elevation", po::value<float>()->required(), "Minimum elevation in metres")
     ("max-elevation", po::value<float>()->required(), "Maximum elevation in metres")
+    ("water-level", po::value<float>()->required(), "Water level")
     ("output-dir,o", po::value<std::string>()->required(), "Output directory");
 
   po::variables_map vm;
@@ -60,6 +61,7 @@ int main(int argc, const char** argv)
     fs::path aTexture = vm.at("a-texture").as<std::string>();
     auto minElevation = vm.at("min-elevation").as<float>();
     auto maxElevation = vm.at("max-elevation").as<float>();
+    auto waterLevel = vm.at("water-level").as<float>();
     fs::path outputDir = vm.at("output-dir").as<std::string>();
 
     if (std::filesystem::exists(outputDir)) {
@@ -75,7 +77,7 @@ int main(int argc, const char** argv)
     std::filesystem::create_directories(outputDir);
 
     lithic3d::tools::createWorld(heightMap, splatMap, gridWidth, gridHeight, cellWidth, cellHeight,
-      rTexture, gTexture, bTexture, aTexture, minElevation, maxElevation, outputDir);
+      rTexture, gTexture, bTexture, aTexture, minElevation, maxElevation, waterLevel, outputDir);
   }
   catch (const std::exception& ex) {
     std::cerr << ex.what() << std::endl;

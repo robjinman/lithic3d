@@ -14,8 +14,8 @@ namespace
 
 const uint32_t NUM_SLICES = 6;
 
-void writeWorldXml(const fs::path& path, uint32_t gridWidth, uint32_t gridHeight, float cellWidth,
-  float cellHeight, float minElevation, float maxElevation)
+void writeWorldXml(const fs::path& path, uint32_t gridW, uint32_t gridH, float cellW, float cellH,
+  float minElevation, float maxElevation)
 {
   std::ofstream stream{path};
 
@@ -24,26 +24,35 @@ void writeWorldXml(const fs::path& path, uint32_t gridWidth, uint32_t gridHeight
   }
 
   stream
-    << "<world grid-width=\"" << gridWidth << "\" grid-height=\"" << gridHeight
-    << "\" cell-width=\"" << cellWidth << "\" cell-height=\"" << cellHeight
-    << "\" min-elevation=\"" << minElevation << "\" max-elevation=\"" << maxElevation << "\">"
+    << "<world grid_width=\"" << gridW << "\" grid_height=\"" << gridH << "\" cell_width=\""
+      << cellW << "\" cell_height=\"" << cellH << "\">"
     << "</world>";
 }
 
-void writeSliceZero(const fs::path& cellPath, const fs::path& rTexture, const fs::path& gTexture,
-  const fs::path& bTexture, const fs::path& aTexture)
+void writeSliceZero(const fs::path& cellPath, uint32_t cellX, uint32_t cellY,
+  const fs::path& rTexture, const fs::path& gTexture, const fs::path& bTexture,
+  const fs::path& aTexture, float cellW, float cellH, float minElevation, float maxElevation,
+  float waterLevel)
 {
   std::ofstream stream{cellPath / "000.xml"};
 
+  float h = maxElevation - minElevation;
+  float x = cellW * cellX;
+  float z = cellH * cellY;
+
   stream <<
     "<cell-slice>\n"
-    "  <terrain>\n"
-    "    <splat-map>\n"
-    "      <texture file=\"" << rTexture.string() << "\"/>\n"
-    "      <texture file=\"" << gTexture.string() << "\"/>\n"
-    "      <texture file=\"" << bTexture.string() << "\"/>\n"
-    "      <texture file=\"" << aTexture.string() << "\"/>\n"
-    "    </splat-map>\n"
+    "  <terrain water_level=\"" << waterLevel << "\">\n"
+    "    <terrain_piece height_map=\"height_map.png\" inverted=\"false\">\n"
+    "      <splat_map file=\"splat_map.png\">\n"
+    "        <texture file=\"" << rTexture.string() << "\"/>\n"
+    "        <texture file=\"" << gTexture.string() << "\"/>\n"
+    "        <texture file=\"" << bTexture.string() << "\"/>\n"
+    "        <texture file=\"" << aTexture.string() << "\"/>\n"
+    "      </splat_map>\n"
+    "      <pos x=\"" << x << "\" y=\"" << minElevation << "\" z=\"" << z << "\"/>\n"
+    "      <dim x=\"" << cellW << "\" y=\"" << h << "\" z=\"" << cellH << "\"/>\n"
+    "    </terrain_piece>\n"
     "  </terrain>\n"
     "</cell-slice>\n";
 }
@@ -69,21 +78,21 @@ std::string cellDirectoryName(uint32_t x, uint32_t y)
 
 } // namespace
 
-void createWorld(const fs::path& heightMap, const fs::path& splatMap, uint32_t gridWidth,
-  uint32_t gridHeight, float cellWidth, float cellHeight, const fs::path& rTexture,
-  const fs::path& gTexture, const fs::path& bTexture, const fs::path& aTexture,
-  float minElevation, float maxElevation, const fs::path& outputDir)
+void createWorld(const fs::path& heightMap, const fs::path& splatMap, uint32_t gridW,
+  uint32_t gridH, float cellW, float cellH, const fs::path& rTexture, const fs::path& gTexture,
+  const fs::path& bTexture, const fs::path& aTexture, float minElevation, float maxElevation,
+  float waterLevel, const fs::path& outputDir)
 {
-  writeWorldXml(outputDir / "world.xml", gridWidth, gridHeight, cellWidth, cellHeight, minElevation,
-    maxElevation);
+  writeWorldXml(outputDir / "world.xml", gridW, gridH, cellW, cellH, minElevation, maxElevation);
 
-  partitionImage(heightMap, ImageType::HeightMap, gridWidth, gridHeight, outputDir);
-  partitionImage(splatMap, ImageType::SplatMap, gridWidth, gridHeight, outputDir);
+  partitionImage(heightMap, ImageType::HeightMap, gridW, gridH, outputDir);
+  partitionImage(splatMap, ImageType::SplatMap, gridW, gridH, outputDir);
 
-  for (uint32_t i = 0; i < gridWidth; ++i) {
-    for (uint32_t j = 0; j < gridHeight; ++j) {
+  for (uint32_t i = 0; i < gridW; ++i) {
+    for (uint32_t j = 0; j < gridH; ++j) {
       fs::path cellPath = outputDir / cellDirectoryName(i, j);
-      writeSliceZero(cellPath, rTexture, gTexture, bTexture, aTexture);
+      writeSliceZero(cellPath, i, j, rTexture, gTexture, bTexture, aTexture, cellW, cellH,
+        minElevation, maxElevation, waterLevel);
 
       for (uint32_t slice = 1; slice < NUM_SLICES; ++slice) {
         writeSlice(cellPath, slice);

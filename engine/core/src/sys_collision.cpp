@@ -40,7 +40,7 @@ std::optional<Triangle> HeightMapSampler::triangle(const Vec2f& p) const
   size_t DIdx = getIndex(xIdx0, zIdx0);
 
   auto getVertex = [this, dx, dz](float xIdx, float zIdx, size_t i) {
-    return m_pos + Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
   };
 
   Vec3f A = getVertex(xIdx0, zIdx1, AIdx);
@@ -103,7 +103,7 @@ void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
   };
 
   auto getVertex = [this, dx, dz](float xIdx, float zIdx, size_t i) {
-    return m_pos + Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
   };
 
   for (size_t j = zIdx0; j < zIdx1; ++j) {
@@ -161,7 +161,7 @@ void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
 
   auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
     size_t i = zIdx * m_map.widthPx + xIdx;
-    return m_pos + Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
   };
 
   for (size_t j = zIdx0; j <= zIdx1; ++j) {
@@ -202,7 +202,7 @@ void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edg
 
   auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
     size_t i = zIdx * m_map.widthPx + xIdx;
-    return Vec3f{ dx * xIdx, m_pos[1] + m_map.data.at(i), dz * zIdx };
+    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
   };
 
   for (size_t j = zIdx0; j < zIdx1; ++j) {

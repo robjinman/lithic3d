@@ -3,24 +3,10 @@
 #include "resource_manager.hpp"
 #include "entity_id.hpp"
 #include "xml.hpp"
+#include "math.hpp"
 
 namespace lithic3d
 {
-
-struct TerrainConfig
-{
-  std::string world;
-
-  // In metres
-  float minHeight = 0.f;
-  float maxHeight = 100.f;
-
-  // In metres
-  float cellWidth = 100.f;
-  float cellHeight = 100.f;
-
-  float waterLevel = 5.0f;
-};
 
 class TerrainBuilder
 {
@@ -41,7 +27,7 @@ class ModelLoader;
 class RenderResourceLoader;
 struct GameDataPaths;
 
-TerrainBuilderPtr createTerrainBuilder(const TerrainConfig& config, Ecs& ecs,
+TerrainBuilderPtr createTerrainBuilder(const Vec2f& cellSizeMetres, Ecs& ecs,
   ModelLoader& modelLoader, RenderResourceLoader& renderResourceLoader,
   ResourceManager& resourceManager, const GameDataPaths& paths, Logger& logger);
 
