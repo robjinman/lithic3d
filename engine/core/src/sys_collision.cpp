@@ -5,6 +5,8 @@
 #include "lithic3d/xml_utils.hpp"
 #include "lithic3d/thread.hpp"
 
+// TODO: Contact caching/recycling?
+
 namespace lithic3d
 {
 
@@ -1813,7 +1815,8 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     Contact contact;
     contact.penetration = sqrtf(sqPenetration);
     contact.point = P + PQ * 0.5f;
-    // TODO: Rationalise this. Shouldn't it be inverted?
+    // Normal must point from contact.B to contact.A. P is on A's edge, and Q is on B's edge, and
+    // because they intersect, PQ points from B to A.
     contact.normal = PQ.normalise();
     contacts[n] = contact;
 
@@ -2430,9 +2433,9 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
 
     if (penetration > 0.f && penetration < maxPenetration) {
       Contact contact;
-      contact.A = A;
-      contact.B = B;
-      contact.normal = -normal;
+      contact.A = B;
+      contact.B = A;
+      contact.normal = normal;
       contact.penetration = penetration;
       contact.point = point;
       contact.fromContactSpace = changeOfBasisMatrix(contact.normal,
