@@ -420,6 +420,7 @@ struct Contact
   ObjectComponents A;
   ObjectComponents B;
   Vec3f point;
+  // The normal should point from B to A
   Vec3f normal;
   float penetration = 0.f;
   Mat3x3f toContactSpace;
@@ -1812,6 +1813,7 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
     Contact contact;
     contact.penetration = sqrtf(sqPenetration);
     contact.point = P + PQ * 0.5f;
+    // TODO: Rationalise this. Shouldn't it be inverted?
     contact.normal = PQ.normalise();
     contacts[n] = contact;
 
@@ -1823,7 +1825,8 @@ size_t allEdgeBoxPenetrations(const Vec3f& boxACentre, const Edge& boxAEdge,
 
 float terrainEdgeBoxPenetration(const BoundingBox& box, const Vec3f& boxCentre,
   const Mat4x4f& worldToBoxSpace, const std::array<Edge, 12>& boxEdges,
-  const HeightMapSampler& sampler, const Edge& worldSpaceEdge, Vec3f& point, Vec3f& normal)
+  const HeightMapSampler& sampler, bool terrainInverted, const Edge& worldSpaceEdge, Vec3f& point,
+  Vec3f& normal)
 {
   Edge edge{
     .A = (worldToBoxSpace * Vec4f{ worldSpaceEdge.A, { 1.f }}).sub<3>(),
@@ -1871,7 +1874,7 @@ float terrainEdgeBoxPenetration(const BoundingBox& box, const Vec3f& boxCentre,
       continue;
     }
 
-    if (PQ.dot({ 0.f, 1.f, 0.f }) >= 0.f) {
+    if (PQ.dot({ 0.f, (terrainInverted ? -1.f : 1.f), 0.f }) >= 0.f) {
       continue;
     }
 
@@ -1882,8 +1885,15 @@ float terrainEdgeBoxPenetration(const BoundingBox& box, const Vec3f& boxCentre,
 
     auto [ A, B, C ] = triangle.value();
     auto n = (B - A).cross(C - A);
-    if ((Q - A).dot(n) > 0.f) {
-      continue;
+    if (terrainInverted) {
+      if ((Q - A).dot(n) < 0.f) {
+        continue;
+      }
+    }
+    else {
+      if ((Q - A).dot(n) > 0.f) {
+        continue;
+      }
     }
 
     if (sqPenetration < minSqPenetration) {
@@ -2268,7 +2278,7 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(B.terrain != nullptr);
 
   HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
-
+  bool inverted = B.terrain->heightMap->inverted;
   auto verts = getVertices(A.box->boundingBox, getTransform(A));
 
   for (size_t i = 0; i < verts.size(); ++i) {
@@ -2284,23 +2294,41 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
       continue;
     }
     auto& triangle = triangleOpt.value();
-    float maxY = std::max(std::max(triangle[0][1], triangle[1][1]), triangle[2][1]);
 
-    if (vert[1] > maxY) {
-      continue;
+    if (inverted) {
+      if (vert[1] < std::min(std::min(triangle[0][1], triangle[1][1]), triangle[2][1])) {
+        continue;
+      }
+    }
+    else {
+      if (vert[1] > std::max(std::max(triangle[0][1], triangle[1][1]), triangle[2][1])) {
+        continue;
+      }
     }
 
     auto AB = triangle[1] - triangle[0];
     auto AC = triangle[2] - triangle[0];
 
     auto n = AB.cross(AC);
+
     // d = -(Ax + By + Cz)
     auto d = -(n[0] * triangle[0][0] + n[1] * triangle[0][1] + n[2] * triangle[0][2]);
 
     float y = -(n[0] * vert[0] + n[2] * vert[2] + d) / n[1];
 
-    if (vert[1] > y) {
-      continue;
+    if (inverted) {
+      if (vert[1] < y) {
+        continue;
+      }
+    }
+    else {
+      if (vert[1] > y) {
+        continue;
+      }
+    }
+
+    if (inverted) {
+      n = -n;
     }
 
     n = n.normalise();
@@ -2381,7 +2409,7 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
   const float maxPenetration = metresToWorldUnits(0.1f);  // Magic number
 
   HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
-
+  bool inverted = B.terrain->heightMap->inverted;
   std::vector<Edge> terrainEdges;
   sampler.edges(boxMin, boxMax, terrainEdges);
 
@@ -2398,7 +2426,7 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
     Vec3f normal;
 
     auto penetration = terrainEdgeBoxPenetration(A.box->boundingBox, boxCentre, worldToBoxSpace,
-      boxEdges, sampler, edge, point, normal);
+      boxEdges, sampler, inverted, edge, point, normal);
 
     if (penetration > 0.f && penetration < maxPenetration) {
       Contact contact;
@@ -2867,6 +2895,9 @@ void resolveInterpenetration(const Contact& contact)
   auto& A = contact.A;
   auto& B = contact.B;
 
+  bool aIsDynamic = A.dynamic && A.dynamic->inverseMass > 0.f;
+  bool bIsDynamic = B.dynamic && B.dynamic->inverseMass > 0.f;
+
   float totalInvMass = 0.f;
   if (A.dynamic) {
     totalInvMass += A.dynamic->inverseMass;
@@ -2879,17 +2910,19 @@ void resolveInterpenetration(const Contact& contact)
     return;
   }
 
+  // TODO: Different resolution rate for different types of collision?
   float rMin = 0.1f; // TODO: Magic number
   float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
+  //r = 1.f;
 
-  if (A.dynamic && A.dynamic->inverseMass != 0.f) {
+  if (aIsDynamic) {
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
     auto outDir = contact.normal;
 
     applyPositionDelta(A, contact.point, outDir * a);
   }
 
-  if (B.dynamic && B.dynamic->inverseMass != 0.f) {
+  if (bIsDynamic) {
     float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
     auto outDir = -contact.normal;
 
@@ -2966,8 +2999,7 @@ void SysCollisionImpl::resolveVelocities(const Contact& contact)
   }
 
   auto contactSpaceClosingV = bContactSpaceV - aContactSpaceV;
-  // TODO: Can't we just check the y component?
-  if (contactSpaceClosingV.dot(contact.normal) < 0.f) {
+  if (contactSpaceClosingV[1] < 0.f) {
     reapplyGravity();
     return;
   }
@@ -3198,7 +3230,7 @@ void SysCollisionImpl::updateSortList()
 
 void SysCollisionImpl::update(Tick, const InputState&)
 {
-  const uint32_t maxIterations = 2;
+  const uint32_t maxIterations = 1;
 
   if (m_shouldRebuildSortList) {
     rebuildSortList();

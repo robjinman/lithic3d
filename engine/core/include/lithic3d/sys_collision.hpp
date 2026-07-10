@@ -65,6 +65,7 @@ struct HeightMap
   uint32_t heightPx = 0;
   std::vector<float> data;
   std::vector<bool> mask;
+  bool inverted = false;
 };
 
 struct Edge

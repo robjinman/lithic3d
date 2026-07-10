@@ -1054,28 +1054,23 @@ void Demo::destroyScenario()
 
 void Demo::constructTerrain()
 {
-  TerrainConfig terrainConfig{
-    .world = "world",
-    .minHeight = 0.f,
-    .maxHeight = 20.f,
-    .cellWidth = 800.f,
-    .cellHeight = 800.f,
-    .waterLevel = 0.f
-  };
-
-  auto terrainBuilder = createTerrainBuilder(terrainConfig, m_engine.ecs(), m_engine.modelLoader(),
-    m_engine.renderResourceLoader(), m_engine.resourceManager(), m_engine.dataPaths(),
-    m_engine.logger());
+  auto terrainBuilder = createTerrainBuilder({ 800.f, 800.f }, m_engine.ecs(),
+    m_engine.modelLoader(), m_engine.renderResourceLoader(), m_engine.resourceManager(),
+    m_engine.dataPaths(), m_engine.logger());
 
   const char* xmlTerrain =
-    "<terrain>"
-      "<splat-map>"
-        "<texture file=\"sand.png\"/>"
-        "<texture file=\"grass.png\"/>"
-        "<texture file=\"dirt.png\"/>"
-        "<texture file=\"snow.png\"/>"
-      "</splat-map>"
-    "</terrain>";
+    "<terrain water_level=\"0\">\n"
+    "  <terrain_piece height_map=\"height_map.png\" inverted=\"false\">\n"
+    "    <splat_map file=\"splat_map.png\">\n"
+    "      <texture file=\"sand.png\"/>\n"
+    "      <texture file=\"grass.png\"/>\n"
+    "      <texture file=\"dirt.png\"/>\n"
+    "      <texture file=\"snow.png\"/>\n"
+    "    </splat_map>\n"
+    "    <pos x=\"0\" y=\"0\" z=\"0\"/>\n"
+    "    <dim x=\"800\" y=\"20\" z=\"800\"/>\n"
+    "  </terrain_piece>\n"
+    "</terrain>\n";
 
   m_terrain = terrainBuilder->loadTerrainRegionAsync(0, 0, parseXml(xmlTerrain)).wait();
   terrainBuilder->createEntities(m_engine.ecs().system<SysSpatial>().root(), m_terrain.id());

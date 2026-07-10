@@ -38,7 +38,6 @@ struct TerrainPiece
   HeightMap heightMap;
   Vec3f position;     // World units
   Vec3f dimensions;   // y-dimension is max height
-  bool inverted = false;
   ResourceHandle model;
 };
 
@@ -203,8 +202,6 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Ve
 {
   // TODO: Break into smaller chunks
 
-  // TODO: Use inverted
-
   ASSERT(heightMap.channels == 1,
     "Height map has " << heightMap.channels << " channels; expected 1");
 
@@ -234,7 +231,10 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Ve
     .flags = bitflag(render::MeshFeatures::IsTerrain) | bitflag(render::MeshFeatures::CastsShadow)
   };
 
-  auto calcHeight = [dimensions](uint32_t pixelValue) {
+  auto calcHeight = [dimensions, inverted](uint32_t pixelValue) {
+    if (inverted) {
+      pixelValue = 255 - pixelValue;
+    }
     return (static_cast<float>(pixelValue) / 255.f) * dimensions[1];
   };
 
@@ -299,13 +299,24 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Ve
         // TODO: Remove vertex data?
       }
       else {
-        indices[indexIdx++] = A;
-        indices[indexIdx++] = B;
-        indices[indexIdx++] = C;
+        if (inverted) {
+          indices[indexIdx++] = C;
+          indices[indexIdx++] = B;
+          indices[indexIdx++] = A;
 
-        indices[indexIdx++] = A;
-        indices[indexIdx++] = C;
-        indices[indexIdx++] = D;
+          indices[indexIdx++] = D;
+          indices[indexIdx++] = C;
+          indices[indexIdx++] = A;
+        }
+        else {
+          indices[indexIdx++] = A;
+          indices[indexIdx++] = B;
+          indices[indexIdx++] = C;
+
+          indices[indexIdx++] = A;
+          indices[indexIdx++] = C;
+          indices[indexIdx++] = D;
+        }
       }
 
       Vec3f AB = positions[B] - positions[A];
@@ -397,8 +408,9 @@ TerrainPiece TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellPat
 
   auto dimensionsMetres = constructVec3f(*xmlTerrainPiece.child("dim"));
 
+  bool inverted = xmlTerrainPiece.attribute("inverted") == "true";
+
   TerrainPiece piece;
-  piece.inverted = xmlTerrainPiece.attribute("inverted") == "true";
   piece.position = metresToWorldUnits(constructVec3f(*xmlTerrainPiece.child("pos")));
   piece.dimensions = metresToWorldUnits(dimensionsMetres);
 
@@ -407,12 +419,13 @@ TerrainPiece TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellPat
   auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / heightMapFilename);
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
 
+  piece.heightMap.inverted = inverted;
   piece.heightMap.widthPx = heightMapTexture->width;
   piece.heightMap.heightPx = heightMapTexture->height;
   piece.heightMap.width = piece.dimensions[0];
   piece.heightMap.height = piece.dimensions[2];
-  auto mesh = constructLandMesh(*heightMapTexture, dimensionsMetres, piece.inverted,
-    piece.heightMap.data, piece.heightMap.mask);
+  auto mesh = constructLandMesh(*heightMapTexture, dimensionsMetres, inverted, piece.heightMap.data,
+    piece.heightMap.mask);
 
   render::MaterialFeatureSet materialFeatures{
     .flags = bitflag(render::MaterialFeatures::HasTexture)
