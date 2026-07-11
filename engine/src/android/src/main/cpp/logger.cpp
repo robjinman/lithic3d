@@ -24,25 +24,25 @@ class AndroidLogger : public Logger
 
 void AndroidLogger::debug(const std::string& msg, bool)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "%s", msg.c_str());
 }
 
 void AndroidLogger::info(const std::string& msg, bool)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", msg.c_str());
 }
 
 void AndroidLogger::warn(const std::string& msg, bool)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "%s", msg.c_str());
 }
 
 void AndroidLogger::error(const std::string& msg, bool)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", msg.c_str());
 }
 

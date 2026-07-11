@@ -1,4 +1,5 @@
 #include "lithic3d/logger.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <iostream>
 #include <mutex>
 #include <thread>
@@ -50,7 +51,7 @@ void LoggerImpl::endMessage(std::ostream& stream, bool newline) const
 
 void LoggerImpl::debug(const std::string& msg, bool newline)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   auto threadId = std::this_thread::get_id();
   m_debug << "[ DEBUG, " << threadId << " ] " << msg;
   endMessage(m_debug, newline);
@@ -58,21 +59,21 @@ void LoggerImpl::debug(const std::string& msg, bool newline)
 
 void LoggerImpl::info(const std::string& msg, bool newline)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   m_info << "[ INFO ] " << msg;
   endMessage(m_info, newline);
 }
 
 void LoggerImpl::warn(const std::string& msg, bool newline)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   m_warning << "[ WARNING ] " << msg;
   endMessage(m_warning, newline);
 }
 
 void LoggerImpl::error(const std::string& msg, bool newline)
 {
-  std::lock_guard lock(m_mutex);
+  SCOPED_LOCK(m_mutex);
   m_error << "[ ERROR ] " << msg;
   endMessage(m_error, newline);
 }

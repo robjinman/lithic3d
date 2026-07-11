@@ -461,7 +461,7 @@ void RendererImpl::checkError() const
 {
   DBG_TRACE(m_logger);
 
-  std::lock_guard lock(m_errorMutex);
+  SCOPED_LOCK(m_errorMutex);
 
   if (m_hasError) {
     EXCEPTION(m_error);
@@ -1084,7 +1084,7 @@ void RendererImpl::renderLoop()
     }
   }
   catch (const std::exception& e) {
-    std::lock_guard lock(m_errorMutex);
+    SCOPED_LOCK(m_errorMutex);
 
     m_hasError = true;
     m_error = e.what();

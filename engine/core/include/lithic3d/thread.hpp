@@ -1,6 +1,7 @@
 #pragma once
 
 #include "functor.hpp"
+#include "scoped_lock.hpp"
 #include <thread>
 #include <condition_variable>
 #include <mutex>
@@ -26,7 +27,7 @@ class Thread
       auto future = promise.get_future();
 
       {
-        std::lock_guard lock(m_mutex);
+        SCOPED_LOCK(m_mutex);
 
         m_tasks.push([promise = std::move(promise), task = std::move(task)]() mutable {
           try {
@@ -68,7 +69,7 @@ class Thread
       waitAll();
 
       {
-        std::lock_guard lock(m_mutex);
+        SCOPED_LOCK(m_mutex);
         m_running = false;
       }
       m_conditionVariable.notify_all();

@@ -73,6 +73,4 @@ void writeBinaryFile(const std::filesystem::path& path, const char* data, size_t
   stream.write(data, size);
 }
 
-LockContentionStats* LockContentionStats::m_instance = nullptr;
-
 } // namespace lithic3d

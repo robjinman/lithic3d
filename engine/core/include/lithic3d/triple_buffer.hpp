@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.hpp"
+#include "scoped_lock.hpp"
 #include <array>
 #include <cassert>
 #include <mutex>
@@ -16,7 +17,7 @@ class TripleBuffer
     //
     T& writeComplete()
     {
-      std::lock_guard lock(m_mutex);
+      SCOPED_LOCK(m_mutex);
       m_timestamps[m_writeIndex] = ++m_frameCount;
       std::swap(m_writeIndex, m_freeIndex);
       assert(inRange<size_t>(m_writeIndex, 0u, 2u));
@@ -33,7 +34,7 @@ class TripleBuffer
     //
     T& readComplete()
     {
-      std::lock_guard lock(m_mutex);
+      SCOPED_LOCK(m_mutex);
       if (m_timestamps[m_freeIndex] > m_timestamps[m_readIndex]) {
         std::swap(m_readIndex, m_freeIndex);
       }

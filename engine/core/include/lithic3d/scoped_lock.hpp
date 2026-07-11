@@ -44,16 +44,7 @@ class LockContentionStats
       }
     }
 
-    void printSummary(std::ostream& stream) const
-    {
-      stream << "Lock contention summary\n";
-      stream << "Total time\t\tAverage time\t\tn\t\tLine\t\tFile\n";
-      for (auto& entry : m_entries) {
-        auto& e = entry.second;
-        stream << e.time << "\t\t" << e.time / e.n << "\t\t" << e.n << "\t\t" << e.line << "\t\t"
-          << e.file << "\n";
-      }
-    }
+    void printSummary(std::ostream& stream) const;
 
   private:
     static LockContentionStats* m_instance;
