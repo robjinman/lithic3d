@@ -14,7 +14,7 @@ const uint32_t SHADOW_MAP_H = 2048;
 const uint32_t NUM_SHADOW_MAPS = 3;
 
 class Logger;
-class WorkQueue;
+class Thread;
 
 namespace render
 {
@@ -68,8 +68,8 @@ class GpuBufferManager
 using GpuBufferManagerPtr = std::unique_ptr<GpuBufferManager>;
 
 GpuBufferManagerPtr createGpuBufferManager(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
-  WorkQueue& workQueue, Logger& logger);
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, Thread& submissionThread,
+  Logger& logger);
 
 } // namespace render
 } // namespace lithic3d

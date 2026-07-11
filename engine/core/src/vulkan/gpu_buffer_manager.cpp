@@ -2,7 +2,7 @@
 #include "vulkan/vulkan_utils.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/trace.hpp"
-#include "lithic3d/work_queue.hpp"
+#include "lithic3d/thread.hpp"
 #include "lithic3d/strings.hpp"
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
@@ -112,8 +112,7 @@ class GpuBufferManagerImpl : public GpuBufferManager
 {
   public:
     GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device, VkInstance instance,
-      VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
-      WorkQueue& workQueue, Logger& logger);
+      VkCommandPool commandPool, VkQueue queue, Thread& submissionThread, Logger& logger);
 
     GpuBufferPtr createUbo(size_t size) override;
     GpuBufferPtr createVertexBuffer(const char* data, size_t size) override;
@@ -136,13 +135,12 @@ class GpuBufferManagerImpl : public GpuBufferManager
 
   private:
     Logger& m_logger;
-    std::thread::id m_renderThreadId;
-    WorkQueue& m_workQueue;
-    VkQueue m_queue;
+    Thread& m_submissionThread;
     VmaAllocator m_allocator;
     VkPhysicalDevice m_physicalDevice;
     VkDevice m_device;
     VkCommandPool m_commandPool;
+    VkQueue m_queue;
     uint32_t m_numMemoryHeaps = 0;
 
     VkCommandBuffer beginSingleTimeCommands();
@@ -161,16 +159,14 @@ class GpuBufferManagerImpl : public GpuBufferManager
 };
 
 GpuBufferManagerImpl::GpuBufferManagerImpl(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
-  WorkQueue& workQueue,
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, Thread& submissionThread,
   Logger& logger)
   : m_logger(logger)
-  , m_renderThreadId(renderThreadId)
-  , m_workQueue(workQueue)
-  , m_queue(queue)
+  , m_submissionThread(submissionThread)
   , m_physicalDevice(physicalDevice)
   , m_device(device)
   , m_commandPool(commandPool)
+  , m_queue(queue)
 {
   DBG_TRACE(m_logger);
 
@@ -269,7 +265,7 @@ void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
 
   vkEndCommandBuffer(commandBuffer);
 
-  auto task = [this, commandBuffer]() {
+  m_submissionThread.run<void>([this, commandBuffer]() {
     VkSubmitInfo submitInfo{
       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .pNext = nullptr,
@@ -282,20 +278,13 @@ void GpuBufferManagerImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
       .pSignalSemaphores = nullptr
     };
 
-    vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+    VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE),
+      "Failed to submit command buffer");
+
     vkQueueWaitIdle(m_queue); // TODO: Submit commands asynchronously (see p201)
+  }).wait();
 
-    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-  };
-
-  if (std::this_thread::get_id() == m_renderThreadId) {
-    task();
-  }
-  else {
-    // Set a timeout to prevent deadlock in the event an
-    // exception is thrown from the render thread
-    m_workQueue.addWorkItem(task).wait_for(std::chrono::milliseconds(1000));
-  }
+  vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 }
 
 GpuBufferPtr GpuBufferManagerImpl::createUbo(size_t size)
@@ -909,11 +898,11 @@ void GpuBufferManagerImpl::dbg_printMemUsageInfo(std::ostream& stream) const
 } // namespace
 
 GpuBufferManagerPtr createGpuBufferManager(VkPhysicalDevice physicalDevice, VkDevice device,
-  VkInstance instance, VkCommandPool commandPool, VkQueue queue, std::thread::id renderThreadId,
-  WorkQueue& workQueue, Logger& logger)
+  VkInstance instance, VkCommandPool commandPool, VkQueue queue, Thread& submissionThread,
+  Logger& logger)
 {
   return std::make_unique<GpuBufferManagerImpl>(physicalDevice, device, instance, commandPool,
-    queue, renderThreadId, workQueue, logger);
+    queue, submissionThread, logger);
 }
 
 } // namespace render

@@ -315,7 +315,6 @@ class RendererImpl : public Renderer
     ScreenMargins m_margins;
     VulkanWindowDelegate& m_window;
     Logger& m_logger;
-    WorkQueue m_workQueue;
     VkInstance m_instance = VK_NULL_HANDLE;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceLimits m_deviceLimits;
@@ -369,7 +368,9 @@ class RendererImpl : public Renderer
     std::atomic<double> m_frameRate;
     uint32_t m_frameNumber = 0;
 
-    Thread m_thread;
+    WorkQueue m_workQueue;  // TODO: Need this?
+    Thread m_renderThread;
+    Thread m_submissionThread;
     std::atomic<bool> m_running;
     mutable std::mutex m_errorMutex;
     bool m_hasError = false;
@@ -390,7 +391,7 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
 
   DBG_LOG(m_logger, STR("Main thread: " << std::this_thread::get_id()));
 
-  m_thread.run<void>([this]() {
+  m_renderThread.run<void>([this]() {
     DBG_LOG(m_logger, STR("Render thread: " << std::this_thread::get_id()));
 
     createInstance();
@@ -399,22 +400,22 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
 #endif
   }).get();
   if (m_window.needsPhysicalDeviceForSurfaceCreation()) {
-    m_thread.run<void>([this]() {
+    m_renderThread.run<void>([this]() {
       pickPhysicalDevice();
     }).get();
     m_surface = m_window.createSurface(m_instance, m_physicalDevice);
   }
   else {
     m_surface = m_window.createSurface(m_instance, m_physicalDevice);
-    m_thread.run<void>([this]() {
+    m_renderThread.run<void>([this]() {
       pickPhysicalDevice();
     }).get();
   }
-  m_thread.run<void>([this]() {
+  m_renderThread.run<void>([this]() {
     createLogicalDevice();
   }).get();
   createSwapChain();
-  m_thread.run<void>([this]() {
+  m_renderThread.run<void>([this]() {
     createImageViews();
     createRenderPasses();
     createCommandPools();
@@ -426,12 +427,12 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
     auto commandPool = createResourceThreadCommandPool();
 
     m_bufferManager = createGpuBufferManager(m_physicalDevice, m_device, m_instance, commandPool,
-      m_transferQueue, m_thread.id(), m_workQueue, m_logger);
+      m_transferQueue, m_submissionThread, m_logger);
 
     m_resources = createRenderResources(std::this_thread::get_id(), *m_bufferManager,
       m_physicalDevice, m_device, commandPool, m_logger);
   }).get();
-  m_thread.run<void>([this]() {
+  m_renderThread.run<void>([this]() {
     m_resources->initialise();
     createDepthResources();
     createFramebuffers();
@@ -447,7 +448,7 @@ void RendererImpl::start()
   DBG_TRACE(m_logger);
 
   m_running = true;
-  m_thread.run<void>([&]() {
+  m_renderThread.run<void>([&]() {
     renderLoop();
   });
 }
@@ -957,20 +958,22 @@ void RendererImpl::doComputePass()
 
   VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to record command buffer");
 
-  VkSubmitInfo submitInfo{
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .pNext = nullptr,
-    .waitSemaphoreCount = 0,
-    .pWaitSemaphores = nullptr,
-    .pWaitDstStageMask = 0,
-    .commandBufferCount = 1,
-    .pCommandBuffers = &commandBuffer,
-    .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &m_computeFinishedSemaphores[m_currentFrame]
-  };
+  m_submissionThread.run<void>([this, commandBuffer]() {
+    VkSubmitInfo submitInfo{
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .pNext = nullptr,
+      .waitSemaphoreCount = 0,
+      .pWaitSemaphores = nullptr,
+      .pWaitDstStageMask = 0,
+      .commandBufferCount = 1,
+      .pCommandBuffers = &commandBuffer,
+      .signalSemaphoreCount = 1,
+      .pSignalSemaphores = &m_computeFinishedSemaphores[m_currentFrame]
+    };
 
-  VK_CHECK(vkQueueSubmit(m_computeQueue, 1, &submitInfo, m_computeInFlightFences[m_currentFrame]),
-    "Failed to submit compute command buffer");
+    VK_CHECK(vkQueueSubmit(m_computeQueue, 1, &submitInfo, m_computeInFlightFences[m_currentFrame]),
+      "Failed to submit compute command buffer");
+  }).wait();
 }
 
 void RendererImpl::renderLoop()
@@ -1190,57 +1193,59 @@ void RendererImpl::finishFrame()
 {
   DBG_TRACE(m_logger);
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  m_submissionThread.run<void>([this]() {
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-  std::array<VkSemaphore, 2> waitSemaphores = {
-    m_computeFinishedSemaphores[m_currentFrame],
-    m_imageAvailableSemaphores[m_currentFrame]
-  };
-  std::array<VkPipelineStageFlags, 2> waitStages = {
-    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-  };
+    std::array<VkSemaphore, 2> waitSemaphores = {
+      m_computeFinishedSemaphores[m_currentFrame],
+      m_imageAvailableSemaphores[m_currentFrame]
+    };
+    std::array<VkPipelineStageFlags, 2> waitStages = {
+      VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
 
-  submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
-  submitInfo.pWaitSemaphores = waitSemaphores.data();
-  submitInfo.pWaitDstStageMask = waitStages.data();
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
+    submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.pWaitDstStageMask = waitStages.data();
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
 
-  submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = &m_renderFinishedSemaphores[m_imageIndex];
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &m_renderFinishedSemaphores[m_imageIndex];
 
-  VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]),
-    "Failed to submit draw command buffer");
+    VK_CHECK(vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]),
+      "Failed to submit draw command buffer");
 
-  VkSwapchainKHR swapchains[] = { m_swapchain };
+    VkSwapchainKHR swapchains[] = { m_swapchain };
 
-  VkPresentInfoKHR presentInfo{
-    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-    .pNext = nullptr,
-    .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &m_renderFinishedSemaphores[m_imageIndex],
-    .swapchainCount = 1,
-    .pSwapchains = swapchains,
-    .pImageIndices = &m_imageIndex,
-    .pResults = nullptr
-  };
+    VkPresentInfoKHR presentInfo{
+      .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+      .pNext = nullptr,
+      .waitSemaphoreCount = 1,
+      .pWaitSemaphores = &m_renderFinishedSemaphores[m_imageIndex],
+      .swapchainCount = 1,
+      .pSwapchains = swapchains,
+      .pImageIndices = &m_imageIndex,
+      .pResults = nullptr
+    };
 
-  VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
-  if (m_requireReset || presentResult == VK_ERROR_OUT_OF_DATE_KHR
-    || presentResult == VK_SUBOPTIMAL_KHR || presentResult == VK_ERROR_SURFACE_LOST_KHR
-    || m_framebufferResized > 0) {
+    VkResult presentResult = vkQueuePresentKHR(m_presentQueue, &presentInfo);
+    if (m_requireReset || presentResult == VK_ERROR_OUT_OF_DATE_KHR
+      || presentResult == VK_SUBOPTIMAL_KHR || presentResult == VK_ERROR_SURFACE_LOST_KHR
+      || m_framebufferResized > 0) {
 
-    m_logger.info(STR("Recreating swap chain due to present result " << presentResult));
-    recreateSwapChain(m_requireReset || presentResult == VK_ERROR_SURFACE_LOST_KHR);
+      m_logger.info(STR("Recreating swap chain due to present result " << presentResult));
+      recreateSwapChain(m_requireReset || presentResult == VK_ERROR_SURFACE_LOST_KHR);
 
-    m_framebufferResized = std::max(0, m_framebufferResized - 1);
-    m_requireReset = false;
-  }
-  else if (presentResult != VK_SUCCESS) {
-    EXCEPTION("Failed to present swap chain image");
-  }
+      m_framebufferResized = std::max(0, m_framebufferResized - 1);
+      m_requireReset = false;
+    }
+    else if (presentResult != VK_SUCCESS) {
+      EXCEPTION("Failed to present swap chain image");
+    }
+  }).wait();
 
   m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -2594,7 +2599,7 @@ RendererImpl::~RendererImpl()
 
   m_running = false;
 
-  m_thread.waitAll();
+  m_renderThread.waitAll();
 
   vkDeviceWaitIdle(m_device);
 
