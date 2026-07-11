@@ -1,4 +1,5 @@
 #include "lithic3d/time.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <thread>
 
 #ifdef _WIN32
@@ -60,7 +61,7 @@ void Timer::reset()
 
 void Scheduler::update()
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   for (auto i = m_tasks.begin(); i != m_tasks.end();) {
     auto tick = i->first;
@@ -83,7 +84,7 @@ void Scheduler::update()
 
 void Scheduler::run(Tick delay, std::function<void()>&& fn)
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
   m_tasks[m_currentTick + delay].push_back(std::move(fn));
 }
 

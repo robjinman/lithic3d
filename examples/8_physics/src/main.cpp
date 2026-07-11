@@ -551,6 +551,62 @@ class Demo : public Game
         .aggregates{}
       },
       Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = false,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 1.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 2.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 3.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 5.f, VIEW_Z - 15.f },
+            .rotation = {},
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = false,
+            .dimensions = { 8.f, 1.f, 8.f },
+            .position = { VIEW_X + 0.f, VIEW_Y - 6.f, VIEW_Z - 15.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = true
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{},
+        .aggregates{}
+      },
+      Scenario{
         .boxes{},
         .capsules{},
         .spheres{},
@@ -609,10 +665,10 @@ Demo::Demo(Engine& engine)
 
   // TODO: Delete
   for (size_t i = 0; i < 18; ++i) {
-    resetState();
+    //resetState();
   }
 
-  enablePhysics();
+  //enablePhysics();
 
   for (size_t i = 0; i < 209; ++i) {
     //onKeyDown(KeyboardKey::N);

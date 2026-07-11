@@ -4,6 +4,7 @@
 #include <future>
 #include <memory>
 #include <vector>
+#include "scoped_lock.hpp"
 
 namespace lithic3d
 {
@@ -19,7 +20,7 @@ class WorkQueue
       std::future<void> future = packagedTask->get_future();
 
       {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         m_tasks.push_back([packagedTask]() { (*packagedTask)(); });
       }
 
@@ -31,7 +32,7 @@ class WorkQueue
       std::vector<std::function<void()>> tasks;
 
       {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         tasks = m_tasks;
         m_tasks.clear();
       }

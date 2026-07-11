@@ -5,6 +5,7 @@
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/sys_render_3d.hpp"
 #include "lithic3d/logger.hpp"
+#include "lithic3d/scoped_lock.hpp"
 
 namespace fs = std::filesystem;
 
@@ -77,13 +78,13 @@ ResourceHandle EntityFactoryImpl::loadPrefabAsync(const std::string& name)
     }
 
     {
-      std::scoped_lock lock{m_mutex};
+      SCOPED_LOCK(m_mutex);
       m_prefabs.insert({ name, std::move(prefab) });
     }
 
     return ManagedResource{
       .unloader = [this, name](ResourceId) {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         m_prefabs.erase(name);
       }
     };
@@ -120,7 +121,7 @@ void setParentIdIfSpatialComponent(ComponentData& c, EntityId parentId)
 EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xmlEntity,
   EntityMask& changedFromPrefab, std::vector<XmlNodePtr>& unused) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   auto type = xmlEntity.attribute("type");
   auto& prefab = m_prefabs.at(type);
@@ -177,7 +178,7 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const XmlNode& xm
 EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const std::string& type,
   const Mat4x4f& transform) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   auto& prefab = m_prefabs.at(type);
 
@@ -213,7 +214,7 @@ EntityId EntityFactoryImpl::constructEntity(EntityId parentId, const std::string
 EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, const std::string& type,
   const Mat4x4f& transform, const Vec4f& colour)
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   auto& prefab = m_prefabs.at(type);
 
@@ -249,7 +250,7 @@ EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, const std::s
 
 bool EntityFactoryImpl::hasPrefab(const std::string& name) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   return m_prefabs.contains(name);
 }

@@ -6,6 +6,7 @@
 #include "lithic3d/strings.hpp"
 #include "lithic3d/game_data_paths.hpp"
 #include "lithic3d/thread.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <set>
 
 namespace lithic3d
@@ -375,7 +376,7 @@ ModelLoaderImpl::ModelLoaderImpl(RenderResourceLoader& renderResourceLoader,
 
 const Model& ModelLoaderImpl::getModel(ResourceId id) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
   return *m_models.at(id);
 }
 
@@ -438,12 +439,12 @@ SkinPtr constructSkin(const std::vector<std::vector<char>>& dataBuffers,
 ResourceHandle ModelLoaderImpl::loadModelAsync(ModelPtr model)
 {
   return m_resourceManager.loadResource([this, model = std::move(model)](ResourceId id) mutable {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_models.insert({ id, std::move(model) });
 
     return ManagedResource{
       .unloader = [this, id](ResourceId id2) {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         m_models.erase(id2);
       }
     };
@@ -624,13 +625,13 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
     extractAnimations(dataBuffers, modelDesc, *model);
 
     {
-      std::scoped_lock lock{m_mutex};
+      SCOPED_LOCK(m_mutex);
       m_models.insert({ id, std::move(model) });
     }
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         m_models.erase(id);
       }
     };
@@ -640,7 +641,7 @@ ResourceHandle ModelLoaderImpl::loadModelAsync(const std::filesystem::path& file
 ModelLoaderImpl::~ModelLoaderImpl()
 {
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_models.clear();
   }
   m_resourceManager.waitAll();

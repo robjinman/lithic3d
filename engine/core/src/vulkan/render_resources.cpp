@@ -5,6 +5,7 @@
 #include "lithic3d/utils.hpp"
 #include "lithic3d/strings.hpp"
 #include "lithic3d/time.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <map>
 #include <array>
 #include <cstring>
@@ -324,7 +325,7 @@ void RenderResourcesImpl::addTexture(ResourceId id, TexturePtr texture, bool gen
   //textureData->texture = std::move(texture);
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_textures[id] = std::move(textureData);
   }
 }
@@ -339,7 +340,7 @@ void RenderResourcesImpl::addSplatMap(ResourceId id, TexturePtr texture)
   //textureData->texture = std::move(texture);
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_textures[id] = std::move(textureData);
   }
 }
@@ -354,7 +355,7 @@ void RenderResourcesImpl::addNormalMap(ResourceId id, TexturePtr texture, bool g
   //textureData->texture = std::move(texture);
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_textures[id] = std::move(textureData);
   }
 }
@@ -369,7 +370,7 @@ void RenderResourcesImpl::addCubeMap(ResourceId id, std::array<TexturePtr, 6> te
   cubeMapData->textures = std::move(textures);
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_cubeMaps[id] = std::move(cubeMapData);
   }
 }
@@ -380,7 +381,7 @@ void RenderResourcesImpl::removeTexture(ResourceId id)
   assertResourceThread();
 
   m_scheduler.run(UNLOAD_DELAY, [this, id]() {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
 
     auto i = m_textures.find(id);
     if (i == m_textures.end()) {
@@ -397,7 +398,7 @@ void RenderResourcesImpl::removeCubeMap(ResourceId id)
   assertResourceThread();
 
   m_scheduler.run(UNLOAD_DELAY, [this, id]() {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
 
     auto i = m_cubeMaps.find(id);
     if (i == m_cubeMaps.end()) {
@@ -477,7 +478,7 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
   }
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     m_meshes[id] = std::move(data);
   }
 }
@@ -488,7 +489,7 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
   assertResourceThread();
 
   m_scheduler.run(UNLOAD_DELAY, [this, id]() {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
 
     auto i = m_meshes.find(id);
     if (i == m_meshes.end()) {
@@ -507,7 +508,7 @@ void RenderResourcesImpl::removeMesh(ResourceId id)
 
 MeshBuffers RenderResourcesImpl::getMeshBuffers(ResourceId id, size_t currentFrame) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   MAP_GET(iMesh, m_meshes, id);
   auto& mesh = iMesh->second;
@@ -536,7 +537,7 @@ void RenderResourcesImpl::updateMeshInstances(ResourceId id,
 {
   DBG_TRACE(m_logger);
 
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   MAP_GET(iMesh, m_meshes, id);
   auto& mesh = *iMesh->second;
@@ -705,7 +706,7 @@ void RenderResourcesImpl::addMaterial(ResourceId id, MaterialPtr material)
   }
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
 
     materialData->material = std::move(material);
     m_materials[id] = std::move(materialData);
@@ -718,7 +719,7 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
   assertResourceThread();
 
   m_scheduler.run(UNLOAD_DELAY, [this, id]() {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
 
     auto i = m_materials.find(id);
     if (i == m_materials.end()) {
@@ -734,7 +735,7 @@ void RenderResourcesImpl::removeMaterial(ResourceId id)
 
 VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(ResourceId id) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   if (id == NULL_RESOURCE_ID) {
     return VK_NULL_HANDLE;
@@ -747,7 +748,7 @@ VkDescriptorSet RenderResourcesImpl::getMaterialDescriptorSet(ResourceId id) con
 VkDescriptorSet RenderResourcesImpl::getObjectDescriptorSet(ResourceId id,
   size_t currentFrame) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   auto i = m_meshes.find(id);
   if (i == m_meshes.end()) {
@@ -800,7 +801,7 @@ VkDescriptorSetLayout RenderResourcesImpl::getDescriptorSetLayout(DescriptorSetN
 
 VkDescriptorSet RenderResourcesImpl::getGlobalDescriptorSet(size_t currentFrame) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   return m_globalDescriptorSets[currentFrame];
 }
@@ -816,7 +817,7 @@ void RenderResourcesImpl::updateLightingUbo(const LightingUbo& ubo, size_t curre
 VkDescriptorSet RenderResourcesImpl::getRenderPassDescriptorSet(RenderPass renderPass,
   size_t currentFrame) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   switch (renderPass) {
     case RenderPass::Main: return m_mainPassDescriptorSets[currentFrame];

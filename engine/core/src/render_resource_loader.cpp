@@ -3,6 +3,7 @@
 #include "lithic3d/trace.hpp"
 #include "lithic3d/logger.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <unordered_map>
 #include <mutex>
 
@@ -63,19 +64,19 @@ RenderResourceLoaderImpl::RenderResourceLoaderImpl(ResourceManager& resourceMana
 
 bool RenderResourceLoaderImpl::hasMaterial(const std::string& name) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
   return m_materials.contains(name);
 }
 
 bool RenderResourceLoaderImpl::hasTexture(const std::filesystem::path& path) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
   return m_textures.contains(path);
 }
 
 ResourceHandle RenderResourceLoaderImpl::getMaterialHandle(const std::string& name) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   auto i = m_materials.find(name);
   ASSERT(i != m_materials.end(), "No material with name '" << name << "' loaded");
@@ -84,7 +85,7 @@ ResourceHandle RenderResourceLoaderImpl::getMaterialHandle(const std::string& na
 
 ResourceHandle RenderResourceLoaderImpl::getTextureHandle(const std::filesystem::path& path) const
 {
-  std::scoped_lock lock{m_mutex};
+  SCOPED_LOCK(m_mutex);
 
   auto i = m_textures.find(path);
   ASSERT(i != m_textures.end(), "No texture with path '" << path << "' loaded");
@@ -112,7 +113,7 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, 
   DBG_TRACE(m_logger);
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     auto i = m_textures.find(path);
     if (i != m_textures.end()) {
       m_logger.info(STR("Texture " << path << " already loaded"));
@@ -134,7 +135,7 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, 
     }
 
     {
-      std::scoped_lock lock{m_mutex};
+      SCOPED_LOCK(m_mutex);
       m_textures.insert({ path, id });
     }
 
@@ -144,7 +145,7 @@ ResourceHandle RenderResourceLoaderImpl::loadTextureAsync(const fs::path& path, 
         m_renderer.removeTexture(id);
 
         {
-          std::scoped_lock lock{m_mutex};
+          SCOPED_LOCK(m_mutex);
           m_textures.erase(path);
         }
       }

@@ -11,6 +11,7 @@
 #include "lithic3d/sys_collision.hpp"
 #include "lithic3d/model_loader.hpp"
 #include "lithic3d/xml_utils.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <cassert>
 #include <unordered_map>
 #include <mutex>
@@ -186,7 +187,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
   TerrainRegion* region = nullptr;
 
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     region = &m_regions.at(regionId);
   }
 
@@ -501,13 +502,13 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     };
 
     {
-      std::scoped_lock lock{m_mutex};
+      SCOPED_LOCK(m_mutex);
       m_regions.insert({ id, std::move(region) });
     }
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         m_regions.erase(id);
       }
     };

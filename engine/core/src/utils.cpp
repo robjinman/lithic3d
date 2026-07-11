@@ -3,6 +3,7 @@
 #include "lithic3d/exception.hpp"
 #include "lithic3d/platform.hpp"
 #include "lithic3d/strings.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <fstream>
 #include <random>
 
@@ -71,5 +72,7 @@ void writeBinaryFile(const std::filesystem::path& path, const char* data, size_t
 
   stream.write(data, size);
 }
+
+LockContentionStats* LockContentionStats::m_instance = nullptr;
 
 } // namespace lithic3d

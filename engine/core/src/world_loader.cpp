@@ -9,6 +9,7 @@
 #include "lithic3d/ecs.hpp"
 #include "lithic3d/sys_spatial.hpp"
 #include "lithic3d/logger.hpp"
+#include "lithic3d/scoped_lock.hpp"
 #include <map>
 #include <cassert>
 #include <mutex>
@@ -122,7 +123,7 @@ std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
 {
   CellSlice* cellSlice = nullptr;
   {
-    std::scoped_lock lock{m_mutex};
+    SCOPED_LOCK(m_mutex);
     cellSlice = &m_cellSlices.at(cellSliceId);
   }
 
@@ -171,7 +172,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 
     CellSlice* cellSlice = nullptr;
     {
-      std::scoped_lock lock{m_mutex};
+      SCOPED_LOCK(m_mutex);
       cellSlice = &m_cellSlices[id];
     }
 
@@ -195,7 +196,7 @@ ResourceHandle WorldLoaderImpl::loadCellSliceAsync(uint32_t x, uint32_t y, uint3
 
     return ManagedResource{
       .unloader = [this](ResourceId id) {
-        std::scoped_lock lock{m_mutex};
+        SCOPED_LOCK(m_mutex);
         m_cellSlices.erase(id);
       }
     };

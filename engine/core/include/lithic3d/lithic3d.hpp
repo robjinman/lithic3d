@@ -51,6 +51,7 @@
 #include "renderer.hpp"
 #include "game_data_paths.hpp"
 #include "file_system.hpp"
+#include "scoped_lock.hpp"
 #include "factory.hpp"
 #include "sys_properties.hpp"
 #include "sys_animation_2d.hpp"
