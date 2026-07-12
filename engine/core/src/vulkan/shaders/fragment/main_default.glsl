@@ -52,7 +52,7 @@ void main()
 #endif
 
 #ifdef FEATURE_LIGHTING
-  vec3 light = computeLight(inWorldPos, normal, false);
+  vec3 light = computeLight(inWorldPos, normal, true);
 #else
   vec3 light = vec3(1, 1, 1);
 #endif

@@ -32,18 +32,16 @@ layout(push_constant) uniform PushConstants
   layout(offset = 80) vec4 colour;
 } constants;
 
-vec4 computeTexelFromSplats(vec2 texCoord)
+vec4 computeTexelFromSplats()
 {
-  // Number of tiles to 1 cell length
-  // TODO: Don't hard-code
-  float numTiles = 250.0;
+  vec4 splat = texture(splatMapSampler, inTexCoord);
+  vec2 worldPos = inWorldPos.xz;
+  float splatSize = 4.0 * WORLD_UNITS_PER_METRE;
 
-  vec4 splat = texture(splatMapSampler, texCoord);
-
-  vec4 texel = splat[0] * texture(texSampler[0], texCoord * numTiles)
-    + splat[1] * texture(texSampler[1], texCoord * numTiles)
-    + splat[2] * texture(texSampler[2], texCoord * numTiles)
-    + (1.0 - splat[3]) * texture(texSampler[3], texCoord * numTiles);
+  vec4 texel = splat[0] * texture(texSampler[0], worldPos / splatSize)
+    + splat[1] * texture(texSampler[1], worldPos / splatSize)
+    + splat[2] * texture(texSampler[2], worldPos / splatSize)
+    + (1.0 - splat[3]) * texture(texSampler[3], worldPos / splatSize);
 
   return vec4(texel.xyz, 1);
 }
@@ -65,15 +63,9 @@ void main()
 #endif
 
 #ifdef FEATURE_TEXTURE_MAPPING
-  vec4 texel = computeTexelFromSplats(inTexCoord);
+  vec4 texel = computeTexelFromSplats();
 #else
   vec4 texel = material.colour;
 #endif
-
-//  if (texel.a < 0.5) {
-//    discard;
-//  }
-//  else {
-    outColour = applyFog(constants.colour * vec4(light, 1) * texel, -inViewPos.z);
-//  }
+  outColour = applyFog(constants.colour * vec4(light, 1) * texel, -inViewPos.z);
 }

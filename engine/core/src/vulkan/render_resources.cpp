@@ -435,6 +435,7 @@ void RenderResourcesImpl::addMesh(ResourceId id, MeshPtr mesh)
 
     std::vector<Mat4x4f> joints(MAX_JOINTS, identityMatrix<4>());
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+      // TODO: Create single large UBO for all animated meshes
       m_bufferManager.writeToBuffer(*data->jointTransformsUbo[i],
         reinterpret_cast<const char*>(joints.data()), joints.size() * sizeof(Mat4x4f));
     }
@@ -1111,7 +1112,7 @@ void RenderResourcesImpl::createObjectDescriptorSetLayout()
     .bindingCount = static_cast<uint32_t>(bindings.size()),
     .pBindings = bindings.data()
   };
-  
+
   VK_CHECK(vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr,
     &m_objectDescriptorSetLayout), "Failed to create descriptor set layout");
 

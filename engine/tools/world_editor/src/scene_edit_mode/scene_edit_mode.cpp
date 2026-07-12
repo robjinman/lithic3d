@@ -311,6 +311,7 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 {
   auto& factory = m_core.engine().entityFactory();
   if (!factory.hasEntityType(type)) {
+    // TODO: Handle terrain pieces
     return;
   }
 

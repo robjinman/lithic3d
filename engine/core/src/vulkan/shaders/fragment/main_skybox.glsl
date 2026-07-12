@@ -12,13 +12,13 @@ layout(location = 0) out vec4 outColour;
 
 vec4 applyFogSky(vec4 fragColour)
 {
-  return fragColour; // TODO
+  //return fragColour; // TODO
 
-  //const float fogHeight = DRAW_DISTANCE;
-  //float y = inWorldPos.y * DRAW_DISTANCE / length(inWorldPos);
-  //float t = min(1, max(fogHeight - y, 0) / fogHeight);
+  const float fogHeight = DRAW_DISTANCE;
+  float y = inWorldPos.y * DRAW_DISTANCE / length(inWorldPos);
+  float t = min(1, max(fogHeight - y, 0) / fogHeight);
 
-  //return vec4(fragColour.xyz + t * (vec3(1) - fragColour.xyz), fragColour.w);
+  return vec4(fragColour.xyz + t * (vec3(1) - fragColour.xyz), fragColour.w);
 }
 
 void main()

@@ -8,3 +8,5 @@
 #define DRAW_DISTANCE 10000.0   // TODO: Parameterise
 
 #define SQRT_3 1.73205080757
+
+#define WORLD_UNITS_PER_METRE 10.0  // TODO: Parameterise
