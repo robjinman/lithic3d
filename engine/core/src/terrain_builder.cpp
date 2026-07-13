@@ -84,7 +84,7 @@ class TerrainBuilderImpl : public TerrainBuilder
     std::unordered_map<ResourceId, TerrainRegion> m_regions;
 
     MeshPtr constructLandMesh(const Texture& heightMap, const Recti& rect, const Vec3f& dimensions,
-      bool inverted, std::vector<float>& heights, std::vector<bool>& mask) const;
+      bool inverted, std::vector<float>& heights, std::vector<bool>& mask, float& maxHeight) const;
     std::vector<TerrainPiece> constructLandModelsAsync(const fs::path& cellPath,
       const XmlNode& xmlTerrain) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize) const;
@@ -201,7 +201,7 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
 
 MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
   const Recti& rect, const Vec3f& dimensions, bool inverted, std::vector<float>& heights,
-  std::vector<bool>& mask) const
+  std::vector<bool>& mask, float& outMaxHeight) const
 {
   ASSERT(heightMap.channels == 1,
     "Height map has " << heightMap.channels << " channels; expected 1");
@@ -246,6 +246,8 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
   float dx = dimensions[0] * w_rp;
   float dz = dimensions[2] * d_rp;
 
+  float maxHeight = std::numeric_limits<float>::lowest();
+
   for (uint32_t i = 0; i < numVertices; ++i) {
     uint32_t chunkPxX = i % rect.w;
     uint32_t chunkPxZ = i / rect.w;
@@ -255,6 +257,9 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
     float chunkZ = dz * chunkPxZ;
 
     float height = calcHeight(heightMap.data.at(globalPxZ * heightMap.width + globalPxX));
+    if (height > maxHeight) {
+      maxHeight = height;
+    }
 
     positions[i] = { chunkX, height, chunkZ };
     texCoords[i] = { w_rp * globalPxX, d_rp * globalPxZ };
@@ -263,10 +268,10 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
     mask[i] = true;
   }
 
-  auto chunkToGlobalIndex = [&rect](uint32_t chunkIdx) {
+  auto chunkToGlobalIndex = [&rect, &heightMap](uint32_t chunkIdx) {
     uint32_t chunkPxX = chunkIdx % rect.w;
     uint32_t chunkPxZ = chunkIdx / rect.w;
-    return (rect.y + chunkPxZ) * (rect.x + chunkPxX);
+    return (rect.y + chunkPxZ) * heightMap.width + (rect.x + chunkPxX);
   };
 
   size_t indexIdx = 0;
@@ -284,6 +289,7 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
       uint32_t Cy = heightMap.data.at(chunkToGlobalIndex(C));
       uint32_t Dy = heightMap.data.at(chunkToGlobalIndex(D));
 
+      // TODO: Consider holes that cross chunk boundaries
       if (Ay == 0 && By == 0 && Cy == 0 && Dy == 0) {
         uint32_t E = A + rect.w;
         uint32_t F = E + 1;
@@ -362,6 +368,8 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
   mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{normals}, BufferUsage::AttrNormal});
   mesh->attributeBuffers.emplace_back(Buffer{AlignedBytes{texCoords}, BufferUsage::AttrTexCoord});
   mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
+
+  outMaxHeight = maxHeight;
 
   return mesh;
 }
@@ -482,20 +490,20 @@ std::vector<TerrainPiece> TerrainBuilderImpl::constructLandModelsAsync(const fs:
       float z = (terrainDimensions[2] * rect.y) / (heightMapD - 1);
 
       TerrainPiece piece;
-      piece.position = terrainPos + Vec3f{ x, 0.f, z };
-      piece.dimensions = {
-        (terrainDimensions[0] * (rect.w - 1)) / (heightMapW - 1),
-        terrainDimensions[1], // TODO: Compute from mesh
-        (terrainDimensions[2] * (rect.h - 1)) / (heightMapD - 1),
-      };
 
+      float maxHeightMetres = 0.f;
+      auto mesh = constructLandMesh(*heightMapTexture, rect, terrainDimensionsMetres, inverted,
+        piece.heightMap.data, piece.heightMap.mask, maxHeightMetres);
+
+      piece.position = terrainPos + Vec3f{ x, 0.f, z };
+      piece.dimensions[0] = (terrainDimensions[0] * (rect.w - 1)) / (heightMapW - 1);
+      piece.dimensions[1] = metresToWorldUnits(maxHeightMetres);
+      piece.dimensions[2] = (terrainDimensions[2] * (rect.h - 1)) / (heightMapD - 1);
       piece.heightMap.inverted = inverted;
       piece.heightMap.widthPx = rect.w;
       piece.heightMap.heightPx = rect.h;
       piece.heightMap.width = piece.dimensions[0];
       piece.heightMap.height = piece.dimensions[2];
-      auto mesh = constructLandMesh(*heightMapTexture, rect, terrainDimensionsMetres, inverted,
-        piece.heightMap.data, piece.heightMap.mask);
 
       // TODO: Multiple terrain LODs
 

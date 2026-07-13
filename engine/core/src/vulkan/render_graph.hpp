@@ -88,6 +88,8 @@ class RenderGraph
     inline Iterator begin() const;
     inline Iterator end() const;
 
+    inline size_t size() const;
+
   private:
     Map m_map;
 };
@@ -110,6 +112,11 @@ inline RenderGraph::Iterator RenderGraph::begin() const
 inline RenderGraph::Iterator RenderGraph::end() const
 {
   return Iterator{m_map.cend()};
+}
+
+inline size_t RenderGraph::size() const
+{
+  return m_map.size();
 }
 
 // TODO: Replace inheritance

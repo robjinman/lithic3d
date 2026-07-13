@@ -171,8 +171,12 @@ SysSpatialImpl::SysSpatialImpl(Ecs& ecs, EventSystem& eventSystem, Logger& logge
   };
 
   m_sceneGraph = std::make_unique<SceneGraph>(root, rootNode);
+
   // TODO: Don't hard-code bounds
-  m_octree = std::make_unique<SpatialContainer>(Vec3f{ -1000.f, -1000.f, -1000.f }, 17000.f);
+  auto origin = metresToWorldUnits(Vec3f{ -1000.f, -1000.f, -1000.f });
+  float size = metresToWorldUnits(17000.f);
+
+  m_octree = std::make_unique<SpatialContainer>(origin, size);
 }
 
 const LooseOctree<EntityId, uint32_t>& SysSpatialImpl::dbg_getOctree() const
@@ -205,6 +209,7 @@ void SysSpatialImpl::getAndSortIntersecting(const Frustum& frustum,
 void SysSpatialImpl::updateMainFrustum(const Frustum& main)
 {
   getAndSortIntersecting(main, m_mainVisible);
+  //m_logger.info(STR(m_mainVisible.size()));
 }
 
 void SysSpatialImpl::updateShadowFrustums(const Frustum& shadow0, const Frustum& shadow1,
@@ -543,13 +548,14 @@ void SysSpatialImpl::update(Tick, const InputState&)
       prevParentId = parentId;
     }
 
-    // TODO: Skip if entity is static or local transform is non-dirty
-
-    entry.value.globalT->transform = *parentT * entry.value.localT->transform;
-
-    updateBoundingBox(entry.key, entry.value);
-
     auto& flags = entry.value.flags->flags;
+
+    if (flags.test(SpatialFlags::Dirty)) {
+      entry.value.globalT->transform = *parentT * entry.value.localT->transform;
+      updateBoundingBox(entry.key, entry.value);
+
+      flags.set(SpatialFlags::Dirty, false);
+    }
 
     setVisibility(mainVisibleIdx, m_mainVisible, flags, SpatialFlags::Visible0, i);
     setVisibility(shadow0VisibleIdx, m_shadow0Visible, flags, SpatialFlags::Visible1, i);
