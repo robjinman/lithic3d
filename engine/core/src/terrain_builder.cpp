@@ -83,9 +83,10 @@ class TerrainBuilderImpl : public TerrainBuilder
     std::mutex m_mutex;
     std::unordered_map<ResourceId, TerrainRegion> m_regions;
 
-    MeshPtr constructLandMesh(const Texture& heightMap, const Vec3f& dimensions, bool inverted,
-      std::vector<float>& heights, std::vector<bool>& mask) const;
-    TerrainPiece constructLandModelAsync(const fs::path& cellPath, const XmlNode& xmlTerrain) const;
+    MeshPtr constructLandMesh(const Texture& heightMap, const Recti& rect, const Vec3f& dimensions,
+      bool inverted, std::vector<float>& heights, std::vector<bool>& mask) const;
+    std::vector<TerrainPiece> constructLandModelsAsync(const fs::path& cellPath,
+      const XmlNode& xmlTerrain) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize) const;
     ResourceHandle constructWaterModelAsync(const Vec2f& cellSize) const;
     void createLandEntities(EntityId parentId, const TerrainRegion& region,
@@ -198,20 +199,21 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
   return entities;
 }
 
-MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Vec3f& dimensions,
-  bool inverted, std::vector<float>& heights, std::vector<bool>& mask) const
+MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
+  const Recti& rect, const Vec3f& dimensions, bool inverted, std::vector<float>& heights,
+  std::vector<bool>& mask) const
 {
-  // TODO: Break into smaller chunks
-
   ASSERT(heightMap.channels == 1,
     "Height map has " << heightMap.channels << " channels; expected 1");
 
-  assert(heightMap.width > 0);
-  assert(heightMap.height > 0);
   assert(heightMap.data.size() == heightMap.width * heightMap.height);
+  assert(rect.w <= heightMap.width);
+  assert(rect.h <= heightMap.height);
+  assert(rect.x + rect.w <= heightMap.width);
+  assert(rect.y + rect.h <= heightMap.height);
 
-  uint32_t numVertices = heightMap.width * heightMap.height;
-  size_t numIndices = 6 * (heightMap.width - 1) * (heightMap.height - 1);
+  uint32_t numVertices = rect.w * rect.h;
+  size_t numIndices = 6 * (rect.w - 1) * (rect.h - 1);
 
   std::vector<Vec3f> positions(numVertices);
   std::vector<Vec3f> normals(numVertices);
@@ -239,45 +241,55 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Ve
     return (static_cast<float>(pixelValue) / 255.f) * dimensions[1];
   };
 
+  float w_rp = 1.f / (heightMap.width - 1);
+  float d_rp = 1.f / (heightMap.height - 1);
+  float dx = dimensions[0] * w_rp;
+  float dz = dimensions[2] * d_rp;
+
   for (uint32_t i = 0; i < numVertices; ++i) {
-    uint32_t pixelX = i % heightMap.width;
-    uint32_t pixelY = i / heightMap.width;
+    uint32_t chunkPxX = i % rect.w;
+    uint32_t chunkPxZ = i / rect.w;
+    uint32_t globalPxX = rect.x + chunkPxX;
+    uint32_t globalPxZ = rect.y + chunkPxZ;
+    float chunkX = dx * chunkPxX;
+    float chunkZ = dz * chunkPxZ;
 
-    float uvX = static_cast<float>(pixelX) / (heightMap.width - 1);
-    float uvY = static_cast<float>(pixelY) / (heightMap.height - 1);
-    float x = uvX * dimensions[0];
-    float z = uvY * dimensions[2];
+    float height = calcHeight(heightMap.data.at(globalPxZ * heightMap.width + globalPxX));
 
-    float height = calcHeight(heightMap.data.at(i));
-
-    positions[i] = { x, height, z };
-    texCoords[i] = { uvX, uvY };
+    positions[i] = { chunkX, height, chunkZ };
+    texCoords[i] = { w_rp * globalPxX, d_rp * globalPxZ };
 
     heights[i] = metresToWorldUnits(height);
     mask[i] = true;
   }
 
+  auto chunkToGlobalIndex = [&rect](uint32_t chunkIdx) {
+    uint32_t chunkPxX = chunkIdx % rect.w;
+    uint32_t chunkPxZ = chunkIdx / rect.w;
+    return (rect.y + chunkPxZ) * (rect.x + chunkPxX);
+  };
+
   size_t indexIdx = 0;
-  for (uint32_t pixelY = 1; pixelY < heightMap.height; ++pixelY) {
-    for (uint32_t pixelX = 1; pixelX < heightMap.width; ++pixelX) {
-      uint32_t i = pixelY * heightMap.width + pixelX;
+  for (uint32_t chunkPxZ = 1; chunkPxZ < rect.h; ++chunkPxZ) {
+    for (uint32_t chunkPxX = 1; chunkPxX < rect.w; ++chunkPxX) {
+      uint32_t i = chunkPxZ * rect.w + chunkPxX;
 
       uint32_t A = i - 1;
       uint32_t B = i;
-      uint32_t D = i - heightMap.width - 1;
+      uint32_t D = i - rect.w - 1;
       uint32_t C = D + 1;
 
-      uint32_t Ay = heightMap.data.at(A);
-      uint32_t By = heightMap.data.at(B);
-      uint32_t Cy = heightMap.data.at(C);
-      uint32_t Dy = heightMap.data.at(D);
+      uint32_t Ay = heightMap.data.at(chunkToGlobalIndex(A));
+      uint32_t By = heightMap.data.at(chunkToGlobalIndex(B));
+      uint32_t Cy = heightMap.data.at(chunkToGlobalIndex(C));
+      uint32_t Dy = heightMap.data.at(chunkToGlobalIndex(D));
 
       if (Ay == 0 && By == 0 && Cy == 0 && Dy == 0) {
-        uint32_t E = A + heightMap.width;
+        uint32_t E = A + rect.w;
         uint32_t F = E + 1;
         uint32_t G = B + 1;
         uint32_t H = C + 1;
-        uint32_t I = C - heightMap.width;
+        uint32_t I = C - rect.w;
         uint32_t J = I - 1;
         uint32_t K = D - 1;
         uint32_t L = A - 1;
@@ -402,61 +414,105 @@ MeshPtr TerrainBuilderImpl::constructWaterMesh(const Vec2f& cellSize) const
   return mesh;
 }
 
-TerrainPiece TerrainBuilderImpl::constructLandModelAsync(const fs::path& cellPath,
+std::vector<TerrainPiece> TerrainBuilderImpl::constructLandModelsAsync(const fs::path& cellPath,
   const XmlNode& xmlTerrainPiece) const
 {
-  // TODO: Read file name from floor_height_map attribute
+  // TODO: Magic numbers. Parameterise.
+  const uint32_t chunkPxW = 20;
+  const uint32_t chunkPxD = 20;
 
-  auto dimensionsMetres = constructVec3f(*xmlTerrainPiece.child("dim"));
-
+  auto terrainDimensionsMetres = constructVec3f(*xmlTerrainPiece.child("dim"));
+  Vec3f terrainDimensions = metresToWorldUnits(terrainDimensionsMetres);
   bool inverted = xmlTerrainPiece.attribute("inverted") == "true";
-
-  TerrainPiece piece;
-  piece.position = metresToWorldUnits(constructVec3f(*xmlTerrainPiece.child("pos")));
-  piece.dimensions = metresToWorldUnits(dimensionsMetres);
 
   auto heightMapFilename = xmlTerrainPiece.attribute("height_map");
 
   auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / heightMapFilename);
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
 
-  piece.heightMap.inverted = inverted;
-  piece.heightMap.widthPx = heightMapTexture->width;
-  piece.heightMap.heightPx = heightMapTexture->height;
-  piece.heightMap.width = piece.dimensions[0];
-  piece.heightMap.height = piece.dimensions[2];
-  auto mesh = constructLandMesh(*heightMapTexture, dimensionsMetres, inverted, piece.heightMap.data,
-    piece.heightMap.mask);
+  uint32_t heightMapW = heightMapTexture->width;
+  uint32_t heightMapD = heightMapTexture->height;
+
+  uint32_t nChunksX = heightMapW / chunkPxW;
+  uint32_t nChunksZ = heightMapD / chunkPxD;
+  uint32_t lastChunkPxW = chunkPxW;
+  uint32_t lastChunkPxD = chunkPxD;
+  if (heightMapW % chunkPxW != 0) {
+    ++nChunksX;
+    lastChunkPxW = heightMapW % chunkPxW;
+  }
+  if (heightMapD % chunkPxD != 0) {
+    ++nChunksZ;
+    lastChunkPxD = heightMapD % chunkPxD;
+  }
+
+  Vec3f terrainPos = metresToWorldUnits(constructVec3f(*xmlTerrainPiece.child("pos")));
+
+  auto& xmlSplatMap = *xmlTerrainPiece.child("splat_map");
+  auto splatMapFilename = xmlSplatMap.attribute("file");
 
   render::MaterialFeatureSet materialFeatures{
     .flags = bitflag(render::MaterialFeatures::HasTexture)
   };
 
-  auto& xmlSplatMap = *xmlTerrainPiece.child("splat_map");
-  auto splatMapFilename = xmlSplatMap.attribute("file");
-
   auto material = std::make_unique<render::Material>();
   material->featureSet = materialFeatures;
-  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / splatMapFilename, true,
-    m_paths.worldsDir);
+  material->splatMap = m_renderResourceLoader.loadTextureAsync(cellPath / splatMapFilename,
+    true, m_paths.worldsDir);
 
   for (auto& textureXml : xmlSplatMap) {
     fs::path filePath = textureXml.attribute("file");
     material->textures.push_back(m_renderResourceLoader.loadTextureAsync(filePath, true));
   }
 
-  // TODO: Multiple terrain LODs
+  auto materialHandle = m_renderResourceLoader.loadMaterialAsync(std::move(material));
 
-  auto submodel = std::make_unique<Submodel>();
-  submodel->lods = { m_renderResourceLoader.loadMeshAsync(std::move(mesh)) };
-  submodel->material = m_renderResourceLoader.loadMaterialAsync(std::move(material));
+  std::vector<TerrainPiece> pieces;
 
-  auto model = std::make_unique<Model>();
-  model->submodels.push_back(std::move(submodel));
+  for (uint32_t i = 0; i < nChunksX; ++i) {
+    for (uint32_t j = 0; j < nChunksZ; ++j) {
+      Recti rect{
+        .x = i * chunkPxW,
+        .y = j * chunkPxD,
+        .w = i + 1 == nChunksX ? lastChunkPxW : chunkPxW + 1,
+        .h = j + 1 == nChunksZ ? lastChunkPxD : chunkPxD + 1,
+      };
 
-  piece.model = m_modelLoader.loadModelAsync(std::move(model));
+      float x = (terrainDimensions[0] * rect.x) / (heightMapW - 1);
+      float z = (terrainDimensions[2] * rect.y) / (heightMapD - 1);
 
-  return piece;
+      TerrainPiece piece;
+      piece.position = terrainPos + Vec3f{ x, 0.f, z };
+      piece.dimensions = {
+        (terrainDimensions[0] * (rect.w - 1)) / (heightMapW - 1),
+        terrainDimensions[1], // TODO: Compute from mesh
+        (terrainDimensions[2] * (rect.h - 1)) / (heightMapD - 1),
+      };
+
+      piece.heightMap.inverted = inverted;
+      piece.heightMap.widthPx = rect.w;
+      piece.heightMap.heightPx = rect.h;
+      piece.heightMap.width = piece.dimensions[0];
+      piece.heightMap.height = piece.dimensions[2];
+      auto mesh = constructLandMesh(*heightMapTexture, rect, terrainDimensionsMetres, inverted,
+        piece.heightMap.data, piece.heightMap.mask);
+
+      // TODO: Multiple terrain LODs
+
+      auto submodel = std::make_unique<Submodel>();
+      submodel->lods = { m_renderResourceLoader.loadMeshAsync(std::move(mesh)) };
+      submodel->material = materialHandle;
+
+      auto model = std::make_unique<Model>();
+      model->submodels.push_back(std::move(submodel));
+
+      piece.model = m_modelLoader.loadModelAsync(std::move(model));
+
+      pieces.push_back(piece);
+    }
+  }
+
+  return pieces;
 }
 
 ResourceHandle TerrainBuilderImpl::constructWaterModelAsync(const Vec2f& cellSize) const
@@ -491,7 +547,8 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
     TerrainRegion region;
 
     for (auto& xmlTerrainPiece : *xmlTerrain) {
-      region.land.push_back(constructLandModelAsync(cellPath, xmlTerrainPiece));
+      auto models = constructLandModelsAsync(cellPath, xmlTerrainPiece);
+      region.land.insert(region.land.end(), models.begin(), models.end());
     }
 
     float waterLevel = metresToWorldUnits(std::stof(xmlTerrain->attribute("water_level")));
