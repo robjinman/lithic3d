@@ -38,13 +38,17 @@ struct RenderNode
 
 using RenderNodePtr = std::unique_ptr<RenderNode>;
 
-// For now, this is just a wrapper around std::map
 class RenderGraph
 {
   public:
     using KeyPart = long;
     using Key = std::array<KeyPart, 6>; // TODO: Try to reduce key size
-    using Map = std::map<Key, RenderNodePtr>;
+
+    struct Entry
+    {
+      Key key;
+      RenderNodePtr node;
+    };
 
     inline void insert(const Key& key, RenderNodePtr value);
     inline void remove(const Key& key);
@@ -52,7 +56,7 @@ class RenderGraph
     class Iterator
     {
       public:
-        explicit Iterator(Map::const_iterator i)
+        explicit Iterator(std::vector<Entry>::const_iterator i)
           : m_i(i) {}
 
         bool operator==(const Iterator& rhs) const
@@ -60,12 +64,12 @@ class RenderGraph
           return m_i == rhs.m_i;
         }
 
-        const Map::mapped_type& operator*() const
+        const RenderNodePtr& operator*() const
         {
-          return m_i->second;
+          return m_i->node;
         }
 
-        const Map::mapped_type* operator->() const
+        const RenderNodePtr* operator->() const
         {
           return &(**this);
         }
@@ -82,7 +86,7 @@ class RenderGraph
         }
 
       private:
-        Map::const_iterator m_i;
+        std::vector<Entry>::const_iterator m_i;
     };
 
     inline Iterator begin() const;
@@ -91,32 +95,41 @@ class RenderGraph
     inline size_t size() const;
 
   private:
-    Map m_map;
+    std::vector<Entry> m_entries;
 };
 
 inline void RenderGraph::insert(const Key& key, RenderNodePtr value)
 {
-  m_map[key] = std::move(value);
+  int j = static_cast<int>(m_entries.size()) - 1;
+  m_entries.resize(m_entries.size() + 1);
+
+  while (j >= 0 && key < m_entries[j].key) {
+    m_entries[j + 1] = std::move(m_entries[j]);
+    --j;
+  }
+
+  m_entries[j + 1] = { key, std::move(value) };
 }
 
-inline void RenderGraph::remove(const Key& key)
+inline void RenderGraph::remove(const Key&)
 {
-  m_map.erase(key);
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 inline RenderGraph::Iterator RenderGraph::begin() const
 {
-  return Iterator{m_map.cbegin()};
+  return Iterator{m_entries.cbegin()};
 }
 
 inline RenderGraph::Iterator RenderGraph::end() const
 {
-  return Iterator{m_map.cend()};
+  return Iterator{m_entries.cend()};
 }
 
 inline size_t RenderGraph::size() const
 {
-  return m_map.size();
+  return m_entries.size();
 }
 
 // TODO: Replace inheritance
