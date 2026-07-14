@@ -50,6 +50,11 @@ class RenderGraph
       RenderNodePtr node;
     };
 
+    RenderGraph()
+    {
+      m_entries.reserve(100);
+    }
+
     inline void insert(const Key& key, RenderNodePtr value);
     inline void remove(const Key& key);
 

@@ -2044,6 +2044,8 @@ void RendererImpl::recordCommandBuffer(RenderPass renderPass, const RenderGraph&
   GraphicsPipeline* prevPipeline = nullptr;
   BindState bindState{};
 
+  //m_logger.info(STR("Drawing " << renderGraph.size()));
+
   for (auto& node : renderGraph) {
     switch (node->type) {
       case RenderNodeType::DefaultModel: {
