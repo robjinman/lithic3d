@@ -10,9 +10,11 @@
 namespace lithic3d
 {
 
-std::optional<Triangle> HeightMapSampler::triangle(const Vec2f& p) const
+std::optional<Triangle> HeightMapSampler::triangle(Vec2f p) const
 {
-  DBG_ASSERT(inRange(p), "Value out of range");
+  if (!inRange(p)) {
+    return std::nullopt;
+  }
 
   float xIdx = (p[0] - m_pos[0]) * (m_map.widthPx - 1) / m_map.width;
   float zIdx = (p[1] - m_pos[2]) * (m_map.heightPx - 1) / m_map.height;
@@ -26,10 +28,20 @@ std::optional<Triangle> HeightMapSampler::triangle(const Vec2f& p) const
   auto zIdx1 = ceilf(zIdx);
 
   if (xIdx0 == xIdx1) {
-    ++xIdx1;
+    if (xIdx0 > 0) {
+      --xIdx0;
+    }
+    else {
+      ++xIdx1;
+    }
   }
   if (zIdx0 == zIdx1) {
-    ++zIdx1;
+    if (zIdx0 > 0) {
+      --zIdx0;
+    }
+    else {
+      ++zIdx1;
+    }
   }
 
   auto getIndex = [this](float xIdx, float zIdx) {
@@ -72,13 +84,11 @@ std::optional<Triangle> HeightMapSampler::triangle(const Vec2f& p) const
   }
 }
 
-void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
-  std::vector<Triangle>& triangles) const
+void HeightMapSampler::triangles(Vec2f min, Vec2f max, std::vector<Triangle>& triangles) const
 {
-  // TODO: Clip to range?
-  if (!inRange(min) || !inRange(max)) {
-    return;
-  }
+  DBG_ASSERT(inRange(min, max), "Value out of range");
+
+  clipToRange(min, max);
 
   size_t w = m_map.widthPx - 1;
   size_t h = m_map.heightPx - 1;
@@ -88,10 +98,20 @@ void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
   auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
 
   if (xIdx0 == xIdx1) {
-    ++xIdx1;
+    if (xIdx0 > 0) {
+      --xIdx0;
+    }
+    else {
+      ++xIdx1;
+    }
   }
   if (zIdx0 == zIdx1) {
-    ++zIdx1;
+    if (zIdx0 > 0) {
+      --zIdx0;
+    }
+    else {
+      ++zIdx1;
+    }
   }
 
   DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
@@ -131,13 +151,11 @@ void HeightMapSampler::triangles(const Vec2f& min, const Vec2f& max,
   }
 }
 
-void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
-  std::vector<Vec3f>& vertices) const
+void HeightMapSampler::vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertices) const
 {
-  // TODO: Clip to range?
-  if (!inRange(min) || !inRange(max)) {
-    return;
-  }
+  DBG_ASSERT(inRange(min, max), "Value out of range");
+
+  clipToRange(min, max);
 
   size_t w = m_map.widthPx - 1;
   size_t h = m_map.heightPx - 1;
@@ -147,10 +165,20 @@ void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
   auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
 
   if (xIdx0 == xIdx1) {
-    ++xIdx1;
+    if (xIdx0 > 0) {
+      --xIdx0;
+    }
+    else {
+      ++xIdx1;
+    }
   }
   if (zIdx0 == zIdx1) {
-    ++zIdx1;
+    if (zIdx0 > 0) {
+      --zIdx0;
+    }
+    else {
+      ++zIdx1;
+    }
   }
 
   DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
@@ -173,12 +201,11 @@ void HeightMapSampler::vertices(const Vec2f& min, const Vec2f& max,
   }
 }
 
-void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const
+void HeightMapSampler::edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) const
 {
-  // TODO: Clip to range?
-  if (!inRange(min) || !inRange(max)) {
-    return;
-  }
+  DBG_ASSERT(inRange(min, max), "Value out of range");
+
+  clipToRange(min, max);
 
   // TODO: Detect holes?
 
@@ -190,10 +217,20 @@ void HeightMapSampler::edges(const Vec2f& min, const Vec2f& max, std::vector<Edg
   auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
 
   if (xIdx0 == xIdx1) {
-    ++xIdx1;
+    if (xIdx0 > 0) {
+      --xIdx0;
+    }
+    else {
+      ++xIdx1;
+    }
   }
   if (zIdx0 == zIdx1) {
-    ++zIdx1;
+    if (zIdx0 > 0) {
+      --zIdx0;
+    }
+    else {
+      ++zIdx1;
+    }
   }
 
   DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
@@ -2159,9 +2196,16 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
   auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
   P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
 
-  std::vector<Triangle> triangles;
   Vec2f p{ P[0], P[2] };
-  sampler.triangles(p + Vec2f{ -radius, -radius }, p + Vec2f{ radius, radius }, triangles);
+  auto min = p + Vec2f{ -radius, -radius };
+  auto max = p + Vec2f{ radius, radius };
+
+  if (!sampler.inRange(min, max)) {
+    return false;
+  }
+
+  std::vector<Triangle> triangles;
+  sampler.triangles(min, max, triangles);
 
   Sphere sphere{
     .centre = P,
@@ -2364,6 +2408,10 @@ void terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
 
   HeightMapSampler sampler{*A.terrain->heightMap, getTranslation(getTransform(A))};
 
+  if (!sampler.inRange(boxMin, boxMax)) {
+    return;
+  }
+
   std::vector<Vec3f> terrainVerts;
   sampler.vertices(boxMin, boxMax, terrainVerts);
 
@@ -2412,6 +2460,11 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
   const float maxPenetration = metresToWorldUnits(0.1f);  // Magic number
 
   HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
+
+  if (!sampler.inRange(boxMin, boxMax)) {
+    return;
+  }
+
   bool inverted = B.terrain->heightMap->inverted;
   std::vector<Edge> terrainEdges;
   sampler.edges(boxMin, boxMax, terrainEdges);
@@ -2914,11 +2967,12 @@ void resolveInterpenetration(const Contact& contact)
   }
 
   // TODO: Different resolution rate for different types of collision?
-  float rMin = 0.1f; // TODO: Magic number
-  float r = rMin + (1.f - rMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
+  float rateMin = 0.1f; // TODO: Magic number
+  float rate = rateMin + (1.f - rateMin) / (1.f + 100.f * worldUnitsToMetres(contact.penetration));
   //r = 1.f;
 
   if (aIsDynamic) {
+    float r = A.capsule ? 1.f : rate;
     float a = (A.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
     auto outDir = contact.normal;
 
@@ -2926,6 +2980,7 @@ void resolveInterpenetration(const Contact& contact)
   }
 
   if (bIsDynamic) {
+    float r = A.capsule ? 1.f : rate;
     float b = (B.dynamic->inverseMass / totalInvMass) * (contact.penetration * r);
     auto outDir = -contact.normal;
 

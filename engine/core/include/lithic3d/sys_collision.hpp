@@ -83,22 +83,38 @@ class HeightMapSampler
       : m_map(heightMap)
       , m_pos(position) {}
 
-    inline bool inRange(const Vec2f& p) const;
-    std::optional<Triangle> triangle(const Vec2f& p) const;
-    void vertices(const Vec2f& min, const Vec2f& max, std::vector<Vec3f>& vertices) const;
-    void edges(const Vec2f& min, const Vec2f& max, std::vector<Edge>& edges) const;
-    void triangles(const Vec2f& min, const Vec2f& max,
-      std::vector<Triangle>& triangles) const;
+    inline bool inRange(Vec2f p) const;
+    inline bool inRange(Vec2f min, Vec2f max) const;
+    std::optional<Triangle> triangle(Vec2f p) const;
+    void vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertices) const;
+    void edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) const;
+    void triangles(Vec2f min, Vec2f max, std::vector<Triangle>& triangles) const;
 
   private:
     const HeightMap& m_map;
     Vec3f m_pos;
+
+    inline void clipToRange(Vec2f& min, Vec2f& max) const;
 };
 
-inline bool HeightMapSampler::inRange(const Vec2f& p) const
+inline bool HeightMapSampler::inRange(Vec2f min, Vec2f max) const
+{
+  return !(min[0] > m_pos[0] + m_map.width || max[0] < m_pos[0] ||
+    min[1] > m_pos[2] + m_map.height || max[1] < m_pos[2]);
+}
+
+inline bool HeightMapSampler::inRange(Vec2f p) const
 {
   return lithic3d::inRange(p[0], m_pos[0], m_pos[0] + m_map.width) &&
     lithic3d::inRange(p[1], m_pos[2], m_pos[2] + m_map.height);
+}
+
+inline void HeightMapSampler::clipToRange(Vec2f& min, Vec2f& max) const
+{
+  min[0] = std::max(min[0], m_pos[0]);
+  min[1] = std::max(min[1], m_pos[2]);
+  max[0] = std::min(max[0], m_pos[0] + m_map.width);
+  max[1] = std::min(max[1], m_pos[2] + m_map.height);
 }
 
 struct CCollisionTerrain
