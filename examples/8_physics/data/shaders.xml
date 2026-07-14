@@ -61,7 +61,7 @@
     <material_features>
       <flags>
         <has_transparency>false</has_transparency>
-        <has_texture>true</has_texture>
+        <has_texture>*</has_texture>
         <has_normal_map>false</has_normal_map>
         <has_cube_map>false</has_cube_map>
         <is_double_sided>false</is_double_sided>
@@ -86,10 +86,10 @@
       <flags>
         <is_instanced>false</is_instanced>
         <is_skybox>false</is_skybox>
-        <is_terrain>*</is_terrain>
+        <is_terrain>true</is_terrain>
         <is_animated>false</is_animated>
         <!--<has_tangents>*</has_tangents>-->
-        <casts_shadow>*</casts_shadow>
+        <casts_shadow>true</casts_shadow>
         <is_quad>false</is_quad>
         <is_dynamic_text>false</is_dynamic_text>
       </flags>
@@ -97,7 +97,7 @@
     <material_features>
       <flags>
         <has_transparency>false</has_transparency>
-        <has_texture>*</has_texture>
+        <has_texture>true</has_texture>
         <has_normal_map>false</has_normal_map>
         <has_cube_map>false</has_cube_map>
         <is_double_sided>false</is_double_sided>
