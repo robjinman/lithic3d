@@ -222,10 +222,7 @@ void WorldLoaderImpl::loadWorldInfo(const XmlNode& node)
     .gridWidth = static_cast<uint32_t>(std::stoi(node.attribute("grid_width"))),
     .gridHeight = static_cast<uint32_t>(std::stoi(node.attribute("grid_height"))),
     .cellWidth = metresToWorldUnits(std::stof(node.attribute("cell_width"))),
-    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell_height"))),
-    //.minElevation = metresToWorldUnits(std::stof(node.attribute("min-elevation"))),
-    //.maxElevation = metresToWorldUnits(std::stof(node.attribute("max-elevation"))),
-    //.waterLevel = metresToWorldUnits(std::stof(node.attribute("water-level")))
+    .cellHeight = metresToWorldUnits(std::stof(node.attribute("cell_height")))
   };
 }
 

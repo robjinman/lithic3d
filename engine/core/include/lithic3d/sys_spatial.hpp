@@ -90,8 +90,14 @@ namespace SpatialFlags
 
 struct CSpatialFlags
 {
-  //std::bitset<32> prevFlags{bitflag(SpatialFlags::Enabled) | bitflag(SpatialFlags::ParentEnabled)};
-  std::bitset<32> flags{bitflag(SpatialFlags::Enabled) | bitflag(SpatialFlags::ParentEnabled)};
+  std::bitset<32> prevFlags{
+    bitflag(SpatialFlags::Enabled) |
+    bitflag(SpatialFlags::ParentEnabled)
+  };
+  std::bitset<32> flags{
+    bitflag(SpatialFlags::Enabled) |
+    bitflag(SpatialFlags::ParentEnabled)
+  };
 
   static constexpr ComponentTypeId TypeId = CSpatialFlagsTypeId;
 };
@@ -139,6 +145,7 @@ class SysSpatial : public System
 
     virtual EntityId root() const = 0;
     virtual std::vector<EntityId> getDescendents(EntityId entityId) const = 0;
+    virtual std::vector<EntityId> getChildren(EntityId entityId) const = 0;
     virtual void addEntity(EntityId id, const DSpatial& data) = 0;
     virtual void setEnabled(EntityId id, bool enabled) = 0;
 

@@ -22,6 +22,8 @@ class EntityFactory
       EntityMask& changedFromPrefab, std::vector<XmlNodePtr>& unused) const = 0;
     virtual EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) = 0;
+    virtual EntityId constructGhostEntity(EntityId parentId, EntityId entityToClone,
+      const Vec4f& colour) = 0;
     virtual bool hasPrefab(const std::string& name) const = 0;
 
     virtual ~EntityFactory() = default;

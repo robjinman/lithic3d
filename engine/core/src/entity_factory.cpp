@@ -33,6 +33,8 @@ class EntityFactoryImpl : public EntityFactory
       EntityMask& changedFromPrefab, std::vector<XmlNodePtr>& unused) const override;
     EntityId constructGhostEntity(EntityId parentId, const std::string& type,
       const Mat4x4f& transform, const Vec4f& colour) override;
+    EntityId constructGhostEntity(EntityId parentId, EntityId entityToClone,
+      const Vec4f& colour) override;
     bool hasPrefab(const std::string& name) const override;
 
   private:
@@ -43,6 +45,7 @@ class EntityFactoryImpl : public EntityFactory
     std::unordered_map<std::string, SystemId> m_systemNames;
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, Prefab> m_prefabs;
+
     std::vector<ComponentSpec> getComponentSpecs(const Prefab& prefab) const;
 };
 
@@ -243,6 +246,37 @@ EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, const std::s
 
     render->colour = colour;
     m_ecs.system<SysRender3d>().addEntity(id, std::move(render));
+  }
+
+  return id;
+}
+
+EntityId EntityFactoryImpl::constructGhostEntity(EntityId parentId, EntityId entityToClone,
+  const Vec4f& colour)
+{
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+  auto& sysRender3d = m_ecs.system<SysRender3d>();
+
+  auto id = m_ecs.idGen().getNewEntityId();
+  m_logger.debug(STR("Constructing ghost entity " << id << " by cloning entity " << entityToClone));
+
+  if (sysRender3d.hasEntity(entityToClone)) {
+    m_ecs.componentStore().allocate<DSpatial, DModel>(id);
+  }
+  else {
+    m_ecs.componentStore().allocate<DSpatial>(id);
+  }
+
+  sysSpatial.addEntity(id, parentId, entityToClone);
+
+  if (sysRender3d.hasEntity(entityToClone)) {
+    sysRender3d.addEntity(id, parentId, entityToClone);
+    sysRender3d.setEntityColour(id, colour);
+  }
+
+  auto children = sysSpatial.getChildren(entityToClone);
+  for (auto child : children) {
+    constructGhostEntity(id, child, colour);
   }
 
   return id;

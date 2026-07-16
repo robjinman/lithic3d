@@ -26,7 +26,7 @@ class SceneEditMode
     virtual void setActivePrefab(const std::string& name) = 0;
     virtual const std::string& getActivePrefab() const = 0;
 
-    virtual void selectEntity(lithic3d::EntityId id, const std::string& type) = 0;
+    virtual void selectEntity(lithic3d::EntityId id) = 0;
     virtual lithic3d::EntityId selectedEntity() const = 0;
 
     virtual void applyTransform() = 0;

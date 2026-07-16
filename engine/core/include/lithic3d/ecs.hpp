@@ -70,6 +70,7 @@ class System
     // all data.
     virtual XmlNodePtr componentToXml(EntityId entityId, EntityId prefabId) const = 0;
     virtual void addEntity(EntityId id, const ComponentData& data) = 0;
+    virtual void addEntity(EntityId id, EntityId parentId, EntityId entityToClone) = 0;
     virtual void removeEntity(EntityId entityId) = 0;
     virtual bool hasEntity(EntityId entityId) const = 0;
     virtual void update(Tick tick, const InputState& inputState) = 0;

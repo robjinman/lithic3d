@@ -513,6 +513,7 @@ class SysCollisionImpl : public SysCollision
       const XmlNode& changes) const override;
     XmlNodePtr componentToXml(EntityId entityId, EntityId prefabId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
+    void addEntity(EntityId, EntityId, EntityId) override { EXCEPTION("Not implemented"); }
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;

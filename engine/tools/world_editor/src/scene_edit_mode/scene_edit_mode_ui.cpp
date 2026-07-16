@@ -85,7 +85,7 @@ void SceneEditModeUi::onInstanceSelection()
   }
 
   auto& entity = *reinterpret_cast<EntityIdAndType*>(m_lstEntities->GetClientData(index));
-  m_mode->selectEntity(entity.id, entity.type);
+  m_mode->selectEntity(entity.id);
 }
 
 void SceneEditModeUi::onPrefabSelection()

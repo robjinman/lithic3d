@@ -130,6 +130,7 @@ class SysRender3dImpl : public SysRender3d
       const XmlNode& changes) const override;
     XmlNodePtr componentToXml(EntityId entityId, EntityId prefabId) const override;
     void addEntity(EntityId id, const ComponentData& data) override;
+    void addEntity(EntityId id, EntityId parentId, EntityId entityToClone) override;
     void removeEntity(EntityId entityId) override;
     bool hasEntity(EntityId entityId) const override;
     void update(Tick tick, const InputState& inputState) override;
@@ -419,6 +420,25 @@ void SysRender3dImpl::addEntity(EntityId id, const ComponentData& data)
   }
 }
 
+void SysRender3dImpl::addEntity(EntityId id, EntityId, EntityId entityToClone)
+{
+  auto& componentStore = m_ecs.componentStore();
+
+  assertHasComponent<CGlobalTransform>(componentStore, id);
+  assertHasComponent<CSpatialFlags>(componentStore, id);
+  assertHasComponent<CModel>(componentStore, id);
+
+  if (componentStore.hasComponentForEntity<CModel>(entityToClone)) {
+    auto model = componentStore.component<CModel>(entityToClone); // Copy
+    MAP_GET(i, m_modelHandles, entityToClone);
+    m_modelHandles[id] = i->second;
+    componentStore.instantiate<CModel>(id) = model;
+  }
+  else {
+    EXCEPTION("Not implemented");
+  }
+}
+
 void SysRender3dImpl::removeEntity(EntityId entityId)
 {
   m_modelHandles.erase(entityId);
@@ -519,8 +539,12 @@ void SysRender3dImpl::addEntity(EntityId id, DParticleEmitterPtr particleEmitter
 
 void SysRender3dImpl::setEntityColour(EntityId id, const Vec4f& colour)
 {
-  auto& model = m_ecs.componentStore().component<CModel>(id);
-  model.colour = colour;
+  auto& componentStore = m_ecs.componentStore();
+
+  if (componentStore.hasComponentForEntity<CModel>(id)) {
+    auto& model = componentStore.component<CModel>(id);
+    model.colour = colour;
+  }
 }
 
 void SysRender3dImpl::playAnimation(EntityId entityId, const std::string& name, bool repeat)

@@ -76,7 +76,7 @@ class SceneEditModeImpl : public SceneEditMode
     void setActivePrefab(const std::string& name) override;
     const std::string& getActivePrefab() const override;
 
-    void selectEntity(EntityId id, const std::string& type) override;
+    void selectEntity(EntityId id) override;
     EntityId selectedEntity() const override;
     void applyTransform() override;
     void cancelTransform() override;
@@ -106,6 +106,7 @@ class SceneEditModeImpl : public SceneEditMode
     void cancelActivePrefab();
     void applyCurrentTransformToEntity();
     void cancelCurrentEntityTransform();
+    void setEntityColour(EntityId id, const Vec4f& colour);
 
     EditorCore& m_core;
     State m_state = State::None;
@@ -248,12 +249,10 @@ const std::string& SceneEditModeImpl::getActivePrefab() const
 
 void SceneEditModeImpl::setActivePrefab(const std::string& name)
 {
-  auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
-
   switch (m_state) {
     case State::EntitySelected: {
       if (m_selectedEntityId != NULL_ENTITY_ID) {
-        sysRender3d.setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
+        setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
         m_selectedEntityId = NULL_ENTITY_ID;
       }
       if (m_cursorEntityId != NULL_ENTITY_ID) {
@@ -288,7 +287,6 @@ void SceneEditModeImpl::instantiateActivePrefab()
   cancelActivePrefab();
 
   auto& factory = m_core.engine().entityFactory();
-  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
   auto transform = m_core.getCursorTransform();
   auto pos = getTranslation(transform);
   auto cell = cellFromPosition(pos);
@@ -307,13 +305,9 @@ void SceneEditModeImpl::instantiateActivePrefab()
   m_eventEmitter->raise(static_cast<EventId>(Event::AddOrRemoveEntity));
 }
 
-void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
+void SceneEditModeImpl::selectEntity(EntityId id)
 {
   auto& factory = m_core.engine().entityFactory();
-  if (!factory.hasEntityType(type)) {
-    // TODO: Handle terrain pieces
-    return;
-  }
 
   auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
 
@@ -324,7 +318,7 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
         m_cursorEntityId = NULL_ENTITY_ID;
       }
       if (m_selectedEntityId != NULL_ENTITY_ID) {
-        sysRender3d.setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
+        setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
       }
       break;
     }
@@ -349,15 +343,26 @@ void SceneEditModeImpl::selectEntity(EntityId id, const std::string& type)
 
   m_selectedEntityId = id;
 
-  sysRender3d.setEntityColour(m_selectedEntityId, SELECTED_ENTITY_COLOUR);
+  setEntityColour(id, SELECTED_ENTITY_COLOUR);
 
-  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), id,
+    GHOST_ENTITY_COLOUR);
 
-  m_cursorEntityId = factory.constructGhostEntity(m_core.engine().worldGrid().root(), type,
-    entityTransform, GHOST_ENTITY_COLOUR);
-  m_cursorEntityType = type;
+  //m_cursorEntityType = type;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));
+}
+
+void SceneEditModeImpl::setEntityColour(EntityId id, const Vec4f& colour)
+{
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
+
+  auto descendents = sysSpatial.getDescendents(id);
+  sysRender3d.setEntityColour(id, colour);
+  for (auto descendent : descendents) {
+    sysRender3d.setEntityColour(descendent, colour);
+  }
 }
 
 EntityId SceneEditModeImpl::selectedEntity() const
@@ -422,10 +427,8 @@ void SceneEditModeImpl::cancelCurrentEntityTransform()
   m_state = State::None;
   m_core.showCursor();
 
-  auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
-
   if (m_selectedEntityId != NULL_ENTITY_ID) {
-    sysRender3d.setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
+    setEntityColour(m_selectedEntityId, { 1.f, 1.f, 1.f, 1.f });
     m_selectedEntityId = NULL_ENTITY_ID;
     m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));
   }
