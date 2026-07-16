@@ -54,6 +54,7 @@ class WorldLoaderImpl : public WorldLoader
 
     const WorldInfo& worldInfo() const override;
     EntityId root() const override;
+    TerrainBuilder& terrainBuilder() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
     std::vector<EntityInfo> createEntities(ResourceId cellSliceId) override;
 
@@ -114,6 +115,11 @@ void WorldLoaderImpl::constructRoot()
   });
 }
 
+TerrainBuilder& WorldLoaderImpl::terrainBuilder() const
+{
+  return *m_terrainBuilder;
+}
+
 EntityId WorldLoaderImpl::root() const
 {
   return m_root;
@@ -132,10 +138,10 @@ std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)
   if (cellSlice->terrain) {
     assert(cellSlice->terrain.ready());
     auto terrainIds = m_terrainBuilder->createEntities(m_root, cellSlice->terrain.id());
-    for (auto id : terrainIds) {
+    for (size_t i = 0; i < terrainIds.size(); ++i) {
       EntityInfo info;
-      info.id = id;
-      info.type = "terrain";
+      info.id = terrainIds[i];
+      info.type = i == 0 ? "water" : "terrain";
       entities.push_back(std::move(info));
     }
   }

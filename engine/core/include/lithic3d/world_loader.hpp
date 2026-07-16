@@ -17,9 +17,6 @@ struct WorldInfo
   uint32_t gridHeight = 0;
   float cellWidth = 0;
   float cellHeight = 0;
-  //float minElevation = 0.f;
-  //float maxElevation = 0.f;
-  //float waterLevel = 0.f;
 };
 
 struct EntityInfo
@@ -34,6 +31,8 @@ struct EntityInfo
   std::vector<XmlNodePtr> unused{};
 };
 
+class TerrainBuilder;
+
 class WorldLoader
 {
   public:
@@ -42,6 +41,8 @@ class WorldLoader
     virtual ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) = 0;
 
     virtual EntityId root() const = 0;
+
+    virtual TerrainBuilder& terrainBuilder() const = 0;
 
     // Call only once handle returned by loadCellSliceAsync is ready
     virtual std::vector<EntityInfo> createEntities(ResourceId cellSliceId) = 0;

@@ -99,8 +99,8 @@ class SceneEditModeImpl : public SceneEditMode
     Vec2i cellFromPosition(const Vec3f& pos) const;
     void saveChangesToSlice(const Vec3f& index, const SliceState& slice,
       std::map<std::string, EntityId>&);
-    void saveChangesToSlice(const fs::path& cellDirName, const std::string& sliceFileName,
-      const SliceState& slice, std::map<std::string, EntityId>&);
+    XmlNodePtr writeEntitiesXml(const SliceState& slice, std::map<std::string, EntityId>& prefabs);
+    XmlNodePtr writeTerrainXml(const SliceState& slice);
     void loadCurrentCell();
     void instantiateActivePrefab();
     void cancelActivePrefab();
@@ -411,15 +411,21 @@ void SceneEditModeImpl::applyCurrentTransformToEntity()
   Vec3f pos = getTranslation(transform);
   auto cell = cellFromPosition(pos);
 
-  int sliceIdx = 1; // TODO
-  auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
-  slice.dirty = true;
+  bool found = false;
+  for (int sliceIdx = 0; sliceIdx < 6; ++sliceIdx) {
+    auto& slice = m_worldState.slices[{ cell[0], cell[1], sliceIdx }];
 
-  auto i = std::find_if(slice.entities.begin(), slice.entities.end(),
-    [this](const EntityInfo& info) { return info.id == m_selectedEntityId; });
-  assert(i != slice.entities.end());
+    auto i = std::find_if(slice.entities.begin(), slice.entities.end(),
+      [this](const EntityInfo& info) { return info.id == m_selectedEntityId; });
 
-  i->changedFromPrefab[Systems::Spatial] = true;
+    if (i != slice.entities.end()) {
+      i->changedFromPrefab[Systems::Spatial] = true;
+      slice.dirty = true;
+      found = true;
+    }
+  }
+
+  ASSERT(found, "Error applying transform; Entity not found on world slice");
 }
 
 void SceneEditModeImpl::cancelCurrentEntityTransform()
@@ -454,17 +460,67 @@ void SceneEditModeImpl::saveChanges()
   }
 }
 
-void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
-  const std::string& sliceFileName, const SliceState& slice,
+XmlNodePtr SceneEditModeImpl::writeTerrainXml(const SliceState& slice)
+{
+  auto xmlTerrain = createXmlNode("terrain");
+  float waterLevel = 20.f; // TODO
+  xmlTerrain->setAttribute("water_level", std::to_string(waterLevel));
+
+  for (auto& entity : slice.entities) {
+    if (entity.type != "terrain") {
+      continue;
+    }
+
+    auto& piece = m_core.engine().worldLoader().terrainBuilder().getTerrainPiece(entity.id);
+
+    auto xmlTerrainPiece = createXmlNode("terrain_piece");
+    xmlTerrainPiece->setAttribute("height_map", piece.heightMapFile);
+    xmlTerrainPiece->setAttribute("inverted", piece.inverted ? "true" : "false");
+
+    auto xmlSplatMap = createXmlNode("splat_map");
+    xmlSplatMap->setAttribute("file", piece.splatMapFile);
+
+    for (auto& texture : piece.splatTextures) {
+      auto xmlTexture = createXmlNode("texture");
+      xmlTexture->setAttribute("file", texture);
+
+      xmlSplatMap->addChild(std::move(xmlTexture));
+    }
+
+    auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+    auto pos = worldUnitsToMetres(getTranslation(sysSpatial.getLocalTransform(entity.id)));
+
+    Vec3f dim = worldUnitsToMetres(piece.dimensions);
+
+    auto xmlPos = createXmlNode("pos");
+    xmlPos->setAttribute("x", std::to_string(pos[0]));
+    xmlPos->setAttribute("y", std::to_string(pos[1]));
+    xmlPos->setAttribute("z", std::to_string(pos[2]));
+
+    auto xmlDim = createXmlNode("dim");
+    xmlDim->setAttribute("x", std::to_string(dim[0]));
+    xmlDim->setAttribute("y", std::to_string(dim[1]));
+    xmlDim->setAttribute("z", std::to_string(dim[2]));
+
+    xmlTerrainPiece->addChild(std::move(xmlSplatMap));
+    xmlTerrainPiece->addChild(std::move(xmlPos));
+    xmlTerrainPiece->addChild(std::move(xmlDim));
+
+    xmlTerrain->addChild(std::move(xmlTerrainPiece));
+  }
+
+  return xmlTerrain;
+}
+
+XmlNodePtr SceneEditModeImpl::writeEntitiesXml(const SliceState& slice,
   std::map<std::string, EntityId>& prefabs)
 {
-  auto cellDir = m_core.config().paths.worldsDir->subdirectory(fs::path{"world"} / cellDirName);
-
-  ASSERT(cellDir->fileExists(sliceFileName), "File " << sliceFileName << " doesn't exist");
-
-  auto xmlCellSlice = createXmlNode("cell-slice");
   auto xmlEntities = createXmlNode("entities");
   for (auto& entity : slice.entities) {
+    if (entity.type == "terrain" || entity.type == "water") {
+      continue;
+    }
+
     auto iPrefab = prefabs.find(entity.type);
     EntityId prefabId = NULL_ENTITY_ID;
     if (iPrefab == prefabs.end()) {
@@ -499,13 +555,8 @@ void SceneEditModeImpl::saveChangesToSlice(const fs::path& cellDirName,
 
     xmlEntities->addChild(std::move(xmlEntity));
   }
-  xmlCellSlice->addChild(std::move(xmlEntities));
 
-  std::stringstream stream;
-  xmlCellSlice->write(stream);
-
-  auto xmlString = stream.str();
-  cellDir->writeFile(sliceFileName, xmlString.data(), xmlString.size());
+  return xmlEntities;
 }
 
 void SceneEditModeImpl::saveChangesToSlice(const Vec3f& index, const SliceState& slice,
@@ -519,7 +570,19 @@ void SceneEditModeImpl::saveChangesToSlice(const Vec3f& index, const SliceState&
   ss << std::setw(3) << std::setfill('0') << index[2] << ".xml";
   auto sliceFileName = ss.str();
 
-  saveChangesToSlice(cellDirName, sliceFileName, slice, prefabs);
+  auto cellDir = m_core.config().paths.worldsDir->subdirectory(fs::path{"world"} / cellDirName);
+
+  ASSERT(cellDir->fileExists(sliceFileName), "File " << sliceFileName << " doesn't exist");
+
+  auto xmlCellSlice = createXmlNode("cell-slice");
+  xmlCellSlice->addChild(writeTerrainXml(slice));
+  xmlCellSlice->addChild(writeEntitiesXml(slice, prefabs));
+
+  std::stringstream stream;
+  xmlCellSlice->write(stream);
+
+  auto xmlString = stream.str();
+  cellDir->writeFile(sliceFileName, xmlString.data(), xmlString.size());
 }
 
 void SceneEditModeImpl::cancelActivePrefab()
@@ -537,12 +600,14 @@ void SceneEditModeImpl::cancelActivePrefab()
 void SceneEditModeImpl::loadCurrentCell()
 {
   auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
+  auto& worldLoader = m_core.engine().worldLoader();
 
   auto cell = cellFromPosition(camera.getPosition());
   for (int i = 0; i < 6; ++i) {
-    auto slice = m_core.engine().worldLoader().loadCellSliceAsync(cell[0], cell[1], i).wait();
+    auto slice = worldLoader.loadCellSliceAsync(cell[0], cell[1], i).wait();
+
     m_worldState.slices.insert_or_assign({ cell[0], cell[1], i }, SliceState{slice,
-      m_core.engine().worldLoader().createEntities(slice.id()), false});
+      worldLoader.createEntities(slice.id()), false});
   }
 }
 

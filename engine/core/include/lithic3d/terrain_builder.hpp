@@ -1,12 +1,33 @@
 #pragma once
 
 #include "resource_manager.hpp"
-#include "entity_id.hpp"
+#include "sys_collision.hpp"
 #include "xml.hpp"
-#include "math.hpp"
 
 namespace lithic3d
 {
+
+struct TerrainChunk
+{
+  HeightMap heightMap;
+  Vec3f position;
+  Vec3f dimensions;
+  ResourceHandle model;
+};
+
+struct TerrainPiece
+{
+  Vec3f position;     // World units
+  Vec3f dimensions;   // y-dimension is max height
+  std::vector<TerrainChunk> chunks;
+
+  // For editor
+  EntityId entityId = NULL_ENTITY_ID;
+  bool inverted = false;
+  std::filesystem::path heightMapFile;
+  std::filesystem::path splatMapFile;
+  std::array<std::filesystem::path, 4> splatTextures;
+};
 
 class TerrainBuilder
 {
@@ -16,6 +37,8 @@ class TerrainBuilder
 
     // Call only once handle returned by loadTerrainRegionAsync is ready
     virtual std::vector<EntityId> createEntities(EntityId parentId, ResourceId regionId) = 0;
+
+    virtual const TerrainPiece& getTerrainPiece(EntityId id) const = 0;
 
     virtual ~TerrainBuilder() = default;
 };
