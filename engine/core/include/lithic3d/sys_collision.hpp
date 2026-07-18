@@ -111,7 +111,7 @@ inline bool HeightMapSampler::inRange(Vec2f p) const
 
 inline void HeightMapSampler::clipToRange(Vec2f& min, Vec2f& max) const
 {
-  const float epsilon = 0.01f;
+  const float epsilon = metresToWorldUnits(0.001f);
   min[0] = std::max(min[0], m_pos[0] + epsilon);
   min[1] = std::max(min[1], m_pos[2] + epsilon);
   max[0] = std::min(max[0], m_pos[0] + m_map.width - epsilon);

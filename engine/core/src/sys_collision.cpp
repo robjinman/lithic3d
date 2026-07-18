@@ -1791,7 +1791,7 @@ bool closestConnectingEdge(const Edge& edge1, const Edge& edge2, Edge& connectin
     return false;
   }
 
-  const float epsilon = 0.0001f;
+  const float epsilon = metresToWorldUnits(0.00001f);
 
   if (!inRange(st[0], 0.f - epsilon, 1.f + epsilon)) {
     return false;
