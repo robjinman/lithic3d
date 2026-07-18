@@ -1,5 +1,4 @@
 #include "cursor_panel.hpp"
-#include "editor_core.hpp"
 #include <lithic3d/utils.hpp>
 #include <lithic3d/units.hpp>
 #include <wx/wx.h>
@@ -56,7 +55,7 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   wxStaticText* lblDistance = new wxStaticText(staticBox, wxID_ANY, "Distance (metres)");
 
   m_spnDistance = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
-    wxDefaultSize, wxSP_ARROW_KEYS, 1.0, 100.0, 10.0, 0.1);
+    wxDefaultSize, wxSP_ARROW_KEYS, MIN_CURSOR_DISTANCE, MAX_CURSOR_DISTANCE, 10.0, 0.1);
 
   wxStaticText* lblScaleX = new wxStaticText(staticBox, wxID_ANY, "Scale X");
   wxStaticText* lblScaleY = new wxStaticText(staticBox, wxID_ANY, "Scale Y");

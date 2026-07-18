@@ -37,8 +37,9 @@ void writeSliceZero(const fs::path& cellPath, uint32_t cellX, uint32_t cellY,
   std::ofstream stream{cellPath / "000.xml"};
 
   float h = maxElevation - minElevation;
-  float x = cellW * cellX;
-  float z = cellH * cellY;
+  float x = cellW * cellX + cellW * 0.5f;
+  float y = minElevation + 0.5f * h;
+  float z = cellH * cellY + cellH * 0.5f;
 
   stream <<
     "<cell-slice>\n"
@@ -50,7 +51,7 @@ void writeSliceZero(const fs::path& cellPath, uint32_t cellX, uint32_t cellY,
     "        <texture file=\"" << bTexture.string() << "\"/>\n"
     "        <texture file=\"" << aTexture.string() << "\"/>\n"
     "      </splat_map>\n"
-    "      <pos x=\"" << x << "\" y=\"" << minElevation << "\" z=\"" << z << "\"/>\n"
+    "      <pos x=\"" << x << "\" y=\"" << y << "\" z=\"" << z << "\"/>\n"
     "      <dim x=\"" << cellW << "\" y=\"" << h << "\" z=\"" << cellH << "\"/>\n"
     "    </terrain_piece>\n"
     "  </terrain>\n"

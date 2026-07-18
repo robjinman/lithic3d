@@ -525,7 +525,7 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
       auto mesh = constructLandMesh(*heightMapTexture, rect, pieceDimensionsMetres, piece.inverted,
         chunk.heightMap.data, chunk.heightMap.mask, maxHeightMetres);
 
-      chunk.position = { x, 0.f, z };
+      chunk.position = Vec3f{ x, 0.f, z } - piece.dimensions * 0.5f;
       chunk.dimensions[0] = (piece.dimensions[0] * (rect.w - 1)) / (heightMapW - 1);
       chunk.dimensions[1] = metresToWorldUnits(maxHeightMetres);
       chunk.dimensions[2] = (piece.dimensions[2] * (rect.h - 1)) / (heightMapD - 1);

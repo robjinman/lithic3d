@@ -1,5 +1,6 @@
 #pragma once
 
+#include "editor_core.hpp"
 #include <wx/wx.h>
 #include <memory>
 

@@ -8,6 +8,9 @@
 #include <filesystem>
 #include <vector>
 
+const float MIN_CURSOR_DISTANCE = 1.f;
+const float MAX_CURSOR_DISTANCE = 400.f;
+
 namespace lithic3d { class Engine; }
 
 // Manages the current state of the editor.
@@ -40,6 +43,7 @@ class EditorCore
     virtual void onMouseLeftBtnDown() = 0;
     virtual void onMouseLeftBtnUp() = 0;
     virtual void onMouseMove(float x, float y) = 0;
+    virtual void onMouseScroll(bool up) = 0;
 
     virtual const lithic3d::InputState& inputState() const = 0;
 

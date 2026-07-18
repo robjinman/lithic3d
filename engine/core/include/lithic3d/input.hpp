@@ -30,6 +30,7 @@ enum class KeyboardKey
   Left = 263,
   Down = 264,
   Up = 265,
+  CtrlLeft = 341,
   // ...
   Unknown
 };

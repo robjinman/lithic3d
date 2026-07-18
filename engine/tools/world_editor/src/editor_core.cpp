@@ -41,6 +41,7 @@ class EditorCoreImpl : public EditorCore
     void onMouseLeftBtnDown() override;
     void onMouseLeftBtnUp() override;
     void onMouseMove(float x, float y) override;
+    void onMouseScroll(bool up) override;
 
     const lithic3d::InputState& inputState() const override;
 
@@ -61,6 +62,7 @@ class EditorCoreImpl : public EditorCore
     void constructCursor();
     void positionCursor();
     void setCursorRotation(const Mat3x3f& rot);
+    void processKeyboardInput();
     void cleanUp();
 
     fs::path m_projectRoot;
@@ -186,6 +188,10 @@ void EditorCoreImpl::setCursorRotationScale(const Mat3x3f& m)
 
 void EditorCoreImpl::setCursorDistance(float worldUnits)
 {
+  float min = metresToWorldUnits(MIN_CURSOR_DISTANCE);
+  float max = metresToWorldUnits(MAX_CURSOR_DISTANCE);
+  worldUnits = clip(worldUnits, min, max);
+
   m_activeTranslation = worldUnits;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
@@ -362,6 +368,23 @@ void EditorCoreImpl::onKeyUp(KeyboardKey key)
   m_inputState.keysPressed.erase(key);
 }
 
+void EditorCoreImpl::onMouseScroll(bool up)
+{
+  const float delta = up ? -0.1f : 0.1f;
+
+  float distance = getCursorDistance();
+
+  if (m_inputState.keysPressed.contains(KeyboardKey::CtrlLeft)) {
+    auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+    m_engine->logger().info("Hello");
+    camera.translate(camera.getDirection().normalise() * distance * delta);
+    setCursorDistance(distance - distance * delta);
+  }
+  else {
+    setCursorDistance(distance + distance * delta);
+  }
+}
+
 void EditorCoreImpl::onMouseLeftBtnDown()
 {
   m_inputState.mouseButtonsPressed.insert(MouseButton::Left);
@@ -383,12 +406,50 @@ const lithic3d::InputState& EditorCoreImpl::inputState() const
   return m_inputState;
 }
 
+void EditorCoreImpl::processKeyboardInput()
+{
+  auto& camera = m_engine->ecs().system<SysRender3d>().camera();
+
+  float metresPerSecond = 6.f;
+  float speed = metresToWorldUnits(metresPerSecond) / TICKS_PER_SECOND;
+  const auto forward = camera.getDirection();
+  const auto right = forward.cross(Vec3f{0, 1, 0});
+  Vec3f direction;
+
+  if (m_inputState.keysPressed.contains(KeyboardKey::W)) {
+    direction += forward;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::S)) {
+    direction -= forward;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::D)) {
+    direction += right;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::A)) {
+    direction -= right;
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::Q)) {
+    direction += { 0, -1, 0 };
+  }
+  if (m_inputState.keysPressed.contains(KeyboardKey::E)) {
+    direction += { 0, 1, 0 };
+  }
+
+  if (direction != Vec3f{}) {
+    direction = direction.normalise();
+    auto delta = direction * speed;
+
+    camera.translate(delta);
+  }
+}
+
 void EditorCoreImpl::update()
 {
   ASSERT(m_engine, "Engine not started");
 
   m_engine->update(m_inputState, { Systems::Collision });
   positionCursor();
+  processKeyboardInput();
 }
 
 EditorCoreImpl::~EditorCoreImpl()

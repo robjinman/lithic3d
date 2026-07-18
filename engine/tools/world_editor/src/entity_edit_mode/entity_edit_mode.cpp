@@ -89,7 +89,6 @@ class EntityEditModeImpl : public EntityEditMode
     EntityId m_cursorEntityId = NULL_ENTITY_ID;
 
     void constructRoot();
-    void processKeyboardInput();
     EntityId constructBox(const Vec4f& colour);
     void updateCursorEntity();
 
@@ -494,45 +493,6 @@ void EntityEditModeImpl::onMouseMove(float x, float y)
   m_prevMousePos = { x, y };
 }
 
-// TODO: Move to core
-void EntityEditModeImpl::processKeyboardInput()
-{
-  auto& inputState = m_core.inputState();
-  auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
-
-  float metresPerSecond = 6.f;
-  float speed = metresToWorldUnits(metresPerSecond) / TICKS_PER_SECOND;
-  const auto forward = camera.getDirection();
-  const auto right = forward.cross(Vec3f{0, 1, 0});
-  Vec3f direction;
-
-  if (inputState.keysPressed.contains(KeyboardKey::W)) {
-    direction += forward;
-  }
-  if (inputState.keysPressed.contains(KeyboardKey::S)) {
-    direction -= forward;
-  }
-  if (inputState.keysPressed.contains(KeyboardKey::D)) {
-    direction += right;
-  }
-  if (inputState.keysPressed.contains(KeyboardKey::A)) {
-    direction -= right;
-  }
-  if (inputState.keysPressed.contains(KeyboardKey::Q)) {
-    direction += { 0, -1, 0 };
-  }
-  if (inputState.keysPressed.contains(KeyboardKey::E)) {
-    direction += { 0, 1, 0 };
-  }
-
-  if (direction != Vec3f{}) {
-    direction = direction.normalise();
-    auto delta = direction * speed;
-
-    camera.translate(delta);
-  }
-}
-
 void EntityEditModeImpl::saveChanges()
 {
   if (m_entityIsPrefab) {
@@ -586,7 +546,6 @@ void EntityEditModeImpl::updateCursorEntity()
 
 void EntityEditModeImpl::update()
 {
-  processKeyboardInput();
   updateCursorEntity();
 }
 

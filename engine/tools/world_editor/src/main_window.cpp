@@ -50,6 +50,7 @@ class MainWindowImpl : public wxFrame
     void onCanvasLeftMouseBtnDown(wxMouseEvent& e);
     void onCanvasLeftMouseBtnUp(wxMouseEvent& e);
     void onCanvasMouseMove(wxMouseEvent& e);
+    void onCanvasMouseScroll(wxMouseEvent& e);
 
     void onModeChange(wxCommandEvent& e);
 
@@ -154,6 +155,7 @@ void MainWindowImpl::onOpen(wxCommandEvent&)
   m_canvas->Bind(wxEVT_LEFT_DOWN, &MainWindowImpl::onCanvasLeftMouseBtnDown, this);
   m_canvas->Bind(wxEVT_LEFT_UP, &MainWindowImpl::onCanvasLeftMouseBtnUp, this);
   m_canvas->Bind(wxEVT_MOTION, &MainWindowImpl::onCanvasMouseMove, this);
+  m_canvas->Bind(wxEVT_MOUSEWHEEL, &MainWindowImpl::onCanvasMouseScroll, this);
 
   Bind(wxEVT_TIMER, &MainWindowImpl::onTick, this);
 }
@@ -206,6 +208,7 @@ KeyboardKey mapToLithic3dKey(int code)
     case WXK_LEFT: return KeyboardKey::Left;
     case WXK_DOWN: return KeyboardKey::Down;
     case WXK_UP: return KeyboardKey::Up;
+    case WXK_CONTROL: return KeyboardKey::CtrlLeft;
     default: return KeyboardKey::Unknown;
   }
 }
@@ -274,6 +277,17 @@ void MainWindowImpl::onCanvasLeftMouseBtnUp(wxMouseEvent& e)
 
   m_core->onMouseLeftBtnUp();
   currentMode().onMouseLeftBtnUp();
+}
+
+void MainWindowImpl::onCanvasMouseScroll(wxMouseEvent& e)
+{
+  if (!ready()) {
+    return;
+  }
+
+  e.Skip();
+
+  m_core->onMouseScroll(e.GetWheelRotation() < 0.f);
 }
 
 void MainWindowImpl::onCanvasMouseMove(wxMouseEvent& e)
