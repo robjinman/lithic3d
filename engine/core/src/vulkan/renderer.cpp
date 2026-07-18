@@ -179,7 +179,7 @@ class RendererImpl : public Renderer
 {
   public:
     RendererImpl(WindowDelegate& window, ResourceManager& resourceManager,
-      const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins);
+      const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins, bool editorMode);
 
     void start() override;
     bool isStarted() const override;
@@ -378,7 +378,7 @@ class RendererImpl : public Renderer
 };
 
 RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceManager,
-  const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins)
+  const GameDataPaths& paths, Logger& logger, const ScreenMargins& margins, bool editorMode)
   : m_resourceManager(resourceManager)
   , m_paths(paths)
   , m_margins(margins)
@@ -440,7 +440,7 @@ RendererImpl::RendererImpl(WindowDelegate& window, ResourceManager& resourceMana
     createSyncObjects();
   }).get();
 
-  m_pipelineFactory = createPipelineFactory(*m_resources, m_logger, m_device);
+  m_pipelineFactory = createPipelineFactory(*m_resources, m_logger, m_device, editorMode);
 }
 
 void RendererImpl::start()
@@ -2649,10 +2649,10 @@ void RendererImpl::dbg_printMemUsageInfo(std::ostream& stream) const
 } // namespace render
 
 render::RendererPtr createRenderer(WindowDelegate& window, ResourceManager& resourceManager,
-  const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins)
+  const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins, bool editorMode)
 {
-  return std::make_unique<render::RendererImpl>(window, resourceManager, paths,
-    logger, margins);
+  return std::make_unique<render::RendererImpl>(window, resourceManager, paths, logger, margins,
+    editorMode);
 }
 
 } // namespace lithic3d

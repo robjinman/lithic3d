@@ -186,7 +186,8 @@ struct GameDataPaths;
 
 // TODO: Move inside render namespace?
 render::RendererPtr createRenderer(WindowDelegate& window, ResourceManager& resourceManager,
-  const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins);
+  const GameDataPaths& paths, Logger& logger, const render::ScreenMargins& margins,
+  bool editorMode);
 
 } // namespace lithic3d
 

@@ -26,7 +26,7 @@ using PipelineFactoryPtr = std::unique_ptr<PipelineFactory>;
 class RenderResources;
 
 PipelineFactoryPtr createPipelineFactory(const RenderResources& renderResources, Logger& logger,
-  VkDevice device);
+  VkDevice device, bool editorMode);
 
 } // namespace render
 } // namespace lithic3d

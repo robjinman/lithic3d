@@ -114,8 +114,10 @@ void HeightMapSampler::triangles(Vec2f min, Vec2f max, std::vector<Triangle>& tr
     }
   }
 
-  DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
-  DBG_ASSERT(zIdx0 < zIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
+  assert(xIdx0 < xIdx1);
+  assert(zIdx0 < zIdx1);
+  assert(xIdx1 < m_map.widthPx);
+  assert(zIdx1 < m_map.heightPx);
 
   float dx = m_map.width / w;
   float dz = m_map.height / h;
@@ -181,8 +183,10 @@ void HeightMapSampler::vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertic
     }
   }
 
-  DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
-  DBG_ASSERT(zIdx0 < zIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
+  assert(xIdx0 < xIdx1);
+  assert(zIdx0 < zIdx1);
+  assert(xIdx1 < m_map.widthPx);
+  assert(zIdx1 < m_map.heightPx);
 
   // TODO: Detect holes?
 
@@ -233,8 +237,10 @@ void HeightMapSampler::edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) con
     }
   }
 
-  DBG_ASSERT(xIdx0 < xIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
-  DBG_ASSERT(zIdx0 < zIdx1, "Bad min-max bounds: (" << min << "), (" << max << ")");
+  assert(xIdx0 < xIdx1);
+  assert(zIdx0 < zIdx1);
+  assert(xIdx1 < m_map.widthPx);
+  assert(zIdx1 < m_map.heightPx);
 
   float dx = m_map.width / w;
   float dz = m_map.height / h;

@@ -289,7 +289,8 @@ void EditorCoreImpl::createEngine()
   auto logger = createLogger(std::cerr, std::cerr, std::cout, std::cout);
   auto audioSystem = createAudioSystem(m_config.paths.soundsDir, *logger);
   auto resourceManager = createResourceManager(*logger);
-  auto renderer = createRenderer(m_windowDelegate, *resourceManager, m_config.paths, *logger, {});
+  auto renderer = createRenderer(m_windowDelegate, *resourceManager, m_config.paths, *logger, {},
+    true);
 
   logger->info("Compiling shaders...");
 

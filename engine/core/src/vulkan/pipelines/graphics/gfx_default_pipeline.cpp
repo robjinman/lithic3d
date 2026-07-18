@@ -23,7 +23,7 @@ class GfxDefaultPipeline : public GraphicsPipeline
     GfxDefaultPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
       const RenderResources& renderResources, Logger& logger, VkDevice device,
       VkRenderPass renderPass, uint32_t subpass, VkExtent2D swapchainExtent,
-      const ScreenMargins& margins);
+      const ScreenMargins& margins, bool backfaceCulling);
 
     void onViewportResize(VkExtent2D swapchainExtent) override;
 
@@ -71,7 +71,7 @@ class GfxDefaultPipeline : public GraphicsPipeline
 
 GfxDefaultPipeline::GfxDefaultPipeline(const ShaderProgramSpec& spec, const ShaderProgram& shader,
   const RenderResources& renderResources, Logger& logger, VkDevice device, VkRenderPass renderPass,
-  uint32_t subpass, VkExtent2D swapchainExtent, const ScreenMargins& margins)
+  uint32_t subpass, VkExtent2D swapchainExtent, const ScreenMargins& margins, bool backfaceCulling)
   : m_logger(logger)
   , m_renderResources(renderResources)
   , m_spec(spec)
@@ -161,7 +161,7 @@ GfxDefaultPipeline::GfxDefaultPipeline(const ShaderProgramSpec& spec, const Shad
   };
 
   bool doubleSided = spec.materialFeatures.flags.test(MaterialFeatures::IsDoubleSided);
-  m_rasterizationStateInfo = defaultRasterizationState(doubleSided);
+  m_rasterizationStateInfo = defaultRasterizationState(!backfaceCulling || doubleSided);
   if (isShadowPass(m_spec.renderPass)) {
     m_rasterizationStateInfo.depthBiasEnable = VK_TRUE;
     m_rasterizationStateInfo.depthClampEnable = VK_FALSE;
@@ -392,10 +392,10 @@ GfxDefaultPipeline::~GfxDefaultPipeline()
 GraphicsPipelinePtr createGfxDefaultPipeline(const ShaderProgramSpec& spec,
   const ShaderProgram& shaderProgram, const RenderResources& renderResources, Logger& logger,
   VkDevice device, VkRenderPass renderPass, uint32_t subpass, VkExtent2D swapchainExtent,
-  const ScreenMargins& margins)
+  const ScreenMargins& margins, bool backfaceCulling)
 {
   return std::make_unique<GfxDefaultPipeline>(spec, shaderProgram, renderResources, logger, device,
-    renderPass, subpass, swapchainExtent, margins);
+    renderPass, subpass, swapchainExtent, margins, backfaceCulling);
 }
 
 } // namespace render

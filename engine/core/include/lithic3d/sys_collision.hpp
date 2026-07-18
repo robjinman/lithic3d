@@ -111,10 +111,11 @@ inline bool HeightMapSampler::inRange(Vec2f p) const
 
 inline void HeightMapSampler::clipToRange(Vec2f& min, Vec2f& max) const
 {
-  min[0] = std::max(min[0], m_pos[0]);
-  min[1] = std::max(min[1], m_pos[2]);
-  max[0] = std::min(max[0], m_pos[0] + m_map.width);
-  max[1] = std::min(max[1], m_pos[2] + m_map.height);
+  const float epsilon = 0.01f;
+  min[0] = std::max(min[0], m_pos[0] + epsilon);
+  min[1] = std::max(min[1], m_pos[2] + epsilon);
+  max[0] = std::min(max[0], m_pos[0] + m_map.width - epsilon);
+  max[1] = std::min(max[1], m_pos[2] + m_map.height - epsilon);
 }
 
 struct CCollisionTerrain
