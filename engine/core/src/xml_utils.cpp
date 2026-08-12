@@ -68,7 +68,6 @@ Mat4x4f constructTransform(const XmlNode& xmlTransform)
 
 XmlNodePtr toXml(const Mat4x4f& m)
 {
-  auto xmlTransform = createXmlNode("transform");
   auto xmlMatrix = createXmlNode("matrix");
 
   std::stringstream ss;
@@ -86,9 +85,7 @@ XmlNodePtr toXml(const Mat4x4f& m)
 
   xmlMatrix->setValue(ss.str());
 
-  xmlTransform->addChild(std::move(xmlMatrix));
-
-  return xmlTransform;
+  return xmlMatrix;
 }
 
 } // namespace lithic3d

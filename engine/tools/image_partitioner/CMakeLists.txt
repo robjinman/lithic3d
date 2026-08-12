@@ -18,6 +18,11 @@ file(GLOB EXE_SOURCES
 
 add_library(${LIB_TARGET} ${LIB_SOURCES})
 
+target_link_libraries(${LIB_TARGET}
+  PUBLIC
+    ${ENGINE_LIB_TARGET}
+)
+
 target_include_directories(${LIB_TARGET}
   PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"

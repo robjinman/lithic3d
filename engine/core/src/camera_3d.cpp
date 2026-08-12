@@ -33,7 +33,7 @@ float Camera3d::drawDistance() const
 
 void Camera3d::setTransform(const Mat4x4f& transform)
 {
-  auto rotation = getRotation3x3(transform);
+  auto rotation = get3x3submatrix(transform);
   m_direction = rotation * Vec3f{ 0.f, 0.f, -1.f };
   m_position = getTranslation(transform);
 

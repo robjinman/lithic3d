@@ -1,5 +1,7 @@
 #include "world_init.hpp"
 #include "image_partitioner.hpp"
+#include <lithic3d/math.hpp>
+#include <lithic3d/xml_utils.hpp>
 #include <fstream>
 #include <sstream>
 
@@ -14,8 +16,7 @@ namespace
 
 const uint32_t NUM_SLICES = 6;
 
-void writeWorldXml(const fs::path& path, uint32_t gridW, uint32_t gridH, float cellW, float cellH,
-  float minElevation, float maxElevation)
+void writeWorldXml(const fs::path& path, uint32_t gridW, uint32_t gridH, float cellW, float cellH)
 {
   std::ofstream stream{path};
 
@@ -41,6 +42,14 @@ void writeSliceZero(const fs::path& cellPath, uint32_t cellX, uint32_t cellY,
   float y = minElevation + 0.5f * h;
   float z = cellH * cellY + cellH * 0.5f;
 
+  Vec3f pos = metresToWorldUnits(Vec3f{ x, y, z });
+  Vec3f ori{ 0.f, 0.f, 0.f };
+  Vec3f scale{ cellW, h, cellH };
+  auto transform = createTransform(pos, ori, scale);
+
+  std::stringstream ssMatrix;
+  toXml(transform)->write(ssMatrix);
+
   stream <<
     "<cell-slice>\n"
     "  <terrain water_level=\"" << waterLevel << "\">\n"
@@ -51,8 +60,9 @@ void writeSliceZero(const fs::path& cellPath, uint32_t cellX, uint32_t cellY,
     "        <texture file=\"" << bTexture.string() << "\"/>\n"
     "        <texture file=\"" << aTexture.string() << "\"/>\n"
     "      </splat_map>\n"
-    "      <pos x=\"" << x << "\" y=\"" << y << "\" z=\"" << z << "\"/>\n"
-    "      <dim x=\"" << cellW << "\" y=\"" << h << "\" z=\"" << cellH << "\"/>\n"
+    "      <transform>\n"
+    "        " << ssMatrix.str() <<
+    "      </transform>\n"
     "    </terrain_piece>\n"
     "  </terrain>\n"
     "</cell-slice>\n";
@@ -84,7 +94,7 @@ void createWorld(const fs::path& heightMap, const fs::path& splatMap, uint32_t g
   const fs::path& bTexture, const fs::path& aTexture, float minElevation, float maxElevation,
   float waterLevel, const fs::path& outputDir)
 {
-  writeWorldXml(outputDir / "world.xml", gridW, gridH, cellW, cellH, minElevation, maxElevation);
+  writeWorldXml(outputDir / "world.xml", gridW, gridH, cellW, cellH);
 
   partitionImage(heightMap, ImageType::HeightMap, gridW, gridH, outputDir);
   partitionImage(splatMap, ImageType::SplatMap, gridW, gridH, outputDir);

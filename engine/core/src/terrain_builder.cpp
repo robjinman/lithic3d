@@ -76,8 +76,8 @@ class TerrainBuilderImpl : public TerrainBuilder
     std::mutex m_mutex;
     std::unordered_map<ResourceId, TerrainRegion> m_regions;
 
-    MeshPtr constructLandMesh(const Texture& heightMap, const Recti& rect, const Vec3f& dimensions,
-      bool inverted, std::vector<float>& heights, std::vector<bool>& mask, float& maxHeight) const;
+    MeshPtr constructLandMesh(const Texture& heightMap, const Recti& rect, bool inverted,
+      std::vector<float>& heights, std::vector<bool>& mask, float& maxHeight) const;
     TerrainPiece constructTerrainPieceAsync(const fs::path& cellPath,
       const XmlNode& xmlTerrain) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize) const;
@@ -161,12 +161,12 @@ void TerrainBuilderImpl::createLandEntities(EntityId parentId, TerrainRegion& re
     m_ecs.componentStore().allocate<DSpatial>(pieceId);
 
     DSpatial spatial{
-      .transform = translationMatrix4x4(piece.position),
+      .transform = piece.transform,
       .parent = parentId,
       .enabled = true,
       .aabb = Aabb{
         .min = { 0.f, 0.f, 0.f },
-        .max = piece.dimensions
+        .max = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f })
       }
     };
 
@@ -177,7 +177,7 @@ void TerrainBuilderImpl::createLandEntities(EntityId parentId, TerrainRegion& re
       m_ecs.componentStore().allocate<DSpatial, DModel, DTerrainChunk>(chunkId);
 
       DSpatial pieceSpatial{
-        .transform = translationMatrix4x4(chunk.position),
+        .transform = translationMatrix4x4(chunk.offset),
         .parent = pieceId,
         .enabled = true,
         .aabb = Aabb{
@@ -226,9 +226,8 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
   return entities;
 }
 
-MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
-  const Recti& rect, const Vec3f& dimensions, bool inverted, std::vector<float>& heights,
-  std::vector<bool>& mask, float& outMaxHeight) const
+MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Recti& rect,
+  bool inverted, std::vector<float>& heights, std::vector<bool>& mask, float& outMaxHeight) const
 {
   ASSERT(heightMap.channels == 1,
     "Height map has " << heightMap.channels << " channels; expected 1");
@@ -261,17 +260,17 @@ MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap,
     .flags = bitflag(render::MeshFeatures::IsTerrain) | bitflag(render::MeshFeatures::CastsShadow)
   };
 
-  auto calcHeight = [dimensions, inverted](uint32_t pixelValue) {
+  auto calcHeight = [inverted](uint32_t pixelValue) {
     if (inverted) {
       pixelValue = 255 - pixelValue;
     }
-    return (static_cast<float>(pixelValue) / 255.f) * dimensions[1];
+    return static_cast<float>(pixelValue) / 255.f;
   };
 
   float w_rp = 1.f / (heightMap.width - 1);
   float d_rp = 1.f / (heightMap.height - 1);
-  float dx = dimensions[0] * w_rp;
-  float dz = dimensions[2] * d_rp;
+  float dx = w_rp;
+  float dz = d_rp;
 
   float maxHeight = std::numeric_limits<float>::lowest();
 
@@ -460,10 +459,14 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
   piece.inverted = xmlTerrainPiece.attribute("inverted") == "true";
   piece.heightMapFile = xmlTerrainPiece.attribute("height_map");
 
-  auto pieceDimensionsMetres = constructVec3f(*xmlTerrainPiece.child("dim"));
+  //auto pieceDimensionsMetres = constructVec3f(*xmlTerrainPiece.child("dim"));
 
-  piece.position = metresToWorldUnits(constructVec3f(*xmlTerrainPiece.child("pos")));
-  piece.dimensions = metresToWorldUnits(pieceDimensionsMetres);
+  //piece.position = metresToWorldUnits(constructVec3f(*xmlTerrainPiece.child("pos")));
+  //piece.dimensions = metresToWorldUnits(pieceDimensionsMetres);
+
+  piece.transform = constructTransform(*xmlTerrainPiece.child("transform"));
+
+  Vec3f dimensions = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
 
   auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / piece.heightMapFile);
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
@@ -516,19 +519,19 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
         .h = j + 1 == nChunksZ ? lastChunkPxD : chunkPxD + 1,
       };
 
-      float x = (piece.dimensions[0] * rect.x) / (heightMapW - 1);
-      float z = (piece.dimensions[2] * rect.y) / (heightMapD - 1);
+      float x = (dimensions[0] * rect.x) / (heightMapW - 1);
+      float z = (dimensions[2] * rect.y) / (heightMapD - 1);
 
       TerrainChunk chunk;
 
       float maxHeightMetres = 0.f;
-      auto mesh = constructLandMesh(*heightMapTexture, rect, pieceDimensionsMetres, piece.inverted,
+      auto mesh = constructLandMesh(*heightMapTexture, rect, piece.inverted,
         chunk.heightMap.data, chunk.heightMap.mask, maxHeightMetres);
 
-      chunk.position = Vec3f{ x, 0.f, z } - piece.dimensions * 0.5f;
-      chunk.dimensions[0] = (piece.dimensions[0] * (rect.w - 1)) / (heightMapW - 1);
+      chunk.offset = Vec3f{ x, 0.f, z } - dimensions * 0.5f;
+      chunk.dimensions[0] = (dimensions[0] * (rect.w - 1)) / (heightMapW - 1);
       chunk.dimensions[1] = metresToWorldUnits(maxHeightMetres);
-      chunk.dimensions[2] = (piece.dimensions[2] * (rect.h - 1)) / (heightMapD - 1);
+      chunk.dimensions[2] = (dimensions[2] * (rect.h - 1)) / (heightMapD - 1);
       chunk.heightMap.inverted = piece.inverted;
       chunk.heightMap.widthPx = rect.w;
       chunk.heightMap.heightPx = rect.h;

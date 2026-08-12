@@ -1123,8 +1123,11 @@ void Demo::constructTerrain()
     "      <texture file=\"dirt.png\"/>\n"
     "      <texture file=\"snow.png\"/>\n"
     "    </splat_map>\n"
-    "    <pos x=\"0\" y=\"0\" z=\"0\"/>\n"
-    "    <dim x=\"800\" y=\"20\" z=\"800\"/>\n"
+    "    <transform>\n"
+    "      <pos x=\"400\" y=\"10\" z=\"400\"/>\n"
+    "      <ori x=\"0\" y=\"5\" z=\"0\"/>\n"
+    "      <scale x=\"800\" y=\"20\" z=\"800\"/>\n"
+    "    </transform>\n"
     "  </terrain_piece>\n"
     "</terrain>\n";
 

@@ -10,14 +10,55 @@
 namespace lithic3d
 {
 
-std::optional<Triangle> HeightMapSampler::triangle(Vec2f p) const
+std::array<Vec2f, 2> HeightMapSampler::calcTerrainSpaceMinMax(Vec2f pos, float radius) const
 {
-  if (!inRange(p)) {
+  auto p = m_invTransform * Vec4f{ pos[0], 0.f, pos[1], 1.f };
+  float rx = radius * calcScaleFactor(m_invTransform, { 1.f, 0.f, 0.f });
+  float rz = radius * calcScaleFactor(m_invTransform, { 0.f, 0.f, 1.f });
+
+  return {
+    Vec2f{ p[0] - rx, p[2] - rz },
+    Vec2f{ p[0] + rx, p[2] + rz } 
+  };
+}
+
+std::array<Vec2f, 2>
+HeightMapSampler::calcTerrainSpaceMinMax(const std::array<Vec3f, 8>& verts) const
+{
+  Vec2f boxMin{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
+  Vec2f boxMax{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };
+
+  for (auto& v : verts) {
+    auto vert = m_invTransform * Vec4f{ v[0], v[1], v[2], 1.f };
+
+    if (vert[0] < boxMin[0]) {
+      boxMin[0] = vert[0];
+    }
+    if (vert[0] > boxMax[0]) {
+      boxMax[0] = vert[0];
+    }
+    if (vert[2] < boxMin[1]) {
+      boxMin[1] = vert[2];
+    }
+    if (vert[2] > boxMax[1]) {
+      boxMax[1] = vert[2];
+    }
+  }
+
+  return { boxMin, boxMax };
+}
+
+std::optional<Triangle> HeightMapSampler::triangle(Vec2f worldSpacePt) const
+{
+  auto terrainSpacePt = m_invTransform * Vec4f{ worldSpacePt[0], 0.f, worldSpacePt[1], 1.f };
+  Vec2f p{ terrainSpacePt[0], terrainSpacePt[2] };
+
+  if (!terrainSpaceInRange(p)) {
     return std::nullopt;
   }
 
-  float xIdx = (p[0] - m_pos[0]) * (m_map.widthPx - 1) / m_map.width;
-  float zIdx = (p[1] - m_pos[2]) * (m_map.heightPx - 1) / m_map.height;
+  float xIdx = p[0] * (m_map.widthPx - 1) / m_map.width;
+  float zIdx = p[1] * (m_map.heightPx - 1) / m_map.height;
 
   float dx = m_map.width / (m_map.widthPx - 1);
   float dz = m_map.height / (m_map.heightPx - 1);
@@ -54,7 +95,7 @@ std::optional<Triangle> HeightMapSampler::triangle(Vec2f p) const
   size_t DIdx = getIndex(xIdx0, zIdx0);
 
   auto getVertex = [this, dx, dz](float xIdx, float zIdx, size_t i) {
-    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
+    return (m_transform * Vec4f{ dx * xIdx, m_map.data.at(i), dz * zIdx, 1.f }).sub<3>();
   };
 
   Vec3f A = getVertex(xIdx0, zIdx1, AIdx);
@@ -92,10 +133,10 @@ void HeightMapSampler::triangles(Vec2f min, Vec2f max, std::vector<Triangle>& tr
 
   size_t w = m_map.widthPx - 1;
   size_t h = m_map.heightPx - 1;
-  auto xIdx0 = static_cast<size_t>(floorf((min[0] - m_pos[0]) * w / m_map.width));
-  auto zIdx0 = static_cast<size_t>(floorf((min[1] - m_pos[2]) * h / m_map.height));
-  auto xIdx1 = static_cast<size_t>(ceilf((max[0] - m_pos[0]) * w / m_map.width));
-  auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
+  auto xIdx0 = static_cast<size_t>(floorf(min[0] * w / m_map.width));
+  auto zIdx0 = static_cast<size_t>(floorf(min[1] * h / m_map.height));
+  auto xIdx1 = static_cast<size_t>(ceilf(max[0] * w / m_map.width));
+  auto zIdx1 = static_cast<size_t>(ceilf(max[1] * h / m_map.height));
 
   if (xIdx0 == xIdx1) {
     if (xIdx0 > 0) {
@@ -127,7 +168,7 @@ void HeightMapSampler::triangles(Vec2f min, Vec2f max, std::vector<Triangle>& tr
   };
 
   auto getVertex = [this, dx, dz](float xIdx, float zIdx, size_t i) {
-    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
+    return (m_transform * Vec4f{ dx * xIdx, m_map.data.at(i), dz * zIdx, 1.f }).sub<3>();
   };
 
   for (size_t j = zIdx0; j < zIdx1; ++j) {
@@ -153,6 +194,7 @@ void HeightMapSampler::triangles(Vec2f min, Vec2f max, std::vector<Triangle>& tr
   }
 }
 
+// Min/max in terrain-space
 void HeightMapSampler::vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertices) const
 {
   DBG_ASSERT(inRange(min, max), "Value out of range");
@@ -161,10 +203,10 @@ void HeightMapSampler::vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertic
 
   size_t w = m_map.widthPx - 1;
   size_t h = m_map.heightPx - 1;
-  auto xIdx0 = static_cast<size_t>(floorf((min[0] - m_pos[0]) * w / m_map.width));
-  auto zIdx0 = static_cast<size_t>(floorf((min[1] - m_pos[2]) * h / m_map.height));
-  auto xIdx1 = static_cast<size_t>(ceilf((max[0] - m_pos[0]) * w / m_map.width));
-  auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
+  auto xIdx0 = static_cast<size_t>(floorf(min[0] * w / m_map.width));
+  auto zIdx0 = static_cast<size_t>(floorf(min[1] * h / m_map.height));
+  auto xIdx1 = static_cast<size_t>(ceilf(max[0] * w / m_map.width));
+  auto zIdx1 = static_cast<size_t>(ceilf(max[1] * h / m_map.height));
 
   if (xIdx0 == xIdx1) {
     if (xIdx0 > 0) {
@@ -195,7 +237,7 @@ void HeightMapSampler::vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertic
 
   auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
     size_t i = zIdx * m_map.widthPx + xIdx;
-    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
+    return (m_transform * Vec4f{ dx * xIdx, m_map.data.at(i), dz * zIdx, 1.f }).sub<3>();
   };
 
   for (size_t j = zIdx0; j <= zIdx1; ++j) {
@@ -205,6 +247,7 @@ void HeightMapSampler::vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertic
   }
 }
 
+// Min/max in terrain space
 void HeightMapSampler::edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) const
 {
   DBG_ASSERT(inRange(min, max), "Value out of range");
@@ -215,10 +258,10 @@ void HeightMapSampler::edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) con
 
   size_t w = m_map.widthPx - 1;
   size_t h = m_map.heightPx - 1;
-  auto xIdx0 = static_cast<size_t>(floorf((min[0] - m_pos[0]) * w / m_map.width));
-  auto zIdx0 = static_cast<size_t>(floorf((min[1] - m_pos[2]) * h / m_map.height));
-  auto xIdx1 = static_cast<size_t>(ceilf((max[0] - m_pos[0]) * w / m_map.width));
-  auto zIdx1 = static_cast<size_t>(ceilf((max[1] - m_pos[2]) * h / m_map.height));
+  auto xIdx0 = static_cast<size_t>(floorf((min[0]) * w / m_map.width));
+  auto zIdx0 = static_cast<size_t>(floorf((min[1]) * h / m_map.height));
+  auto xIdx1 = static_cast<size_t>(ceilf((max[0]) * w / m_map.width));
+  auto zIdx1 = static_cast<size_t>(ceilf((max[1]) * h / m_map.height));
 
   if (xIdx0 == xIdx1) {
     if (xIdx0 > 0) {
@@ -247,7 +290,7 @@ void HeightMapSampler::edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) con
 
   auto getVertex = [this, dx, dz](size_t xIdx, size_t zIdx) {
     size_t i = zIdx * m_map.widthPx + xIdx;
-    return m_pos + Vec3f{ dx * xIdx, m_map.data.at(i), dz * zIdx };
+    return (m_transform * Vec4f{ dx * xIdx, m_map.data.at(i), dz * zIdx, 1.f }).sub<3>();
   };
 
   for (size_t j = zIdx0; j < zIdx1; ++j) {
@@ -332,12 +375,6 @@ Cylinder constructCylinder(const XmlNode& xmlCylinder)
   };
 }
 
-// Calculates how much matrix m scales in the direction of v
-inline float calcScaleFactor(const Mat4x4f& m, const Vec3f& v)
-{
-  return (m * Vec4f{ v, { 0.f }}).sub<3>().magnitude() / v.magnitude();
-}
-
 XmlNodePtr toXml(const BoundingBox& bbox)
 {
   auto xmlBoundingBox = createXmlNode("bounding_box");
@@ -352,7 +389,8 @@ XmlNodePtr toXml(const BoundingBox& bbox)
   xmlMax->setAttribute("y", std::to_string(worldUnitsToMetres(bbox.max[1])));
   xmlMax->setAttribute("z", std::to_string(worldUnitsToMetres(bbox.max[2])));
 
-  auto xmlTransform = toXml(bbox.transform);
+  auto xmlTransform = createXmlNode("transform");
+  xmlTransform->addChild(toXml(bbox.transform));
 
   xmlBoundingBox->addChild(std::move(xmlMin));
   xmlBoundingBox->addChild(std::move(xmlMax));
@@ -1244,7 +1282,8 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
     }
 
     auto& localTransform = componentStore.component<CLocalTransform>(childId);
-    auto xmlTransform = toXml(localTransform.transform);
+    auto xmlTransform = createXmlNode("transform");
+    xmlTransform->addChild(toXml(localTransform.transform));
 
     xmlAggregatePart->addChild(std::move(xmlTransform));
     xmlAggregatePart->addChild(std::move(xmlChild));
@@ -2195,7 +2234,7 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
   assert(A.capsule != nullptr);
   assert(B.terrain != nullptr);
 
-  HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
+  HeightMapSampler sampler{*B.terrain->heightMap, getTransform(B)};
 
   float radius = A.capsule->capsule.radius;
 
@@ -2203,9 +2242,7 @@ bool capsuleTerrainFaceContact(const ObjectComponents& A, const ObjectComponents
   auto P = getTranslation(getTransform(A)) + A.capsule->capsule.translation;
   P[1] = P[1] - A.capsule->capsule.height * 0.5f + radius;
 
-  Vec2f p{ P[0], P[2] };
-  auto min = p + Vec2f{ -radius, -radius };
-  auto max = p + Vec2f{ radius, radius };
+  auto [ min, max ] = sampler.calcTerrainSpaceMinMax({ P[0], P[2] }, radius);
 
   if (!sampler.inRange(min, max)) {
     return false;
@@ -2331,7 +2368,7 @@ void boxXTerrainPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
-  HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
+  HeightMapSampler sampler{*B.terrain->heightMap, getTransform(B)};
   bool inverted = B.terrain->heightMap->inverted;
   auto verts = getVertices(A.box->boundingBox, getTransform(A));
 
@@ -2413,7 +2450,7 @@ void terrainXBoxPointContact(const ObjectComponents& A, const ObjectComponents& 
   assert(A.terrain != nullptr);
   assert(B.box != nullptr);
 
-  HeightMapSampler sampler{*A.terrain->heightMap, getTranslation(getTransform(A))};
+  HeightMapSampler sampler{*A.terrain->heightMap, getTransform(A)};
 
   if (!sampler.inRange(boxMin, boxMax)) {
     return;
@@ -2466,7 +2503,7 @@ void boxTerrainEdgeContacts(const ObjectComponents& A, const Vec2f& boxMin, cons
 
   const float maxPenetration = metresToWorldUnits(0.1f);  // Magic number
 
-  HeightMapSampler sampler{*B.terrain->heightMap, getTranslation(getTransform(B))};
+  HeightMapSampler sampler{*B.terrain->heightMap, getTransform(B)};
 
   if (!sampler.inRange(boxMin, boxMax)) {
     return;
@@ -2512,24 +2549,10 @@ void generateBoxTerrainContacts(const ObjectComponents& A, const ObjectComponent
   assert(A.box != nullptr);
   assert(B.terrain != nullptr);
 
-  Vec2f boxMin{ std::numeric_limits<float>::max(), std::numeric_limits<float>::max() };
-  Vec2f boxMax{ std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest() };
+  HeightMapSampler sampler{*B.terrain->heightMap, getTransform(B)};
 
   auto boxVerts = getVertices(A.box->boundingBox, getTransform(A));
-  for (auto& vert : boxVerts) {
-    if (vert[0] < boxMin[0]) {
-      boxMin[0] = vert[0];
-    }
-    if (vert[0] > boxMax[0]) {
-      boxMax[0] = vert[0];
-    }
-    if (vert[2] < boxMin[1]) {
-      boxMin[1] = vert[2];
-    }
-    if (vert[2] > boxMax[1]) {
-      boxMax[1] = vert[2];
-    }
-  }
+  auto [ boxMin, boxMax ] = sampler.calcTerrainSpaceMinMax(boxVerts);
 
   boxTerrainPointContact(A, boxMin, boxMax, B, contacts);
   boxTerrainEdgeContacts(A, boxMin, boxMax, B, contacts);

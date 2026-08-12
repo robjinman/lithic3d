@@ -672,7 +672,7 @@ inline Vec3f eulerAnglesFromMatrix(const Mat3x3f& R)
   };
 }
 
-inline Mat3x3f getRotation3x3(const Mat4x4f& m)
+inline Mat3x3f get3x3submatrix(const Mat4x4f& m)
 {
   Mat3x3f rot;
   for (size_t r = 0; r < 3; ++r) {
@@ -690,7 +690,13 @@ inline Vec3f getTranslation(const Mat4x4f& m)
 
 inline Vec3f getDirection(const Mat4x4f& m)
 {
-  return (getRotation3x3(m) * Vec3f{ 0.f, 0.f, -1.f }).normalise();
+  return (get3x3submatrix(m) * Vec3f{ 0.f, 0.f, -1.f }).normalise();
+}
+
+// Calculates how much matrix m scales in the direction of v
+inline float calcScaleFactor(const Mat4x4f& m, const Vec3f& v)
+{
+  return (m * Vec4f{ v, { 0.f }}).sub<3>().magnitude() / v.magnitude();
 }
 
 inline void setTranslation(Mat4x4f& m, const Vec3f& t)
