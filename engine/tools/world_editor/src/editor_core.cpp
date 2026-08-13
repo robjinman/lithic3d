@@ -376,7 +376,6 @@ void EditorCoreImpl::onMouseScroll(bool up)
 
   if (m_inputState.keysPressed.contains(KeyboardKey::CtrlLeft)) {
     auto& camera = m_engine->ecs().system<SysRender3d>().camera();
-    m_engine->logger().info("Hello");
     camera.translate(camera.getDirection().normalise() * distance * delta);
     setCursorDistance(distance - distance * delta);
   }

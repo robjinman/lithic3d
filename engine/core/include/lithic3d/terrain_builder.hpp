@@ -10,15 +10,14 @@ namespace lithic3d
 struct TerrainChunk
 {
   HeightMap heightMap;
-  Vec3f position;
+  Vec3f offset;
   Vec3f dimensions;
   ResourceHandle model;
 };
 
 struct TerrainPiece
 {
-  Vec3f position;     // World units
-  Vec3f dimensions;   // y-dimension is max height
+  Mat4x4f transform = identityMatrix<4>();
   std::vector<TerrainChunk> chunks;
 
   // For editor

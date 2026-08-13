@@ -132,7 +132,7 @@ SceneEditModeImpl::SceneEditModeImpl(EditorCore& core)
   m_suspendResumeState = {
     .cameraPosition = camera.getPosition(),
     .cameraDirection = camera.getDirection(),
-    .cursorRotationScale = getRotation3x3(m_core.getCursorTransform()),
+    .cursorRotationScale = get3x3submatrix(m_core.getCursorTransform()),
     .cursorDistance = m_core.getCursorDistance()
   };
 
@@ -169,7 +169,7 @@ void SceneEditModeImpl::deactivate()
   m_suspendResumeState = {
     .cameraPosition = camera.getPosition(),
     .cameraDirection = camera.getDirection(),
-    .cursorRotationScale = getRotation3x3(m_core.getCursorTransform()),
+    .cursorRotationScale = get3x3submatrix(m_core.getCursorTransform()),
     .cursorDistance = m_core.getCursorDistance()
   };
 }
@@ -338,7 +338,7 @@ void SceneEditModeImpl::selectEntity(EntityId id)
 
   camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
 
-  m_core.setCursorRotationScale(getRotation3x3(entityTransform));
+  m_core.setCursorRotationScale(get3x3submatrix(entityTransform));
 
   m_selectedEntityId = id;
 
@@ -487,6 +487,7 @@ XmlNodePtr SceneEditModeImpl::writeTerrainXml(const SliceState& slice)
     }
 
     auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+/*
     auto pos = worldUnitsToMetres(getTranslation(sysSpatial.getLocalTransform(entity.id)));
 
     Vec3f dim = worldUnitsToMetres(piece.dimensions);
@@ -499,11 +500,15 @@ XmlNodePtr SceneEditModeImpl::writeTerrainXml(const SliceState& slice)
     auto xmlDim = createXmlNode("dim");
     xmlDim->setAttribute("x", std::to_string(dim[0]));
     xmlDim->setAttribute("y", std::to_string(dim[1]));
-    xmlDim->setAttribute("z", std::to_string(dim[2]));
+    xmlDim->setAttribute("z", std::to_string(dim[2]));*/
+
+    auto xmlTransform = createXmlNode("transform");
+    xmlTransform->addChild(toXml(sysSpatial.getLocalTransform(entity.id)));
 
     xmlTerrainPiece->addChild(std::move(xmlSplatMap));
-    xmlTerrainPiece->addChild(std::move(xmlPos));
-    xmlTerrainPiece->addChild(std::move(xmlDim));
+    //xmlTerrainPiece->addChild(std::move(xmlPos));
+    //xmlTerrainPiece->addChild(std::move(xmlDim));
+    xmlTerrainPiece->addChild(std::move(xmlTransform));
 
     xmlTerrain->addChild(std::move(xmlTerrainPiece));
   }

@@ -76,46 +76,58 @@ struct Edge
 
 using Triangle = std::array<Vec3f, 3>;
 
+// All returned triangles/edges/vertices are in world space
 class HeightMapSampler
 {
   public:
-    HeightMapSampler(const HeightMap& heightMap, const Vec3f& position)
+    HeightMapSampler(const HeightMap& heightMap, const Mat4x4f& transform)
       : m_map(heightMap)
-      , m_pos(position) {}
+      , m_transform(transform)
+      , m_invTransform(inverse(transform)) {}
 
-    inline bool inRange(Vec2f p) const;
-    inline bool inRange(Vec2f min, Vec2f max) const;
-    std::optional<Triangle> triangle(Vec2f p) const;
+    std::optional<Triangle> triangle(Vec2f worldSpacePt) const;
     void vertices(Vec2f min, Vec2f max, std::vector<Vec3f>& vertices) const;
     void edges(Vec2f min, Vec2f max, std::vector<Edge>& edges) const;
     void triangles(Vec2f min, Vec2f max, std::vector<Triangle>& triangles) const;
+    std::array<Vec2f, 2> calcTerrainSpaceMinMax(Vec2f pos, float radius) const;
+    std::array<Vec2f, 2> calcTerrainSpaceMinMax(const std::array<Vec3f, 8>& verts) const;
+    inline bool inRange(Vec2f min, Vec2f max) const;
+    inline bool inRange(Vec2f worldSpacePt) const;
 
   private:
     const HeightMap& m_map;
-    Vec3f m_pos;
+    Mat4x4f m_transform;
+    Mat4x4f m_invTransform;
 
     inline void clipToRange(Vec2f& min, Vec2f& max) const;
+    inline bool terrainSpaceInRange(Vec2f terrainSpacePt) const;
 };
 
+// Min/max in terrain space
 inline bool HeightMapSampler::inRange(Vec2f min, Vec2f max) const
 {
-  return !(min[0] > m_pos[0] + m_map.width || max[0] < m_pos[0] ||
-    min[1] > m_pos[2] + m_map.height || max[1] < m_pos[2]);
+  return !(min[0] > m_map.width || max[0] < 0.f || min[1] > m_map.height || max[1] < 0.f);
 }
 
-inline bool HeightMapSampler::inRange(Vec2f p) const
+inline bool HeightMapSampler::inRange(Vec2f worldSpacePt) const
 {
-  return lithic3d::inRange(p[0], m_pos[0], m_pos[0] + m_map.width) &&
-    lithic3d::inRange(p[1], m_pos[2], m_pos[2] + m_map.height);
+  auto p = m_invTransform * Vec4f{ worldSpacePt[0], 0.f, worldSpacePt[1], 1.f };
+  return terrainSpaceInRange({ p[0], p[2] });
 }
 
+inline bool HeightMapSampler::terrainSpaceInRange(Vec2f p) const
+{
+  return lithic3d::inRange(p[0], 0.f, m_map.width) && lithic3d::inRange(p[1], 0.f, m_map.height);
+}
+
+// Min/max in terrain space
 inline void HeightMapSampler::clipToRange(Vec2f& min, Vec2f& max) const
 {
   const float epsilon = metresToWorldUnits(0.001f);
-  min[0] = std::max(min[0], m_pos[0] + epsilon);
-  min[1] = std::max(min[1], m_pos[2] + epsilon);
-  max[0] = std::min(max[0], m_pos[0] + m_map.width - epsilon);
-  max[1] = std::min(max[1], m_pos[2] + m_map.height - epsilon);
+  min[0] = std::max(min[0], epsilon);
+  min[1] = std::max(min[1], epsilon);
+  max[0] = std::min(max[0], m_map.width - epsilon);
+  max[1] = std::min(max[1], m_map.height - epsilon);
 }
 
 struct CCollisionTerrain

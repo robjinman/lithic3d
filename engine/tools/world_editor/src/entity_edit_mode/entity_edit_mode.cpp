@@ -148,7 +148,7 @@ void EntityEditModeImpl::deactivate()
   m_suspendResumeState = {
     .cameraPosition = camera.getPosition(),
     .cameraDirection = camera.getDirection(),
-    .cursorRotationScale = getRotation3x3(m_core.getCursorTransform()),
+    .cursorRotationScale = get3x3submatrix(m_core.getCursorTransform()),
     .cursorDistance = m_core.getCursorDistance()
   };
 }
@@ -394,7 +394,7 @@ void EntityEditModeImpl::selectBoundingBox(uint32_t index)
 
   camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
 
-  m_core.setCursorRotationScale(getRotation3x3(m_bboxes[m_selectedBbox].transform));
+  m_core.setCursorRotationScale(get3x3submatrix(m_bboxes[m_selectedBbox].transform));
 
   m_state = State::BoundingBoxTool;
   m_core.hideCursor();

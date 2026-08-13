@@ -426,7 +426,9 @@ XmlNodePtr SysSpatialImpl::componentToXml(EntityId entityId, EntityId prefabId) 
   }
 
   if (writeTransform) {
-    xmlSpatial->addChild(toXml(localTransform));
+    auto xmlTransform = createXmlNode("transform");
+    xmlTransform->addChild(toXml(localTransform));
+    xmlSpatial->addChild(std::move(xmlTransform));
   }
   if (writeAabb) {
     xmlSpatial->addChild(toXml(aabb));
