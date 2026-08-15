@@ -1125,7 +1125,7 @@ void Demo::constructTerrain()
     "    </splat_map>\n"
     "    <transform>\n"
     "      <pos x=\"400\" y=\"10\" z=\"400\"/>\n"
-    "      <ori x=\"0\" y=\"5\" z=\"0\"/>\n"
+    "      <ori x=\"0\" y=\"0\" z=\"0\"/>\n"
     "      <scale x=\"800\" y=\"20\" z=\"800\"/>\n"
     "    </transform>\n"
     "  </terrain_piece>\n"

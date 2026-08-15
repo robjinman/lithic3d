@@ -1,9 +1,9 @@
+* Implement octree move() properly
 * Particle emitter LODs
 * Polyhedra collision volumes
 * Polyhedra collision volumes in editor
 * Aggregate collision volumes in editor
 * Fix dynamic text rendering
-* Underground areas
 * Hide world units from application developer (expose only metres)
 * Improve shader manifest
   - Remove need to specify every feature flag (can be false by default)
@@ -16,6 +16,10 @@ PERFORMANCE
 * LOD mesh shading
 * Use KTX instead of PNG for textures
 
-27/06/26
-- Implement octree move() properly
-- Skip update of global transforms for non-dirty entities
+EDITOR
+
+* Reset current transform
+* Adjust movement speed
+* Mini-map with click to navigate
+* Terrain hot reload
+* Toggle entity visibility

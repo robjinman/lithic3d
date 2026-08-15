@@ -13,6 +13,8 @@ wxDEFINE_EVENT(EApplyActiveTransform, wxCommandEvent);
 namespace
 {
 
+const float DEFAULT_CURSOR_DISTANCE = 10.f;
+
 class CursorPanelImpl : public CursorPanel
 {
   public:
@@ -26,6 +28,7 @@ class CursorPanelImpl : public CursorPanel
     void onRotationChange();
     void onCursorMove();
     void onCancelClick();
+    void onResetClick();
     void onApplyClick();
 
     wxWindow* m_window = nullptr;
@@ -55,7 +58,8 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   wxStaticText* lblDistance = new wxStaticText(staticBox, wxID_ANY, "Distance (metres)");
 
   m_spnDistance = new wxSpinCtrlDouble(staticBox, wxID_ANY, wxEmptyString, wxDefaultPosition,
-    wxDefaultSize, wxSP_ARROW_KEYS, MIN_CURSOR_DISTANCE, MAX_CURSOR_DISTANCE, 10.0, 0.1);
+    wxDefaultSize, wxSP_ARROW_KEYS, MIN_CURSOR_DISTANCE, MAX_CURSOR_DISTANCE,
+    DEFAULT_CURSOR_DISTANCE, 0.1);
 
   wxStaticText* lblScaleX = new wxStaticText(staticBox, wxID_ANY, "Scale X");
   wxStaticText* lblScaleY = new wxStaticText(staticBox, wxID_ANY, "Scale Y");
@@ -122,10 +126,12 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   vbox->Add(grid, wxSizerFlags().Expand());
 
   wxButton* btnCancel = new wxButton(staticBox, wxID_ANY, "Cancel");
+  wxButton* btnReset = new wxButton(staticBox, wxID_ANY, "Reset");
   wxButton* btnApply = new wxButton(staticBox, wxID_ANY, "Apply");
 
   auto hbox = new wxBoxSizer(wxHORIZONTAL);
   hbox->Add(btnCancel, wxSizerFlags(1).Expand().Border(wxLEFT, border));
+  hbox->Add(btnReset, wxSizerFlags(1).Expand());
   hbox->Add(btnApply, wxSizerFlags(1).Expand().Border(wxRIGHT, border));
 
   vbox->Add(hbox, wxSizerFlags().Expand());
@@ -143,6 +149,7 @@ CursorPanelImpl::CursorPanelImpl(wxWindow* parent, EditorCore& editorCore)
   m_sldEulerZ->Bind(wxEVT_SLIDER, [this](wxEvent&) { onRotationChange(); });
 
   btnCancel->Bind(wxEVT_BUTTON, [this](wxEvent&) { onCancelClick(); });
+  btnReset->Bind(wxEVT_BUTTON, [this](wxEvent&) { onResetClick(); });
   btnApply->Bind(wxEVT_BUTTON, [this](wxEvent&) { onApplyClick(); });
 
   m_onCursorMove = m_core.listen(EditorCore::Event::CursorMove, [this]() { onCursorMove(); });
@@ -152,6 +159,21 @@ void CursorPanelImpl::onCancelClick()
 {
   wxCommandEvent event(ECancelActiveTransform);
   wxPostEvent(m_window, event);
+}
+
+void CursorPanelImpl::onResetClick()
+{
+  m_spnDistance->SetValue(DEFAULT_CURSOR_DISTANCE);
+  m_spnScaleX->SetValue(1.f);
+  m_spnScaleY->SetValue(1.f);
+  m_spnScaleZ->SetValue(1.f);
+  m_sldEulerX->SetValue(0);
+  m_sldEulerY->SetValue(0);
+  m_sldEulerZ->SetValue(0);
+
+  m_core.setCursorDistance(metresToWorldUnits(DEFAULT_CURSOR_DISTANCE));
+  m_core.setCursorRotation({ 0.f, 0.f, 0.f });
+  m_core.setCursorScale({ 1.f, 1.f, 1.f });
 }
 
 void CursorPanelImpl::onApplyClick()
