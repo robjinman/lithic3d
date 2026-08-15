@@ -4,6 +4,7 @@
 #include "cursor_panel.hpp"
 #include <wx/wx.h>
 #include <wx/notebook.h>
+#include <wx/listctrl.h>
 
 using namespace lithic3d;
 
@@ -34,7 +35,7 @@ class SceneEditModeUi : public ModeUi
     EditorCore& m_core;
     wxNotebook* m_notebook = nullptr;
     wxListBox* m_lstPrefabs = nullptr;
-    wxListBox* m_lstEntities = nullptr;
+    wxListView* m_lstEntities = nullptr;
     CursorPanelPtr m_cursorPanel = nullptr;
     EventHandle m_onAddOrRemoveEntity;
 
@@ -42,6 +43,8 @@ class SceneEditModeUi : public ModeUi
     void populateEntities();
     void onInstanceSelection();
     void onPrefabSelection();
+    void onInstanceShow(wxEvent& e);
+    void onInstanceHide(wxEvent& e);
 };
 
 SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
@@ -62,13 +65,18 @@ SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
   m_notebook = new wxNotebook(m_panels.rightSidebar, wxID_ANY);
 
   m_lstPrefabs = new wxListBox(m_notebook, wxID_ANY);
-  m_lstEntities = new wxListBox(m_notebook, wxID_ANY);
+  m_lstEntities = new wxListView(m_notebook, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+    wxLC_REPORT | wxLC_SINGLE_SEL);
+  m_lstEntities->EnableCheckBoxes();
 
   m_notebook->AddPage(m_lstPrefabs, "Prefabs");
   m_notebook->AddPage(m_lstEntities, "Scene");
 
   m_lstPrefabs->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onPrefabSelection(); });
-  m_lstEntities->Bind(wxEVT_COMMAND_LISTBOX_SELECTED, [this](wxEvent&) { onInstanceSelection(); });
+  m_lstEntities->Bind(wxEVT_COMMAND_LIST_ITEM_SELECTED,
+    [this](wxEvent&) { onInstanceSelection(); });
+  m_lstEntities->Bind(wxEVT_LIST_ITEM_CHECKED, [this](wxEvent& e) { onInstanceShow(e); });
+  m_lstEntities->Bind(wxEVT_LIST_ITEM_UNCHECKED, [this](wxEvent& e) { onInstanceHide(e); });
 
   m_onAddOrRemoveEntity = m_mode->listen(SceneEditMode::Event::AddOrRemoveEntity,
     [this]() { populateEntities(); });
@@ -79,13 +87,37 @@ SceneEditModeUi::SceneEditModeUi(const Panels& panels, EditorCore& editorCore)
 
 void SceneEditModeUi::onInstanceSelection()
 {
-  auto index = m_lstEntities->GetSelection();
+  auto index = m_lstEntities->GetFirstSelected();
   if (index == wxNOT_FOUND) {
     return;
   }
 
-  auto& entity = *reinterpret_cast<EntityIdAndType*>(m_lstEntities->GetClientData(index));
+  auto& entity = *reinterpret_cast<EntityIdAndType*>(m_lstEntities->GetItemData(index));
   m_mode->selectEntity(entity.id);
+}
+
+void SceneEditModeUi::onInstanceShow(wxEvent& e)
+{
+  auto event = dynamic_cast<wxListEvent&>(e);
+  auto index = event.GetIndex();
+  if (index == wxNOT_FOUND) {
+    return;
+  }
+
+  auto& entity = *reinterpret_cast<EntityIdAndType*>(m_lstEntities->GetItemData(index));
+  m_mode->showEntity(entity.id);
+}
+
+void SceneEditModeUi::onInstanceHide(wxEvent& e)
+{
+  auto event = dynamic_cast<wxListEvent&>(e);
+  auto index = event.GetIndex();
+  if (index == wxNOT_FOUND) {
+    return;
+  }
+
+  auto& entity = *reinterpret_cast<EntityIdAndType*>(m_lstEntities->GetItemData(index));
+  m_mode->hideEntity(entity.id);
 }
 
 void SceneEditModeUi::onPrefabSelection()
@@ -108,14 +140,18 @@ void SceneEditModeUi::populatePrefabs()
 
 void SceneEditModeUi::populateEntities()
 {
-  m_lstEntities->Clear();
+  m_lstEntities->ClearAll();
+  m_lstEntities->AppendColumn("Entity");
 
   auto entities = m_mode->getEntities();
 
   for (size_t i = 0; i < entities.size(); ++i) {
-    m_lstEntities->Insert(STR("[" << entities[i].id << "] " << entities[i].type), i,
-      new EntityIdAndType{entities[i]});
+    m_lstEntities->InsertItem(i, STR("[" << entities[i].id << "] " << entities[i].type));
+    m_lstEntities->SetItemData(i, reinterpret_cast<long>(new EntityIdAndType{entities[i]}));
+    m_lstEntities->CheckItem(i, true);
   }
+
+  m_lstEntities->SetColumnWidth(0, m_lstEntities->GetClientSize().GetWidth());
 }
 
 void SceneEditModeUi::onKeyDown(KeyboardKey key)

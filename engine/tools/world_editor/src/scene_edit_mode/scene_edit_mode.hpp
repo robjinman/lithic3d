@@ -29,6 +29,9 @@ class SceneEditMode
     virtual void selectEntity(lithic3d::EntityId id) = 0;
     virtual lithic3d::EntityId selectedEntity() const = 0;
 
+    virtual void showEntity(lithic3d::EntityId id) = 0;
+    virtual void hideEntity(lithic3d::EntityId id) = 0;
+
     virtual void applyTransform() = 0;
     virtual void cancelTransform() = 0;
 

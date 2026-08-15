@@ -78,6 +78,10 @@ class SceneEditModeImpl : public SceneEditMode
 
     void selectEntity(EntityId id) override;
     EntityId selectedEntity() const override;
+
+    void showEntity(EntityId id) override;
+    void hideEntity(EntityId id) override;
+
     void applyTransform() override;
     void cancelTransform() override;
 
@@ -350,6 +354,18 @@ void SceneEditModeImpl::selectEntity(EntityId id)
   //m_cursorEntityType = type;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::EntitySelect));
+}
+
+void SceneEditModeImpl::showEntity(EntityId id)
+{
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  sysSpatial.setEnabled(id, true);
+}
+
+void SceneEditModeImpl::hideEntity(EntityId id)
+{
+  auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
+  sysSpatial.setEnabled(id, false);
 }
 
 void SceneEditModeImpl::setEntityColour(EntityId id, const Vec4f& colour)
