@@ -356,7 +356,7 @@ const Buffer& getBuffer(const std::vector<Buffer>& buffers, BufferUsage usage);
 MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize);
 MeshPtr capsule(float height, float radius);
 MeshPtr sphere(float radius);
-MeshPtr cylinder(float height, float radius);
+MeshPtr cylinder(float height, float radius, bool withClosedEnds);
 
 std::vector<char> createVertexArray(const Mesh& mesh);
 

@@ -64,7 +64,7 @@
         <has_texture>*</has_texture>
         <has_normal_map>false</has_normal_map>
         <has_cube_map>false</has_cube_map>
-        <is_double_sided>false</is_double_sided>
+        <is_double_sided>*</is_double_sided>
       </flags>
     </material_features>
   </shader>

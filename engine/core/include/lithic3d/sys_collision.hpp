@@ -55,6 +55,7 @@ struct Cylinder
   float radius = 0.f;
   float height = 0.f;
   Mat4x4f transform = identityMatrix<4>();
+  bool inverted = false;
 };
 
 struct HeightMap

@@ -39,6 +39,7 @@ struct Cylinder
   float radius;
   Vec3f rotation;
   Vec3f scale;
+  bool inverted;
 };
 
 struct Sphere
@@ -337,7 +338,8 @@ class Demo : public Game
             .height = 4.f,
             .radius = 1.5f,
             .rotation = { degreesToRadians(12.f), degreesToRadians(7.f), degreesToRadians(100.f) },
-            .scale = { 1.1f, 1.4f, 1.3f }
+            .scale = { 1.1f, 1.4f, 1.3f },
+            .inverted = false
           }
         },
         .aggregates{}
@@ -361,7 +363,33 @@ class Demo : public Game
             .height = 2.f,
             .radius = 3.f,
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
-            .scale = { 1.f, 1.f, 1.f }
+            .scale = { 1.f, 1.f, 1.f },
+            .inverted = false
+          }
+        },
+        .aggregates{}
+      },
+      Scenario{
+        .boxes = {
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X - 0.f, VIEW_Y - 1.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          }
+        },
+        .capsules{},
+        .spheres{},
+        .cylinders{
+          Cylinder{
+            .position = { VIEW_X + 0.f, VIEW_Y - 4.f, VIEW_Z - 20.f },
+            .height = 4.f,
+            .radius = 1.5f,
+            .rotation = { degreesToRadians(90.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .scale = { 3.f, 3.f, 3.f },
+            .inverted = true
           }
         },
         .aggregates{}
@@ -870,7 +898,8 @@ void Demo::constructCylinders(size_t scenario)
       .cylinder = {
         .radius = metresToWorldUnits(obj.radius),
         .height = metresToWorldUnits(obj.height),
-        .transform = collisionTransform
+        .transform = collisionTransform,
+        .inverted = obj.inverted
       }
     };
 
@@ -893,11 +922,14 @@ void Demo::constructCylinders(size_t scenario)
 
     sysSpatial.addEntity(renderId, renderSpatial);
 
-    auto mesh = render::cylinder(obj.height, obj.radius);
+    auto mesh = render::cylinder(obj.height, obj.radius, !obj.inverted);
     mesh->featureSet.flags.set(MeshFeatures::CastsShadow);
 
     auto material = std::make_unique<Material>();
     material->colour = { 0.f, 1.f, 0.f, 1.f };
+    if (obj.inverted) {
+      material->featureSet.flags.set(MaterialFeatures::IsDoubleSided);
+    }
 
     auto model = std::make_unique<Model>();
     model->submodels.push_back(

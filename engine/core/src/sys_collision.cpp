@@ -371,7 +371,8 @@ Cylinder constructCylinder(const XmlNode& xmlCylinder)
   return {
     .radius = metresToWorldUnits(std::stof(xmlCylinder.attribute("radius"))),
     .height = metresToWorldUnits(std::stof(xmlCylinder.attribute("height"))),
-    .transform = constructTransform(*xmlCylinder.child("transform"))
+    .transform = constructTransform(*xmlCylinder.child("transform")),
+    .inverted = xmlCylinder.attribute("inverted") == "true"
   };
 }
 
@@ -2605,6 +2606,7 @@ bool boxCylinderPointContact(const ObjectComponents& A, const ObjectComponents& 
 {
   assert(A.box != nullptr);
   assert(B.cylinder != nullptr);
+  assert(!B.cylinder->cylinder.inverted);
 
   float height = B.cylinder->cylinder.height;
   float radius = B.cylinder->cylinder.radius;
@@ -2636,6 +2638,66 @@ bool boxCylinderPointContact(const ObjectComponents& A, const ObjectComponents& 
 
   if (maxPenetration > 0.f) {
     Vec3f cylinderSpaceNormal{ vertOfMaxPenetration[0], 0.f, vertOfMaxPenetration[2] };
+    auto normal = (fromCylinderSpace * Vec4f{ cylinderSpaceNormal, { 0.f }}).sub<3>().normalise();
+    auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
+
+    contact = {
+      .A = A,
+      .B = B,
+      .point = (fromCylinderSpace * Vec4f{ vertOfMaxPenetration, { 1.f }}).sub<3>(),
+      .normal = normal,
+      .penetration = maxPenetration * calcScaleFactor(fromCylinderSpace, cylinderSpaceNormal),
+      .toContactSpace = fromContactSpace.t(),
+      .fromContactSpace = fromContactSpace
+    };
+
+    return true;
+  }
+
+  return false;
+}
+
+// boxVertices in cylinder space
+bool boxInvertedCylinderPointContact(const ObjectComponents& A, const ObjectComponents& B,
+  const Mat4x4f& fromCylinderSpace, const std::array<Vec3f, 8>& boxVertices, Contact& contact)
+{
+  assert(A.box != nullptr);
+  assert(B.cylinder != nullptr);
+  assert(B.cylinder->cylinder.inverted);
+
+  float height = B.cylinder->cylinder.height;
+  float radius = B.cylinder->cylinder.radius;
+  float innerSqRadius = radius * radius;
+  const float thickness = metresToWorldUnits(0.1f); // TODO: Magic number
+  float outerRadius = radius + thickness;
+  float outerSqRadius = outerRadius * outerRadius;
+
+  auto triangles = getTriangles(boxVertices);
+
+  float largestSqDistance = std::numeric_limits<float>::min();
+  Vec3f vertOfMaxPenetration;
+
+  for (auto& triangle : triangles) {
+    for (uint32_t i = 0; i < 3; ++i) {
+      Vec3f v = triangle[i];
+
+      if (inRange(v[1], -height * 0.5f, height * 0.5f)) {
+        float sqDistance = v[0] * v[0] + v[2] * v[2];
+
+        if (sqDistance > innerSqRadius && sqDistance < outerSqRadius) {
+          if (sqDistance > largestSqDistance) {
+            largestSqDistance = sqDistance;
+            vertOfMaxPenetration = v;
+          }
+        }
+      }
+    }
+  }
+
+  float maxPenetration = sqrtf(largestSqDistance) - radius;
+
+  if (maxPenetration > 0.f) {
+    Vec3f cylinderSpaceNormal{ -vertOfMaxPenetration[0], 0.f, -vertOfMaxPenetration[2] };
     auto normal = (fromCylinderSpace * Vec4f{ cylinderSpaceNormal, { 0.f }}).sub<3>().normalise();
     auto fromContactSpace = changeOfBasisMatrix(normal, differentVector(normal));
 
@@ -2801,11 +2863,17 @@ void generateBoxCylinderContacts(const ObjectComponents& A, const ObjectComponen
   auto vertices = getVertices(A.box->boundingBox, toCylinderSpace * boxTransform);
 
   std::array<Contact, 3> contacts;
-  std::array<bool, 3> contactsExist;
+  std::array<bool, 3> contactsExist{};
 
-  contactsExist[0] = boxCylinderPointContact(A, B, fromCylinderSpace, vertices, contacts[0]);
-  contactsExist[1] = boxCylinderEdgeContact(A, B, fromCylinderSpace, vertices, contacts[1]);
-  contactsExist[2] = boxCylinderEndsPointContact(A, B, fromCylinderSpace, vertices, contacts[2]);
+  if (B.cylinder->cylinder.inverted) {
+    contactsExist[0] = boxInvertedCylinderPointContact(A, B, fromCylinderSpace, vertices,
+      contacts[0]);
+  }
+  else {
+    contactsExist[0] = boxCylinderPointContact(A, B, fromCylinderSpace, vertices, contacts[0]);
+    contactsExist[1] = boxCylinderEdgeContact(A, B, fromCylinderSpace, vertices, contacts[1]);
+    contactsExist[2] = boxCylinderEndsPointContact(A, B, fromCylinderSpace, vertices, contacts[2]);
+  }
 
   // TODO: Cylinder ends edge contacts
 

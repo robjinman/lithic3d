@@ -239,7 +239,7 @@ MeshPtr cuboid(const Vec3f& size, const Vec2f& textureSize)
 MeshPtr capsule(float height, float radius)
 {
   // TODO
-  return cylinder(height, radius);
+  return cylinder(height, radius, false);
 }
 
 MeshPtr sphere(float radius)
@@ -461,11 +461,6 @@ MeshPtr cylinder(float height, float radius, bool withClosedEnds)
   mesh->indexBuffer = Buffer{AlignedBytes{indices}, BufferUsage::Index};
 
   return mesh;
-}
-
-MeshPtr cylinder(float height, float radius)
-{
-  return cylinder(height, radius, true);
 }
 
 std::vector<char> createVertexArray(const Mesh& mesh)
