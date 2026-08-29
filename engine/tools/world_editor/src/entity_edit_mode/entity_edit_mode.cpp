@@ -8,7 +8,9 @@ namespace
 {
 
 const Vec4f GHOST_ENTITY_COLOUR = { 0.5f, 1.f, 0.5f, 0.5f };
-const Vec4f BOUNDING_BOX_COLOUR = { 1.f, 1.f, 0.f, 0.7f };
+const Vec4f BOUNDING_BOX_COLOUR = { 1.f, 0.f, 1.f, 0.7f };
+const Vec4f CYLINDER_COLOUR = { 1.f, 1.f, 0.f, 0.7f };
+const Vec4f OVOID_COLOUR = { 1.f, 0.7f, 0.7f, 0.7f };
 const Vec4f AABB_COLOUR = { 0.f, 1.f, 0.f, 0.7f };
 
 struct SuspendResumeState
@@ -22,7 +24,7 @@ struct SuspendResumeState
 enum class State
 {
   None,
-  BoundingBoxTool
+  ShapeTransformTool
 };
 
 // Transforms a unit cube (world units) to the box defined by min/max
@@ -46,18 +48,18 @@ class EntityEditModeImpl : public EntityEditMode
     void setActivePrefab(const std::string& prefab) override;
     EntityId instantiatedPrefabId() const override;
 
-    void renderBoundingBox(uint32_t index, bool render) override;
+    void renderShape(uint32_t index, bool render) override;
     void renderAabb(bool render) override;
 
-    void selectBoundingBox(uint32_t index) override;
+    void selectShape(uint32_t index) override;
 
-    void updateBoundingBox(const BoundingBox& box, uint32_t index) override;
-    void addBoundingBox(const BoundingBox& box) override;
+    void updateShape(const Shape& shape, uint32_t index) override;
+    void addShape(const Shape& box) override;
 
     void updateAabb(const Aabb& aabb) override;
 
     const Aabb& getAabb() const override;
-    const BoundingBox& getBoundingBox(uint32_t index) const override;
+    const Shape& getShape(uint32_t index) const override;
 
     void applyTransform() override;
     void cancelTransform() override;
@@ -77,23 +79,26 @@ class EntityEditModeImpl : public EntityEditMode
     Vec2f m_prevMousePos;
 
     State m_state = State::None;
-    std::vector<BoundingBox> m_bboxes;
-    uint32_t m_selectedBbox = 0;
+    std::vector<ShapePtr> m_shapes;
+    uint32_t m_selectedShape = 0;
     Aabb m_aabb;
     bool m_entityIsPrefab = false;
     std::string m_activePrefab;
     std::vector<XmlNodePtr> m_unusedPrefabXml;
     EntityId m_entityId = NULL_ENTITY_ID;
-    std::vector<EntityId> m_renderedBboxIds;
+    std::vector<EntityId> m_renderedShapeIds;
     EntityId m_renderedAabbId = NULL_ENTITY_ID;
     EntityId m_cursorEntityId = NULL_ENTITY_ID;
 
     void constructRoot();
-    EntityId constructBox(const Vec4f& colour);
+    EntityId constructBoxEntity(const Vec4f& colour);
+    EntityId constructCylinderEntity(const Vec4f& colour);
+    EntityId constructOvoidEntity(const Vec4f& colour);
+    EntityId constructShapeEntity(ShapeType type, bool isGhost);
     void updateCursorEntity();
 
     void updateRenderedAabb();
-    void updateRenderedBoundingBox(uint32_t index);
+    void updateRenderedShape(uint32_t index);
 };
 
 EntityEditModeImpl::EntityEditModeImpl(EditorCore& core)
@@ -162,20 +167,20 @@ void EntityEditModeImpl::updateAabb(const Aabb& aabb)
   }
 }
 
-void EntityEditModeImpl::addBoundingBox(const BoundingBox& box)
+void EntityEditModeImpl::addShape(const Shape& shape)
 {
-  m_bboxes.push_back(box);
-  m_renderedBboxIds.push_back(NULL_ENTITY_ID);
+  m_shapes.push_back(shape.clone());
+  m_renderedShapeIds.push_back(NULL_ENTITY_ID);
 }
 
-void EntityEditModeImpl::updateBoundingBox(const BoundingBox& box, uint32_t index)
+void EntityEditModeImpl::updateShape(const Shape& shape, uint32_t index)
 {
-  ASSERT(index < m_bboxes.size(), "Index out of range");
+  ASSERT(index < m_shapes.size(), "Index out of range");
 
-  m_bboxes[index] = box;
+  m_shapes[index] = shape.clone();
 
-  if (m_renderedBboxIds[index] != NULL_ENTITY_ID) {
-    updateRenderedBoundingBox(index);
+  if (m_renderedShapeIds[index] != NULL_ENTITY_ID) {
+    updateRenderedShape(index);
   }
 }
 
@@ -184,26 +189,41 @@ const Aabb& EntityEditModeImpl::getAabb() const
   return m_aabb;
 }
 
-const BoundingBox& EntityEditModeImpl::getBoundingBox(uint32_t index) const
+const Shape& EntityEditModeImpl::getShape(uint32_t index) const
 {
-  return m_bboxes[index];
+  return *m_shapes[index];
 }
 
-void EntityEditModeImpl::renderBoundingBox(uint32_t index, bool render)
+EntityId EntityEditModeImpl::constructShapeEntity(ShapeType type, bool isGhost)
+{
+  switch (type) {
+    case ShapeType::Box:
+      return constructBoxEntity(isGhost ? GHOST_ENTITY_COLOUR : BOUNDING_BOX_COLOUR);
+    case ShapeType::Cylinder:
+      return constructCylinderEntity(isGhost ? GHOST_ENTITY_COLOUR : CYLINDER_COLOUR);
+    case ShapeType::Ovoid:
+      return constructOvoidEntity(isGhost ? GHOST_ENTITY_COLOUR : OVOID_COLOUR);
+  }
+}
+
+void EntityEditModeImpl::renderShape(uint32_t index, bool render)
 {
   m_core.engine().logger().debug(STR("Rendering box " << index << ": "
     << (render ? "true" : "false")));
 
   if (render) {
-    if (m_renderedBboxIds[index] == NULL_ENTITY_ID) {
-      m_renderedBboxIds[index] = constructBox(BOUNDING_BOX_COLOUR);
-      updateRenderedBoundingBox(index);
+    if (m_renderedShapeIds[index] == NULL_ENTITY_ID) {
+      assert(index < m_shapes.size());
+      auto& shape = *m_shapes[index];
+
+      m_renderedShapeIds[index] = constructShapeEntity(shape.type, false);
+      updateRenderedShape(index);
     }
   }
   else {
-    if (m_renderedBboxIds[index] != NULL_ENTITY_ID) {
-      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedBboxIds[index]});
-      m_renderedBboxIds[index] = NULL_ENTITY_ID;
+    if (m_renderedShapeIds[index] != NULL_ENTITY_ID) {
+      m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedShapeIds[index]});
+      m_renderedShapeIds[index] = NULL_ENTITY_ID;
     }
   }
 }
@@ -212,7 +232,7 @@ void EntityEditModeImpl::renderAabb(bool render)
 {
   if (render) {
     if (m_renderedAabbId == NULL_ENTITY_ID) {
-      m_renderedAabbId = constructBox(AABB_COLOUR);
+      m_renderedAabbId = constructBoxEntity(AABB_COLOUR);
       updateRenderedAabb();
     }
   }
@@ -232,26 +252,67 @@ void EntityEditModeImpl::updateRenderedAabb()
   engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedAabbId, m);
 }
 
-void EntityEditModeImpl::updateRenderedBoundingBox(uint32_t index)
+void EntityEditModeImpl::updateRenderedShape(uint32_t index)
 {
   auto& engine = m_core.engine();
-  auto& bbox = m_bboxes[index];
+  auto& shape = m_shapes[index];
 
-  auto m = bbox.transform * unitCubeToBoxTransform(bbox.min, bbox.max);
-  engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedBboxIds[index], m);
+  Mat4x4f m;
+
+  // TODO: Move to method on Shape
+  switch (shape->type) {
+    case ShapeType::Box: {
+      auto& bbox = dynamic_cast<ShapeWrapper<lithic3d::BoundingBox>&>(*shape).shape;
+      m = bbox.transform * unitCubeToBoxTransform(bbox.min, bbox.max);
+
+      break;
+    }
+    case ShapeType::Cylinder: {
+      // TODO
+      EXCEPTION("Not implemented");
+      break;
+    }
+    case ShapeType::Ovoid: {
+      // TODO
+      EXCEPTION("Not implemented");
+      break;
+    }
+  }
+
+  engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedShapeIds[index], m);
 }
 
 void EntityEditModeImpl::applyTransform()
 {
   switch (m_state) {
-    case State::BoundingBoxTool: {
-      assert(m_selectedBbox < m_bboxes.size());
+    case State::ShapeTransformTool: {
+      assert(m_selectedShape < m_shapes.size());
 
       auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
-      m_bboxes[m_selectedBbox].transform = m_core.getCursorTransform();
-      if (m_renderedBboxIds[m_selectedBbox] != NULL_ENTITY_ID) {
-        updateRenderedBoundingBox(m_selectedBbox);
+      auto& shape = *m_shapes[m_selectedShape];
+
+      // TODO: Move to method on Shape
+      switch (shape.type) {
+        case ShapeType::Box: {
+          auto& box = dynamic_cast<ShapeWrapper<BoundingBox>&>(shape).shape;
+          box.transform = m_core.getCursorTransform();
+          break;
+        }
+        case ShapeType::Cylinder: {
+          // TODO
+          EXCEPTION("Not implemented");
+          break;
+        }
+        case ShapeType::Ovoid: {
+          EXCEPTION("Not implemented");
+          // TODO
+          break;
+        }
+      }
+
+      if (m_renderedShapeIds[m_selectedShape] != NULL_ENTITY_ID) {
+        updateRenderedShape(m_selectedShape);
       }
 
       m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_cursorEntityId});
@@ -269,7 +330,7 @@ void EntityEditModeImpl::applyTransform()
 void EntityEditModeImpl::cancelTransform()
 {
   switch (m_state) {
-    case State::BoundingBoxTool: {
+    case State::ShapeTransformTool: {
       m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_cursorEntityId});
       m_cursorEntityId = NULL_ENTITY_ID;
 
@@ -296,16 +357,37 @@ void EntityEditModeImpl::applyChangesToEntity()
 
   auto& sysCollision = m_core.engine().ecs().system<SysCollision>();
 
+  auto setShapeOnComponent = [&sysCollision, &componentStore](EntityId id, const Shape& shape) {
+    auto type = sysCollision.componentType(id);
+    switch (type) {
+      case CollisionComponentType::StaticBox: {
+        auto& box = dynamic_cast<const ShapeWrapper<BoundingBox>&>(shape).shape;
+        componentStore.component<CCollisionBox>(id).boundingBox = box;
+        break;
+      }
+      case CollisionComponentType::Cylinder: {
+        // TODO
+        EXCEPTION("Not implemented");
+        break;
+      }
+      case CollisionComponentType::Sphere: {
+        // TODO
+        EXCEPTION("Not implemented");
+        break;
+      }
+    }
+  };
+
   if (sysCollision.hasEntity(m_entityId)) {
     if (sysCollision.componentType(m_entityId) == CollisionComponentType::Aggregate) {
       auto& children = sysCollision.getAggregateChildren(m_entityId);
       for (size_t i = 0; i < children.size(); ++i) {
-        componentStore.component<CCollisionBox>(children[i]).boundingBox = m_bboxes[i];
+        setShapeOnComponent(children[i], *m_shapes[i]);
       }
     }
     else {
-      assert(m_bboxes.size() == 1);
-      componentStore.component<CCollisionBox>(m_entityId).boundingBox = m_bboxes[0];
+      assert(m_shapes.size() == 1);
+      setShapeOnComponent(m_entityId, *m_shapes[0]);
     }
   }
 
@@ -344,14 +426,14 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   auto& componentStore = m_core.engine().ecs().componentStore();
   m_aabb = componentStore.component<CBoundingBox>(m_entityId).modelSpaceAabb;
 
-  m_bboxes.clear();
+  m_shapes.clear();
 
-  for (auto id : m_renderedBboxIds) {
+  for (auto id : m_renderedShapeIds) {
     if (id != NULL_ENTITY_ID) {
       m_core.engine().eventSystem().raiseEvent(ERequestDeletion{id});
     }
   }
-  m_renderedBboxIds.clear();
+  m_renderedShapeIds.clear();
 
   if (m_renderedAabbId != NULL_ENTITY_ID) {
     m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedAabbId});
@@ -360,29 +442,86 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   if (sysCollision.hasEntity(m_entityId)) {
     if (sysCollision.componentType(m_entityId) == CollisionComponentType::Aggregate) {
       for (auto childId : sysCollision.getAggregateChildren(m_entityId)) {
-        m_bboxes.push_back(componentStore.component<CCollisionBox>(childId).boundingBox);
-        m_renderedBboxIds.push_back(NULL_ENTITY_ID);
+        // TODO: Move into method on Shape
+        auto type = sysCollision.componentType(childId);
+        switch (type) {
+          case CollisionComponentType::StaticBox: {
+            auto& box = componentStore.component<CCollisionBox>(childId).boundingBox;
+            m_shapes.push_back(std::make_unique<ShapeWrapper<BoundingBox>>(box, ShapeType::Box));
+            break;
+          }
+          case CollisionComponentType::Cylinder: {
+            // TODO
+            EXCEPTION("Not implemented");
+            break;
+          }
+          case CollisionComponentType::Sphere: {
+            // TODO
+            EXCEPTION("Not implemented");
+            break;
+          }
+        }
+
+        m_renderedShapeIds.push_back(NULL_ENTITY_ID);
       }
     }
     else {
-      m_bboxes = { componentStore.component<CCollisionBox>(m_entityId).boundingBox };
-      m_renderedBboxIds = { NULL_ENTITY_ID };
+        // TODO: Move into method on Shape (same as above)
+      auto type = sysCollision.componentType(m_entityId);
+      switch (type) {
+        case CollisionComponentType::StaticBox: {
+          auto& box = componentStore.component<CCollisionBox>(m_entityId).boundingBox;
+          m_shapes.push_back(std::make_unique<ShapeWrapper<BoundingBox>>(box, ShapeType::Box));
+          break;
+        }
+        case CollisionComponentType::Cylinder: {
+          // TODO
+          EXCEPTION("Not implemented");
+          break;
+        }
+        case CollisionComponentType::Sphere: {
+          // TODO
+          EXCEPTION("Not implemented");
+          break;
+        }
+      }
+
+      m_renderedShapeIds = { NULL_ENTITY_ID };
     }
   }
 
-  assert(m_bboxes.size() == m_renderedBboxIds.size());
+  assert(m_shapes.size() == m_renderedShapeIds.size());
 
-  m_selectedBbox = 0;
+  m_selectedShape = 0;
 }
 
-void EntityEditModeImpl::selectBoundingBox(uint32_t index)
+// TODO: Move to method on Shape
+const Mat4x4f& getShapeTransform(const Shape& shape)
 {
-  ASSERT(index < m_bboxes.size(), "Index out of range");
+  switch (shape.type) {
+    case ShapeType::Box: {
+      auto& box = dynamic_cast<const ShapeWrapper<BoundingBox>&>(shape).shape;
+      return box.transform;
+    }
+    case ShapeType::Cylinder: {
+      // TODO
+      EXCEPTION("Not implemented");
+    }
+    case ShapeType::Ovoid: {
+      // TODO
+      EXCEPTION("Not implemented");
+    }
+  }
+}
 
-  m_selectedBbox = index;
+void EntityEditModeImpl::selectShape(uint32_t index)
+{
+  ASSERT(index < m_shapes.size(), "Index out of range");
+
+  m_selectedShape = index;
 
   if (m_cursorEntityId == NULL_ENTITY_ID) {
-    m_cursorEntityId = constructBox(GHOST_ENTITY_COLOUR);
+    m_cursorEntityId = constructBoxEntity(GHOST_ENTITY_COLOUR);
   }
 
   auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
@@ -390,17 +529,19 @@ void EntityEditModeImpl::selectBoundingBox(uint32_t index)
 
   auto& camera = sysRender3d.camera();
   auto& camDir = camera.getDirection();
-  Vec3f entityPos = getTranslation(m_bboxes[m_selectedBbox].transform);
+
+  auto& transform = getShapeTransform(*m_shapes[m_selectedShape]);
+  Vec3f entityPos = getTranslation(transform);
 
   camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
 
-  m_core.setCursorRotationScale(get3x3submatrix(m_bboxes[m_selectedBbox].transform));
+  m_core.setCursorRotationScale(get3x3submatrix(transform));
 
-  m_state = State::BoundingBoxTool;
+  m_state = State::ShapeTransformTool;
   m_core.hideCursor();
 }
 
-EntityId EntityEditModeImpl::constructBox(const Vec4f& colour)
+EntityId EntityEditModeImpl::constructBoxEntity(const Vec4f& colour)
 {
   auto& ecs = m_core.engine().ecs();
   auto id = ecs.idGen().getNewEntityId();
@@ -455,6 +596,18 @@ EntityId EntityEditModeImpl::constructBox(const Vec4f& colour)
   sysRender3d.addEntity(id, std::move(render));
 
   return id;
+}
+
+EntityId EntityEditModeImpl::constructCylinderEntity(const Vec4f& colour)
+{
+  // TODO
+  EXCEPTION("Not implemented");
+}
+
+EntityId EntityEditModeImpl::constructOvoidEntity(const Vec4f& colour)
+{
+  // TODO
+  EXCEPTION("Not implemented");
 }
 
 void EntityEditModeImpl::onKeyDown(KeyboardKey key)
@@ -531,10 +684,29 @@ void EntityEditModeImpl::updateCursorEntity()
   auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
   switch (m_state) {
-    case State::BoundingBoxTool: {
-      assert(m_selectedBbox < m_bboxes.size());
+    case State::ShapeTransformTool: {
+      assert(m_selectedShape < m_shapes.size());
 
-      auto t = unitCubeToBoxTransform(m_bboxes[m_selectedBbox].min, m_bboxes[m_selectedBbox].max);
+      Mat4x4f t;
+      auto type = m_shapes[m_selectedShape]->type;
+      switch (type) {
+        case ShapeType::Box: {
+          auto& box = dynamic_cast<ShapeWrapper<BoundingBox>&>(*m_shapes[m_selectedShape]).shape;
+          t = unitCubeToBoxTransform(box.min, box.max);
+          break;
+        }
+        case ShapeType::Cylinder: {
+          // TODO
+          EXCEPTION("Not implemented");
+          break;
+        }
+        case ShapeType::Ovoid: {
+          // TODO
+          EXCEPTION("Not implemented");
+          break;
+        }
+      }
+
       auto m = m_core.getCursorTransform() * t;
       sysSpatial.setLocalTransform(m_cursorEntityId, m);
 
