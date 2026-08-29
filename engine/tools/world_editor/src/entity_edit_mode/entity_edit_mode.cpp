@@ -7,6 +7,118 @@ using namespace lithic3d;
 namespace
 {
 
+// Transforms a unit cube (world units) to the box defined by min/max
+Mat4x4f unitCubeToBoxTransform(const Vec3f& min, const Vec3f& max)
+{
+  auto size = max - min;
+  auto centre = min + size * 0.5f;
+  return translationMatrix4x4(centre) * scaleMatrix4x4(size);
+}
+
+// Transforms a unit cylinder (world units) to the cylinder defined by radius/length
+Mat4x4f unitCylinderToCylinderTransform(float radius, float length)
+{
+  return scaleMatrix4x4({ radius, length, radius });
+}
+
+// Transforms a unit sphere (world units) to the sphere defined by radius
+Mat4x4f unitSphereToSphereTransform(float radius)
+{
+  return scaleMatrix4x4({ radius, radius, radius });
+}
+
+}
+
+ShapePtr createBoxShape(const lithic3d::BoundingBox& box)
+{
+  return std::make_unique<BoxShape>(box);
+}
+
+ShapePtr createCylinderShape(const lithic3d::Cylinder& cylinder)
+{
+  return std::make_unique<CylinderShape>(cylinder);
+}
+
+ShapePtr createOvoidShape(const lithic3d::Ovoid& ovoid)
+{
+  return std::make_unique<OvoidShape>(ovoid);
+}
+
+BoxShape::BoxShape(const BoundingBox& box)
+  : Shape(ShapeType::Box)
+  , box(box) {}
+
+std::unique_ptr<Shape> BoxShape::clone() const
+{
+  return std::make_unique<BoxShape>(box);
+}
+
+Mat4x4f BoxShape::getShapeTransform() const
+{
+  return unitCubeToBoxTransform(box.min, box.max);
+}
+
+const Mat4x4f& BoxShape::getTransform() const
+{
+  return box.transform;
+}
+
+void BoxShape::setTransform(const Mat4x4f& t)
+{
+  box.transform = t;
+}
+
+CylinderShape::CylinderShape(const Cylinder& cylinder)
+  : Shape(ShapeType::Cylinder)
+  , cylinder(cylinder) {}
+
+std::unique_ptr<Shape> CylinderShape::clone() const
+{
+  return std::make_unique<CylinderShape>(cylinder);
+}
+
+Mat4x4f CylinderShape::getShapeTransform() const
+{
+  return unitCylinderToCylinderTransform(cylinder.radius, cylinder.height);
+}
+
+const Mat4x4f& CylinderShape::getTransform() const
+{
+  return cylinder.transform;
+}
+
+void CylinderShape::setTransform(const Mat4x4f& t)
+{
+  cylinder.transform = t;
+}
+
+OvoidShape::OvoidShape(const Ovoid& ovoid)
+  : Shape(ShapeType::Ovoid)
+  , ovoid(ovoid) {}
+
+std::unique_ptr<Shape> OvoidShape::clone() const
+{
+  return std::make_unique<OvoidShape>(ovoid);
+}
+
+Mat4x4f OvoidShape::getShapeTransform() const
+{
+  return unitSphereToSphereTransform(ovoid.radius);
+}
+
+const Mat4x4f& OvoidShape::getTransform() const
+{
+  return ovoid.transform;
+}
+
+void OvoidShape::setTransform(const Mat4x4f& t)
+{
+  ovoid.transform = t;
+}
+
+namespace
+{
+
 const Vec4f GHOST_ENTITY_COLOUR = { 0.5f, 1.f, 0.5f, 0.5f };
 const Vec4f BOUNDING_BOX_COLOUR = { 1.f, 0.f, 1.f, 0.7f };
 const Vec4f CYLINDER_COLOUR = { 1.f, 1.f, 0.f, 0.7f };
@@ -26,14 +138,6 @@ enum class State
   None,
   ShapeTransformTool
 };
-
-// Transforms a unit cube (world units) to the box defined by min/max
-Mat4x4f unitCubeToBoxTransform(const Vec3f& min, const Vec3f& max)
-{
-  auto size = max - min;
-  auto centre = min + size * 0.5f;
-  return translationMatrix4x4(centre) * scaleMatrix4x4(size);
-}
 
 class EntityEditModeImpl : public EntityEditMode
 {
@@ -257,27 +361,7 @@ void EntityEditModeImpl::updateRenderedShape(uint32_t index)
   auto& engine = m_core.engine();
   auto& shape = m_shapes[index];
 
-  Mat4x4f m;
-
-  // TODO: Move to method on Shape
-  switch (shape->type) {
-    case ShapeType::Box: {
-      auto& bbox = dynamic_cast<ShapeWrapper<lithic3d::BoundingBox>&>(*shape).shape;
-      m = bbox.transform * unitCubeToBoxTransform(bbox.min, bbox.max);
-
-      break;
-    }
-    case ShapeType::Cylinder: {
-      // TODO
-      EXCEPTION("Not implemented");
-      break;
-    }
-    case ShapeType::Ovoid: {
-      // TODO
-      EXCEPTION("Not implemented");
-      break;
-    }
-  }
+  Mat4x4f m = shape->getTransform() * shape->getShapeTransform();
 
   engine.ecs().system<SysSpatial>().setLocalTransform(m_renderedShapeIds[index], m);
 }
@@ -291,25 +375,7 @@ void EntityEditModeImpl::applyTransform()
       auto& sysSpatial = m_core.engine().ecs().system<SysSpatial>();
 
       auto& shape = *m_shapes[m_selectedShape];
-
-      // TODO: Move to method on Shape
-      switch (shape.type) {
-        case ShapeType::Box: {
-          auto& box = dynamic_cast<ShapeWrapper<BoundingBox>&>(shape).shape;
-          box.transform = m_core.getCursorTransform();
-          break;
-        }
-        case ShapeType::Cylinder: {
-          // TODO
-          EXCEPTION("Not implemented");
-          break;
-        }
-        case ShapeType::Ovoid: {
-          EXCEPTION("Not implemented");
-          // TODO
-          break;
-        }
-      }
+      shape.setTransform(m_core.getCursorTransform());
 
       if (m_renderedShapeIds[m_selectedShape] != NULL_ENTITY_ID) {
         updateRenderedShape(m_selectedShape);
@@ -361,18 +427,18 @@ void EntityEditModeImpl::applyChangesToEntity()
     auto type = sysCollision.componentType(id);
     switch (type) {
       case CollisionComponentType::StaticBox: {
-        auto& box = dynamic_cast<const ShapeWrapper<BoundingBox>&>(shape).shape;
+        auto& box = dynamic_cast<const BoxShape&>(shape).box;
         componentStore.component<CCollisionBox>(id).boundingBox = box;
         break;
       }
       case CollisionComponentType::Cylinder: {
-        // TODO
-        EXCEPTION("Not implemented");
+        auto& cylinder = dynamic_cast<const CylinderShape&>(shape).cylinder;
+        componentStore.component<CCollisionCylinder>(id).cylinder = cylinder;
         break;
       }
       case CollisionComponentType::Sphere: {
-        // TODO
-        EXCEPTION("Not implemented");
+        auto& ovoid = dynamic_cast<const OvoidShape&>(shape).ovoid;
+        componentStore.component<CCollisionSphere>(id).ovoid = ovoid;
         break;
       }
     }
@@ -439,53 +505,36 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
     m_core.engine().eventSystem().raiseEvent(ERequestDeletion{m_renderedAabbId});
   }
 
+  auto getShapeFromComponent = [&sysCollision, &componentStore](EntityId id) -> ShapePtr {
+    auto type = sysCollision.componentType(id);
+    switch (type) {
+      case CollisionComponentType::StaticBox: {
+        auto& box = componentStore.component<CCollisionBox>(id).boundingBox;
+        return std::make_unique<BoxShape>(box);
+      }
+      case CollisionComponentType::Cylinder: {
+        auto& cylinder = componentStore.component<CCollisionCylinder>(id).cylinder;
+        return std::make_unique<CylinderShape>(cylinder);
+      }
+      case CollisionComponentType::Sphere: {
+        auto& ovoid = componentStore.component<CCollisionSphere>(id).ovoid;
+        return std::make_unique<OvoidShape>(ovoid);
+      }
+      default: {
+        EXCEPTION("Not implemented");
+      }
+    }
+  };
+
   if (sysCollision.hasEntity(m_entityId)) {
     if (sysCollision.componentType(m_entityId) == CollisionComponentType::Aggregate) {
       for (auto childId : sysCollision.getAggregateChildren(m_entityId)) {
-        // TODO: Move into method on Shape
-        auto type = sysCollision.componentType(childId);
-        switch (type) {
-          case CollisionComponentType::StaticBox: {
-            auto& box = componentStore.component<CCollisionBox>(childId).boundingBox;
-            m_shapes.push_back(std::make_unique<ShapeWrapper<BoundingBox>>(box, ShapeType::Box));
-            break;
-          }
-          case CollisionComponentType::Cylinder: {
-            // TODO
-            EXCEPTION("Not implemented");
-            break;
-          }
-          case CollisionComponentType::Sphere: {
-            // TODO
-            EXCEPTION("Not implemented");
-            break;
-          }
-        }
-
+        m_shapes.push_back(getShapeFromComponent(childId));
         m_renderedShapeIds.push_back(NULL_ENTITY_ID);
       }
     }
     else {
-        // TODO: Move into method on Shape (same as above)
-      auto type = sysCollision.componentType(m_entityId);
-      switch (type) {
-        case CollisionComponentType::StaticBox: {
-          auto& box = componentStore.component<CCollisionBox>(m_entityId).boundingBox;
-          m_shapes.push_back(std::make_unique<ShapeWrapper<BoundingBox>>(box, ShapeType::Box));
-          break;
-        }
-        case CollisionComponentType::Cylinder: {
-          // TODO
-          EXCEPTION("Not implemented");
-          break;
-        }
-        case CollisionComponentType::Sphere: {
-          // TODO
-          EXCEPTION("Not implemented");
-          break;
-        }
-      }
-
+      m_shapes.push_back(getShapeFromComponent(m_entityId));
       m_renderedShapeIds = { NULL_ENTITY_ID };
     }
   }
@@ -493,25 +542,6 @@ void EntityEditModeImpl::setActivePrefab(const std::string& prefab)
   assert(m_shapes.size() == m_renderedShapeIds.size());
 
   m_selectedShape = 0;
-}
-
-// TODO: Move to method on Shape
-const Mat4x4f& getShapeTransform(const Shape& shape)
-{
-  switch (shape.type) {
-    case ShapeType::Box: {
-      auto& box = dynamic_cast<const ShapeWrapper<BoundingBox>&>(shape).shape;
-      return box.transform;
-    }
-    case ShapeType::Cylinder: {
-      // TODO
-      EXCEPTION("Not implemented");
-    }
-    case ShapeType::Ovoid: {
-      // TODO
-      EXCEPTION("Not implemented");
-    }
-  }
 }
 
 void EntityEditModeImpl::selectShape(uint32_t index)
@@ -530,7 +560,7 @@ void EntityEditModeImpl::selectShape(uint32_t index)
   auto& camera = sysRender3d.camera();
   auto& camDir = camera.getDirection();
 
-  auto& transform = getShapeTransform(*m_shapes[m_selectedShape]);
+  auto& transform = m_shapes[m_selectedShape]->getTransform();
   Vec3f entityPos = getTranslation(transform);
 
   camera.setPosition(entityPos - camDir * m_core.getCursorDistance());
@@ -687,27 +717,7 @@ void EntityEditModeImpl::updateCursorEntity()
     case State::ShapeTransformTool: {
       assert(m_selectedShape < m_shapes.size());
 
-      Mat4x4f t;
-      auto type = m_shapes[m_selectedShape]->type;
-      switch (type) {
-        case ShapeType::Box: {
-          auto& box = dynamic_cast<ShapeWrapper<BoundingBox>&>(*m_shapes[m_selectedShape]).shape;
-          t = unitCubeToBoxTransform(box.min, box.max);
-          break;
-        }
-        case ShapeType::Cylinder: {
-          // TODO
-          EXCEPTION("Not implemented");
-          break;
-        }
-        case ShapeType::Ovoid: {
-          // TODO
-          EXCEPTION("Not implemented");
-          break;
-        }
-      }
-
-      auto m = m_core.getCursorTransform() * t;
+      auto m = m_core.getCursorTransform() * m_shapes[m_selectedShape]->getShapeTransform();
       sysSpatial.setLocalTransform(m_cursorEntityId, m);
 
       break;

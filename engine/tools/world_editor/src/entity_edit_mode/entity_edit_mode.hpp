@@ -20,36 +20,57 @@ struct Shape
   ShapeType type;
 
   virtual std::unique_ptr<Shape> clone() const = 0;
+  // The matrix that transforms the unit cube/cylinder/sphere into the untransformed shape
+  virtual lithic3d::Mat4x4f getShapeTransform() const = 0;
+  // The shape's transform
+  virtual const lithic3d::Mat4x4f& getTransform() const = 0;
+
+  virtual void setTransform(const lithic3d::Mat4x4f& t) = 0;
 
   virtual ~Shape() = default;
 };
 
 using ShapePtr = std::unique_ptr<Shape>;
 
-template<typename T>
-struct ShapeWrapper : public Shape
+struct BoxShape : public Shape
 {
-  ShapeWrapper(const T& shape, ShapeType type)
-    : Shape(type)
-    , shape(shape) {}
+  BoxShape(const lithic3d::BoundingBox& box);
 
-  std::unique_ptr<Shape> clone() const override
-  {
-    return std::make_unique<ShapeWrapper<T>>(shape, type);
-  }
+  std::unique_ptr<Shape> clone() const override;
+  lithic3d::Mat4x4f getShapeTransform() const override;
+  const lithic3d::Mat4x4f& getTransform() const override;
+  void setTransform(const lithic3d::Mat4x4f& t) override;
 
-  T shape;
+  lithic3d::BoundingBox box;
 };
 
-inline auto createBoxShape(const lithic3d::BoundingBox& shape) {
-  return ShapeWrapper<lithic3d::BoundingBox>{shape, ShapeType::Box};
-}
-inline auto createCylinderShape(const lithic3d::Cylinder& shape) {
-  return ShapeWrapper<lithic3d::Cylinder>{shape, ShapeType::Cylinder};
-}
-inline auto createOvoidShape(const lithic3d::Ovoid& shape) {
-  return ShapeWrapper<lithic3d::Ovoid>{shape, ShapeType::Ovoid};
-}
+struct CylinderShape : public Shape
+{
+  CylinderShape(const lithic3d::Cylinder& cylinder);
+
+  std::unique_ptr<Shape> clone() const override;
+  lithic3d::Mat4x4f getShapeTransform() const override;
+  const lithic3d::Mat4x4f& getTransform() const override;
+  void setTransform(const lithic3d::Mat4x4f& t) override;
+
+  lithic3d::Cylinder cylinder;
+};
+
+struct OvoidShape : public Shape
+{
+  OvoidShape(const lithic3d::Ovoid& ovoid);
+
+  std::unique_ptr<Shape> clone() const override;
+  lithic3d::Mat4x4f getShapeTransform() const override;
+  const lithic3d::Mat4x4f& getTransform() const override;
+  void setTransform(const lithic3d::Mat4x4f& t) override;
+
+  lithic3d::Ovoid ovoid;
+};
+
+ShapePtr createBoxShape(const lithic3d::BoundingBox& box);
+ShapePtr createCylinderShape(const lithic3d::Cylinder& cylinder);
+ShapePtr createOvoidShape(const lithic3d::Ovoid& ovoid);
 
 class EntityEditMode
 {

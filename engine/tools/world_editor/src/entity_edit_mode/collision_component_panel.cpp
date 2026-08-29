@@ -120,7 +120,7 @@ BoundingBoxPanel::BoundingBoxPanel(wxWindow* parent, uint32_t index, EntityEditM
 
 void BoundingBoxPanel::setActive()
 {
-  m_mode.updateShape(createBoxShape(getBoundingBox()), m_index);
+  m_mode.updateShape(*createBoxShape(getBoundingBox()), m_index);
 }
 
 void BoundingBoxPanel::onRenderToggle()
@@ -137,7 +137,7 @@ void BoundingBoxPanel::onChange()
 
   //wxPostEvent(m_panel, event);
 
-  m_mode.updateShape(createBoxShape(getBoundingBox()), m_index);
+  m_mode.updateShape(*createBoxShape(getBoundingBox()), m_index);
 }
 
 void BoundingBoxPanel::onToolToggle()
@@ -171,7 +171,7 @@ void BoundingBoxPanel::setBoundingBox(const BoundingBox& box, bool resetDirtyFla
   m_spnZMin->SetValue(std::to_string(worldUnitsToMetres(box.min[2])));
   m_spnZMax->SetValue(std::to_string(worldUnitsToMetres(box.max[2])));
 
-  m_mode.updateShape(createBoxShape(getBoundingBox()), m_index);
+  m_mode.updateShape(*createBoxShape(getBoundingBox()), m_index);
 
   m_hasChanges = !resetDirtyFlag;
 }
@@ -268,7 +268,7 @@ void DynamicBoxPanel::repopulateFromMode()
   auto& shape = m_mode.getShape(0);
   assert(shape.type == ShapeType::Box);
 
-  auto& box = dynamic_cast<const ShapeWrapper<BoundingBox>&>(shape).shape;
+  auto& box = dynamic_cast<const BoxShape&>(shape).box;
   m_boundingBoxPanel->setBoundingBox(box, false);
 }
 
@@ -338,7 +338,7 @@ bool StaticBoxPanel::hasChanges() const
 void StaticBoxPanel::repopulateFromMode()
 {
   auto& shape = m_mode.getShape(m_index);
-  auto& box = dynamic_cast<const ShapeWrapper<BoundingBox>&>(shape).shape;
+  auto& box = dynamic_cast<const BoxShape&>(shape).box;
 
   m_boundingBoxPanel->setBoundingBox(box, false);
 }
@@ -442,7 +442,7 @@ void CylinderPanel::setCylinder(const Cylinder& cylinder, bool resetDirtyFlag)
   m_spnRadius->SetValue(worldUnitsToMetres(cylinder.radius));
   m_spnLength->SetValue(worldUnitsToMetres(cylinder.height));
 
-  m_mode.updateShape(createCylinderShape(getCylinder()), m_index);
+  m_mode.updateShape(*createCylinderShape(getCylinder()), m_index);
 
   m_hasChanges = !resetDirtyFlag;
 }
@@ -661,7 +661,7 @@ void AggregatePanel::onPartCreate()
       typeName = "Static box";
 
       auto partId = sysCollision.addPartToAggregate(m_entityId, CollisionComponentType::StaticBox);
-      m_mode.addShape(createBoxShape(componentStore.component<CCollisionBox>(partId).boundingBox));
+      m_mode.addShape(*createBoxShape(componentStore.component<CCollisionBox>(partId).boundingBox));
       panel = std::make_unique<StaticBoxPanel>(m_window, partId, n, m_core, m_mode);
 
       break;
