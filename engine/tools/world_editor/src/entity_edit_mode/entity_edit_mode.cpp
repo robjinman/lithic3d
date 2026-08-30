@@ -7,7 +7,7 @@ using namespace lithic3d;
 namespace
 {
 
-// Transforms a unit cube (world units) to the box defined by min/max
+// Transforms a unit cube (1x1x1 world units) to the box defined by min/max
 Mat4x4f unitCubeToBoxTransform(const Vec3f& min, const Vec3f& max)
 {
   auto size = max - min;
@@ -15,13 +15,13 @@ Mat4x4f unitCubeToBoxTransform(const Vec3f& min, const Vec3f& max)
   return translationMatrix4x4(centre) * scaleMatrix4x4(size);
 }
 
-// Transforms a unit cylinder (world units) to the cylinder defined by radius/length
+// Transforms a unit cylinder to the cylinder defined by radius/length
 Mat4x4f unitCylinderToCylinderTransform(float radius, float length)
 {
-  return scaleMatrix4x4({ radius, length, radius });
+  return scaleMatrix4x4({ radius * 2.f, length, radius * 2.f });
 }
 
-// Transforms a unit sphere (world units) to the sphere defined by radius
+// Transforms a unit sphere to the sphere defined by radius
 Mat4x4f unitSphereToSphereTransform(float radius)
 {
   return scaleMatrix4x4({ radius, radius, radius });
@@ -551,7 +551,20 @@ void EntityEditModeImpl::selectShape(uint32_t index)
   m_selectedShape = index;
 
   if (m_cursorEntityId == NULL_ENTITY_ID) {
-    m_cursorEntityId = constructBoxEntity(GHOST_ENTITY_COLOUR);
+    switch(m_shapes[m_selectedShape]->type) {
+      case ShapeType::Box: {
+        m_cursorEntityId = constructBoxEntity(GHOST_ENTITY_COLOUR);
+        break;
+      }
+      case ShapeType::Cylinder: {
+        m_cursorEntityId = constructCylinderEntity(GHOST_ENTITY_COLOUR);
+        break;
+      }
+      case ShapeType::Ovoid: {
+        m_cursorEntityId = constructOvoidEntity(GHOST_ENTITY_COLOUR);
+        break;
+      }
+    }
   }
 
   auto& sysRender3d = m_core.engine().ecs().system<SysRender3d>();
@@ -630,14 +643,116 @@ EntityId EntityEditModeImpl::constructBoxEntity(const Vec4f& colour)
 
 EntityId EntityEditModeImpl::constructCylinderEntity(const Vec4f& colour)
 {
-  // TODO
-  EXCEPTION("Not implemented");
+  auto& ecs = m_core.engine().ecs();
+  auto id = ecs.idGen().getNewEntityId();
+
+  ecs.componentStore().allocate<DSpatial, DModel>(id);
+
+  auto& sysSpatial = ecs.system<SysSpatial>();
+  auto& sysRender3d = ecs.system<SysRender3d>();
+
+  Vec3f sizeInMetres = worldUnitsToMetres(Vec3f{ 1.f, 1.f, 1.f });
+
+  DSpatial spatial{};
+  spatial.parent = m_rootId;
+  spatial.aabb = {
+    .min = metresToWorldUnits(-sizeInMetres * 0.5f),
+    .max = metresToWorldUnits(sizeInMetres * 0.5f)
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  auto mesh = render::cylinder(sizeInMetres[1], 0.5f * sizeInMetres[0], true);
+  mesh->featureSet = render::MeshFeatureSet{
+    .vertexLayout = {
+      render::BufferUsage::AttrPosition,
+      render::BufferUsage::AttrNormal,
+      render::BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+
+  auto material = std::make_unique<render::Material>();
+  material->colour = colour;
+  material->featureSet = {
+    .flags = bitflag(render::MaterialFeatures::HasTransparency)
+  };
+
+  auto& renderResourceLoader = m_core.engine().renderResourceLoader();
+
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
+    std::unique_ptr<Submodel>(new Submodel{
+      .lods = { renderResourceLoader.loadMeshAsync(std::move(mesh)) },
+      .material = renderResourceLoader.loadMaterialAsync(std::move(material)),
+      .skin = nullptr,
+      .jointTransforms{}
+    })
+  );
+
+  auto render = std::make_unique<DModel>();
+  render->model = m_core.engine().modelLoader().loadModelAsync(std::move(model)).wait();
+
+  sysRender3d.addEntity(id, std::move(render));
+
+  return id;
 }
 
 EntityId EntityEditModeImpl::constructOvoidEntity(const Vec4f& colour)
 {
-  // TODO
-  EXCEPTION("Not implemented");
+  auto& ecs = m_core.engine().ecs();
+  auto id = ecs.idGen().getNewEntityId();
+
+  ecs.componentStore().allocate<DSpatial, DModel>(id);
+
+  auto& sysSpatial = ecs.system<SysSpatial>();
+  auto& sysRender3d = ecs.system<SysRender3d>();
+
+  Vec3f sizeInMetres = worldUnitsToMetres(Vec3f{ 1.f, 1.f, 1.f });
+
+  DSpatial spatial{};
+  spatial.parent = m_rootId;
+  spatial.aabb = {
+    .min = metresToWorldUnits(-sizeInMetres * 0.5f),
+    .max = metresToWorldUnits(sizeInMetres * 0.5f)
+  };
+
+  sysSpatial.addEntity(id, spatial);
+
+  auto mesh = render::sphere(sizeInMetres[1]);
+  mesh->featureSet = render::MeshFeatureSet{
+    .vertexLayout = {
+      render::BufferUsage::AttrPosition,
+      render::BufferUsage::AttrNormal,
+      render::BufferUsage::AttrTexCoord
+    },
+    .flags{}
+  };
+
+  auto material = std::make_unique<render::Material>();
+  material->colour = colour;
+  material->featureSet = {
+    .flags = bitflag(render::MaterialFeatures::HasTransparency)
+  };
+
+  auto& renderResourceLoader = m_core.engine().renderResourceLoader();
+
+  auto model = std::make_unique<Model>();
+  model->submodels.push_back(
+    std::unique_ptr<Submodel>(new Submodel{
+      .lods = { renderResourceLoader.loadMeshAsync(std::move(mesh)) },
+      .material = renderResourceLoader.loadMaterialAsync(std::move(material)),
+      .skin = nullptr,
+      .jointTransforms{}
+    })
+  );
+
+  auto render = std::make_unique<DModel>();
+  render->model = m_core.engine().modelLoader().loadModelAsync(std::move(model)).wait();
+
+  sysRender3d.addEntity(id, std::move(render));
+
+  return id;
 }
 
 void EntityEditModeImpl::onKeyDown(KeyboardKey key)

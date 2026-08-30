@@ -400,6 +400,36 @@ XmlNodePtr toXml(const BoundingBox& bbox)
   return xmlBoundingBox;
 }
 
+XmlNodePtr toXml(const Cylinder& cylinder)
+{
+  auto xmlCylinder = createXmlNode("cylinder");
+
+  xmlCylinder->setAttribute("radius", std::to_string(worldUnitsToMetres(cylinder.radius)));
+  xmlCylinder->setAttribute("height", std::to_string(worldUnitsToMetres(cylinder.height)));
+  xmlCylinder->setAttribute("inverted", cylinder.inverted ? "true" : "false");
+
+  auto xmlTransform = createXmlNode("transform");
+  xmlTransform->addChild(toXml(cylinder.transform));
+
+  xmlCylinder->addChild(std::move(xmlTransform));
+
+  return xmlCylinder;
+}
+
+XmlNodePtr toXml(const Ovoid& ovoid)
+{
+  auto xmlSphere = createXmlNode("ovoid");
+
+  xmlSphere->setAttribute("radius", std::to_string(worldUnitsToMetres(ovoid.radius)));
+
+  auto xmlTransform = createXmlNode("transform");
+  xmlTransform->addChild(toXml(ovoid.transform));
+
+  xmlSphere->addChild(std::move(xmlTransform));
+
+  return xmlSphere;
+}
+
 const float G = -metresToWorldUnits(9.8f) / (TICKS_PER_SECOND * TICKS_PER_SECOND);
 
 uint32_t findFreeIndex(const std::array<Force, MAX_FORCES>& array)
@@ -630,6 +660,7 @@ const std::vector<EntityId>& SysCollisionImpl::getAggregateChildren(EntityId ent
   return i->second;
 }
 
+// TODO: Function too large. Break up
 EntityId SysCollisionImpl::addPartToAggregate(EntityId entityId, CollisionComponentType type)
 {
   MAP_GET(i, m_aggregates, entityId);
@@ -643,6 +674,7 @@ EntityId SysCollisionImpl::addPartToAggregate(EntityId entityId, CollisionCompon
     case CollisionComponentType::StaticBox: {
       m_ecs.componentStore().allocate<DSpatial, DStaticBox>(partId);
 
+      // TODO: Default size?
       DStaticBox box{};
 
       DSpatial spatial{
@@ -657,6 +689,65 @@ EntityId SysCollisionImpl::addPartToAggregate(EntityId entityId, CollisionCompon
 
       sysSpatial.addEntity(partId, spatial);
       addEntity(partId, box);
+
+      break;
+    }
+    case CollisionComponentType::Cylinder: {
+      m_ecs.componentStore().allocate<DSpatial, DCylinder>(partId);
+
+      DCylinder cylinder{};
+      cylinder.cylinder.radius = 0.5f;
+      cylinder.cylinder.height = 1.f;
+
+      DSpatial spatial{
+        .transform = identityMatrix<4>(),
+        .parent = entityId,
+        .enabled = true,
+        .aabb = transformAabb({
+          .min = {
+            -cylinder.cylinder.radius,
+            -0.5f * cylinder.cylinder.height,
+            -cylinder.cylinder.radius
+          },
+          .max = {
+            cylinder.cylinder.radius,
+            0.5f * cylinder.cylinder.height,
+            cylinder.cylinder.radius
+          }
+        }, cylinder.cylinder.transform)
+      };
+
+      sysSpatial.addEntity(partId, spatial);
+      addEntity(partId, cylinder);
+
+      break;
+    }
+    case CollisionComponentType::Sphere: {
+      m_ecs.componentStore().allocate<DSpatial, DSphere>(partId);
+
+      DSphere sphere{};
+      sphere.ovoid.radius = 0.5f;
+
+      DSpatial spatial{
+        .transform = identityMatrix<4>(),
+        .parent = entityId,
+        .enabled = true,
+        .aabb = transformAabb({
+          .min = {
+            -sphere.ovoid.radius,
+            -sphere.ovoid.radius,
+            -sphere.ovoid.radius
+          },
+          .max = {
+            sphere.ovoid.radius,
+            sphere.ovoid.radius,
+            sphere.ovoid.radius
+          }
+        }, sphere.ovoid.transform)
+      };
+
+      sysSpatial.addEntity(partId, spatial);
+      addEntity(partId, sphere);
 
       break;
     }
@@ -685,6 +776,16 @@ CollisionComponentType SysCollisionImpl::componentType(EntityId entityId) const
   bool hasCapsule = componentStore.hasComponentForEntity<CCollisionCapsule>(entityId);
   if (hasCapsule) {
     return CollisionComponentType::Capsule;
+  }
+
+  bool hasCylinder = componentStore.hasComponentForEntity<CCollisionCylinder>(entityId);
+  if (hasCylinder) {
+    return CollisionComponentType::Cylinder;
+  }
+
+  bool hasSphere = componentStore.hasComponentForEntity<CCollisionSphere>(entityId);
+  if (hasSphere) {
+    return CollisionComponentType::Sphere;
   }
 
   bool isTerrain = componentStore.hasComponentForEntity<CCollisionTerrain>(entityId);
@@ -1002,9 +1103,14 @@ void SysCollisionImpl::addEntity(EntityId id, const DCylinder& data)
   m_shouldRebuildSortList = true;
 }
 
+// TODO: Large function. Break up?
 void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 {
   ASSERT(data.boxes.size() == data.boxTransforms.size(), "Incorrect number of box transforms");
+  ASSERT(data.cylinders.size() == data.cylinderTransforms.size(),
+    "Incorrect number of cylinder transforms");
+  ASSERT(data.spheres.size() == data.sphereTransforms.size(),
+    "Incorrect number of sphere transforms");
   ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
     "Incorrect number of polyhedron transforms");
 
@@ -1029,6 +1135,60 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     sysSpatial.addEntity(childId, spatial);
 
     addEntity(childId, box);
+
+    m_aggregates[id].push_back(childId);
+  }
+
+  for (size_t i = 0; i < data.cylinders.size(); ++i) {
+    auto& cylinder = data.cylinders[i];
+
+    auto childId = m_ecs.idGen().getNewEntityId();
+    m_ecs.componentStore().allocate<DSpatial, DCylinder>(childId);
+
+    DSpatial spatial{
+      .transform = data.cylinderTransforms[i],
+      .parent = id,
+      .enabled = true,
+      .aabb = transformAabb({
+        .min = {
+          -cylinder.cylinder.radius,
+          -0.5f * cylinder.cylinder.height,
+          -cylinder.cylinder.radius
+        },
+        .max = {
+          cylinder.cylinder.radius,
+          0.5f * cylinder.cylinder.height,
+          cylinder.cylinder.radius
+        }
+      }, cylinder.cylinder.transform)
+    };
+
+    sysSpatial.addEntity(childId, spatial);
+
+    addEntity(childId, cylinder);
+
+    m_aggregates[id].push_back(childId);
+  }
+
+  for (size_t i = 0; i < data.spheres.size(); ++i) {
+    auto& sphere = data.spheres[i];
+
+    auto childId = m_ecs.idGen().getNewEntityId();
+    m_ecs.componentStore().allocate<DSpatial, DSphere>(childId);
+
+    DSpatial spatial{
+      .transform = data.sphereTransforms[i],
+      .parent = id,
+      .enabled = true,
+      .aabb = transformAabb({
+        .min = -Vec3f{ 1.f, 1.f, 1.f } * sphere.ovoid.radius,
+        .max = Vec3f{ 1.f, 1.f, 1.f } * sphere.ovoid.radius
+      }, sphere.ovoid.transform)
+    };
+
+    sysSpatial.addEntity(childId, spatial);
+
+    addEntity(childId, sphere);
 
     m_aggregates[id].push_back(childId);
   }
@@ -1148,6 +1308,20 @@ ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode& xmlAggrega
       aggregate.boxTransforms.push_back(constructTransform(xmlTransform));
 
       assert(aggregate.boxes.size() == aggregate.boxTransforms.size());
+    }
+    else if (data->typeId() == typeid(DCylinder).hash_code()) {
+      auto& wrapper = dynamic_cast<const ComponentDataWrapper<DCylinder>&>(*data);
+      aggregate.cylinders.push_back(wrapper.data());
+      aggregate.cylinderTransforms.push_back(constructTransform(xmlTransform));
+
+      assert(aggregate.cylinders.size() == aggregate.cylinderTransforms.size());
+    }
+    else if (data->typeId() == typeid(DSphere).hash_code()) {
+      auto& wrapper = dynamic_cast<const ComponentDataWrapper<DSphere>&>(*data);
+      aggregate.spheres.push_back(wrapper.data());
+      aggregate.sphereTransforms.push_back(constructTransform(xmlTransform));
+
+      assert(aggregate.spheres.size() == aggregate.sphereTransforms.size());
     }
     // ...
     else {
@@ -1275,6 +1449,14 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
         xmlChild = staticBoxToXml(childId);
         break;
       }
+      case CollisionComponentType::Cylinder: {
+        xmlChild = cylinderToXml(childId);
+        break;
+      }
+      case CollisionComponentType::Sphere: {
+        xmlChild = sphereToXml(childId);
+        break;
+      }
       case CollisionComponentType::Polyhedron: {
         xmlChild = polyhedronToXml(childId);
         break;
@@ -1292,6 +1474,44 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
   }
 
   xmlSysCollision->addChild(std::move(xmlAggregate));
+
+  return xmlSysCollision;
+}
+
+XmlNodePtr SysCollisionImpl::cylinderToXml(EntityId entityId) const
+{
+  // TODO: Compare with prefab
+
+  auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
+  auto& cylinderComp = m_ecs.componentStore().component<CCollisionCylinder>(entityId);
+
+  auto xmlSysCollision = createXmlNode("collision");
+
+  auto xmlCylinder = createXmlNode("cylinder");
+  xmlCylinder->setAttribute("restitution", std::to_string(collisionComp.restitution));
+  xmlCylinder->setAttribute("friction", std::to_string(collisionComp.friction));
+
+  xmlCylinder->addChild(toXml(cylinderComp.cylinder));
+  xmlSysCollision->addChild(std::move(xmlCylinder));
+
+  return xmlSysCollision;
+}
+
+XmlNodePtr SysCollisionImpl::sphereToXml(EntityId entityId) const
+{
+  // TODO: Compare with prefab
+
+  auto& collisionComp = m_ecs.componentStore().component<CCollision>(entityId);
+  auto& sphereComp = m_ecs.componentStore().component<CCollisionSphere>(entityId);
+
+  auto xmlSysCollision = createXmlNode("collision");
+
+  auto xmlSphere = createXmlNode("sphere");
+  xmlSphere->setAttribute("restitution", std::to_string(collisionComp.restitution));
+  xmlSphere->setAttribute("friction", std::to_string(collisionComp.friction));
+
+  xmlSphere->addChild(toXml(sphereComp.ovoid));
+  xmlSysCollision->addChild(std::move(xmlSphere));
 
   return xmlSysCollision;
 }

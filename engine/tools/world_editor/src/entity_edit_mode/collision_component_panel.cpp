@@ -164,12 +164,12 @@ void BoundingBoxPanel::setBoundingBox(const BoundingBox& box, bool resetDirtyFla
 {
   m_transformPanel->setTransform(box.transform);
 
-  m_spnXMin->SetValue(std::to_string(worldUnitsToMetres(box.min[0])));
-  m_spnXMax->SetValue(std::to_string(worldUnitsToMetres(box.max[0])));
-  m_spnYMin->SetValue(std::to_string(worldUnitsToMetres(box.min[1])));
-  m_spnYMax->SetValue(std::to_string(worldUnitsToMetres(box.max[1])));
-  m_spnZMin->SetValue(std::to_string(worldUnitsToMetres(box.min[2])));
-  m_spnZMax->SetValue(std::to_string(worldUnitsToMetres(box.max[2])));
+  m_spnXMin->SetValue(worldUnitsToMetres(box.min[0]));
+  m_spnXMax->SetValue(worldUnitsToMetres(box.max[0]));
+  m_spnYMin->SetValue(worldUnitsToMetres(box.min[1]));
+  m_spnYMax->SetValue(worldUnitsToMetres(box.max[1]));
+  m_spnZMin->SetValue(worldUnitsToMetres(box.min[2]));
+  m_spnZMax->SetValue(worldUnitsToMetres(box.max[2]));
 
   m_mode.updateShape(*createBoxShape(getBoundingBox()), m_index);
 
@@ -403,10 +403,10 @@ CylinderPanel::CylinderPanel(wxWindow* parent, EntityId entityId, uint32_t index
 
   auto grid = new wxFlexGridSizer(4);
 
-  auto lblRadius = new wxStaticText(m_window, wxID_ANY, "Min X");
+  auto lblRadius = new wxStaticText(m_window, wxID_ANY, "Radius");
   m_spnRadius = new wxSpinCtrlDouble(m_window, wxID_ANY, wxEmptyString,
     wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
-  auto lblLength = new wxStaticText(m_window, wxID_ANY, "Max X");
+  auto lblLength = new wxStaticText(m_window, wxID_ANY, "Length");
   m_spnLength = new wxSpinCtrlDouble(m_window, wxID_ANY, wxEmptyString,
     wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
 
@@ -427,7 +427,6 @@ CylinderPanel::CylinderPanel(wxWindow* parent, EntityId entityId, uint32_t index
   m_spnRadius->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
   m_spnLength->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
 
-  // TODO
   auto& componentStore = m_core.engine().ecs().componentStore();
   assert(componentStore.hasComponentForEntity<CCollisionCylinder>(entityId));
 
@@ -461,17 +460,17 @@ void CylinderPanel::onChange()
 {
   m_hasChanges = true;
 
-  //m_mode.updateCylinder(getCylinder(), m_index);
+  m_mode.updateShape(*createCylinderShape(getCylinder()), m_index);
 }
 
 void CylinderPanel::onRenderToggle()
 {
-
+  m_mode.renderShape(m_index, m_chkRender->GetValue());
 }
 
 void CylinderPanel::onToolToggle()
 {
-
+  m_mode.selectShape(m_index);
 }
 
 wxWindow* CylinderPanel::getWxPtr()
@@ -481,7 +480,7 @@ wxWindow* CylinderPanel::getWxPtr()
 
 void CylinderPanel::setActive()
 {
-
+  m_mode.updateShape(*createCylinderShape(getCylinder()), m_index);
 }
 
 bool CylinderPanel::hasChanges() const
@@ -491,7 +490,148 @@ bool CylinderPanel::hasChanges() const
 
 void CylinderPanel::repopulateFromMode()
 {
-  // m_mode.getCylinder(m_index)
+  auto& shape = m_mode.getShape(m_index);
+  auto& cylinder = dynamic_cast<const CylinderShape&>(shape).cylinder;
+
+  setCylinder(cylinder, false);
+}
+
+class SpherePanel : public CollisionSubtypePanel
+{
+  public:
+    SpherePanel(wxWindow* parent, EntityId entityId, uint32_t index, EditorCore& editorCore,
+      EntityEditMode& mode);
+
+    wxWindow* getWxPtr() override;
+    void setActive() override;
+    bool hasChanges() const override;
+    void repopulateFromMode() override;
+
+  private:
+    EditorCore& m_core;
+    EntityEditMode& m_mode;
+    uint32_t m_index;
+    wxWindow* m_window = nullptr;
+    wxButton* m_btnEdit = nullptr;
+    wxCheckBox* m_chkRender = nullptr;
+    TransformPanelPtr m_transformPanel;
+    wxSpinCtrlDouble* m_spnRadius = nullptr;
+    bool m_hasChanges = false;
+
+    void onChange();
+    void onRenderToggle();
+    void onToolToggle();
+    Ovoid getOvoid() const;
+    void setOvoid(const Ovoid& ovoid, bool resetDirtyFlag);
+};
+
+SpherePanel::SpherePanel(wxWindow* parent, EntityId entityId, uint32_t index,
+  EditorCore& editorCore, EntityEditMode& mode)
+  : m_core(editorCore)
+  , m_mode(mode)
+  , m_index(index)
+{
+  m_window = new wxPanel(parent, wxID_ANY);
+
+  auto vbox = new wxBoxSizer(wxVERTICAL);
+
+  m_window->SetSizer(vbox);
+
+  m_chkRender = new wxCheckBox(m_window, wxID_ANY, "Render");
+  vbox->Add(m_chkRender, wxSizerFlags().Expand());
+
+  auto transformBoxSizer = new wxStaticBoxSizer(wxVERTICAL, m_window, "Transform");
+  m_btnEdit = new wxButton(transformBoxSizer->GetStaticBox(), wxID_ANY, "Edit");
+  m_transformPanel = createTransformPanel(transformBoxSizer->GetStaticBox());
+  transformBoxSizer->Add(m_btnEdit);
+  transformBoxSizer->Add(m_transformPanel->getWxPtr(), wxSizerFlags(1).Expand());
+
+  vbox->Add(transformBoxSizer, wxSizerFlags(1).Expand());
+
+  auto grid = new wxFlexGridSizer(4);
+
+  auto lblRadius = new wxStaticText(m_window, wxID_ANY, "Radius");
+  m_spnRadius = new wxSpinCtrlDouble(m_window, wxID_ANY, wxEmptyString,
+    wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, -100.0, 100.0, 1.0, 0.1);
+
+  grid->Add(lblRadius, wxSizerFlags().CentreVertical());
+  grid->Add(m_spnRadius, wxSizerFlags().Expand());
+
+  grid->AddGrowableCol(1);
+  grid->AddGrowableCol(3);
+
+  vbox->Add(grid, wxSizerFlags(1).Expand());
+
+  m_chkRender->Bind(wxEVT_CHECKBOX, [this](wxEvent&) { onRenderToggle(); });
+
+  m_btnEdit->Bind(wxEVT_BUTTON, [this](wxEvent&) { onToolToggle(); });
+
+  m_spnRadius->Bind(wxEVT_TEXT, [this](wxEvent&) { onChange(); });
+
+  auto& componentStore = m_core.engine().ecs().componentStore();
+  assert(componentStore.hasComponentForEntity<CCollisionSphere>(entityId));
+
+  auto& sphere = componentStore.component<CCollisionSphere>(entityId);
+  setOvoid(sphere.ovoid, true);
+}
+
+void SpherePanel::setOvoid(const Ovoid& ovoid, bool resetDirtyFlag)
+{
+  m_transformPanel->setTransform(ovoid.transform);
+
+  m_spnRadius->SetValue(worldUnitsToMetres(ovoid.radius));
+
+  m_mode.updateShape(*createOvoidShape(getOvoid()), m_index);
+
+  m_hasChanges = !resetDirtyFlag;
+}
+
+Ovoid SpherePanel::getOvoid() const
+{
+  return {
+    .radius = metresToWorldUnits(m_spnRadius->GetValue()),
+    .transform = m_transformPanel->getTransform()
+  };
+}
+
+void SpherePanel::onChange()
+{
+  m_hasChanges = true;
+
+  m_mode.updateShape(*createOvoidShape(getOvoid()), m_index);
+}
+
+void SpherePanel::onRenderToggle()
+{
+  m_mode.renderShape(m_index, m_chkRender->GetValue());
+}
+
+void SpherePanel::onToolToggle()
+{
+  m_mode.selectShape(m_index);
+}
+
+wxWindow* SpherePanel::getWxPtr()
+{
+  return m_window;
+}
+
+void SpherePanel::setActive()
+{
+  m_mode.updateShape(*createOvoidShape(getOvoid()), m_index);
+}
+
+bool SpherePanel::hasChanges() const
+{
+  return m_hasChanges;
+}
+
+void SpherePanel::repopulateFromMode()
+{
+  auto& shape = m_mode.getShape(m_index);
+  auto& ovoid = dynamic_cast<const OvoidShape&>(shape).ovoid;
+
+  setOvoid(ovoid, false);
 }
 
 class AggregatePanel : public CollisionSubtypePanel
@@ -546,7 +686,9 @@ AggregatePanel::AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& 
 
   m_cboType = new wxChoice(m_window, wxID_ANY);
   m_cboType->Insert("Static box", 0, new ClientData(CollisionComponentType::StaticBox));
-  m_cboType->Insert("Polyhedron", 1, new ClientData(CollisionComponentType::Polyhedron));
+  m_cboType->Insert("Cylinder", 0, new ClientData(CollisionComponentType::Cylinder));
+  m_cboType->Insert("Ovoid", 0, new ClientData(CollisionComponentType::Sphere));
+  //m_cboType->Insert("Polyhedron", 1, new ClientData(CollisionComponentType::Polyhedron));
 
   auto btnCreate = new wxButton(m_window, wxID_ANY, "Create new");
   auto hbox = new wxBoxSizer(wxHORIZONTAL);
@@ -586,7 +728,11 @@ AggregatePanel::AggregatePanel(wxWindow* parent, EntityId entityId, EditorCore& 
         panel = std::make_unique<CylinderPanel>(m_window, children[i], i, m_core, m_mode);
         break;
       }
-      // TODO
+      case CollisionComponentType::Sphere: {
+        typeName = "Sphere";
+        panel = std::make_unique<SpherePanel>(m_window, children[i], i, m_core, m_mode);
+        break;
+      }
       // ...
       default: {
         EXCEPTION("Unexpected component type in aggregate");
@@ -661,8 +807,29 @@ void AggregatePanel::onPartCreate()
       typeName = "Static box";
 
       auto partId = sysCollision.addPartToAggregate(m_entityId, CollisionComponentType::StaticBox);
-      m_mode.addShape(*createBoxShape(componentStore.component<CCollisionBox>(partId).boundingBox));
+      auto& comp = componentStore.component<CCollisionBox>(partId);
+      m_mode.addShape(*createBoxShape(comp.boundingBox));
       panel = std::make_unique<StaticBoxPanel>(m_window, partId, n, m_core, m_mode);
+
+      break;
+    }
+    case CollisionComponentType::Cylinder: {
+      typeName = "Cylinder";
+
+      auto partId = sysCollision.addPartToAggregate(m_entityId, CollisionComponentType::Cylinder);
+      auto& comp = componentStore.component<CCollisionCylinder>(partId);
+      m_mode.addShape(*createCylinderShape(comp.cylinder));
+      panel = std::make_unique<CylinderPanel>(m_window, partId, n, m_core, m_mode);
+
+      break;
+    }
+    case CollisionComponentType::Sphere: {
+      typeName = "Sphere";
+
+      auto partId = sysCollision.addPartToAggregate(m_entityId, CollisionComponentType::Sphere);
+      auto& comp = componentStore.component<CCollisionSphere>(partId);
+      m_mode.addShape(*createOvoidShape(comp.ovoid));
+      panel = std::make_unique<SpherePanel>(m_window, partId, n, m_core, m_mode);
 
       break;
     }
