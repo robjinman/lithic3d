@@ -1106,14 +1106,6 @@ void SysCollisionImpl::addEntity(EntityId id, const DCylinder& data)
 // TODO: Large function. Break up?
 void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
 {
-  ASSERT(data.boxes.size() == data.boxTransforms.size(), "Incorrect number of box transforms");
-  ASSERT(data.cylinders.size() == data.cylinderTransforms.size(),
-    "Incorrect number of cylinder transforms");
-  ASSERT(data.spheres.size() == data.sphereTransforms.size(),
-    "Incorrect number of sphere transforms");
-  ASSERT(data.polyhedra.size() == data.polyhedraTransforms.size(),
-    "Incorrect number of polyhedron transforms");
-
   auto& sysSpatial = m_ecs.system<SysSpatial>();
 
   for (size_t i = 0; i < data.boxes.size(); ++i) {
@@ -1123,7 +1115,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     m_ecs.componentStore().allocate<DSpatial, DStaticBox>(childId);
 
     DSpatial spatial{
-      .transform = data.boxTransforms[i],
+      .transform = identityMatrix<4>(),
       .parent = id,
       .enabled = true,
       .aabb = transformAabb({
@@ -1146,7 +1138,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     m_ecs.componentStore().allocate<DSpatial, DCylinder>(childId);
 
     DSpatial spatial{
-      .transform = data.cylinderTransforms[i],
+      .transform = identityMatrix<4>(),
       .parent = id,
       .enabled = true,
       .aabb = transformAabb({
@@ -1177,7 +1169,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     m_ecs.componentStore().allocate<DSpatial, DSphere>(childId);
 
     DSpatial spatial{
-      .transform = data.sphereTransforms[i],
+      .transform = identityMatrix<4>(),
       .parent = id,
       .enabled = true,
       .aabb = transformAabb({
@@ -1198,7 +1190,7 @@ void SysCollisionImpl::addEntity(EntityId id, const DAggregate& data)
     m_ecs.componentStore().allocate<DSpatial, DPolyhedron>(childId);
 
     DSpatial spatial{
-      .transform = data.polyhedraTransforms[i],
+      .transform = identityMatrix<4>(),
       .parent = id,
       .enabled = true,
       .aabb{} // TODO
@@ -1300,28 +1292,18 @@ ComponentDataPtr SysCollisionImpl::constructDAggregate(const XmlNode& xmlAggrega
 
   for (auto& xmlAggregatePart : xmlAggregate) {
     auto data = constructComponentData(*xmlAggregatePart.child("collision"));
-    auto& xmlTransform = *xmlAggregatePart.child("transform");
 
     if (data->typeId() == typeid(DStaticBox).hash_code()) {
       auto& wrapper = dynamic_cast<const ComponentDataWrapper<DStaticBox>&>(*data);
       aggregate.boxes.push_back(wrapper.data());
-      aggregate.boxTransforms.push_back(constructTransform(xmlTransform));
-
-      assert(aggregate.boxes.size() == aggregate.boxTransforms.size());
     }
     else if (data->typeId() == typeid(DCylinder).hash_code()) {
       auto& wrapper = dynamic_cast<const ComponentDataWrapper<DCylinder>&>(*data);
       aggregate.cylinders.push_back(wrapper.data());
-      aggregate.cylinderTransforms.push_back(constructTransform(xmlTransform));
-
-      assert(aggregate.cylinders.size() == aggregate.cylinderTransforms.size());
     }
     else if (data->typeId() == typeid(DSphere).hash_code()) {
       auto& wrapper = dynamic_cast<const ComponentDataWrapper<DSphere>&>(*data);
       aggregate.spheres.push_back(wrapper.data());
-      aggregate.sphereTransforms.push_back(constructTransform(xmlTransform));
-
-      assert(aggregate.spheres.size() == aggregate.sphereTransforms.size());
     }
     // ...
     else {
@@ -1464,11 +1446,6 @@ XmlNodePtr SysCollisionImpl::aggregateToXml(EntityId entityId) const
       default: EXCEPTION("Error converting to XML; Unexpected component type in aggregate");
     }
 
-    auto& localTransform = componentStore.component<CLocalTransform>(childId);
-    auto xmlTransform = createXmlNode("transform");
-    xmlTransform->addChild(toXml(localTransform.transform));
-
-    xmlAggregatePart->addChild(std::move(xmlTransform));
     xmlAggregatePart->addChild(std::move(xmlChild));
     xmlAggregate->addChild(std::move(xmlAggregatePart));
   }

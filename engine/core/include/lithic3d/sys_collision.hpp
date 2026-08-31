@@ -300,13 +300,9 @@ struct DAggregate
   >;
 
   std::vector<DStaticBox> boxes;
-  std::vector<Mat4x4f> boxTransforms;
   std::vector<DCylinder> cylinders;
-  std::vector<Mat4x4f> cylinderTransforms;
   std::vector<DSphere> spheres;
-  std::vector<Mat4x4f> sphereTransforms;
   std::vector<DPolyhedron> polyhedra;
-  std::vector<Mat4x4f> polyhedraTransforms;
 };
 
 struct DCapsule
