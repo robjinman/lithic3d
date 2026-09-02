@@ -151,7 +151,10 @@ void SceneEditModeUi::populateEntities()
     m_lstEntities->CheckItem(i, true);
   }
 
-  m_lstEntities->SetColumnWidth(0, m_lstEntities->GetClientSize().GetWidth());
+  // Doesn't work on OS X
+  //m_lstEntities->SetColumnWidth(0, m_lstEntities->GetClientSize().GetWidth())
+
+  m_lstEntities->SetColumnWidth(0, 200); // TODO: Magic number
 }
 
 void SceneEditModeUi::onKeyDown(KeyboardKey key)

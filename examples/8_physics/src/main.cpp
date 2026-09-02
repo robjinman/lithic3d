@@ -374,7 +374,31 @@ class Demo : public Game
           Box{
             .randomRotation = true,
             .dimensions = { 1.f, 1.f, 1.f },
-            .position = { VIEW_X - 0.f, VIEW_Y - 1.f, VIEW_Z - 20.f },
+            .position = { VIEW_X - 1.f, VIEW_Y - 1.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 1.f, VIEW_Y - 1.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X - 1.f, VIEW_Y - 3.f, VIEW_Z - 20.f },
+            .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
+            .infiniteMass = false,
+            .isStatic = false
+          },
+          Box{
+            .randomRotation = true,
+            .dimensions = { 1.f, 1.f, 1.f },
+            .position = { VIEW_X + 1.f, VIEW_Y - 3.f, VIEW_Z - 20.f },
             .rotation = { degreesToRadians(0.f), degreesToRadians(0.f), degreesToRadians(0.f) },
             .infiniteMass = false,
             .isStatic = false
@@ -1010,10 +1034,9 @@ void Demo::constructAggregates(size_t scenario)
         .boundingBox = {
           .min = -metresToWorldUnits(box.dimensions) * 0.5f,
           .max = metresToWorldUnits(box.dimensions) * 0.5f,
-          .transform = identityMatrix<4>()
+          .transform = worldUnitsTransform
         }
       });
-      collision.boxTransforms.push_back(worldUnitsTransform);
     }
 
     DSpatial spatial{};

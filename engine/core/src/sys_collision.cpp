@@ -2865,7 +2865,7 @@ bool boxInvertedCylinderPointContact(const ObjectComponents& A, const ObjectComp
   float height = B.cylinder->cylinder.height;
   float radius = B.cylinder->cylinder.radius;
   float innerSqRadius = radius * radius;
-  const float thickness = metresToWorldUnits(0.1f); // TODO: Magic number
+  const float thickness = metresToWorldUnits(0.5f); // TODO: Magic number
   float outerRadius = radius + thickness;
   float outerSqRadius = outerRadius * outerRadius;
 

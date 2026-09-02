@@ -452,8 +452,8 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
   const XmlNode& xmlTerrainPiece) const
 {
   // TODO: Magic numbers. Parameterise.
-  const uint32_t chunkPxW = 20;
-  const uint32_t chunkPxD = 20;
+  const int chunkPxW = 20;
+  const int chunkPxD = 20;
 
   TerrainPiece piece;
   piece.inverted = xmlTerrainPiece.attribute("inverted") == "true";
@@ -471,13 +471,13 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
   auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / piece.heightMapFile);
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
 
-  uint32_t heightMapW = heightMapTexture->width;
-  uint32_t heightMapD = heightMapTexture->height;
+  int heightMapW = heightMapTexture->width;
+  int heightMapD = heightMapTexture->height;
 
-  uint32_t nChunksX = heightMapW / chunkPxW;
-  uint32_t nChunksZ = heightMapD / chunkPxD;
-  uint32_t lastChunkPxW = chunkPxW;
-  uint32_t lastChunkPxD = chunkPxD;
+  int nChunksX = heightMapW / chunkPxW;
+  int nChunksZ = heightMapD / chunkPxD;
+  int lastChunkPxW = chunkPxW;
+  int lastChunkPxD = chunkPxD;
   if (heightMapW % chunkPxW != 0) {
     ++nChunksX;
     lastChunkPxW = heightMapW % chunkPxW;
@@ -510,8 +510,8 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
 
   auto materialHandle = m_renderResourceLoader.loadMaterialAsync(std::move(material));
 
-  for (uint32_t i = 0; i < nChunksX; ++i) {
-    for (uint32_t j = 0; j < nChunksZ; ++j) {
+  for (int i = 0; i < nChunksX; ++i) {
+    for (int j = 0; j < nChunksZ; ++j) {
       Recti rect{
         .x = i * chunkPxW,
         .y = j * chunkPxD,
