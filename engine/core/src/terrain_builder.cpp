@@ -235,6 +235,8 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
 
 void TerrainBuilderImpl::reloadTerrainRegion(ResourceId regionId)
 {
+  auto& sysSpatial = m_ecs.system<SysSpatial>();
+
   TerrainRegion* region = nullptr;
 
   {
@@ -245,6 +247,8 @@ void TerrainBuilderImpl::reloadTerrainRegion(ResourceId regionId)
   for (auto& piece : region->land) {
     ASSERT(piece.entityId != NULL_ENTITY_ID,
       "Error reloading terrain; Terrain piece entity does not exist");
+
+    piece.transform = sysSpatial.getLocalTransform(piece.entityId);
 
     m_ecs.removeEntity(piece.entityId);
     constructTerrainPieceAsync(piece);
