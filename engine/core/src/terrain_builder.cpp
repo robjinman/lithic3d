@@ -42,6 +42,7 @@ struct Water
 
 struct TerrainRegion
 {
+  EntityId parentId = NULL_ENTITY_ID;
   std::vector<TerrainPiece> land;
   Water water;
 };
@@ -63,6 +64,7 @@ class TerrainBuilderImpl : public TerrainBuilder
     ResourceHandle loadTerrainRegionAsync(uint32_t x, uint32_t y, XmlNodePtr xmlTerrain) override;
     std::vector<EntityId> createEntities(EntityId parentId, ResourceId regionId) override;
     const TerrainPiece& getTerrainPiece(EntityId id) const override;
+    void reloadTerrainRegion(ResourceId regionId) override;
 
   private:
     Logger& m_logger;
@@ -78,13 +80,14 @@ class TerrainBuilderImpl : public TerrainBuilder
 
     MeshPtr constructLandMesh(const Texture& heightMap, const Recti& rect, bool inverted,
       std::vector<float>& heights, std::vector<bool>& mask, float& maxHeight) const;
-    TerrainPiece constructTerrainPieceAsync(const fs::path& cellPath,
+    TerrainPiece constructTerrainPieceAsync(uint32_t x, uint32_t y,
       const XmlNode& xmlTerrain) const;
     MeshPtr constructWaterMesh(const Vec2f& cellSize) const;
     ResourceHandle constructWaterModelAsync(const Vec2f& cellSize) const;
     void createLandEntities(EntityId parentId, TerrainRegion& region,
       std::vector<EntityId>& entities);
     EntityId createWaterEntity(EntityId parentId, const TerrainRegion& region);
+    void constructTerrainPieceAsync(TerrainPiece& piece) const;
 };
 
 TerrainBuilderImpl::TerrainBuilderImpl(const Vec2f& cellSizeMetres, Ecs& ecs,
@@ -157,7 +160,9 @@ void TerrainBuilderImpl::createLandEntities(EntityId parentId, TerrainRegion& re
   auto& sysCollision = m_ecs.system<SysCollision>();
 
   for (auto& piece : region.land) {
-    auto pieceId = m_ecs.idGen().getNewEntityId();
+    auto pieceId = piece.entityId == NULL_ENTITY_ID ?
+      m_ecs.idGen().getNewEntityId() : piece.entityId;
+
     m_ecs.componentStore().allocate<DSpatial>(pieceId);
 
     DSpatial spatial{
@@ -219,11 +224,38 @@ std::vector<EntityId> TerrainBuilderImpl::createEntities(EntityId parentId, Reso
     region = &m_regions.at(regionId);
   }
 
+  region->parentId = parentId;
+
   std::vector<EntityId> entities;
   entities.push_back(createWaterEntity(parentId, *region));
   createLandEntities(parentId, *region, entities);
 
   return entities;
+}
+
+void TerrainBuilderImpl::reloadTerrainRegion(ResourceId regionId)
+{
+  TerrainRegion* region = nullptr;
+
+  {
+    SCOPED_LOCK(m_mutex);
+    region = &m_regions.at(regionId);
+  }
+
+  for (auto& piece : region->land) {
+    ASSERT(piece.entityId != NULL_ENTITY_ID,
+      "Error reloading terrain; Terrain piece entity does not exist");
+
+    m_ecs.removeEntity(piece.entityId);
+    constructTerrainPieceAsync(piece);
+  }
+
+  m_resourceManager.waitAll();
+
+  ASSERT(region->parentId != NULL_ENTITY_ID, "Error reloading terrain; Region parent ID not set");
+
+  std::vector<EntityId> entities;
+  createLandEntities(region->parentId, *region, entities);
 }
 
 MeshPtr TerrainBuilderImpl::constructLandMesh(const Texture& heightMap, const Recti& rect,
@@ -448,25 +480,22 @@ MeshPtr TerrainBuilderImpl::constructWaterMesh(const Vec2f& cellSize) const
   return mesh;
 }
 
-TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cellPath,
-  const XmlNode& xmlTerrainPiece) const
+void TerrainBuilderImpl::constructTerrainPieceAsync(TerrainPiece& piece) const
 {
   // TODO: Magic numbers. Parameterise.
   const int chunkPxW = 20;
   const int chunkPxD = 20;
 
-  TerrainPiece piece;
-  piece.inverted = xmlTerrainPiece.attribute("inverted") == "true";
-  piece.heightMapFile = xmlTerrainPiece.attribute("height_map");
+  piece.chunks.clear();
 
   //auto pieceDimensionsMetres = constructVec3f(*xmlTerrainPiece.child("dim"));
 
   //piece.position = metresToWorldUnits(constructVec3f(*xmlTerrainPiece.child("pos")));
   //piece.dimensions = metresToWorldUnits(pieceDimensionsMetres);
 
-  piece.transform = constructTransform(*xmlTerrainPiece.child("transform"));
-
   Vec3f dimensions = metresToWorldUnits(Vec3f{ 1.f, 1.f, 1.f });
+
+  const auto cellPath = fs::path{m_worldName} / cellName(piece.cellX, piece.cellY);
 
   auto heightMapTextureData = m_paths.worldsDir->readFile(cellPath / piece.heightMapFile);
   auto heightMapTexture = render::loadGreyscaleTexture(heightMapTextureData);
@@ -487,9 +516,6 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
     lastChunkPxD = heightMapD % chunkPxD;
   }
 
-  auto& xmlSplatMap = *xmlTerrainPiece.child("splat_map");
-  piece.splatMapFile = xmlSplatMap.attribute("file");
-
   render::MaterialFeatureSet materialFeatures{
     .flags = bitflag(render::MaterialFeatures::HasTexture)
   };
@@ -500,11 +526,8 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
     m_paths.worldsDir);
 
   int i = 0;
-  for (auto& textureXml : xmlSplatMap) {
+  for (auto& filePath : piece.splatTextures) {
     ASSERT(i < 4, "Too many splat textures");
-
-    fs::path filePath = textureXml.attribute("file");
-    piece.splatTextures[i++] = filePath;
     material->textures.push_back(m_renderResourceLoader.loadTextureAsync(filePath, true));
   }
 
@@ -552,6 +575,33 @@ TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(const fs::path& cell
       piece.chunks.push_back(chunk);
     }
   }
+}
+
+TerrainPiece TerrainBuilderImpl::constructTerrainPieceAsync(uint32_t x, uint32_t y,
+  const XmlNode& xmlTerrainPiece) const
+{
+  const auto cellPath = fs::path{m_worldName} / cellName(x, y);
+
+  TerrainPiece piece;
+  piece.cellX = x;
+  piece.cellY = y;
+  piece.inverted = xmlTerrainPiece.attribute("inverted") == "true";
+  piece.heightMapFile = xmlTerrainPiece.attribute("height_map");
+
+  piece.transform = constructTransform(*xmlTerrainPiece.child("transform"));
+
+  auto& xmlSplatMap = *xmlTerrainPiece.child("splat_map");
+  piece.splatMapFile = xmlSplatMap.attribute("file");
+
+  int i = 0;
+  for (auto& textureXml : xmlSplatMap) {
+    ASSERT(i < 4, "Too many splat textures");
+
+    fs::path filePath = textureXml.attribute("file");
+    piece.splatTextures[i++] = filePath;
+  }
+
+  constructTerrainPieceAsync(piece);
 
   return piece;
 }
@@ -581,14 +631,12 @@ ResourceHandle TerrainBuilderImpl::loadTerrainRegionAsync(uint32_t x, uint32_t y
   XmlNodePtr xmlTerrain)
 {
   auto loader = [this, x, y, xmlTerrain = std::move(xmlTerrain)](ResourceId id) mutable {
-    const auto cellPath = fs::path{m_worldName} / cellName(x, y);
-
     Vec2f cellSizeWorld = metresToWorldUnits(m_cellSizeMetres);
 
     TerrainRegion region;
 
     for (auto& xmlTerrainPiece : *xmlTerrain) {
-      region.land.push_back(constructTerrainPieceAsync(cellPath, xmlTerrainPiece));
+      region.land.push_back(constructTerrainPieceAsync(x, y, xmlTerrainPiece));
     }
 
     float waterLevel = metresToWorldUnits(std::stof(xmlTerrain->attribute("water_level")));

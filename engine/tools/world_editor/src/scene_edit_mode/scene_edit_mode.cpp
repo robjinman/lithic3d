@@ -211,7 +211,18 @@ std::vector<EntityIdAndType> SceneEditModeImpl::getEntities() const
 
 void SceneEditModeImpl::onKeyDown(KeyboardKey key)
 {
+  switch (key) {
+    case KeyboardKey::R: {
+      auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
+      Vec2i cell = cellFromPosition(camera.getPosition());
+      Vec3i slice{ cell[0], cell[1], 0 };
+      auto sliceId = m_worldState.slices.at(slice).handle.id();
+      m_core.engine().worldLoader().reloadTerrain(sliceId);
 
+      break;
+    }
+    default: break;
+  }
 }
 
 void SceneEditModeImpl::onKeyUp(KeyboardKey key)

@@ -57,6 +57,7 @@ class WorldLoaderImpl : public WorldLoader
     TerrainBuilder& terrainBuilder() const override;
     ResourceHandle loadCellSliceAsync(uint32_t x, uint32_t y, uint32_t sliceIdx) override;
     std::vector<EntityInfo> createEntities(ResourceId cellSliceId) override;
+    void reloadTerrain(ResourceId cellSliceId) override;
 
   private:
     Logger& m_logger;
@@ -123,6 +124,12 @@ TerrainBuilder& WorldLoaderImpl::terrainBuilder() const
 EntityId WorldLoaderImpl::root() const
 {
   return m_root;
+}
+
+void WorldLoaderImpl::reloadTerrain(ResourceId cellSliceId)
+{
+  auto& slice = m_cellSlices.at(cellSliceId);
+  m_terrainBuilder->reloadTerrainRegion(slice.terrain.id());
 }
 
 std::vector<EntityInfo> WorldLoaderImpl::createEntities(ResourceId cellSliceId)

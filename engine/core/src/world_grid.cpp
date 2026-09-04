@@ -44,6 +44,7 @@ class CellSlice
     void unload();
     void update();
     void wait();
+    ResourceId id() const;
 
     bool isUnloaded() const;
 
@@ -70,6 +71,11 @@ CellSlice::CellSlice(const SliceCoords& coords, WorldLoader& worldLoader, Ecs& e
   , m_ecs(ecs)
   , m_coords(coords)
 {}
+
+ResourceId CellSlice::id() const
+{
+  return m_handle.id();
+}
 
 void CellSlice::wait()
 {
@@ -186,6 +192,7 @@ class WorldGridImpl : public WorldGrid
       Logger& logger);
 
     void update(const Vec3f& cameraPos) override;
+    void reloadTerrain() override;
     void wait() override;
     void unloadAll() override;
     EntityId root() const override;
@@ -231,6 +238,13 @@ void WorldGridImpl::wait()
   for (auto& slice : m_slices) {
     slice.second.wait();
   }
+}
+
+void WorldGridImpl::reloadTerrain()
+{
+  int sliceIdx = 0; // TODO: Only reload slice zero?
+  SliceCoords slice{ m_lastGridPos[0], m_lastGridPos[1], sliceIdx };
+  m_worldLoader.reloadTerrain(m_slices.at(slice).id());
 }
 
 void WorldGridImpl::update(const Vec3f& cameraPos)

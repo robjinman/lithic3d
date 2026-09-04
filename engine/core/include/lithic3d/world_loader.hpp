@@ -47,6 +47,8 @@ class WorldLoader
     // Call only once handle returned by loadCellSliceAsync is ready
     virtual std::vector<EntityInfo> createEntities(ResourceId cellSliceId) = 0;
 
+    virtual void reloadTerrain(ResourceId cellSliceId) = 0;
+
     // To unload a cell slice, delete the entities first, then delete the slice handle
 
     virtual ~WorldLoader() = default;

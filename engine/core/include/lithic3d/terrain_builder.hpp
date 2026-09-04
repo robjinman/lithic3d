@@ -20,12 +20,13 @@ struct TerrainPiece
   Mat4x4f transform = identityMatrix<4>();
   std::vector<TerrainChunk> chunks;
 
-  // For editor
   EntityId entityId = NULL_ENTITY_ID;
   bool inverted = false;
   std::filesystem::path heightMapFile;
   std::filesystem::path splatMapFile;
   std::array<std::filesystem::path, 4> splatTextures;
+  uint32_t cellX = 0;
+  uint32_t cellY = 0;
 };
 
 class TerrainBuilder
@@ -38,6 +39,7 @@ class TerrainBuilder
     virtual std::vector<EntityId> createEntities(EntityId parentId, ResourceId regionId) = 0;
 
     virtual const TerrainPiece& getTerrainPiece(EntityId id) const = 0;
+    virtual void reloadTerrainRegion(ResourceId regionId) = 0;
 
     virtual ~TerrainBuilder() = default;
 };
