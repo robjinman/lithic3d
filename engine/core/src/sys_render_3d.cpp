@@ -583,7 +583,12 @@ void SysRender3dImpl::drawSkybox()
 
 size_t SysRender3dImpl::selectLod(float z, size_t lodLevels) const
 {
-  return std::min(static_cast<size_t>((z / m_drawDistance) * lodLevels), lodLevels - 1);
+  // Highest LOD number is lowest detail
+
+  // TODO: Different distance thresholds per mesh?
+
+  float maxDistance = m_drawDistance * 0.25f;
+  return std::min(static_cast<size_t>((z / maxDistance) * lodLevels), lodLevels - 1);
 }
 
 void SysRender3dImpl::drawModels(uint32_t visibilityFlag)
