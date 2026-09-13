@@ -785,7 +785,7 @@ bool dbg_isValidFrustum(const Frustum& f);
 using Rectf = Rect<float>;
 using Recti = Rect<int>;
 
-Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre);
+Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre, const Vec3f& up = { 0.f, 1.f, 0.f });
 Mat4x4f perspective(float fovY, float aspectRatio, float near, float far);
 Mat4x4f orthographic(float l, float r, float t, float b, float n, float f);
 bool lineIntersect(const Line& l1, const Line& l2, Vec2f& p);

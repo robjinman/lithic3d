@@ -209,6 +209,7 @@ KeyboardKey mapToLithic3dKey(int code)
     case WXK_DOWN: return KeyboardKey::Down;
     case WXK_UP: return KeyboardKey::Up;
     case WXK_CONTROL: return KeyboardKey::CtrlLeft;
+    case WXK_SHIFT: return KeyboardKey::ShiftLeft;
     default: return KeyboardKey::Unknown;
   }
 }
@@ -219,7 +220,7 @@ void MainWindowImpl::onCanvasKeyDown(wxKeyEvent& e)
     return;
   }
 
-  e.Skip();
+  //e.Skip();
 
   auto key = mapToLithic3dKey(e.GetKeyCode());
   m_core->onKeyDown(key);
@@ -232,7 +233,7 @@ void MainWindowImpl::onCanvasKeyUp(wxKeyEvent& e)
     return;
   }
 
-  e.Skip();
+  //e.Skip();
 
   auto key = mapToLithic3dKey(e.GetKeyCode());
   m_core->onKeyUp(key);

@@ -221,13 +221,29 @@ void SceneEditModeImpl::onKeyDown(KeyboardKey key)
 
       break;
     }
+    case KeyboardKey::Up: {
+      m_core.lookAt(m_selectedEntityId, { 0.f, 0.f, 1.f });
+      break;
+    }
+    case KeyboardKey::Down: {
+      m_core.lookAt(m_selectedEntityId, { 0.f, 0.f, -1.f });
+      break;
+    }
+    case KeyboardKey::Left: {
+      m_core.lookAt(m_selectedEntityId, { -1.f, 0.f, 0.f });
+      break;
+    }
+    case KeyboardKey::Right: {
+      m_core.lookAt(m_selectedEntityId, { 1.f, 0.f, 0.f });
+      break;
+    }
     default: break;
   }
 }
 
 void SceneEditModeImpl::onKeyUp(KeyboardKey key)
 {
-  
+  m_core.onKeyUp(key);
 }
 
 void SceneEditModeImpl::onMouseLeftBtnDown()
@@ -244,13 +260,21 @@ void SceneEditModeImpl::onMouseMove(float x, float y)
 {
   auto& inputState = m_core.inputState();
 
-  if (inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
-    float speed = 3.f;
-    float dx = x - m_prevMousePos[0];
-    float dy = y - m_prevMousePos[1];
+  float dx = x - m_prevMousePos[0];
+  float dy = y - m_prevMousePos[1];
 
-    auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
-    camera.rotate(-dy * speed, dx * speed);
+  if (inputState.mouseButtonsPressed.contains(MouseButton::Left)) {
+    if (inputState.keysPressed.contains(KeyboardKey::CtrlLeft)) {
+      m_core.displaceCursor(Vec2f{ dx, -dy }.normalise());
+    }
+    else {
+      float speed = 3.f;
+
+      auto& camera = m_core.engine().ecs().system<SysRender3d>().camera();
+      camera.rotate(-dy * speed, dx * speed);
+
+      m_core.recentreCursor();
+    }
   }
 
   m_prevMousePos = { x, y };

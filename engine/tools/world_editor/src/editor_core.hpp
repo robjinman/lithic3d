@@ -4,6 +4,7 @@
 #include <lithic3d/math.hpp>
 #include <lithic3d/input.hpp>
 #include <lithic3d/game.hpp>
+#include <lithic3d/entity_id.hpp>
 #include <memory>
 #include <filesystem>
 #include <vector>
@@ -33,10 +34,14 @@ class EditorCore
     virtual const lithic3d::Vec3f& getCursorScale() const = 0;
     virtual lithic3d::Mat4x4f getCursorTransform() const = 0;
 
+    virtual void lookAt(lithic3d::EntityId entityId, const lithic3d::Vec3f& dir) = 0;
+
     virtual void setCursorDistance(float worldUnits) = 0;
     virtual void setCursorRotation(const lithic3d::Vec3f& ori) = 0;
     virtual void setCursorScale(const lithic3d::Vec3f& scale) = 0;
     virtual void setCursorRotationScale(const lithic3d::Mat3x3f& m) = 0;
+    virtual void displaceCursor(lithic3d::Vec2f dir) = 0;
+    virtual void recentreCursor() = 0;
 
     virtual void onKeyDown(lithic3d::KeyboardKey key) = 0;
     virtual void onKeyUp(lithic3d::KeyboardKey key) = 0;

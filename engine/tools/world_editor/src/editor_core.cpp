@@ -35,6 +35,10 @@ class EditorCoreImpl : public EditorCore
     void setCursorRotation(const Vec3f& ori) override;
     void setCursorScale(const Vec3f& scale) override;
     void setCursorRotationScale(const Mat3x3f& m) override;
+    void displaceCursor(Vec2f dir) override;
+    void recentreCursor() override;
+
+    void lookAt(EntityId entityId, const Vec3f& dir) override;
 
     void onKeyDown(KeyboardKey key) override;
     void onKeyUp(KeyboardKey key) override;
@@ -71,8 +75,10 @@ class EditorCoreImpl : public EditorCore
     GameConfig m_config;
     EventEmitterPtr m_eventEmitter;
     InputState m_inputState;
+    bool m_cursorLockedToCentre = true; // TODO: Replace with state enum?
+    Vec3f m_cursorDisplacement = { 0.f, 0.f, 0.f };
     EntityId m_cursorId = NULL_ENTITY_ID;
-    Vec3f m_activeScale = Vec3f{ 1.f, 1.f, 1.f };
+    Vec3f m_activeScale = { 1.f, 1.f, 1.f };
     Mat3x3f m_activeRotation = identityMatrix<3>();
     float m_activeTranslation = metresToWorldUnits(10.f);
     std::map<std::string, ResourceHandle> m_prefabs;
@@ -146,9 +152,29 @@ const Vec3f& EditorCoreImpl::getCursorScale() const
 Mat4x4f EditorCoreImpl::getCursorTransform() const
 {
   auto& camera = m_engine->ecs().system<SysRender3d>().camera();
-  auto translation = camera.getPosition() + camera.getDirection() * m_activeTranslation;
+  auto& camPos = camera.getPosition();
+  auto& camDir = camera.getDirection();
+
+  auto translation = camPos + camDir * m_activeTranslation + m_cursorDisplacement;
+
   return translationMatrix4x4(translation) * rotationMatrix4x4(m_activeRotation) *
     scaleMatrix4x4(m_activeScale);
+}
+
+void EditorCoreImpl::lookAt(EntityId entityId, const Vec3f& dir)
+{
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+  auto& sysSpatial = m_engine->ecs().system<SysSpatial>();
+
+  auto& camera = sysRender3d.camera();
+
+  auto d = dir.normalise();
+  auto entityPos = getTranslation(sysSpatial.getGlobalTransform(entityId));
+
+  camera.setPosition(entityPos - d * m_activeTranslation);
+  camera.setDirection(d);
+
+  positionCursor();
 }
 
 std::vector<std::string> EditorCoreImpl::listPrefabs() const
@@ -214,6 +240,30 @@ void EditorCoreImpl::setCursorScale(const Vec3f& scale)
   m_activeScale = scale;
 
   m_eventEmitter->raise(static_cast<EventId>(Event::CursorMove));
+}
+
+void EditorCoreImpl::displaceCursor(Vec2f dir)
+{
+  auto& sysRender3d = m_engine->ecs().system<SysRender3d>();
+  auto& camera = sysRender3d.camera();
+
+  auto& z = camera.getDirection();
+  Vec3f x = z.cross({ 0.f, 1.f, 0.f });
+  Vec3f y = x.cross(z);
+
+  float speed = m_activeTranslation * 0.002f;  // TODO: Tweak
+
+  Vec3f delta = x * dir[0] + y * dir[1];
+  delta = delta.normalise() * speed;
+
+  m_cursorDisplacement += delta;
+  m_cursorLockedToCentre = false;
+}
+
+void EditorCoreImpl::recentreCursor()
+{
+  m_cursorLockedToCentre = true;
+  m_cursorDisplacement = { 0.f, 0.f, 0.f };
 }
 
 void EditorCoreImpl::constructCursor()
@@ -321,7 +371,7 @@ void EditorCoreImpl::positionCursor()
   auto camPos = camera.getPosition();
   auto camDir = camera.getDirection();
 
-  Vec3f translation = camPos + camDir * m_activeTranslation;
+  Vec3f translation = camPos + camDir * m_activeTranslation + m_cursorDisplacement;
 
   auto transform = translationMatrix4x4(translation) * rotationMatrix4x4(m_activeRotation) *
     scaleMatrix4x4(m_activeScale);

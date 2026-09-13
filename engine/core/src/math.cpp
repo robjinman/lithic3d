@@ -180,11 +180,11 @@ std::vector<uint16_t> triangulatePoly(const std::vector<Vec3f>& vertices)
 }
 
 // World and view space are right-handed. Use right-hand rule to calculate cross products.
-Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre)
+Mat4x4f lookAt(const Vec3f& eye, const Vec3f& centre, const Vec3f& up)
 {
   Mat4x4f m = identityMatrix<4>();
   Vec3f z = (eye - centre).normalise();
-  Vec3f x = -z.cross({ 0, 1, 0 }).normalise();
+  Vec3f x = -z.cross(up).normalise();
   Vec3f y = z.cross(x).normalise();
   m.set(0, 0, x[0]);
   m.set(0, 1, x[1]);
